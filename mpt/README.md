@@ -56,8 +56,15 @@ Go, Java, TypeScript, Kotlin, Swift, and Zig, plus J and Julia.
 
 | Source unit | Tokens |
 | --- | ---: |
-| Identifier, type name, or numeric literal | 1 |
-| Complete quoted string literal | 1 |
+| Identifier or type name outside a string (e.g. `real32`) | 1 |
+| Each decimal digit, including in signed and multi-digit numeric literals | 1 per digit |
+| Hexadecimal digit (`0`-`9`, `A`-`F`) within a `0x` numeric literal | 1 per digit |
+| Numeric punctuation/signs (e.g. `-`, `_`, `.`) | 1 per mark |
+| Opening and closing string delimiters | 1 each (also for triple/raw delimiters) |
+| String-literal prefix (`r`, `f`, `u8R`, etc.) | 1 |
+| Consecutive ASCII letters *inside* a string (e.g. `Hello`) | 1 per run |
+| Each digit, punctuation mark, or ordinary space *inside* a string | 1 each |
+| Non-ASCII text inside strings | 1 per Unicode code point |
 | Single operator or delimiter (`+`, `(`, `]`) | 1 |
 | Recognized multi-character operator (`>=`, `*:`, `.^`) | 1 |
 | Composed operators such as J's `+/` | 2 (`+` and `/`) |
@@ -65,6 +72,13 @@ Go, Java, TypeScript, Kotlin, Swift, and Zig, plus J and Julia.
 | Leading indentation: four ASCII spaces | 1 per group of four |
 | Leading indentation: six ASCII spaces | 3 (one group + two spaces) |
 | Line ending (LF, CRLF, or CR) | 1 |
+
+Examples: `137` = 3 tokens, `-137` = 4, `"Hello"` = 3,
+`"Hello World"` = 5, `"ABC123"` = 6, and `"Hello, World!"` = 7.
+The literal contents are counted from their **source spelling**, so backslash
+escapes and interpolation punctuation are not interpreted or expanded.
+For all source files, digits are separate tokens while ordinary identifiers
+(including alphanumeric names such as `real32`) remain whole tokens.
 
 Whitespace is counted, including blank lines and the final newline if present.
 Comments are **not discarded**; for fair comparisons, remove nonessential

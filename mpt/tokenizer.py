@@ -87,8 +87,6 @@ RE_NUMBER = re.compile(r"""
       |(?:_[A-Za-z][A-Za-z_0-9]*)
     )?
 """, re.VERBOSE)
-RE_J_NEGATIVE = re.compile(r"_[0-9][0-9_']*(?:\.[0-9_']+)?(?:[eE](?:[+-]|_)?[0-9_']+)?(?:[xrj][0-9_]*)?")
-
 
 @dataclass(frozen=True, slots=True)
 class Token:
@@ -132,39 +130,51 @@ def _quoted_end(source: str, quote_start: int, opener: str, closer: str | None =
     return None
 
 
-def _literal_end(source: str, i: int) -> int | None:
-    """Language-neutral union of widely-used literal spellings."""
+def _literal_regions(source: str, i: int) -> tuple[int, int, int, int] | None:
+    """Return (prefix_end, opener_end, closer_start, end) for a literal.
+
+    Delimiters count as one token each, and a literal prefix (e.g. r, f,
+    u8R) as one token. The content is tokenized without interpreting its
+    syntax, so text such as "ABC123" is not one indivisible token.
+    """
     m = RE_CPP_RAW.match(source, i)
     if m:
         closer = ")" + m.group(1) + '"'
-        end = source.find(closer, m.end())
-        return end + len(closer) if end != -1 else None
+        close_start = source.find(closer, m.end())
+        if close_start != -1:
+            return source.index('"', i, m.end()), m.end(), close_start, close_start + len(closer)
+        return None
 
     m = RE_HASH_QUOTE.match(source, i)
     if m:
         closer = m.group(2) + m.group(1)
-        end = source.find(closer, m.end())
-        return end + len(closer) if end != -1 else None
+        close_start = source.find(closer, m.end())
+        if close_start != -1:
+            return m.start(1), m.end(), close_start, close_start + len(closer)
+        return None
 
     m = RE_STR_PREFIX.match(source, i)
     if not m:
         return None
-    quote = m.group(1)
-    prefix_len = m.end() - i - len(quote)
-    # Julia's postfix conjugate transpose is not a quoted character literal.
-    if prefix_len == 0 and quote == "'" and i > 0 and (source[i-1].isalnum() or source[i-1] in ")]}"):
+    opener = m.group(1)
+    prefix_end = m.end() - len(opener)
+    # Julia's postfix conjugate transpose is not a quoted literal.
+    if prefix_end == i and opener == "'" and i > 0 and (source[i-1].isalnum() or source[i-1] in ")]}"):
         return None
-    return _quoted_end(source, i + prefix_len, quote)
+    end = _quoted_end(source, prefix_end, opener)
+    if end is None:
+        return None
+    return prefix_end, m.end(), end - len(opener), end
 
 
 def tokenize(source: str) -> list[Token]:
-    """Split source into lexical tokens, including whitespace.
+    """Split source into tokens under one language-independent rule set.
 
-    A run of four leading ASCII spaces is one INDENT token. Eight is two.
-    Any remaining leading spaces count one each. Every other space/tab is one.
-    LF (also normalized CRLF/CR) is one token, including blank lines.
-    One quoted literal counts as one token, regardless of its length.
-    Comments are counted as source text, not interpreted.
+    Each numeric digit is a token; an identifier outside strings remains one.
+    Inside strings, consecutive ASCII letters form one token, while digits,
+    punctuation and spaces are split normally. String delimiters are tokens.
+    Four leading ASCII spaces count as one indentation token; LF and blank
+    lines count as tokens as well. Comments are counted, not discarded.
     """
     source = source.replace("\r\n", "\n").replace("\r", "\n")
     if source.startswith("\ufeff"):
@@ -173,6 +183,9 @@ def tokenize(source: str) -> list[Token]:
     at_line_start = True
     n = len(source)
     tokens: list[Token] = []
+    # An active literal's content stops strictly before its closing delimiter.
+    literal_close_start: int | None = None
+    literal_end: int | None = None
 
     def emit(kind: str, end: int) -> None:
         nonlocal i, line, column, at_line_start
@@ -190,12 +203,18 @@ def tokenize(source: str) -> list[Token]:
         i = end
 
     while i < n:
+        if literal_close_start is not None and i == literal_close_start:
+            assert literal_end is not None
+            emit("quote", literal_end)
+            literal_close_start = literal_end = None
+            continue
+
         ch = source[i]
         if ch == "\n":
             emit("newline", i + 1)
             continue
         if at_line_start and ch == " ":
-            if source.startswith("    ", i):
+            if source.startswith("    ", i) and (literal_close_start is None or i + 4 <= literal_close_start):
                 emit("indent4", i + 4)
             else:
                 emit("space", i + 1)
@@ -204,9 +223,28 @@ def tokenize(source: str) -> list[Token]:
             emit("space", i + 1)
             continue
 
-        end = _literal_end(source, i)
-        if end is not None:
-            emit("literal", end)
+        if literal_close_start is not None:
+            # Literal content is *data*, not code: do not parse nested quotes,
+            # identifiers with numeric suffixes, or language keywords here.
+            if ch.isascii() and ch.isalpha():
+                end = i + 1
+                while end < literal_close_start and source[end].isascii() and source[end].isalpha():
+                    end += 1
+                emit("word", end)
+                continue
+            if ch.isdecimal():
+                emit("digit", i + 1)
+                continue
+            # Symbols, including escaped quotes, are individual source marks.
+            emit("symbol", i + 1)
+            continue
+
+        bounds = _literal_regions(source, i)
+        if bounds is not None:
+            prefix_end, opener_end, literal_close_start, literal_end = bounds
+            if prefix_end > i:
+                emit("literal_prefix", prefix_end)
+            emit("quote", opener_end)
             continue
 
         # J's for_i. and i. / NB. / if. are global lexical atoms.
@@ -225,16 +263,43 @@ def tokenize(source: str) -> list[Token]:
         if matched:
             continue
 
-        if ch == "_" and i + 1 < n and source[i+1].isdigit():
-            m = RE_J_NEGATIVE.match(source, i)
-            if m:
-                emit("number", m.end())
-                continue
-        if ch.isdigit() or (ch == "." and i + 1 < n and source[i + 1].isdigit()):
+        # Recognize the whole numeric spelling, but emit each digit as its
+        # own token. Otherwise a suffix such as e12, xFF or u64 would be
+        # mistaken for an ordinary alphanumeric identifier.
+        if ch.isdecimal() or (ch == "." and i + 1 < n and source[i + 1].isdecimal()):
             m = RE_NUMBER.match(source, i)
             if m:
-                emit("number", m.end())
+                number_end = m.end()
+                hex_literal = source.startswith(("0x", "0X"), i)
+                hex_part = hex_literal
+                hex_offset = i + 2
+                while i < number_end:
+                    digit = source[i]
+                    if hex_part and i >= hex_offset and digit in "0123456789abcdefABCDEF":
+                        emit("digit", i + 1)
+                    elif digit.isdecimal():
+                        emit("digit", i + 1)
+                    elif digit.isascii() and digit.isalpha():
+                        word_end = i + 1
+                        while word_end < number_end and source[word_end].isascii() and source[word_end].isalpha():
+                            if hex_part and word_end >= hex_offset and source[word_end] in "abcdefABCDEF":
+                                break
+                            word_end += 1
+                        emit("numeric_word", word_end)
+                        if hex_part and digit in "pP":
+                            hex_part = False  # hexadecimal exponent follows
+                        elif hex_part and digit not in "xX":
+                            hex_part = False  # ordinary numeric suffix follows
+                    else:
+                        emit("numeric_symbol", i + 1)
                 continue
+            emit("digit", i + 1)
+            continue
+        # J uses _ for negative numeric literals; Python identifiers like
+        # _137 consequently follow exactly the same neutral textual rules.
+        if ch == "_" and i + 1 < n and source[i + 1].isdecimal():
+            emit("symbol", i + 1)
+            continue
 
         if _id_start(ch):
             end = i + 1
@@ -243,7 +308,7 @@ def tokenize(source: str) -> list[Token]:
             emit("identifier", end)
             continue
 
-        # Julia permits broadcast of a Unicode operator, e.g. .⊗ .√ .∈.
+        # Julia permits broadcast of Unicode operators, e.g. .⊗ .√ .∈.
         # The same lexical rule is applied to *all* supported languages.
         if ch == "." and i + 1 < n:
             next_cat = unicodedata.category(source[i + 1])
@@ -261,7 +326,6 @@ def tokenize(source: str) -> list[Token]:
                 break
         if matched:
             continue
-        # Unicode math operators, punctuation, standalone delimiter, etc.
         emit("symbol", i + 1)
 
     return tokens
@@ -276,6 +340,7 @@ COLORS = (
 
 CSS = """
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:16px;background:#f6f7f9;color:#1c2430}
 .program{overflow-x:auto;margin-bottom:20px;padding:10px 0;background:#fff;
          border:1px solid #e5e7eb}
@@ -286,6 +351,7 @@ body{margin:16px;background:#f6f7f9;color:#1c2430}
         background:#fff;color:#8b919c;border-right:1px solid #e5e7eb}
 .code{padding:0 .75em;white-space:pre}
 .token{white-space:pre;border-radius:1px}
+.line,.number,.code,.token{font-size:14px;line-height:1.65}
 """
 
 

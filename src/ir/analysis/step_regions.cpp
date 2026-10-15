@@ -498,10 +498,10 @@ private:
                    std::vector<RegionState> &states) {
     std::set<StorageClassId> written;
     std::set<std::string> written_locals;
-    for (const auto site : owned)
+    for (const auto& site : owned)
       written_locals.insert(info_.at(site).local_writes.begin(),
                             info_.at(site).local_writes.end());
-    for (const auto site : owned)
+    for (const auto& site : owned)
       for (const auto value : info_.at(site).writes) {
         work_.take();
         const auto *storage = aliases_.find(value);
@@ -522,7 +522,7 @@ private:
                                  &tensors_,
                                  module_.fact_sources.get(),
                                  {{region_id, *scope.sites[set.entry], {}}}};
-      for (const auto site : owned)
+      for (const auto& site : owned)
         inputs.regions[0].instructions.push_back({site.first, site.second});
       invariant = loop_invariants(fn_, cfg_, cache_.dominators(function_),
                                   nest_, inputs);
@@ -532,7 +532,7 @@ private:
       if (!slots_.promotable(name))
         return false;
       bool declared_inside = false;
-      for (const auto site : owned) {
+      for (const auto& site : owned) {
         const auto *declaration = std::get_if<DeclareLocal>(
             &fn_.blocks[site.first].instructions[site.second]);
         declared_inside |= declaration && declaration->name == name;
@@ -774,7 +774,7 @@ private:
       region.exit = scope.sites[set.exit];
       region.finite_exit_only = true;
       const auto owned = members(scope, set);
-      for (const auto site : owned) {
+      for (const auto& site : owned) {
         region.instructions.push_back({site.first, site.second});
         const auto &info = info_.at(site);
         region.operations.insert(region.operations.end(),

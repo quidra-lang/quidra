@@ -351,26 +351,44 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     const bool explicit_step = flag(5);
     const bool ascending_marker = flag(6);
     const bool descending_marker = flag(7);
-    const auto integer = Type::simple(TypeKind::Int64);
+    // Range bounds may use arbitrary-precision int/nat. The materialized
+    // element type controls only checked storage conversions, never the
+    // precision of iteration and endpoint comparisons.
+    const auto integer = Type::simple(TypeKind::Int);
+    const auto native_integer = Type::simple(TypeKind::Int64);
     const auto boolean = Type::simple(TypeKind::Bool);
     const auto array_type = checked_.raw_types.at(&e);
     const auto element_type = *array_type.first;
     const SourcePosition site{
         static_cast<std::uint32_t>(e.span.start.line),
         static_cast<std::uint32_t>(e.span.start.column)};
-    auto start = lowerer_.lower_int64(*n.args[0].value);
-    auto stop = lowerer_.lower_int64(*n.args[1].value);
+    const auto exact = [&](ValueId value, const Type& from) {
+        if (from == integer) return value;
+        auto result = builder_.fresh();
+        builder_.emit(NumericConvert{result, value, from, integer, true, site});
+        return result;
+    };
+    const auto bound = [&](const Expr& source) {
+        auto value = lowerer_.lower(source);
+        auto converted = exact(value, type_of(checked_, source));
+        if (converted != value) lifetime_.release_temporary(source, value);
+        return converted;
+    };
+    auto start = bound(*n.args[0].value);
+    auto stop = bound(*n.args[1].value);
     auto descending = builder_.fresh();
     builder_.emit(Binary{descending, ">", start, stop, integer, boolean});
     ValueId direction = descending;
     if (ascending_marker) direction = builder_.const_bool(false);
     if (descending_marker) direction = builder_.const_bool(true);
-    auto plus_one = builder_.const_int(1);
-    auto minus_one = builder_.const_int(-1);
+    auto plus_one = builder_.fresh();
+    auto minus_one = builder_.fresh();
+    builder_.emit(ConstantExact{plus_one, "1", integer});
+    builder_.emit(ConstantExact{minus_one, "-1", integer});
     const auto step_slot = builder_.hidden("range.step");
     scope_.local_type(step_slot) = integer;
     if (explicit_step) {
-        auto value = lowerer_.lower_int64(*n.args[2].value);
+        auto value = bound(*n.args[2].value);
         builder_.emit(StoreLocal{step_slot, value, integer});
     } else {
         const auto asc = builder_.label("range.step.asc");
@@ -387,6 +405,12 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     }
     auto step = builder_.fresh();
     builder_.emit(LoadLocal{step, step_slot, integer});
+    // The existing slice/for run-time step validator uses an int64 sign.
+    // Converting an outsized explicit step reports the range error rather
+    // than silently truncating it; all endpoint arithmetic remains exact.
+    auto checked_step = builder_.fresh();
+    builder_.emit(NumericConvert{
+        checked_step, step, integer, native_integer, true, site});
     {
         // ForStepCheck rejects a zero or direction-incompatible explicit
         // step and also protects variable endpoints at run time.
@@ -395,10 +419,10 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
         const auto merge = builder_.label("range.check.end");
         builder_.emit(Branch{descending, desc, asc});
         builder_.enter(builder_.add_block(desc));
-        builder_.emit(ForStepCheck{step, true, site});
+        builder_.emit(ForStepCheck{checked_step, true, site});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(asc));
-        builder_.emit(ForStepCheck{step, false, site});
+        builder_.emit(ForStepCheck{checked_step, false, site});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(merge));
     }
@@ -443,9 +467,7 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     auto index = builder_.fresh();
     builder_.emit(LoadLocal{index, index_slot, integer});
     auto value = index;
-    if (element_type.kind == TypeKind::Int) {
-        value = lowerer_.bare_from_int64(index, element_type, true);
-    } else if (element_type != integer) {
+    if (element_type != integer) {
         value = builder_.fresh();
         builder_.emit(NumericConvert{
             value, index, integer, element_type, true, site});

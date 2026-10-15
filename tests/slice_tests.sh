@@ -326,6 +326,18 @@ print(input.grad[0].item() == real32(0) and
       input.grad[1].item() == real32(1) and
       input.grad[2].item() == real32(0))
 QUI
+# Exact integer ranges retain values beyond int64 when their output is
+# short; the length is limited by memory, not the magnitude of endpoints.
+expect range-exact-large "true" <<'QUI'
+int[] values = 18446744073709551616:18446744073709551618
+int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+print(values == expected)
+QUI
+expect range-exact-large-nat "true" <<'QUI'
+nat[] values = 9223372036854775808:9223372036854775809
+nat[] expected = [9223372036854775808, 9223372036854775809]
+print(values == expected)
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

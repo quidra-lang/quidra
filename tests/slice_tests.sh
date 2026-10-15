@@ -311,7 +311,7 @@ expect tensor-boolean-mask-empty "true" <<'QUI'
 tensor<real32> input = tensor.zeros<real32>([3])
 tensor<bool> mask = input > real32(0)
 tensor<real32> selected = input[mask]
-nat[] expected_shape = [0]
+nat[1] expected_shape = [0]
 print(selected.shape() == expected_shape)
 QUI
 expect tensor-boolean-mask-autograd "true" <<'QUI'

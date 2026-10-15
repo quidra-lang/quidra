@@ -3646,6 +3646,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         check_static_slice_bounds(base, item, expression.span);
         return Type::array(*base.first);
     }
+    bool checked_array_scalar_index = false;
     if (base.kind == TypeKind::Array && node->items.size() == 1 &&
         !node->items.front().slice && node->items.front().index) {
         const auto& selector = *node->items.front().index;
@@ -3682,9 +3683,9 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                   selector.span);
             return simple(TypeKind::Invalid);
         }
-        check_static_index_bounds(base, selector);
-        check_element_read(*node->base, &selector, expression.span);
-        return *base.first;
+        // Preserve the original scalar read flow (including class/tuple
+        // initialization proofs and ordinary index checks below).
+        checked_array_scalar_index = true;
     }
     if (node->items.size() != 1 || node->items.front().slice ||
         !node->items.front().index) {
@@ -3692,7 +3693,8 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
             if (item.slice) check_slice_item(item);
         error("INDEX_ARITY", "Arrays and strings take one index or one slice.", expression.span);
     }
-    check_index_operand(*node->items.front().index);
+    if (!checked_array_scalar_index)
+        check_index_operand(*node->items.front().index);
     check_static_index_bounds(base, *node->items.front().index);
     if (base.kind == TypeKind::Array) {
         check_element_read(*node->base, node->items.front().index.get(), expression.span);

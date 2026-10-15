@@ -44,6 +44,7 @@ private:
     std::optional<ValueId> lower_ascii_character_test(const BinaryExpr& n);
     ValueId lower_string_concatenation(const Expr& e);
     ValueId lower_short_circuit(const BinaryExpr& n);
+    ValueId lower_array_elementwise(const Expr& e, const BinaryExpr& n);
     ValueId lower_operator_tree(const Expr& e);
 
     Lowerer& lowerer_;

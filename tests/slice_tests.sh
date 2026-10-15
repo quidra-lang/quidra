@@ -145,6 +145,36 @@ int[] values = [1, 2, 3]
 bool[] mask = [true, false, true]
 values[mask] = [8, 9]
 QUI
+# Elementwise arithmetic and comparisons preserve values and shape.
+expect arithmetic-basic "true" <<'QUI'
+int[] a = [1, 2, 3]
+int[] b = [4, 5, 6]
+int[] plus = [5, 7, 9]
+int[] times = [4, 10, 18]
+int[] squares = [1, 4, 9]
+int[] scalar = [6, 7, 8]
+print(a + b == plus and a * b == times and a ^ 2 == squares and
+      a + 5 == scalar and 5 + a == scalar and a[0] == 1)
+QUI
+expect arithmetic-nested "true" <<'QUI'
+int[][] a = [[1, 2], [3, 4]]
+int[][] b = [[5, 6], [7, 8]]
+int[][] expected = [[6, 8], [10, 12]]
+print(a + b == expected)
+QUI
+expect arithmetic-comparisons "true" <<'QUI'
+int[] a = [-2, 3, 0, 4]
+bool[] positive = [false, true, false, true]
+bool[] nonpositive = [true, false, true, false]
+int[] b = [0, 1, 2, 3]
+bool[] less = [true, false, true, false]
+print((a > 0) == positive and (a <= 0) == nonpositive and (a < b) == less)
+QUI
+rejects arithmetic-static-shape ARRAY_SHAPE "identical lengths" <<'QUI'
+int[2] a = [1, 2]
+int[3] b = [3, 4, 5]
+print(a + b)
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

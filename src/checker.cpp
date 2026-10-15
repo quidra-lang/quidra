@@ -7737,6 +7737,12 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         Type right;
         const auto scalar_context = [](const Type& other) -> const Type* {
             if (is_numeric(other)) return &other;
+            if (other.kind == TypeKind::Array) {
+                const Type* leaf = &other;
+                while (leaf->kind == TypeKind::Array && leaf->first)
+                    leaf = leaf->first.get();
+                if (is_numeric(*leaf)) return leaf;
+            }
             if (other.kind == TypeKind::Tensor &&
                 other.first && is_numeric(*other.first)) {
                 return other.first.get();
@@ -7773,6 +7779,18 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 error("AMBIGUOUS_NUMERIC_LITERAL",
                       "A complex literal requires a complex type context.", expression.span);
             }
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
+                   std::holds_alternative<ArrayExpr>(node->right->data) &&
+                   (node->op == "<" || node->op == "<=" ||
+                    node->op == ">" || node->op == ">=") &&
+                   expected == nullptr) {
+            // Both operands contain unsized integer literals: a comparison
+            // has no result-element context from which to infer their type.
+            // The only independent integer-literal array comparison is
+            // evaluated at exact int (never by an implicit numeric cast).
+            const auto index_context = Type::array(simple(TypeKind::Int));
+            left = check_expr(*node->left, &index_context);
+            right = check_expr(*node->right, &index_context);
         } else if (left_literal && right_literal) {
             if (integer_category(left_family) != integer_category(right_family)) {
                 error("NUMERIC_FAMILY",
@@ -7808,6 +7826,22 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         } else if (right_literal) {
             left = check_expr(*node->left);
             right = check_expr(*node->right, scalar_context(left));
+        } else if (std::holds_alternative<ArrayExpr>(node->right->data)) {
+            left = check_expr(*node->left);
+            if (left.kind == TypeKind::Array)
+                right = check_expr(*node->right, &left);
+            else if (is_numeric(left)) {
+                const auto array_context = Type::array(left);
+                right = check_expr(*node->right, &array_context);
+            } else right = check_expr(*node->right);
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data)) {
+            right = check_expr(*node->right);
+            if (right.kind == TypeKind::Array)
+                left = check_expr(*node->left, &right);
+            else if (is_numeric(right)) {
+                const auto array_context = Type::array(right);
+                left = check_expr(*node->left, &array_context);
+            } else left = check_expr(*node->left);
         } else {
             left = check_expr(*node->left);
             right = check_expr(*node->right);
@@ -7919,6 +7953,93 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 type = tensor_result;
             }
+        } else if ((left.kind == TypeKind::Array ||
+                    right.kind == TypeKind::Array) &&
+                   node->op != "==" && node->op != "!=") {
+            const bool pair = left.kind == TypeKind::Array &&
+                              right.kind == TypeKind::Array;
+            const Type* lhs = &left;
+            const Type* rhs = &right;
+            bool valid = true;
+            if (pair) {
+                // Array/array operands must have identical ranks and shapes;
+                // static lengths are proven at every known nesting level.
+                while (lhs->kind == TypeKind::Array || rhs->kind == TypeKind::Array) {
+                    if (lhs->kind != TypeKind::Array ||
+                        rhs->kind != TypeKind::Array) {
+                        error("ARRAY_SHAPE",
+                              "Elementwise array operations require identical array ranks.",
+                              expression.span);
+                        valid = false;
+                        break;
+                    }
+                    if (lhs->length >= 0 && rhs->length >= 0 &&
+                        lhs->length != rhs->length) {
+                        error("ARRAY_SHAPE",
+                              "Elementwise array operations require identical lengths.",
+                              expression.span);
+                        valid = false;
+                    }
+                    lhs = lhs->first.get();
+                    rhs = rhs->first.get();
+                }
+            } else {
+                while (lhs->kind == TypeKind::Array && lhs->first)
+                    lhs = lhs->first.get();
+                while (rhs->kind == TypeKind::Array && rhs->first)
+                    rhs = rhs->first.get();
+            }
+            const bool relational = node->op == "<" || node->op == "<=" ||
+                                    node->op == ">" || node->op == ">=";
+            const bool arithmetic = node->op == "+" || node->op == "-" ||
+                                    node->op == "*" || node->op == "/" ||
+                                    node->op == "%" || node->op == "^";
+            if (!relational && !arithmetic) {
+                error("TYPE_MISMATCH",
+                      "Array operators are +, -, *, /, %, ^ and the four ordering comparisons.",
+                      expression.span);
+                valid = false;
+            }
+            if (*lhs != *rhs || !is_numeric(*lhs) ||
+                (relational && is_complex(*lhs)) ||
+                (node->op == "%" && !is_integer_family_type(*lhs))) {
+                error("TYPE_MISMATCH",
+                      "Array elementwise operators require identical compatible numeric leaf types.",
+                      expression.span);
+                valid = false;
+            }
+            if (node->op == "^" &&
+                (left.kind != TypeKind::Array || right.kind == TypeKind::Array ||
+                 lhs->kind == TypeKind::Com)) {
+                error("TYPE_MISMATCH",
+                      "Array exponentiation is defined only as array ^ scalar.",
+                      expression.span);
+                valid = false;
+            }
+            if (node->op == "^" && is_integer_family_type(*lhs)) {
+                const auto exponent = constant_eval::integer(*node->right);
+                if (exponent && *exponent < 0) {
+                    error("POWER_DOMAIN", "Integer array exponent must be non-negative.",
+                          node->right->span);
+                    valid = false;
+                }
+            }
+            std::function<Type(const Type&, const Type&)> result_type;
+            result_type = [&](const Type& a, const Type& b) -> Type {
+                if (a.kind == TypeKind::Array || b.kind == TypeKind::Array) {
+                    const auto& arr = a.kind == TypeKind::Array ? a : b;
+                    auto nested = result_type(
+                        a.kind == TypeKind::Array ? *a.first : a,
+                        b.kind == TypeKind::Array ? *b.first : b);
+                    long long extent = arr.length;
+                    if (a.kind == TypeKind::Array && b.kind == TypeKind::Array &&
+                        extent < 0)
+                        extent = b.length;
+                    return Type::array(std::move(nested), extent);
+                }
+                return relational ? simple(TypeKind::Bool) : a;
+            };
+            type = valid ? result_type(left, right) : simple(TypeKind::Invalid);
         } else {
             if (left != right) {
                 // A nat operand with another integer kind names the

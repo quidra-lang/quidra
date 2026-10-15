@@ -4336,7 +4336,11 @@ private:
                 auto inferred = infer_expression_type(*call->args[0].value, current_class);
                 if (!inferred)
                     inferred = infer_expression_type(*call->args[1].value, current_class);
-                TypeName result = inferred.value_or(simple_type("int"));
+                // simple_type() returns an optional TypeName; value_or()
+                // requires a concrete TypeName rather than another optional.
+                TypeName result;
+                if (inferred) result = clone_type(*inferred);
+                else result.name = "int";
                 result.dimensions.insert(result.dimensions.begin(), -1);
                 result.array_depth = result.dimensions.size();
                 result.span = expression.span;

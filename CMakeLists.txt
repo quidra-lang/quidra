@@ -1427,6 +1427,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     # Slices and slice assignment against a brute-force oracle.
     add_test(NAME quidra_slices COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_extensions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_extension_contract_tests.py $<TARGET_FILE:quidra>)
     add_test(NAME quidra_array_selection_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/array_selection_contract_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_range_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/range_contract_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_extension_visibility COMMAND bash ${CMAKE_SOURCE_DIR}/tests/extension_visibility_tests.sh $<TARGET_FILE:quidra>)
@@ -1622,6 +1623,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     set_tests_properties(
       quidra_cli
       quidra_stdlib
+      quidra_array_extensions
       quidra_array_selection_contracts
       quidra_range_contracts
       quidra_extension_visibility

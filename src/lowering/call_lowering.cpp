@@ -506,6 +506,10 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
         value = builder_.fresh();
         builder_.emit(NumericConvert{
             value, index, integer, element_type, true, site});
+    } else {
+        // ArraySet consumes the stored value. Keep the iteration local's
+        // exact integer alive independently until the next step replaces it.
+        value = lifetime_.copy_value(index, integer);
     }
     auto current = builder_.fresh(), length = builder_.fresh(), grown = builder_.fresh();
     builder_.emit(LoadLocal{current, output_slot, array_type});

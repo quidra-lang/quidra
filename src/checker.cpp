@@ -3704,8 +3704,10 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         // ambiguous). Do not accidentally reject the legacy scalar a[1].
         Type selector_type;
         if (const auto* items = std::get_if<ArrayExpr>(&selector.data);
-            items && !items->elements.empty() &&
-            integer_category(numeric_literal_family(*items->elements.front()))) {
+            items && std::all_of(items->elements.begin(), items->elements.end(),
+                [&](const auto& item) {
+                    return integer_category(numeric_literal_family(*item));
+                })) {
             const auto index_array = Type::array(simple(TypeKind::Int));
             selector_type = check_expr(selector, &index_array);
         } else if (integer_category(numeric_literal_family(selector))) {
@@ -7873,6 +7875,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             single_family_category(left_family) || complex_category(left_family);
         const bool right_literal =
             single_family_category(right_family) || complex_category(right_family);
+        const Type* array_context = expected && expected->kind == TypeKind::Array &&
+            (node->op == "+" || node->op == "-" || node->op == "*" ||
+             node->op == "/" || node->op == "%" || node->op == "^") ? expected : nullptr;
 
         if (complex_category(joined_family) &&
             operator_policy::participates_in_numeric_literal_family(node->op)) {
@@ -7968,10 +7973,12 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             left = check_expr(*node->left, &*context.type);
             right = check_expr(*node->right, &*context.type);
         } else if (left_literal) {
-            right = check_expr(*node->right);
+            right = check_expr(*node->right,
+                std::holds_alternative<ArrayExpr>(node->right->data) ? array_context : nullptr);
             left = check_expr(*node->left, scalar_context(right));
         } else if (right_literal) {
-            left = check_expr(*node->left);
+            left = check_expr(*node->left,
+                std::holds_alternative<ArrayExpr>(node->left->data) ? array_context : nullptr);
             right = check_expr(*node->right, scalar_context(left));
         } else if (std::holds_alternative<ArrayExpr>(node->right->data)) {
             left = check_expr(*node->left);
@@ -8103,6 +8110,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         } else if ((left.kind == TypeKind::Array ||
                     right.kind == TypeKind::Array) &&
                    node->op != "==" && node->op != "!=") {
+            if (left.kind == TypeKind::Array)
+                check_element_read(*node->left, nullptr, expression.span);
+            if (right.kind == TypeKind::Array)
+                check_element_read(*node->right, nullptr, expression.span);
             const bool pair = left.kind == TypeKind::Array &&
                               right.kind == TypeKind::Array;
             const Type* lhs = &left;

@@ -4399,6 +4399,11 @@ private:
             return result;
         }
 
+        if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+            if (unary->op == "not") return simple_type("bool");
+            return infer_expression_type(*unary->operand, current_class);
+        }
+
         if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
             const bool relational = is_relational_operator(binary->op);
             const bool equality = binary->op == "==" || binary->op == "!=";
@@ -4676,7 +4681,26 @@ private:
 
         if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
             const auto receiver = infer_expression_type(*call->receiver, current_class);
-            if (!receiver || !receiver->dimensions.empty()) return std::nullopt;
+            if (!receiver) return std::nullopt;
+            if (!receiver->dimensions.empty()) {
+                if (call->method == "indices") {
+                    auto result = *simple_type("nat");
+                    result.dimensions = {-1};
+                    result.array_depth = 1;
+                    return result;
+                }
+                if (call->method == "append" || call->method == "concat" ||
+                    call->method == "sorted") {
+                    auto result = clone_type(*receiver);
+                    result.dimensions.front() = -1;
+                    if (!result.dimension_expressions.empty())
+                        result.dimension_expressions.front().reset();
+                    return result;
+                }
+                if (call->method == "join" && receiver->name == "string" &&
+                    receiver->dimensions.size() == 1) return simple_type("string");
+                return std::nullopt;
+            }
             if (receiver->name == "tensor") {
                 if ((call->method == "cpu" && call->args.empty()) ||
                     (call->method == "gpu" && call->args.size() == 1)) {
@@ -5790,6 +5814,12 @@ private:
                         declaration_matches = concrete_family_match(
                             *declaration, arguments, current_class, &candidate_arguments);
                     }
+                    // Inference may leave contextual literal arguments untyped.
+                    // Check those against the solved parameter types before
+                    // counting a generic family as applicable to this call.
+                    if (declaration_matches && !declaration->type_parameters.empty())
+                        declaration_matches = concrete_family_match(
+                            *declaration, arguments, current_class, &candidate_arguments);
                     // An unknown type is not a wildcard. Literal receivers
                     // can still match through the ordinary family's concrete
                     // contextual argument rules above.

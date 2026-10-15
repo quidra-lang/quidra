@@ -3650,7 +3650,20 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
     if (base.kind == TypeKind::Array && node->items.size() == 1 &&
         !node->items.front().slice && node->items.front().index) {
         const auto& selector = *node->items.front().index;
-        auto selector_type = check_expr(selector);
+        // Index literals are contextually int; an all-integer array literal
+        // also needs that context (bare numeric arrays are otherwise
+        // ambiguous). Do not accidentally reject the legacy scalar a[1].
+        Type selector_type;
+        if (const auto* items = std::get_if<ArrayExpr>(&selector.data);
+            items && !items->elements.empty() &&
+            integer_category(numeric_literal_family(*items->elements.front()))) {
+            const auto index_array = Type::array(simple(TypeKind::Int));
+            selector_type = check_expr(selector, &index_array);
+        } else if (integer_category(numeric_literal_family(selector))) {
+            selector_type = check_index_operand(selector);
+        } else {
+            selector_type = check_expr(selector);
+        }
         if (selector_type.kind == TypeKind::Array && selector_type.first) {
             const auto kind = selector_type.first->kind;
             if (kind != TypeKind::Bool && kind != TypeKind::Nat &&
@@ -8883,6 +8896,23 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         }
         if (const auto* indexed = std::get_if<IndexExpr>(&node.target_expr()->data)) {
             const auto base_type = check_expr(*indexed->base);
+            if (base_type.kind == TypeKind::Array && indexed->items.size() == 1 &&
+                !indexed->items.front().slice && indexed->items.front().index) {
+                const auto& selector = *indexed->items.front().index;
+                if (std::holds_alternative<ArrayExpr>(selector.data)) {
+                    error("INVALID_ASSIGNMENT",
+                          "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
+                          node.target_expr()->span);
+                    return;
+                }
+                const auto selected_type = check_expr(selector);
+                if (selected_type.kind == TypeKind::Array) {
+                    error("INVALID_ASSIGNMENT",
+                          "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
+                          node.target_expr()->span);
+                    return;
+                }
+            }
         }
         if (!node.compound_op.empty()) {
             const auto read_type = check_expr(*node.target_expr());

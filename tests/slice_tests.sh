@@ -124,6 +124,27 @@ int[] values = [1, 2]
 real32[] indices = [0.0, 1.0]
 print(values[indices])
 QUI
+# Scalar literal indexing remains typed and has its original behavior.
+expect gather-scalar-literal "true" <<'QUI'
+int[] values = [10, 20, 30]
+print(values[1] == 20)
+QUI
+# An array of literal integer indices is contextual and materialized as int[].
+expect gather-index-literals "true" <<'QUI'
+int[] values = [10, 20, 30]
+int[] expected = [30, 10]
+print(values[[2, 0]] == expected)
+QUI
+rejects gather-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
+int[] values = [1, 2, 3]
+int[] indices = [0, 2]
+values[indices] = [8, 9]
+QUI
+rejects mask-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
+int[] values = [1, 2, 3]
+bool[] mask = [true, false, true]
+values[mask] = [8, 9]
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

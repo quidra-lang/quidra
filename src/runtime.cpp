@@ -9939,12 +9939,14 @@ static quidra::SliceIndexPlan plan_slice_or_fail(long long length, long long sta
     }
     const auto start_kind = static_cast<quidra::SliceStart>(start_form);
     const auto end_kind = static_cast<quidra::SliceEnd>(end_form);
-    // Initialize the optional's payload on both paths. GCC 11 can otherwise
-    // report a spurious maybe-uninitialized read after inlining plan_slice.
-    quidra::SliceRequest request{start_kind, start, end_kind, end, std::int64_t{0}};
-    if (has_step) request.step = step;
-    else request.step.reset();
-    const auto planned = quidra::plan_slice(static_cast<std::uint64_t>(length), request);
+    // Construct the two requests independently. GCC 11 can report a false
+    // maybe-uninitialized optional payload when a request is reset in-place
+    // and plan_slice is inlined with warnings treated as errors.
+    const auto size = static_cast<std::uint64_t>(length);
+    const auto planned = has_step
+        ? quidra::plan_slice(size, {start_kind, start, end_kind, end,
+                                   std::optional<std::int64_t>{step}})
+        : quidra::plan_slice(size, {start_kind, start, end_kind, end, std::nullopt});
     switch (planned.status) {
         case quidra::SliceStatus::ok:
             break;

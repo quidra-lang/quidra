@@ -420,6 +420,7 @@ declare void @free(ptr)
     declare(runtime_abi::tensor::drop),
     declare(runtime_abi::tensor::reshape),
     declare(runtime_abi::tensor::gather),
+    declare(runtime_abi::tensor::mask_select),
     declare(runtime_abi::tensor::scatter),
     declare(runtime_abi::tensor::transpose),
     declare(runtime_abi::tensor::contiguous),

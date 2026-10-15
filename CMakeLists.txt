@@ -713,7 +713,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 elseif(MSVC)
   target_compile_options(quidra_runtime PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra_runtime_jit PRIVATE /W4 /Gy /Gw)
-  target_compile_options(quidra PRIVATE /W4)
+  # CLI translation units can exceed the default COFF section limit.
+  target_compile_options(quidra PRIVATE /W4 /bigobj)
   # Windows reserves only 1 MiB of stack for executables by default. Compiler
   # lowering legitimately walks nested typed AST/IR structures that fit in the
   # larger defaults on Linux/macOS; reserve the same practical headroom here.

@@ -309,7 +309,10 @@ struct Engine {
             nb.instructions.push_back(Jump{continuation});
             returned.push_back(std::move(disposition));
         }if(boundary_overflow)throw Refused("inline origin instruction count overflow");
-        if(!terminal(b.instructions.back()))throw Refused("callee missing explicit terminator");copied.push_back(std::move(nb));}
+        if (!terminal(b.instructions.back()))
+            throw Refused("callee missing explicit terminator");
+        copied.push_back(std::move(nb));
+    }
         Block cont{continuation,{}};
         if(call.out&&has_return) {
             const LoadLocal load{call.out,result_name,call.result,owns_managed(call.result)};

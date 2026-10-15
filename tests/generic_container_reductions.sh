@@ -55,9 +55,17 @@ class Reducer()
 Reducer reducer = Reducer()
 print("{reducer.sum<real32>(scalar)} {reducer.sum<real32>(single)} {reducer.sum_array<real32>(single)}{NL}")
 print("{reducer.sum<real32>(if true then [1.0] else [2.0])}{NL}")
+
+// A floating constraint names scalar values, disjoint from tensor values.
+string pick<T: floating>(tensor<T> values)
+    return "tensor"
+string pick<T: floating>(T values)
+    return "scalar"
+print("{pick(scalar)} {pick(real32(2.0))}{NL}")
+print("{pick<real32>(scalar)} {pick<real32>(2.0)}{NL}")
 QUI
 "$QUIDRA" check "$TMP/families.qui"
-expected=$'1.0 2.0 3.0\n1.0 1.0 3.0\n1.0 0.0\n1.0\n2.0\n0 0\n1.0 0.0\n1.0 1.0 1.0\n1.0'
+expected=$'1.0 2.0 3.0\n1.0 1.0 3.0\n1.0 0.0\n1.0\n2.0\n0 0\n1.0 0.0\n1.0 1.0 1.0\n1.0\ntensor scalar\ntensor scalar'
 if actual="$("$QUIDRA" run "$TMP/families.qui")"; then
     if [[ "$actual" != "$expected" ]]; then
         printf 'unexpected specialization results\nexpected:\n%s\nactual:\n%s\n' "$expected" "$actual" >&2
@@ -97,13 +105,6 @@ string pick<T: floating>(const tensor<T> values, int mode = 0)
     return "tensor"
 string pick<T: floating>(const T[] values, int mode)
     return "array"
-QUI
-
-rejects DUPLICATE_NAME <<'QUI'
-string pick<T: floating>(tensor<T> values)
-    return "tensor"
-string pick<T: floating>(T values)
-    return "scalar"
 QUI
 
 rejects GENERIC_CONSTRAINT <<'QUI'

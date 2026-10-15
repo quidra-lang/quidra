@@ -44,7 +44,20 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
     const Type lhs_type = type_of(checked_, *n.left);
     const Type rhs_type = type_of(checked_, *n.right);
     const Type result_type = checked_.raw_types.at(&e);
-    const auto lhs = lowerer_.lower(*n.left);
+    auto lhs = lowerer_.lower(*n.left);
+    const bool hold_left = owns_managed(lhs_type) && expression_runs_code(*n.right);
+    std::string left_slot;
+    // The right operand can replace or mutate the left operand's storage.
+    // Copy borrowed values, and adopt existing temporaries without copying.
+    // The owned local also releases the value if a later try returns early.
+    if (hold_left) {
+        if (!lifetime_.expression_owns_result(*n.left))
+            lhs = lifetime_.copy_value(lhs, lhs_type);
+        left_slot = builder_.hidden("array.elementwise.left");
+        builder_.emit(DeclareLocal{left_slot, lhs_type, "", 0, 0});
+        scope_.local_type(left_slot) = lhs_type;
+        builder_.emit(StoreLocal{left_slot, lhs, lhs_type});
+    }
     const auto rhs = lowerer_.lower(*n.right);
     const auto index_type = Type::simple(TypeKind::Int64);
     const auto bool_type = Type::simple(TypeKind::Bool);
@@ -109,7 +122,11 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
         return result;
     };
     const auto output = apply(lhs, lhs_type, rhs, rhs_type, result_type);
-    lifetime_.release_temporary(*n.left, lhs);
+    if (hold_left) {
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, left_slot, lhs_type, true});
+        release_owned(builder_, consumed, lhs_type);
+    } else lifetime_.release_temporary(*n.left, lhs);
     lifetime_.release_temporary(*n.right, rhs);
     return output;
 }

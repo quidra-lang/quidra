@@ -179,10 +179,20 @@ static void slice_markers() {
     reject_message("int[] x = values[0:5<:2]\n", "Slice markers belong to the first colon.");
     reject_message("int[] x = values[0:5:<2]\n", "Slice markers belong to the first colon.");
     reject_message("int[] x = values[0:5:>2]\n", "Slice markers belong to the first colon.");
-    // A then-branch ends at 'else', never at the slice colon.
-    reject("int[] x = values[if c then n>:0 else m]\n");
-    // A marker inside a call belongs to no slice.
-    reject("int[] x = values[f(x<:3)]\n");
+    // Nested bounded ranges belong to their own expression, not the outer
+    // index's slice syntax.
+    {
+        auto nested = parse("int[] x = values[if c then n>:0 else m]\n"
+                            "int[] y = values[f(x<:3)]\n");
+        const auto& conditional = slice_of(nested, 0);
+        require(!conditional.slice &&
+                    std::holds_alternative<IfExpr>(conditional.index->data),
+                "a range in a then branch does not start an outer slice");
+        const auto& call_index = slice_of(nested, 1);
+        require(!call_index.slice &&
+                    std::holds_alternative<CallExpr>(call_index.index->data),
+                "a range argument does not start an outer slice");
+    }
     // '<=' and '>=' are single tokens and never markers.
     reject("int[] x = values[s<=:e]\n");
     reject("int[] x = values[s>=:e]\n");
@@ -424,7 +434,44 @@ static void local_declarations() {
     reject("const local int count = 1\n");
 }
 
+static void bounded_range_precedence() {
+    const auto binding_value = [](const Program& program) -> const Expr& {
+        return *std::get<BindingStmt>(program.statements.at(0)->data).value;
+    };
+    {
+        auto program = parse("auto values = -3:0\n");
+        const auto* range = std::get_if<CallExpr>(&binding_value(program).data);
+        require(range && range->callee == "$std.range.generate",
+                "a negative start belongs to the range, not a unary array operation");
+        require(std::holds_alternative<UnaryExpr>(range->args[0].value->data),
+                "the range start retains its negative sign");
+    }
+    for (const auto* source : {"auto values = :9 ^ 2\n",
+                               "auto values = :-3 ^ 2\n",
+                               "auto values = 3:0:-1 ^ 2\n",
+                               "auto values = -3:0 ^ 2\n"}) {
+        auto program = parse(source);
+        const auto* power = std::get_if<BinaryExpr>(&binding_value(program).data);
+        require(power && power->op == "^" &&
+                    std::holds_alternative<CallExpr>(power->left->data),
+                "power applies to the whole range after signed endpoints or steps");
+    }
+    {
+        auto program = parse("auto value = -2 ^ 2\n");
+        const auto* minus = std::get_if<UnaryExpr>(&binding_value(program).data);
+        require(minus && std::holds_alternative<BinaryExpr>(minus->operand->data),
+                "scalar power still binds more tightly than unary minus");
+    }
+    {
+        auto program = parse("auto values = -(3:0)\n");
+        const auto* minus = std::get_if<UnaryExpr>(&binding_value(program).data);
+        require(minus && std::holds_alternative<CallExpr>(minus->operand->data),
+                "parentheses allow unary minus on the generated array");
+    }
+}
+
 int main() {
+    bounded_range_precedence();
     {
         auto program=parse("parallel for 5 > int x >= 0 step -2\n    continue\n"
                            "parallel\n    int first = 1\n");

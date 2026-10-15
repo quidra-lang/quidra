@@ -38,6 +38,19 @@ void LifetimeLowering::release_loop_sources() {
         builder_.emit(Unpin{*it});
 }
 
+bool LifetimeLowering::index_base_needs_snapshot(const IndexExpr& index) const {
+    if (!owns_managed(type_of(checked_, *index.base)) ||
+        expression_owns_result(*index.base))
+        return false;
+    const auto runs_code = [](const ExprPtr& operand) {
+        return operand && expression_runs_code(*operand);
+    };
+    return std::any_of(index.items.begin(), index.items.end(), [&](const IndexPart& item) {
+        return runs_code(item.index) || runs_code(item.start) ||
+               runs_code(item.stop) || runs_code(item.step);
+    });
+}
+
 bool LifetimeLowering::expression_owns_result(const Expr& expression) const {
     if (checked_.enum_constructions.contains(&expression)) return true;
     const auto type = type_of(checked_, expression);
@@ -75,6 +88,15 @@ bool LifetimeLowering::expression_owns_result(const Expr& expression) const {
             base_kind == TypeKind::Bin) return true;
         // An array slice is a new array.
         if (index->items.size() == 1 && index->items.front().slice) return true;
+        // Index arrays and boolean masks also materialize independent
+        // arrays, even when the source is a borrowed local or field.
+        if (base_kind == TypeKind::Array && index->items.size() == 1 &&
+            index->items.front().index &&
+            type_of(checked_, *index->items.front().index).kind == TypeKind::Array)
+            return true;
+        // Scalar reads from an owned snapshot are copied out before that
+        // snapshot is released, and therefore own the copied value too.
+        if (index_base_needs_snapshot(*index)) return true;
         return expression_owns_result(*index->base);
     }
     if (const auto* tried = std::get_if<TryExpr>(&expression.data)) {

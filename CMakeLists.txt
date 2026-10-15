@@ -1427,6 +1427,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     # Slices and slice assignment against a brute-force oracle.
     add_test(NAME quidra_slices COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_selection_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/array_selection_contract_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_range_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/range_contract_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_extension_visibility COMMAND bash ${CMAKE_SOURCE_DIR}/tests/extension_visibility_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_slice_direction COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_direction_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_real_loop_headers COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_loop_headers_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_for_shorthand COMMAND bash ${CMAKE_SOURCE_DIR}/tests/for_shorthand_tests.sh $<TARGET_FILE:quidra>)
@@ -1619,6 +1622,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     set_tests_properties(
       quidra_cli
       quidra_stdlib
+      quidra_array_selection_contracts
+      quidra_range_contracts
+      quidra_extension_visibility
       PROPERTIES TIMEOUT ${QUIDRA_PROGRAM_SUITE_TIMEOUT}
     )
     # Builds a few hundred small programs, a few of them in parallel.

@@ -355,7 +355,6 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     // element type controls only checked storage conversions, never the
     // precision of iteration and endpoint comparisons.
     const auto integer = Type::simple(TypeKind::Int);
-    const auto native_integer = Type::simple(TypeKind::Int64);
     const auto boolean = Type::simple(TypeKind::Bool);
     const auto array_type = checked_.raw_types.at(&e);
     const auto element_type = *array_type.first;
@@ -419,24 +418,46 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     }
     auto step = builder_.fresh();
     builder_.emit(LoadLocal{step, step_slot, integer});
-    // The existing slice/for run-time step validator uses an int64 sign.
-    // Converting an outsized explicit step reports the range error rather
-    // than silently truncating it; all endpoint arithmetic remains exact.
-    auto checked_step = builder_.fresh();
-    builder_.emit(NumericConvert{
-        checked_step, step, integer, native_integer, true, site});
+    if (explicit_step) {
+        if (!ascending_marker && !descending_marker) {
+            auto zero = builder_.fresh();
+            builder_.emit(ConstantExact{zero, "0", integer});
+            direction = builder_.fresh();
+            builder_.emit(Binary{direction, "<", step, zero, integer, boolean});
+        }
+        // Equal bounds permit either step sign. A reversed marker with no
+        // explicit step describes an empty exclusive range, as in slicing.
+        auto unequal = builder_.fresh();
+        auto directions_differ = builder_.fresh();
+        auto opposed = builder_.fresh();
+        builder_.emit(Binary{unequal, "!=", start, stop, integer, boolean});
+        builder_.emit(Binary{directions_differ, "!=", descending, direction, boolean, boolean});
+        builder_.emit(Binary{opposed, "and", unequal, directions_differ, boolean, boolean});
+        const auto invalid = builder_.label("range.direction.invalid");
+        const auto valid = builder_.label("range.direction.valid");
+        builder_.emit(Branch{opposed, invalid, valid});
+        builder_.enter(builder_.add_block(invalid));
+        const auto problem = builder_.fresh();
+        builder_.emit(ErrorMake{problem, 0, "SLICE_STEP",
+            {ErrorDetailOperand{std::nullopt,
+                "Range step opposes the bound direction.", false}},
+            std::nullopt, site});
+        builder_.emit(FailError{problem, site});
+        builder_.enter(builder_.add_block(valid));
+    }
     {
-        // ForStepCheck rejects a zero or direction-incompatible explicit
-        // step and also protects variable endpoints at run time.
+        // ForStepCheck consumes the exact-int word, including boxed steps.
+        // Validate against the chosen marker direction; equal descending
+        // endpoints must not be mistaken for an ascending progression.
         const auto asc = builder_.label("range.check.asc");
         const auto desc = builder_.label("range.check.desc");
         const auto merge = builder_.label("range.check.end");
-        builder_.emit(Branch{descending, desc, asc});
+        builder_.emit(Branch{direction, desc, asc});
         builder_.enter(builder_.add_block(desc));
-        builder_.emit(ForStepCheck{checked_step, true, site});
+        builder_.emit(ForStepCheck{step, true, site});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(asc));
-        builder_.emit(ForStepCheck{checked_step, false, site});
+        builder_.emit(ForStepCheck{step, false, site});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(merge));
     }

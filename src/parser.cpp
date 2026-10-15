@@ -2287,7 +2287,29 @@ ExprPtr Parser::unary() {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{"&",std::move(operand)}; return e;
     }
-    if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot) || match(TokenKind::Minus)) {
+    if (match(TokenKind::Minus)) {
+        const auto op = previous();
+        ExprPtr operand;
+        {
+            // A leading sign belongs to a range's start. Parentheses clear
+            // this flag, so -(3:0) still negates the generated array.
+            FlagScope no_nested_range(slice_start_marker_stop_, true);
+            operand = unary();
+        }
+        auto e = std::make_unique<Expr>();
+        e->span = SourceSpan{op.span.start, operand->span.end};
+        e->data = UnaryExpr{op.text, std::move(operand)};
+        if (!slice_start_marker_stop_ &&
+            (at(TokenKind::Colon) || at_marker_touching_colon())) {
+            e = range_from(std::move(e), op.span.start);
+            if (match(TokenKind::Caret)) {
+                const auto power_op = previous();
+                e = make_binary(std::move(e), power_op, unary());
+            }
+        }
+        return e;
+    }
+    if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot)) {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{op.text,std::move(operand)}; return e;
     }
@@ -2327,6 +2349,19 @@ ExprPtr Parser::marked_call() {
 // In a free expression a bounded colon range materializes an integer
 // array, while an indexing colon keeps the existing direct-slice AST.
 // The internal call is generated only by this parser and is not a public API.
+ExprPtr Parser::range_operand() {
+    ParseDepthGuard depth(unary_depth_, max_parse_depth, peek(), "Range operand");
+    if (match(TokenKind::Minus)) {
+        const auto op = previous();
+        auto operand = range_operand();
+        auto e = std::make_unique<Expr>();
+        e->span = SourceSpan{op.span.start, operand->span.end};
+        e->data = UnaryExpr{op.text, std::move(operand)};
+        return e;
+    }
+    return postfix();
+}
+
 ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
     bool start_exclusive = false;
     bool end_exclusive = false;
@@ -2368,7 +2403,7 @@ ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
     ExprPtr end_value;
     {
         FlagScope no_nested_range(slice_start_marker_stop_, true);
-        end_value = at(TokenKind::Minus) ? unary() : postfix();
+        end_value = range_operand();
     }
     ExprPtr step_value;
     const bool has_step = match(TokenKind::Colon);
@@ -2376,7 +2411,7 @@ ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
         if (missing_endpoint())
             throw CompileError(Diagnostic{"SLICE_STEP", "Range step is missing.", peek().span});
         FlagScope no_nested_range(slice_start_marker_stop_, true);
-        step_value = unary();
+        step_value = range_operand();
     }
     if (at(TokenKind::Colon))
         throw CompileError(Diagnostic{"SLICE_STEP", "Range takes at most one step.", peek().span});

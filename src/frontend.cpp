@@ -2817,6 +2817,15 @@ private:
         }
         stack_.pop_back();
 
+        // Keep the resolved lexical import graph until generic expansion has
+        // resolved extension calls. Qualifying each alias records its loaded
+        // namespace and its parent scope without changing import visibility.
+        for (const auto& import_decl : program.imports) {
+            auto resolved_import = import_decl;
+            resolved_import.alias = qualify(ns, import_decl.alias);
+            merged.imports.push_back(std::move(resolved_import));
+        }
+
         reject_import_alias_shadowing(program, aliases);
 
         for (auto& enum_decl : program.enums) {
@@ -3329,6 +3338,7 @@ public:
         output_.package_directories = source_.package_directories;
         output_.declaration_catalog = source_.declaration_catalog;
         output_.interface_sources = source_.interface_sources;
+        build_extension_scopes();
         validate_declarations();
 
         for (auto& class_decl : source_.classes) {
@@ -3778,6 +3788,17 @@ private:
         // A tensor and an array are distinct outer value domains regardless of
         // their element types. This admits container implementations in one
         // specialization family without introducing ordinary overloads.
+        const auto scalar_parameter = [&](const FunctionDecl& function, const TypeName& type) {
+            if (!type.dimensions.empty() || !type.arguments.empty() ||
+                !type.function_parameters.empty()) return false;
+            const auto parameter = std::find(function.type_parameters.begin(),
+                                             function.type_parameters.end(), type.name);
+            if (parameter == function.type_parameters.end()) return false;
+            const auto constraint = function_constraint(function,
+                static_cast<std::size_t>(parameter - function.type_parameters.begin()));
+            return constraint == "numeric" || constraint == "ordered" ||
+                   constraint == "integer" || constraint == "floating";
+        };
         for (std::size_t i = 0; i < left.parameters.size(); ++i) {
             const auto& a = left.parameters[i].type;
             const auto& b = right.parameters[i].type;
@@ -3785,6 +3806,11 @@ private:
             const bool b_tensor = b.name == "tensor" && b.dimensions.empty();
             if ((a_tensor && !b.dimensions.empty()) ||
                 (b_tensor && !a.dimensions.empty())) return true;
+            // Numeric constraints describe scalar values, so a scalar member
+            // and an array/tensor member cannot match the same call. The array
+            // element may itself be an array for recursive package operations.
+            if ((scalar_parameter(left, a) && (b_tensor || !b.dimensions.empty())) ||
+                (scalar_parameter(right, b) && (a_tensor || !a.dimensions.empty()))) return true;
         }
         if (generic_call_shape(left) != generic_call_shape(right)) return false;
         for (std::size_t i = 0; i < left.type_parameters.size(); ++i) {
@@ -3851,6 +3877,7 @@ private:
                 if (function->parameters[i].name != reference.parameters[i].name ||
                     function->parameters[i].writable != reference.parameters[i].writable ||
                     function->parameters[i].is_const != reference.parameters[i].is_const ||
+                    function->parameters[i].is_extension != reference.parameters[i].is_extension ||
                     static_cast<bool>(function->parameters[i].default_value) !=
                         static_cast<bool>(reference.parameters[i].default_value) ||
                     function->is_private != reference.is_private) {
@@ -4094,6 +4121,90 @@ private:
     std::unordered_map<std::string, TypeName> type_environment_;
     std::unordered_map<const Expr*, TypeName> comprehension_types_;
     std::optional<TypeName> traversal_expected_result_;
+    std::string current_module_namespace_;
+    std::unordered_map<std::string, std::unordered_set<std::string>> extension_visible_modules_;
+
+    struct ModuleScope {
+        std::string& current;
+        std::string previous;
+        ModuleScope(std::string& target, const std::string& scope)
+            : current(target), previous(std::exchange(target, scope)) {}
+        ~ModuleScope() { current = std::move(previous); }
+    };
+
+    void build_extension_scopes() {
+        std::unordered_map<std::string, std::vector<const ImportDecl*>> children;
+        for (const auto& import : source_.imports) {
+            const auto separator = import.alias.rfind('.');
+            const auto parent = separator == std::string::npos
+                ? std::string{} : import.alias.substr(0, separator);
+            children[parent].push_back(&import);
+        }
+        for (const auto& [parent, imports] : children) {
+            auto& visible = extension_visible_modules_[parent];
+            const auto add_public = [&](const auto& self, const std::string& module) -> void {
+                if (!visible.insert(module).second) return;
+                if (const auto descendants = children.find(module); descendants != children.end()) {
+                    for (const auto* child : descendants->second)
+                        if (child->is_public) self(self, child->alias);
+                }
+            };
+            for (const auto* import : imports) add_public(add_public, import->alias);
+        }
+    }
+
+    bool extension_visible(const FunctionDecl& declaration) const {
+        if (declaration.module_namespace == current_module_namespace_) return true;
+        const auto scope = extension_visible_modules_.find(current_module_namespace_);
+        return scope != extension_visible_modules_.end() &&
+               scope->second.contains(declaration.module_namespace);
+    }
+
+    bool receiver_has_method(const TypeName& receiver, const std::string& method) const {
+        const auto named = [&](std::initializer_list<std::string_view> names) {
+            return std::find(names.begin(), names.end(), method) != names.end();
+        };
+        if (!receiver.dimensions.empty()) {
+            if (named({"indices", "append", "concat"})) return true;
+            if (receiver.dimensions.size() != 1) return false;
+            if (method == "join") return receiver.name == "string";
+            const auto* numeric = numeric_type_name(receiver.name);
+            return method == "sorted" &&
+                ((numeric && numeric->sort_kind.has_value()) ||
+                 receiver.name == "bool" || receiver.name == "string");
+        }
+        if (receiver.name == "tensor") {
+            if (named({"track", "untrack", "retrack", "backward", "clear_grad",
+                       "transpose", "contiguous", "reshape", "gather", "scatter",
+                       "shape", "device", "cpu", "gpu", "is_contiguous",
+                       "is_tracked", "has_grad", "item"})) return true;
+            return named({"all", "any"}) && !receiver.arguments.empty() &&
+                   receiver.arguments.front().name == "bool";
+        }
+        if (receiver.name == "string")
+            return named({"string", "contains", "starts_with", "ends_with", "find",
+                          "trim", "split", "utf8", "codepoints"});
+        if (receiver.name == standard_class::autograd_target)
+            return named({"has_grad", "clear_grad", "gradient"});
+        if (receiver.name == standard_class::file_handle)
+            return named({"read", "read_line", "read_bin", "write", "write_line",
+                          "flush", "seek", "close"});
+        if (method == "string" &&
+            (numeric_type_name(receiver.name) || receiver.name == "bool" ||
+             receiver.name == "bin" || receiver.name == "error"))
+            return true;
+        auto class_name = receiver.name;
+        if (const auto instance = class_instance_types_.find(class_name);
+            instance != class_instance_types_.end()) class_name = instance->second.name;
+        for (const auto& cls : source_.classes) {
+            if (cls.name != class_name) continue;
+            return std::any_of(cls.methods.begin(), cls.methods.end(),
+                [&](const FunctionDecl& candidate) {
+                    return !candidate.is_constructor && candidate.name == method;
+                });
+        }
+        return false;
+    }
 
     static std::unordered_set<std::string> set_of(const std::vector<std::string>& values) {
         return {values.begin(), values.end()};
@@ -4289,7 +4400,9 @@ private:
         }
 
         if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
-            if (binary->op != "+" && binary->op != "-" &&
+            const bool relational = is_relational_operator(binary->op);
+            const bool equality = binary->op == "==" || binary->op == "!=";
+            if (!relational && !equality && binary->op != "+" && binary->op != "-" &&
                 binary->op != "*" && binary->op != "/" &&
                 binary->op != "%" && binary->op != "^") {
                 return std::nullopt;
@@ -4302,6 +4415,17 @@ private:
             };
             const auto with_span = [&](TypeName value) {
                 value.span = expression.span;
+                if (relational || equality) {
+                    if (value.name == "tensor" && value.dimensions.empty()) {
+                        value.arguments.clear();
+                        value.arguments.push_back(*simple_type("bool"));
+                    } else if (equality) {
+                        return simple_type("bool");
+                    } else {
+                        value.name = "bool";
+                        value.arguments.clear();
+                    }
+                }
                 return std::optional<TypeName>{std::move(value)};
             };
             if (left && right) {
@@ -4322,12 +4446,83 @@ private:
                     return result;
                 if (const auto result = tensor_scalar(*right, *left))
                     return result;
+                const auto array_scalar = [&](const TypeName& array,
+                                              const TypeName& scalar)
+                    -> std::optional<TypeName> {
+                    if (array.dimensions.empty() || !scalar.dimensions.empty())
+                        return std::nullopt;
+                    auto element = clone_type(array);
+                    element.dimensions.clear();
+                    element.array_depth = 0;
+                    if (canonical_type(element) != canonical_type(scalar))
+                        return std::nullopt;
+                    return with_span(clone_type(array));
+                };
+                if (const auto result = array_scalar(*left, *right)) return result;
+                if (const auto result = array_scalar(*right, *left)) return result;
+                if (!left->dimensions.empty() &&
+                    left->dimensions.size() == right->dimensions.size()) {
+                    auto left_element = clone_type(*left);
+                    auto right_element = clone_type(*right);
+                    left_element.dimensions.clear();
+                    right_element.dimensions.clear();
+                    left_element.array_depth = right_element.array_depth = 0;
+                    if (canonical_type(left_element) == canonical_type(right_element)) {
+                        auto result = clone_type(*left);
+                        for (std::size_t axis = 0; axis < result.dimensions.size(); ++axis) {
+                            if (result.dimensions[axis] < 0)
+                                result.dimensions[axis] = right->dimensions[axis];
+                            else if (right->dimensions[axis] >= 0 &&
+                                     result.dimensions[axis] != right->dimensions[axis])
+                                return std::nullopt;
+                        }
+                        return with_span(std::move(result));
+                    }
+                }
                 return std::nullopt;
             }
             if (left && numeric_literal(*binary->right))
                 return with_span(clone_type(*left));
             if (right && numeric_literal(*binary->left))
                 return with_span(clone_type(*right));
+            if (left && !left->dimensions.empty() &&
+                std::holds_alternative<ArrayExpr>(binary->right->data))
+                return with_span(clone_type(*left));
+            if (right && !right->dimensions.empty() &&
+                std::holds_alternative<ArrayExpr>(binary->left->data))
+                return with_span(clone_type(*right));
+            if (relational && std::holds_alternative<ArrayExpr>(binary->left->data) &&
+                std::holds_alternative<ArrayExpr>(binary->right->data)) {
+                // Literal-array comparisons have a known bool result shape
+                // even before the checker contextualizes their numeric leaves.
+                const auto literal_shape = [&](const auto& self, const Expr& value)
+                    -> std::optional<std::vector<long long>> {
+                    const auto* array = std::get_if<ArrayExpr>(&value.data);
+                    if (!array) return std::vector<long long>{};
+                    std::vector<long long> shape;
+                    bool first = true;
+                    for (const auto& element : array->elements) {
+                        const auto inner = self(self, *element);
+                        if (!inner) return std::nullopt;
+                        if (first) { shape = *inner; first = false; }
+                        else {
+                            if (shape.size() != inner->size()) return std::nullopt;
+                            for (std::size_t axis = 0; axis < shape.size(); ++axis)
+                                if (shape[axis] != (*inner)[axis]) shape[axis] = -1;
+                        }
+                    }
+                    shape.insert(shape.begin(), static_cast<long long>(array->elements.size()));
+                    return shape;
+                };
+                const auto left_shape = literal_shape(literal_shape, *binary->left);
+                const auto right_shape = literal_shape(literal_shape, *binary->right);
+                if (left_shape && right_shape && left_shape->size() == right_shape->size()) {
+                    auto result = *simple_type("bool");
+                    result.dimensions = *left_shape;
+                    result.array_depth = result.dimensions.size();
+                    return result;
+                }
+            }
             return std::nullopt;
         }
 
@@ -4399,6 +4594,21 @@ private:
             auto base = infer_expression_type(*index->base, current_class);
             if (!base) return std::nullopt;
             if (base->name == "tensor" && base->dimensions.empty()) {
+                if (index->items.size() == 1 && !index->items.front().slice &&
+                    index->items.front().index) {
+                    const auto selector = infer_expression_type(
+                        *index->items.front().index, current_class);
+                    if (selector && selector->name == "tensor") {
+                        base->tensor_rank = 1;
+                        base->tensor_shape_prefix.clear();
+                        base->tensor_known_shape_prefix.clear();
+                        base->tensor_shape_expressions.clear();
+                        base->tensor_shape_ellipsis.reset();
+                        base->shape_axes.clear();
+                        base->brace_shape = false;
+                        return base;
+                    }
+                }
                 if (base->tensor_rank) {
                     if (index->items.size() > static_cast<std::size_t>(*base->tensor_rank)) {
                         return std::nullopt;
@@ -4439,11 +4649,27 @@ private:
                 project_prefix(base->tensor_known_shape_prefix);
                 return base;
             }
-            if (base->dimensions.empty() || index->items.size() != 1 ||
-                index->items.front().slice) {
+            if (index->items.size() != 1) return std::nullopt;
+            if (base->dimensions.empty()) {
+                if (base->name == "bin" ||
+                    (base->name == "string" && index->items.front().slice)) return base;
                 return std::nullopt;
             }
+            const auto& item = index->items.front();
+            const auto selector = item.index
+                ? infer_expression_type(*item.index, current_class) : std::nullopt;
+            if (item.slice || (selector && !selector->dimensions.empty()) ||
+                (item.index && std::holds_alternative<ArrayExpr>(item.index->data))) {
+                // Slices and gather/mask selectors retain the element type,
+                // with a runtime outer extent, matching the checker.
+                base->dimensions.front() = -1;
+                if (!base->dimension_expressions.empty())
+                    base->dimension_expressions.front().reset();
+                return base;
+            }
             base->dimensions.erase(base->dimensions.begin());
+            if (!base->dimension_expressions.empty())
+                base->dimension_expressions.erase(base->dimension_expressions.begin());
             base->array_depth = base->dimensions.size();
             return base;
         }
@@ -4621,6 +4847,10 @@ private:
                 candidate.dimensions.begin(),
                 candidate.dimensions.begin() +
                     static_cast<std::ptrdiff_t>(pattern.dimensions.size()));
+            candidate.dimension_expressions.erase(
+                candidate.dimension_expressions.begin(),
+                candidate.dimension_expressions.begin() + static_cast<std::ptrdiff_t>(
+                    std::min(pattern.dimensions.size(), candidate.dimension_expressions.size())));
             candidate.array_depth = candidate.dimensions.size();
 
             if (const auto existing = inferred.find(pattern.name);
@@ -4812,42 +5042,59 @@ private:
     bool concrete_family_match(
         const FunctionDecl& function,
         const std::vector<CallArg>& args,
-        const std::string& current_class) const {
+        const std::string& current_class,
+        const Substitution* explicit_arguments = nullptr) const {
         const auto targets = bind_family_arguments(function, args);
         if (!targets) return false;
-        for (std::size_t i = 0; i < args.size(); ++i) {
-            const auto& expected = function.parameters[(*targets)[i]].type;
-            const auto actual = infer_expression_type(*args[i].value, current_class);
-            if (!actual) {
-                const auto contextual_numeric_literal =
-                    [&](const auto& self, const Expr& value) -> bool {
-                        if (std::holds_alternative<IntegerExpr>(value.data) ||
-                            std::holds_alternative<RealLiteralExpr>(value.data)) {
-                            return true;
-                        }
-                        if (const auto* unary =
-                                std::get_if<UnaryExpr>(&value.data)) {
-                            return (unary->op == "-" || unary->op == "+") &&
-                                self(self, *unary->operand);
-                        }
-                        return false;
-                    };
-                const bool numeric_literal =
-                    contextual_numeric_literal(
-                        contextual_numeric_literal, *args[i].value);
-                if (!numeric_literal || !expected.dimensions.empty() ||
-                    !expected.arguments.empty() || !expected.function_parameters.empty() ||
-                    !scalar_numeric_constraint_type(expected.name)) {
+        const auto contextual_match = [&](const auto& self, const Expr& value,
+                                          const TypeName& expected) -> bool {
+            if (const auto actual = infer_expression_type(value, current_class)) {
+                Substitution ignored;
+                return infer_generic_pattern(expected, *actual, {}, ignored);
+            }
+            if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
+                if (expected.dimensions.empty()) return false;
+                if (expected.dimensions.front() >= 0 &&
+                    expected.dimensions.front() != static_cast<long long>(array->elements.size()))
                     return false;
-                }
-                continue;
+                auto element = clone_type(expected);
+                element.dimensions.erase(element.dimensions.begin());
+                if (!element.dimension_expressions.empty())
+                    element.dimension_expressions.erase(element.dimension_expressions.begin());
+                element.array_depth = element.dimensions.size();
+                return std::all_of(array->elements.begin(), array->elements.end(),
+                    [&](const auto& item) { return self(self, *item, element); });
             }
-            const std::unordered_set<std::string> no_parameters;
-            Substitution ignored;
-            if (!infer_generic_pattern(
-                    expected, *actual, no_parameters, ignored)) {
-                return false;
+            if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
+                return self(self, *conditional->otherwise, expected) &&
+                    std::all_of(conditional->values.begin(), conditional->values.end(),
+                        [&](const auto& item) { return self(self, *item, expected); });
             }
+            if (const auto* unary = std::get_if<UnaryExpr>(&value.data)) {
+                return (unary->op == "-" || unary->op == "+") &&
+                    self(self, *unary->operand, expected);
+            }
+            if (const auto* binary = std::get_if<BinaryExpr>(&value.data)) {
+                return expected.dimensions.empty() &&
+                    (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
+                     binary->op == "/" || binary->op == "%" || binary->op == "^") &&
+                    self(self, *binary->left, expected) &&
+                    self(self, *binary->right, expected);
+            }
+            if (const auto* literal = std::get_if<LiteralConstantExpr>(&value.data))
+                return self(self, *literal->value, expected);
+            return (std::holds_alternative<IntegerExpr>(value.data) ||
+                    std::holds_alternative<RealLiteralExpr>(value.data)) &&
+                expected.dimensions.empty() && expected.arguments.empty() &&
+                expected.function_parameters.empty() &&
+                scalar_numeric_constraint_type(expected.name);
+        };
+        for (std::size_t i = 0; i < args.size(); ++i) {
+            const auto& pattern = function.parameters[(*targets)[i]].type;
+            std::optional<TypeName> substituted;
+            const auto& expected = explicit_arguments
+                ? substituted.emplace(substitute_raw(pattern, *explicit_arguments)) : pattern;
+            if (!contextual_match(contextual_match, *args[i].value, expected)) return false;
         }
         return true;
     }
@@ -4960,13 +5207,17 @@ private:
         throw std::logic_error("Generic specialization selection lost its candidate.");
     }
 
-    enum class ContainerDomain { Array, Tensor };
+    enum class ContainerDomain { Scalar, Array, Tensor };
 
     std::optional<ContainerDomain> expression_container_domain(
         const Expr& expression, const std::string& current_class) const {
         const auto actual = infer_expression_type(expression, current_class);
         if (actual && !actual->dimensions.empty()) return ContainerDomain::Array;
         if (actual && actual->name == "tensor") return ContainerDomain::Tensor;
+        if (actual) return ContainerDomain::Scalar;
+        if (std::holds_alternative<IntegerExpr>(expression.data) ||
+            std::holds_alternative<RealLiteralExpr>(expression.data))
+            return ContainerDomain::Scalar;
         // The outer domain can be known while an element still needs contextual
         // typing from the explicit type argument. Every conditional branch must
         // agree; an unknown or mixed branch remains unknown.
@@ -5007,9 +5258,22 @@ private:
                 if (!targets) return false; // The ordinary call checker diagnoses this.
                 for (std::size_t i = 0; i < args.size(); ++i) {
                     const auto& pattern = function->parameters[(*targets)[i]].type;
+                    bool scalar_pattern = pattern.dimensions.empty() && pattern.name != "tensor";
+                    if (const auto parameter = std::find(function->type_parameters.begin(),
+                                                         function->type_parameters.end(), pattern.name);
+                        scalar_pattern && parameter != function->type_parameters.end()) {
+                        const auto constraint = function_constraint(*function,
+                            static_cast<std::size_t>(parameter - function->type_parameters.begin()));
+                        scalar_pattern = constraint == "numeric" || constraint == "ordered" ||
+                                         constraint == "integer" || constraint == "floating";
+                    }
                     if ((domains[i] == ContainerDomain::Array && pattern.name == "tensor" &&
                          pattern.dimensions.empty()) ||
-                        (domains[i] == ContainerDomain::Tensor && !pattern.dimensions.empty()))
+                        (domains[i] == ContainerDomain::Tensor && !pattern.dimensions.empty()) ||
+                        ((domains[i] == ContainerDomain::Array || domains[i] == ContainerDomain::Tensor) &&
+                         scalar_pattern) ||
+                        (domains[i] == ContainerDomain::Scalar &&
+                         (!pattern.dimensions.empty() || pattern.name == "tensor")))
                         return true;
                 }
                 return false;
@@ -5457,104 +5721,142 @@ private:
             // marked first parameter. Desugar before specialization, so the
             // existing generic-family, borrow and effect mechanisms resolve
             // the same implementation for f(x) and x.f().
-            std::optional<std::string> extension;
-            bool extension_writable = false;
-            const auto receiver_type = infer_expression_type(*node->receiver, current_class);
+            struct ExtensionCandidate {
+                std::string name;
+                std::string source_file;
+                bool writable{};
+                bool call_matches{};
+            };
+            std::vector<ExtensionCandidate> extensions;
+            auto receiver = clone_expr(*node->receiver, substitution, deferred, current_class);
+            const auto receiver_type = infer_expression_type(*receiver, current_class);
+            auto arguments = clone_args(node->args, substitution, deferred, current_class);
+            arguments.insert(arguments.begin(), CallArg{
+                std::nullopt, false, std::move(receiver), node->receiver->span});
+            auto extension_type_arguments =
+                materialize_type_arguments(node->type_arguments, substitution, deferred);
+            bool contextual_receiver_collision = false;
             for (const auto& [name, family] : function_families_) {
                 if (name != node->method &&
                     !(name.size() > node->method.size()+1 &&
-                      name.ends_with("." + node->method) &&
-                      name.find('.') == name.size()-node->method.size()-1))
+                      name.ends_with("." + node->method)))
+                    continue;
+                if (!extension_visible(*family.front()))
                     continue;
                 bool matches = false;
                 bool mutable_receiver = false;
+                bool call_matches = false;
                 for (const auto* declaration : family) {
                     if (declaration->parameters.empty() ||
                         !declaration->parameters.front().is_extension ||
-                        declaration->is_private)
+                        (declaration->is_private &&
+                         declaration->module_namespace != current_module_namespace_))
                         continue;
                     const auto& param = declaration->parameters.front();
-                    if (receiver_type) {
-                        const auto& pattern = param.type;
-                        const bool generic_element =
-                            std::find(declaration->type_parameters.begin(),
-                                      declaration->type_parameters.end(),
-                                      pattern.name) != declaration->type_parameters.end();
-                        if (pattern.dimensions.size() != receiver_type->dimensions.size())
-                            continue;
-                        if (!generic_element && pattern.name != receiver_type->name)
-                            continue;
+                    if (receiver_type && !contains_parameter(*receiver_type, deferred)) {
+                        Substitution inferred;
+                        if (!infer_generic_pattern(param.type, *receiver_type,
+                                                   set_of(declaration->type_parameters), inferred)) continue;
+                        bool constraints_match = true;
+                        for (std::size_t i = 0; i < declaration->type_parameters.size(); ++i) {
+                            const auto argument = inferred.find(declaration->type_parameters[i]);
+                            if (argument != inferred.end() &&
+                                !satisfies_generic_constraint(argument->second,
+                                                              function_constraint(*declaration, i))) {
+                                constraints_match = false;
+                                break;
+                            }
+                        }
+                        if (!constraints_match) continue;
+                    }
+                    arguments.front().writable = param.writable;
+                    bool declaration_matches = false;
+                    Substitution candidate_arguments;
+                    if (extension_type_arguments.empty()) {
+                        if (declaration->type_parameters.empty()) {
+                            declaration_matches = concrete_family_match(
+                                *declaration, arguments, current_class);
+                        } else if (const auto inferred = generic_family_match(
+                                       *declaration, arguments, current_class)) {
+                            declaration_matches = true;
+                            for (std::size_t i = 0; i < inferred->size(); ++i)
+                                candidate_arguments.emplace(declaration->type_parameters[i],
+                                                            clone_type((*inferred)[i]));
+                        }
+                    } else if (generic_arguments_satisfy(*declaration, extension_type_arguments)) {
+                        for (std::size_t i = 0; i < extension_type_arguments.size(); ++i)
+                            candidate_arguments.emplace(declaration->type_parameters[i],
+                                                        clone_type(extension_type_arguments[i]));
+                        declaration_matches = concrete_family_match(
+                            *declaration, arguments, current_class, &candidate_arguments);
+                    }
+                    // An unknown type is not a wildcard. Literal receivers
+                    // can still match through the ordinary family's concrete
+                    // contextual argument rules above.
+                    if (!receiver_type && !declaration_matches) continue;
+                    if (!receiver_type) {
+                        const auto contextual_receiver =
+                            materialize_type(param.type, candidate_arguments, deferred);
+                        contextual_receiver_collision |=
+                            receiver_has_method(contextual_receiver, node->method);
                     }
                     matches = true;
                     mutable_receiver |= param.writable;
-                    if (extension && *extension == name &&
-                        extension_writable != param.writable)
-                        frontend_error("EXTENSION_AMBIGUOUS",
-                                       "One extension family cannot mix value and reference receivers.",
-                                       source.span);
+                    call_matches |= declaration_matches;
                 }
                 if (!matches) continue;
-                if (extension && *extension != name)
-                    frontend_error("EXTENSION_AMBIGUOUS",
-                                   "Extension method '" + node->method +
-                                   "' is visible from multiple imported modules; call it with a namespace.",
-                                   source.span);
-                extension = name;
-                extension_writable = mutable_receiver;
+                extensions.push_back({name, family.front()->source_file,
+                                      mutable_receiver, call_matches});
             }
-            if (extension) {
-                const bool array_receiver = receiver_type && !receiver_type->dimensions.empty();
-                const bool scalar_receiver = receiver_type && receiver_type->dimensions.empty();
-                const bool native_collision =
-                    (array_receiver && (node->method == "indices" ||
-                        node->method == "append" || node->method == "concat" ||
-                        node->method == "join" || node->method == "sorted" ||
-                        node->method == "string")) ||
-                    (scalar_receiver && node->method == "string") ||
-                    (receiver_type && receiver_type->name == "tensor" &&
-                        (node->method == "track" || node->method == "untrack" ||
-                         node->method == "retrack" || node->method == "backward" ||
-                         node->method == "reshape" || node->method == "shape" ||
-                         node->method == "cpu" || node->method == "gpu" ||
-                         node->method == "item" || node->method == "matmul_not_a_method"));
-                bool class_collision = false;
-                if (receiver_type) for (const auto& cls : source_.classes) {
-                    if (cls.name != receiver_type->name) continue;
-                    class_collision = std::any_of(
-                        cls.methods.begin(), cls.methods.end(),
-                        [&](const FunctionDecl& method) { return method.name == node->method; });
-                }
-                if (native_collision || class_collision)
+            if (!extensions.empty()) {
+                if ((receiver_type && receiver_has_method(*receiver_type, node->method)) ||
+                    contextual_receiver_collision)
                     frontend_error("EXTENSION_COLLISION",
                                    "Extension method '" + node->method +
                                    "' conflicts with an existing method of its receiver type.",
                                    source.span);
-                if (extension_writable && !node->mutation_marker)
+                if (std::any_of(extensions.begin(), extensions.end(),
+                                [](const auto& candidate) { return candidate.call_matches; })) {
+                    std::erase_if(extensions,
+                                  [](const auto& candidate) { return !candidate.call_matches; });
+                }
+                // Loading the same source under two import aliases does not
+                // create competing providers of the same extension family.
+                std::sort(extensions.begin(), extensions.end(),
+                    [](const auto& a, const auto& b) { return a.name < b.name; });
+                const auto& extension = extensions.front();
+                if (std::any_of(extensions.begin() + 1, extensions.end(),
+                    [&](const auto& candidate) {
+                        return candidate.source_file.empty() ||
+                               candidate.source_file != extension.source_file;
+                    }))
+                    frontend_error("EXTENSION_AMBIGUOUS",
+                                   "Extension method '" + node->method +
+                                   "' is visible from multiple imported modules; call it with a namespace.",
+                                   source.span);
+                if (extension.writable && !node->mutation_marker)
                     frontend_error("MUTATION_MARKER",
                                    "An extension with a writable receiver must use '.receiver.method(...)'.",
                                    source.span);
                 CallExpr call;
-                call.callee = *extension;
-                call.type_arguments = node->type_arguments;
+                call.callee = extension.name;
+                call.type_arguments = std::move(extension_type_arguments);
                 call.mutation_marker = node->mutation_marker;
-                call.args.push_back(CallArg{
-                    std::nullopt, extension_writable,
-                    clone_expr(*node->receiver, substitution, deferred, current_class),
-                    node->receiver->span});
-                auto other_args = clone_args(node->args, substitution, deferred, current_class);
-                for (auto& argument : other_args) call.args.push_back(std::move(argument));
+                arguments.front().writable = extension.writable;
+                call.args = std::move(arguments);
                 Expr rewritten;
                 rewritten.span = source.span;
                 rewritten.data = std::move(call);
                 return clone_expr(rewritten, {}, deferred, current_class);
             }
             MethodCallExpr copy;
-            copy.receiver = clone_expr(*node->receiver, substitution, deferred, current_class);
+            copy.receiver = std::move(arguments.front().value);
+            arguments.erase(arguments.begin());
             copy.method = node->method;
             copy.mutation_marker = node->mutation_marker;
-            copy.args = clone_args(node->args, substitution, deferred, current_class);
+            copy.args = std::move(arguments);
 
-            auto type_arguments = materialize_type_arguments(node->type_arguments, substitution, deferred);
+            auto type_arguments = std::move(extension_type_arguments);
             const bool deferred_call = std::any_of(
                 type_arguments.begin(), type_arguments.end(),
                 [&](const auto& argument) { return contains_parameter(argument, deferred); });
@@ -5724,6 +6026,7 @@ private:
             type_environment_ = before;
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<MainGuardStmt>(&source.data)) {
+            ModuleScope module_scope(current_module_namespace_, node->module_namespace);
             MainGuardStmt copy;
             copy.active = node->active;
             copy.source_file = node->source_file;
@@ -5858,6 +6161,7 @@ private:
         const Substitution& substitution,
         const std::unordered_set<std::string>& deferred,
         const std::string& current_class) {
+        ModuleScope module_scope(current_module_namespace_, source.module_namespace);
         const auto saved_environment = type_environment_;
         const auto saved_expected=traversal_expected_result_;
         type_environment_.clear();
@@ -5980,6 +6284,7 @@ private:
         const std::string& concrete_name,
         const Substitution& class_substitution) {
         if (class_index_.contains(concrete_name)) return;
+        ModuleScope module_scope(current_module_namespace_, source.module_namespace);
 
         ClassDecl out;
         out.name = concrete_name;

@@ -118,6 +118,7 @@ private:
     ExprPtr postfix();
     ExprPtr primary();
     ExprPtr range_from(ExprPtr begin_value, SourcePos begin);
+    ExprPtr range_operand();
     ExprPtr array_comprehension(SourcePos start);
     ExprPtr make_binary(ExprPtr left, const Token& op, ExprPtr right);
     bool at_marker_touching_colon() const;

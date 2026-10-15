@@ -6078,19 +6078,30 @@ Type Checker::check_call_expr(const Expr& expression,
             if (!start_checked) check_expr(start, &element);
             if (!end_checked) check_expr(stop, &element);
             if (explicit_step) check_index_operand(step);
-            const auto from = constant_eval::integer(start);
-            const auto to = constant_eval::integer(stop);
-            const auto increment = explicit_step ? constant_eval::integer(step)
-                                                  : std::optional<long long>{};
-            if (increment && *increment == 0)
+            const auto integer_constant = [](const Expr& value)
+                -> std::optional<for_constants::Integer> {
+                if (const auto exact = for_constants::integer_literal(value)) return exact;
+                if (const auto bounded = constant_eval::integer(value))
+                    return for_constants::Integer(*bounded);
+                return std::nullopt;
+            };
+            const auto from = integer_constant(start);
+            const auto to = integer_constant(stop);
+            const auto increment = explicit_step ? integer_constant(step)
+                : std::optional<for_constants::Integer>{};
+            if (increment && increment->zero())
                 error("SLICE_STEP", "Range step cannot be zero.", step.span);
+            if (increment && ((marker_asc && for_constants::negative(*increment)) ||
+                              (marker_desc && !for_constants::negative(*increment))))
+                error("SLICE_STEP", "Range step opposes the endpoint markers.", step.span);
             if (from && to) {
-                if (marker_asc && *from > *to)
-                    error("SLICE_STEP", "Ascending range markers oppose the bounds.", expression.span);
-                if (marker_desc && *from < *to)
-                    error("SLICE_STEP", "Descending range markers oppose the bounds.", expression.span);
-                if (increment && ((*from < *to && *increment < 0) ||
-                                  (*from > *to && *increment > 0)))
+                const auto order = for_constants::compare(*from, *to);
+                // Markers without an explicit step may describe an empty
+                // exclusive progression, just like direct slices. A written
+                // step must agree with unequal endpoints; equality permits
+                // either sign when no marker fixes it.
+                if (increment && order != 0 &&
+                    for_constants::negative(*increment) != (order > 0))
                     error("SLICE_STEP", "Range step opposes the bound direction.", expression.span);
             }
             type = Type::array(element);
@@ -7040,6 +7051,15 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
               expression.span);
         return simple(TypeKind::Invalid);
     }
+    if (std::any_of(types.begin(), types.end(),
+                    [](const Type& type) {
+                        return type.kind == TypeKind::Tensor || type.kind == TypeKind::Array;
+                    })) {
+        error("CHAINED_COMPARISON",
+              "Arrays and tensors cannot be compared in a chain; combine the comparisons explicitly.",
+              expression.span);
+        return simple(TypeKind::Invalid);
+    }
     for (std::size_t i = 0; i < count; ++i) {
         if (!literal[i]) continue;
         const Type* context = nullptr;
@@ -7053,13 +7073,6 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     if (!shape_valid) return simple(TypeKind::Invalid);
     if (std::any_of(types.begin(), types.end(), [](const Type& type) { return poisoned(type); }))
         return simple(TypeKind::Invalid);
-    if (std::any_of(types.begin(), types.end(),
-                    [](const Type& type) { return type.kind == TypeKind::Tensor; })) {
-        error("CHAINED_COMPARISON",
-              "Tensors cannot be compared in a chain; combine the masks explicitly.",
-              expression.span);
-        return simple(TypeKind::Invalid);
-    }
     std::vector<bool> element_read(count);
     bool valid = true;
     for (std::size_t i = 0; i < node.ops.size(); ++i) {
@@ -7887,16 +7900,44 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
                    std::holds_alternative<ArrayExpr>(node->right->data) &&
+                   expected && expected->kind == TypeKind::Array &&
+                   (node->op == "+" || node->op == "-" || node->op == "*" ||
+                    node->op == "/" || node->op == "%" || node->op == "^")) {
+            left = check_expr(*node->left, expected);
+            right = check_expr(*node->right, expected);
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
+                   std::holds_alternative<ArrayExpr>(node->right->data) &&
                    (node->op == "<" || node->op == "<=" ||
-                    node->op == ">" || node->op == ">=") &&
-                   expected == nullptr) {
-            // Both operands contain unsized integer literals: a comparison
-            // has no result-element context from which to infer their type.
-            // The only independent integer-literal array comparison is
-            // evaluated at exact int (never by an implicit numeric cast).
-            const auto index_context = Type::array(simple(TypeKind::Int));
-            left = check_expr(*node->left, &index_context);
-            right = check_expr(*node->right, &index_context);
+                    node->op == ">" || node->op == ">=")) {
+            // A bool-array result provides no numeric operand context.
+            // Pure integer-literal arrays use exact int at every rank;
+            // otherwise a typed operand supplies the literal context.
+            std::function<std::optional<Type>(const Expr&)> integer_array_context;
+            integer_array_context = [&](const Expr& value) -> std::optional<Type> {
+                const auto* array = std::get_if<ArrayExpr>(&value.data);
+                if (!array)
+                    return integer_category(numeric_literal_family(value))
+                        ? std::optional<Type>{simple(TypeKind::Int)} : std::nullopt;
+                std::optional<Type> element;
+                for (const auto& item : array->elements) {
+                    const auto item_type = integer_array_context(*item);
+                    if (!item_type || (element && *element != *item_type)) return std::nullopt;
+                    element = item_type;
+                }
+                return Type::array(element.value_or(simple(TypeKind::Int)));
+            };
+            const auto left_context = integer_array_context(*node->left);
+            const auto right_context = integer_array_context(*node->right);
+            if (left_context && right_context) {
+                left = check_expr(*node->left, &*left_context);
+                right = check_expr(*node->right, &*right_context);
+            } else if (left_context) {
+                right = check_expr(*node->right);
+                left = check_expr(*node->left, &right);
+            } else {
+                left = check_expr(*node->left);
+                right = check_expr(*node->right, &left);
+            }
         } else if (left_literal && right_literal) {
             if (integer_category(left_family) != integer_category(right_family)) {
                 error("NUMERIC_FAMILY",

@@ -119,6 +119,19 @@ int[] e = 3:0       // [3, 2, 1, 0]
 int[] invalid = 3:  // compile error: no end
 ```
 
+Without directional exclusion markers, an omitted step follows the endpoint
+order; equal endpoints allow either nonzero explicit step. Directional markers
+take precedence, as in slices. A marker pointing away from the endpoint produces
+an empty array when no step is supplied. An explicit step must agree with both
+the markers and the order of unequal endpoints. Zero steps are always errors.
+Direction and length arithmetic use exact integers, including steps beyond
+machine integer limits; element and allocation limits are still checked.
+
+Signed endpoints and steps need no parentheses (`-3:0`, `0:-3`, `3:0:-1`).
+Parenthesize compound endpoint expressions, for example `start:(stop + 1)`.
+Arithmetic following the range applies to the generated array: `(:9 ^ 2)`
+produces the squares from zero through nine.
+
 A colon within brackets, such as `values[:3]`, remains a direct slice and
 does not first construct an index array. The stand-alone range must fit its
 integer element type and the runtime allocation limit.
@@ -467,7 +480,7 @@ tensor<T> normalize<T: floating>(tensor<T> value)
 
 The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integers, `int` and `nat`; `floating` accepts `real16`, `real16b`, `real32` and `real64`; `numeric` accepts integer, floating, exact `real`, and every complex type; `ordered` accepts integer, floating, and exact `real`, excluding complex values; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
 
-A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape: the same argument count, parameter names, reference/const forms, and default-argument positions. Generic members also keep the same generic type pattern and relationships among their type parameters, except that array and tensor parameter patterns may coexist when their container domains are statically disjoint. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
+A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape: the same argument count, parameter names, reference/const forms, extension-receiver markers, and default-argument positions. Generic members also keep the same generic type pattern and relationships among their type parameters, except that array, tensor, and constrained scalar parameter patterns may coexist when their domains are statically disjoint. A scalar type parameter constrained by `numeric`, `ordered`, `integer`, or `floating` cannot match an array or tensor; `equatable` and unconstrained parameters provide no such exclusion. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
 
 ```quidra
 T1 combine<T1: numeric, T2: integer>(T1 left, T2 right)

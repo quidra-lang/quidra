@@ -583,7 +583,8 @@ ValueId ExpressionLowering::lower_array_literal(const Expr& e, const ArrayExpr& 
 }
 
 ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
-    const bool base_owned=lifetime_.expression_owns_result(*n.base);
+    const bool snapshot_base=lifetime_.index_base_needs_snapshot(n);
+    const bool base_owned=snapshot_base || lifetime_.expression_owns_result(*n.base);
     const auto base_type=type_of(checked_,*n.base);
     const bool standard_collection_array =
         base_type.kind == TypeKind::Array &&
@@ -594,6 +595,33 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         (facts_.array_initialization.fully_initialized(*n.base) ||
          standard_collection_array);
     auto a=lower(*n.base);
+    // Evaluate the base before the indices without leaving a borrowed
+    // pointer exposed to replacement or in-place mutation in later calls.
+    if (snapshot_base) a=lifetime_.copy_value(a,base_type);
+    const bool hold_base = base_owned && std::any_of(
+        n.items.begin(), n.items.end(), [](const IndexPart& item) {
+            const auto runs_code = [](const ExprPtr& operand) {
+                return operand && expression_runs_code(*operand);
+            };
+            return runs_code(item.index) || runs_code(item.start) ||
+                   runs_code(item.stop) || runs_code(item.step);
+        });
+    std::string base_slot;
+    if (hold_base) {
+        // Both snapshots and existing owned temporaries need ordinary
+        // return cleanup if an index operand propagates an error.
+        base_slot = builder_.hidden("index.base");
+        builder_.emit(DeclareLocal{base_slot, base_type, "", 0, 0});
+        scope_.local_type(base_slot) = base_type;
+        builder_.emit(StoreLocal{base_slot, a, base_type});
+    }
+    const auto release_base = [&] {
+        if (hold_base) {
+            auto consumed = builder_.fresh();
+            builder_.emit(LoadLocal{consumed, base_slot, base_type, true});
+            release_owned(builder_, consumed, base_type);
+        } else if (base_owned) release_owned(builder_, a, base_type);
+    };
     if (base_type.kind == TypeKind::Array && n.items.size() == 1 &&
         !n.items.front().slice && n.items.front().index &&
         type_of(checked_, *n.items.front().index).kind == TypeKind::Array) {
@@ -704,11 +732,14 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         builder_.emit(StoreLocal{index_slot, next, integer});
         builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(done));
         lifetime_.release_temporary(selector_expression, selector);
-        if (base_owned) release_owned(builder_, a, base_type);
+        release_base();
         return output;
     }
-    if(base_type.kind==TypeKind::String && n.items.front().slice)
-        return lower_string_slice(e,n,a,base_owned,base_type);
+    if(base_type.kind==TypeKind::String && n.items.front().slice) {
+        auto out=lower_string_slice(e,n,a,false,base_type);
+        release_base();
+        return out;
+    }
     auto out=builder_.fresh();
     if(base_type.kind==TypeKind::Tensor){
         if (n.items.size() == 1 && !n.items.front().slice &&
@@ -820,7 +851,7 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
                 out=lifetime_.copy_value(out,checked_.raw_types.at(&e));
         }
     }
-    if(base_owned) release_owned(builder_,a,base_type);
+    release_base();
     return out;
 }
 

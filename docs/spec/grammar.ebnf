@@ -56,8 +56,11 @@ function_signature = type, [ "." ], identifier, [ type_parameters ],
 type_parameters  = "<", type_parameter, { ",", type_parameter }, ">" ;
 type_parameter   = identifier, [ ":", generic_constraint ] ;
 generic_constraint = "numeric" | "integer" | "floating" | "ordered" | "equatable" ;
-parameters       = parameter, { ",", parameter }, [ "," ] ;
+parameters       = [ "extend" ], parameter, { ",", parameter }, [ "," ] ;
 parameter        = [ "local" ], ( "const", type | type, [ "&" ] ), identifier, [ "=", expression ] ;
+(* `extend` is a contextual modifier permitted only on the first parameter of
+   a top-level function. It declares that parameter as the method receiver;
+   class methods, constructors, and extern signatures cannot use it. *)
 
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ expression ], "]" } ;
@@ -140,7 +143,8 @@ comparison       = bit_or_expr, { ( "<" | "<=" | ">" | ">=" ), bit_or_expr } ;
    right, short-circuiting. A chain uses only {<, <=} or only {>, >=}. Two or more `==` at one
    equality level form an equality chain; `!=` never chains and cannot share a level with `==`.
    An unparenthesized relational comparison next to `==` or `!=` (`a < b == c`, `a == b < c`)
-   is a mixed chain and a compile error; write `(a < b) == c` for the comparison of a result. *)
+   is a mixed chain and a compile error; write `(a < b) == c` for the comparison of a result.
+   Arrays and tensors cannot appear in a comparison chain. *)
 bit_or_expr      = bit_xor_expr, { "OR", bit_xor_expr } ;
 bit_xor_expr     = bit_and_expr, { "XOR", bit_and_expr } ;
 bit_and_expr     = shift_expr, { "AND", shift_expr } ;
@@ -148,7 +152,17 @@ shift_expr       = term, { ( "<<" | ">>" ), term } ;
 term             = factor, { ( "+" | "-" ), factor } ;
 factor           = unary, { ( "*" | "/" | "%" ), unary } ;
 unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | power ;
-power            = ( marked_call | postfix ), [ "^", unary ] ;
+power            = ( bounded_range | marked_call | postfix ), [ "^", unary ] ;
+bounded_range    = [ range_operand, [ "<" | ">" ] ], ":", [ "<" | ">" ],
+                   range_operand, [ ":", range_operand ] ;
+range_operand    = { "-" }, postfix ;
+(* A standalone range materializes an integer array. Its end is mandatory;
+   the omitted start is zero. Range markers touch the first colon. The leading
+   sign belongs to the bound in -3:0; parentheses in -(3:0) negate the array.
+   A signed endpoint/step ends before power, so :9 ^ 2 and 3:0:-1 ^ 2 square
+   the resulting array. Parenthesize compound bounds or steps, e.g. 0:(n + 1).
+   Scalar -2 ^ 2 retains the ordinary unary-minus/power precedence. Inside an
+   index suffix the colon instead introduces the direct slice grammar below. *)
 marked_call      = ".", postfix ;   (* the postfix must end in a call *)
 (* Mutation markers (L1): `.` before a definition's name (`void .update()`,
    `extern void .set(...)`) declares that the function may change existing state that its `&`
@@ -292,10 +306,19 @@ statement_end    = NEWLINE | EOF ;
      (`s<:`, `s>:`, `:<e`, `:>e`), and no marker belongs to the second colon (the step);
      `<=` and `>=` are never markers;
    - a slice's direction comes from its markers (`<` ascending, `>` descending), else from
-     its step's sign, else it ascends; two markers that point different ways, and a marker
+     its step's sign, else from its two explicit bounds (descending when start > end,
+     ascending otherwise); with omitted bounds and no step it ascends.
+     Two markers that point different ways, and a marker
      against the step's sign, are errors, and so is a step of 0. The default step is +1
      ascending and -1 descending. The start is the anchor of the progression
      start, start + step, ...; an exclusive start drops the anchor itself;
+   - standalone bounded ranges use the same endpoint markers and anchor progression.
+     The start defaults to zero, the end is required, and both bounds have one integer
+     element type. A nonzero explicit step agrees with any markers and with unequal
+     bounds. Equal bounds permit either step sign when no marker fixes the direction.
+     Without an explicit step, reversed markers give an empty exclusive progression.
+     Equal inclusive bounds give one element; an exclusive endpoint gives an empty array. Arbitrary-precision
+     int/nat bounds and integer steps remain exact;
    - safe address targets, exhaustive cases, field-level initialization, fixed shapes,
      argument ordering, value equality, and
      no-shadowing are checked statically.

@@ -2398,7 +2398,9 @@ static void comparison_chains_keep_one_direction() {
     good(values + "bool x = a == b == c\nprint(x)\nprint(NL)\n");
     good("bool p = false\nbool q = false\nbool r = true\nprint(p == q == r)\nprint(NL)\n");
     good("string s = \"a\"\nstring t = \"a\"\nstring u = \"a\"\nprint(s == t == u)\nprint(NL)\n");
-    good("int[] p = [1]\nint[] q = [1]\nint[] r = [1]\nprint(p == q == r)\nprint(NL)\n");
+    bad_message("int[] p = [1]\nint[] q = [1]\nint[] r = [1]\nprint(p == q == r)\n",
+                "CHAINED_COMPARISON",
+                "Arrays and tensors cannot be compared in a chain; combine the comparisons explicitly.");
     good("class P this(local int value)\n"
          "    int v\n"
          "\n"

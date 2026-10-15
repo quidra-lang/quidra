@@ -4417,6 +4417,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         error("UNKNOWN_MEMBER","Type 'string' has no method '" + node->method + "'.",expression.span);
                     }
                 } else if (receiver.kind == TypeKind::Array &&
+                           node->method == "indices") {
+                    require_count(0, "array.indices() takes no arguments.");
+                    type = Type::array(simple(TypeKind::Nat));
+                } else if (receiver.kind == TypeKind::Array &&
                            (node->method == "append" || node->method == "concat" ||
                             node->method == "join" || node->method == "sorted")) {
                     if (node->method == "append") {

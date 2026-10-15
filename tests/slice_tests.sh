@@ -61,6 +61,27 @@ if not found:
 PY
 }
 
+# A materialized indices() result uses the outer axis and nat elements.
+expect indices-dynamic "true" <<'QUI'
+int[] values = [10, 20, 30, 40]
+nat[] expected = [0, 1, 2, 3]
+print(values.indices() == expected)
+QUI
+expect indices-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+nat[] expected = [0, 1, 2]
+print(values.indices() == expected)
+QUI
+expect indices-empty "true" <<'QUI'
+int[] values = []
+nat[] expected = []
+print(values.indices() == expected)
+QUI
+rejects indices-args ARGUMENT_MISMATCH "array.indices() takes no arguments" <<'QUI'
+int[] values = [1, 2]
+print(values.indices(1))
+QUI
+
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

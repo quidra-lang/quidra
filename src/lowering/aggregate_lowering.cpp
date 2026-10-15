@@ -13,6 +13,41 @@ namespace quidra::lowering {
 
 std::optional<ValueId> AggregateLowering::try_array_method(
     const Expr& e, const MethodCallExpr& n, const Type& receiver_type) {
+    if (receiver_type.kind == TypeKind::Array && n.method == "indices") {
+        // Materialize first-axis indices in a new nat[]; no integer casts
+        // are implicit, and a temporary receiver is evaluated exactly once.
+        auto source = lowerer_.lower(*n.receiver);
+        auto count = builder_.fresh();
+        builder_.emit(ArrayLength{count, source});
+        lifetime_.release_temporary(*n.receiver, source);
+        const auto nat_type = Type::simple(TypeKind::Nat);
+        const auto result_type = Type::array(nat_type);
+        auto result = builder_.fresh();
+        builder_.emit(ArrayAlloc{result, count, result_type});
+        const auto index_type = Type::simple(TypeKind::Int64);
+        const auto index_name = builder_.hidden("indices.index");
+        scope_.local_type(index_name) = index_type;
+        auto zero = builder_.const_int(0);
+        builder_.emit(StoreLocal{index_name, zero, index_type});
+        const auto cond = builder_.label("indices.cond");
+        const auto body = builder_.label("indices.body");
+        const auto done = builder_.label("indices.done");
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(cond));
+        auto index = builder_.fresh(), more = builder_.fresh();
+        builder_.emit(LoadLocal{index, index_name, index_type});
+        builder_.emit(Binary{more, "<", index, count, index_type, Type::simple(TypeKind::Bool)});
+        builder_.emit(Branch{more, body, done});
+        builder_.enter(builder_.add_block(body));
+        auto nat_index = lowerer_.bare_from_int64(index, nat_type, true);
+        builder_.emit(ArraySet{result, index, nat_index, nat_type});
+        auto one = builder_.const_int(1), next = builder_.fresh();
+        builder_.emit(Binary{next, "+", index, one, index_type, index_type, 0, 0, true});
+        builder_.emit(StoreLocal{index_name, next, index_type});
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(done));
+        return result;
+    }
     if(receiver_type.kind==TypeKind::Array && n.method=="sorted"){
         const bool receiver_owned=lifetime_.expression_owns_result(*n.receiver);
         auto source=lowerer_.lower(*n.receiver);

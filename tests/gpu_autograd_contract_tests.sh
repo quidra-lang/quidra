@@ -41,6 +41,44 @@ QUI
 # QUIDRA_ENABLE_TEST_GPU_BACKEND. Production builds contain no fake backend.
 export QUIDRA_TEST_FAKE_GPU_COUNT=2
 
+# A tensor<bool> mask is shape-checked on-device, uses row-major logical
+# selection, and inherits the tracked tensor's gather backward graph.
+# This exercises the fake GPU path in addition to the CPU slice-suite cases.
+cat > "$TMP/tensor-mask-fake-gpu.qui" <<'QUI'
+tensor<real32> cpu = tensor.zeros<real32>([2, 2])
+cpu[0, 0] = real32(-2)
+cpu[0, 1] = real32(3)
+cpu[1, 0] = real32(0)
+cpu[1, 1] = real32(4)
+tensor<bool> mask = cpu > real32(0)
+tensor<real32> gpu = cpu.gpu(0)
+tensor<bool> gpu_mask = mask.gpu(0)
+tensor<real32> selected = gpu[gpu_mask]
+nat[] expected_shape = [2]
+print(selected.shape() == expected_shape)
+print(selected.cpu()[0].item() == real32(3))
+print(selected.cpu()[1].item() == real32(4))
+tensor<real32> tracked = gpu.track()
+tensor<bool> single_mask = (cpu > real32(3)).gpu(0)
+tensor<real32> singled = tracked[single_mask]
+singled.backward(&tracked)
+tensor<real32> gradient = tracked.grad.cpu()
+print(gradient[0, 0].item() == real32(0) and
+      gradient[0, 1].item() == real32(0) and
+      gradient[1, 0].item() == real32(0) and
+      gradient[1, 1].item() == real32(1))
+QUI
+if ! "$QUIDRA" "$TMP/tensor-mask-fake-gpu.qui" >"$TMP/tensor-mask.out" 2>"$TMP/tensor-mask.err"; then
+    echo "fake GPU tensor masking or backward failed:" >&2
+    cat "$TMP/tensor-mask.out" "$TMP/tensor-mask.err" >&2
+    exit 1
+fi
+if [[ "$(cat "$TMP/tensor-mask.out")" != "$(printf 'true\n%.0s' {1..4})" ]]; then
+    echo "fake GPU tensor mask produced unexpected values/gradients:" >&2
+    cat "$TMP/tensor-mask.out" "$TMP/tensor-mask.err" >&2
+    exit 1
+fi
+
 # Broadcast, transposed, stepped and scalar arithmetic and their gradients
 # read strided operands on the device. The test backend computes on the host,
 # so every value must be bitwise the CPU one, with strided reads

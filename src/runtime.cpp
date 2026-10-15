@@ -6496,6 +6496,55 @@ TensorValue* tensor_gather_logical_indices(
     return result;
 }
 
+// Logical row-major mask extraction. A GPU mask is transferred once for
+// dynamic output-size discovery; the selected values stay on their original
+// device and use the existing gather kernel/autograd backward graph.
+extern "C" void* quidra_tensor_mask_select(
+    void* source_raw,void* mask_raw,
+    unsigned long long line,unsigned long long column) {
+    if (!source_raw || !mask_raw)
+        tensor_fail("tensor mask extraction received a null operand",line,column);
+    auto& source=*static_cast<TensorValue*>(source_raw);
+    auto& mask=*static_cast<TensorValue*>(mask_raw);
+    if (!source.storage || !mask.storage)
+        tensor_fail("tensor mask extraction requires initialized tensor descriptors",line,column);
+    if (mask.storage->dtype != QCORE_DTYPE_BOOL)
+        tensor_fail("tensor mask extraction requires tensor<bool>",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
+    if (source.shape != mask.shape)
+        tensor_fail("tensor mask must match every input axis",line,column);
+    tensor_require_initialized(mask,line,column);
+    auto* host_mask=tensor_on_cpu(*mask.storage)
+        ? nullptr : static_cast<TensorValue*>(
+            quidra_tensor_to_cpu(mask_raw,line,column));
+    quidra::runtime::NodeRuntimeOwner host_mask_owner(
+        host_mask,+[](void* raw){release_managed_tensor(raw);});
+    const auto& selector=host_mask ? *host_mask : mask;
+    const auto count=tensor_logical_count(selector);
+    std::vector<std::size_t> selected;
+    try {
+        selected.reserve(count);
+    } catch (...) {
+        runtime_allocation_failure();
+    }
+    for (std::size_t i=0;i<count;++i) {
+        const auto position=tensor_storage_index(selector,i);
+        if (position>=selector.storage->count)
+            tensor_fail("tensor mask view exceeds its storage",line,column);
+        if (selector.storage->data[position] != 0)
+            selected.push_back(i);
+    }
+    if (selected.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max()))
+        tensor_fail("tensor mask result exceeds supported array length",line,column);
+    if (host_mask) {
+        host_mask_owner.relinquish();
+        release_managed_tensor(host_mask);
+    }
+    const auto selected_length=static_cast<long long>(selected.size());
+    return tensor_gather_logical_indices(
+        source,std::move(selected),{selected_length},line,column);
+}
+
 extern "C" void* quidra_tensor_gather(
     void* raw,void* indices_array,void* shape_array,
     unsigned long long line,unsigned long long column) {

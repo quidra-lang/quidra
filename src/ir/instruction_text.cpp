@@ -238,6 +238,10 @@ std::string instruction_text(const Instruction& i){ std::ostringstream out; std:
         else if constexpr(std::is_same_v<T,TensorIndex>){
             out<<"%"<<n.out<<" = tensor.index %"<<n.tensor;
             for(const auto& item:n.items){
+                if (item.kind == abi::tensor_index_spec::mask) {
+                    out<<" mask %" << (item.index ? std::to_string(*item.index) : "?");
+                    continue;
+                }
                 if(item.kind!=abi::tensor_index_spec::index){
                     // A marked slice shows its markers and the word marked; the
                     // half-open start:<end shows none.

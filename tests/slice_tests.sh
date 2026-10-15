@@ -293,6 +293,39 @@ int[] values = [1, 2]
 print(values.indices())
 QUI
 
+# Tensor<boolean> extracts logical row-major values as a new rank-1 tensor.
+expect tensor-boolean-mask "true" <<'QUI'
+tensor<real32> input = tensor.zeros<real32>([2, 2])
+input[0, 0] = real32(-2)
+input[0, 1] = real32(3)
+input[1, 0] = real32(0)
+input[1, 1] = real32(4)
+tensor<bool> mask = input > real32(0)
+tensor<real32> selected = input[mask]
+int[] expected_shape = [2]
+print(selected.shape() == expected_shape and
+      selected[0].item() == real32(3) and
+      selected[1].item() == real32(4))
+QUI
+expect tensor-boolean-mask-empty "true" <<'QUI'
+tensor<real32> input = tensor.zeros<real32>([3])
+tensor<bool> mask = input > real32(0)
+tensor<real32> selected = input[mask]
+int[] expected_shape = [0]
+print(selected.shape() == expected_shape)
+QUI
+expect tensor-boolean-mask-autograd "true" <<'QUI'
+tensor<real32> input = tensor.ones<real32>([3]).track()
+tensor<real32> sample = tensor.zeros<real32>([3])
+sample[1] = real32(2)
+tensor<bool> mask = sample > real32(0)
+tensor<real32> selected = input[mask]
+tensor<real32> loss = selected[0]
+loss.backward(&input)
+print(input.grad[0].item() == real32(0) and
+      input.grad[1].item() == real32(1) and
+      input.grad[2].item() == real32(0))
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

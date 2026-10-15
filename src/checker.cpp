@@ -3545,6 +3545,42 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
     if(base.kind==TypeKind::Tuple) error("TUPLE","Tuples have no positional access; destructure the tuple instead.",expression.span);
 
     if (base.kind == TypeKind::Tensor) {
+        // A tensor<bool> mask selects all matching logical elements and
+        // produces a flat tensor. Reject rank/extent mismatches statically
+        // when known, and always validate the exact shape at runtime.
+        if (node->items.size() == 1 && !node->items.front().slice &&
+            node->items.front().index &&
+            !integer_category(numeric_literal_family(*node->items.front().index))) {
+            const auto& selector = *node->items.front().index;
+            const Type mask = check_expr(selector);
+            if (mask.kind == TypeKind::Tensor) {
+                if (!mask.first || mask.first->kind != TypeKind::Bool) {
+                    error("TYPE_MISMATCH",
+                          "Tensor mask extraction requires tensor<bool>.",
+                          selector.span);
+                    return simple(TypeKind::Invalid);
+                }
+                if (base.length >= 0 && mask.length >= 0 &&
+                    base.length != mask.length)
+                    error("TENSOR_SHAPE",
+                          "A tensor mask must have the same rank as its input.",
+                          selector.span);
+                if (base.length >= 0 && mask.length >= 0 &&
+                    base.length == mask.length) {
+                    for (long long axis = 0; axis < base.length; ++axis) {
+                        const auto input_extent=base.extent(static_cast<std::size_t>(axis)).known();
+                        const auto mask_extent=mask.extent(static_cast<std::size_t>(axis)).known();
+                        if (input_extent && mask_extent &&
+                            *input_extent != *mask_extent) {
+                            error("TENSOR_SHAPE",
+                                  "A tensor mask must have the same shape as its input.",
+                                  selector.span);
+                        }
+                    }
+                }
+                return Type::tensor(*base.first, 1);
+            }
+        }
         if (node->items.empty()) {
             error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
         }

@@ -234,6 +234,17 @@ void TensorEmitter::emit(const ir::TensorIndex& n,const ir::Instruction& ins){
     symbols_.set_type(n.out,n.type);
     namespace spec=abi::tensor_index_spec;
     const auto count=n.items.size();
+    if (count == 1 && n.items.front().kind == spec::mask) {
+        if (!n.items.front().index)
+            throw std::logic_error("Tensor mask index lost its selected mask value.");
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::mask_select,{
+            {ptr,symbols_.value(n.tensor)},
+            {ptr,symbols_.value(*n.items.front().index)},
+            {i64,sites_.line(n.position.line)},
+            {i64,sites_.column(n.position.column)}});
+        symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
+        return;
+    }
     const auto& specs=scratch_.instruction_slot(ins);
     constexpr long long missing=spec::missing;
     for(std::size_t i=0;i<count;++i){

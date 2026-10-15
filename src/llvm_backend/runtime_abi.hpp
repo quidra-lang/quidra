@@ -622,6 +622,8 @@ inline constexpr LlvmCallee reshape =
     llvm_callee<decltype(&quidra_tensor_reshape)>("quidra_tensor_reshape");
 inline constexpr LlvmCallee gather =
     llvm_callee<decltype(&quidra_tensor_gather)>("quidra_tensor_gather");
+inline constexpr LlvmCallee mask_select =
+    llvm_callee<decltype(&quidra_tensor_mask_select)>("quidra_tensor_mask_select");
 inline constexpr LlvmCallee scatter =
     llvm_callee<decltype(&quidra_tensor_scatter)>("quidra_tensor_scatter");
 inline constexpr LlvmCallee transpose =

@@ -711,6 +711,22 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         return lower_string_slice(e,n,a,base_owned,base_type);
     auto out=builder_.fresh();
     if(base_type.kind==TypeKind::Tensor){
+        if (n.items.size() == 1 && !n.items.front().slice &&
+            n.items.front().index &&
+            type_of(checked_, *n.items.front().index).kind == TypeKind::Tensor) {
+            const auto& selector = *n.items.front().index;
+            auto mask = lower(selector);
+            TensorIndexPart marked_mask;
+            marked_mask.kind = static_cast<std::uint8_t>(abi::tensor_index_spec::mask);
+            marked_mask.index = mask;
+            std::vector<TensorIndexPart> items;
+            items.push_back(std::move(marked_mask));
+            builder_.emit(TensorIndex{
+                out,a,std::move(items),checked_.raw_types.at(&e),
+                {static_cast<std::uint32_t>(e.span.start.line),
+                 static_cast<std::uint32_t>(e.span.start.column)}});
+            lifetime_.release_temporary(selector, mask);
+        } else {
         std::vector<TensorIndexPart> items;
         items.reserve(n.items.size());
         for(const auto& item:n.items){
@@ -735,6 +751,7 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             out,a,std::move(items),base_type,
             {static_cast<std::uint32_t>(e.span.start.line),
             static_cast<std::uint32_t>(e.span.start.column)}});
+        }
     }else{
         if(base_type.kind==TypeKind::Bin) {
             const auto& item=n.items.front();

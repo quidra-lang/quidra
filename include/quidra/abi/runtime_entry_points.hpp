@@ -154,6 +154,11 @@ extern "C" bool quidra_tensor_is_tracked(void* raw);
 extern "C" bool quidra_tensor_has_grad(void* raw);
 extern "C" void quidra_tensor_clear_grad(
     void* raw, unsigned long long line, unsigned long long column);
+// Select all true positions from a same-shaped tensor<bool> mask,
+// preserving logical row-major order and the source's gradient.
+extern "C" void* quidra_tensor_mask_select(
+    void* source, void* mask, unsigned long long line,
+    unsigned long long column);
 extern "C" void* quidra_tensor_gather(
     void* raw, void* indices_array, void* shape_array, unsigned long long line,
     unsigned long long column);

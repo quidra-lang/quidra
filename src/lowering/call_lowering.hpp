@@ -84,6 +84,7 @@ private:
     void release_borrowed_temporaries(const LoweredCallArguments& lowered);
 
     // calls, by resolution, which lower_call dispatches to
+    ValueId lower_bounded_range(const Expr& e, const CallExpr& n);
     ValueId lower_function_value_call(
         const Expr& e, const CallExpr& n, const CallResolution& resolution);
     ValueId lower_enclosing_method_call(

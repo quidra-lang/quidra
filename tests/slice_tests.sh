@@ -175,6 +175,60 @@ int[2] a = [1, 2]
 int[3] b = [3, 4, 5]
 print(a + b)
 QUI
+# Free-standing ranges allocate arrays, while indexing colons remain
+# direct slices. Both endpoints are inclusive unless explicitly excluded.
+expect free-range-basic "true" <<'QUI'
+int[] a = 0:3
+int[] b = :3
+int[] c = 2:5
+int[] expected0 = [0, 1, 2, 3]
+int[] expected1 = [2, 3, 4, 5]
+print(a == expected0 and b == expected0 and c == expected1)
+QUI
+expect free-range-step "true" <<'QUI'
+int[] a = 0:10:2
+int[] b = 5:0:-2
+int[] c = 3:0
+int[] d = 0:<3
+int[] e = 0<:3
+int[] expected_a = [0, 2, 4, 6, 8, 10]
+int[] expected_b = [5, 3, 1]
+int[] expected_c = [3, 2, 1, 0]
+int[] expected_d = [0, 1, 2]
+int[] expected_e = [1, 2, 3]
+print(a == expected_a and b == expected_b and c == expected_c and
+      d == expected_d and e == expected_e)
+QUI
+expect free-range-nat "true" <<'QUI'
+nat[] values = :3
+nat[] expected = [0, 1, 2, 3]
+print(values == expected)
+QUI
+expect free-range-typed "true" <<'QUI'
+int start = 2
+int stop = 6
+int step = 2
+int[] values = start:stop:step
+int[] expected = [2, 4, 6]
+print(values == expected)
+QUI
+expect free-range-power "true" <<'QUI'
+int[] values = :3 ^ 2
+int[] expected = [0, 1, 4, 9]
+print(values == expected)
+QUI
+expect range-gather "true" <<'QUI'
+int[] values = [10, 20, 30, 40, 50]
+int[] idx = :3
+int[] expected = [10, 20, 30, 40]
+print(values[idx] == expected and values[:3] == expected)
+QUI
+rejects free-range-missing-stop SLICE_BOUNDS "standalone range requires an end" <<'QUI'
+int[] indices = 3:
+QUI
+rejects free-range-opposite-step SLICE_STEP "opposes the bound direction" <<'QUI'
+int[] indices = 0:3:-1
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

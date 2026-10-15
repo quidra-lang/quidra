@@ -2306,6 +2306,96 @@ ExprPtr Parser::marked_call() {
     return e;
 }
 
+// In a free expression a bounded colon range materializes an integer
+// array, while an indexing colon keeps the existing direct-slice AST.
+// The internal call is generated only by this parser and is not a public API.
+ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
+    bool start_exclusive = false;
+    bool end_exclusive = false;
+    bool ascending_marker = false;
+    bool descending_marker = false;
+    if (begin_value && at_marker_touching_colon()) {
+        start_exclusive = true;
+        if (match(TokenKind::Less)) ascending_marker = true;
+        else {
+            consume(TokenKind::Greater, "Expected range marker.");
+            descending_marker = true;
+        }
+    }
+    const auto colon = consume(TokenKind::Colon, "Expected ':' in bounded range.");
+    if (at(TokenKind::Less) || at(TokenKind::Greater)) {
+        if (peek().span.start.offset != colon.span.end.offset)
+            throw CompileError(Diagnostic{
+                "SLICE_STEP", slice_marker_spacing_message, peek().span});
+        end_exclusive = true;
+        if (match(TokenKind::Less)) ascending_marker = true;
+        else {
+            consume(TokenKind::Greater, "Expected range marker.");
+            descending_marker = true;
+        }
+    }
+    if (ascending_marker && descending_marker)
+        throw CompileError(Diagnostic{
+            "SLICE_STEP", "Range endpoint markers must point in the same direction.",
+            colon.span});
+    const auto missing_endpoint = [&] {
+        return at(TokenKind::Colon) || at(TokenKind::Comma) ||
+               at(TokenKind::Newline) || at(TokenKind::Eof) ||
+               at(TokenKind::RParen) || at(TokenKind::RBracket);
+    };
+    if (missing_endpoint())
+        throw CompileError(Diagnostic{
+            "SLICE_BOUNDS", "A standalone range requires an end value; only an indexed slice may omit it.",
+            colon.span});
+    ExprPtr end_value;
+    {
+        FlagScope no_nested_range(slice_start_marker_stop_, true);
+        end_value = at(TokenKind::Minus) ? unary() : postfix();
+    }
+    ExprPtr step_value;
+    const bool has_step = match(TokenKind::Colon);
+    if (has_step) {
+        if (missing_endpoint())
+            throw CompileError(Diagnostic{"SLICE_STEP", "Range step is missing.", peek().span});
+        FlagScope no_nested_range(slice_start_marker_stop_, true);
+        step_value = unary();
+    }
+    if (at(TokenKind::Colon))
+        throw CompileError(Diagnostic{"SLICE_STEP", "Range takes at most one step.", peek().span});
+    auto synthetic_int = [&](std::uint64_t value) {
+        auto e = std::make_unique<Expr>();
+        e->span = colon.span;
+        e->data = IntegerExpr{value, std::to_string(value), true};
+        return e;
+    };
+    auto synthetic_bool = [&](bool value) {
+        auto e = std::make_unique<Expr>();
+        e->span = colon.span;
+        e->data = BoolExpr{value};
+        return e;
+    };
+    if (!begin_value) begin_value = synthetic_int(0);
+    if (!step_value) step_value = synthetic_int(0);
+    const auto end = has_step ? step_value->span.end : end_value->span.end;
+    std::vector<CallArg> args;
+    auto arg = [&](ExprPtr value) {
+        auto span = value->span;
+        args.push_back(CallArg{std::nullopt, false, std::move(value), span});
+    };
+    arg(std::move(begin_value));
+    arg(std::move(end_value));
+    arg(std::move(step_value));
+    arg(synthetic_bool(start_exclusive));
+    arg(synthetic_bool(end_exclusive));
+    arg(synthetic_bool(has_step));
+    arg(synthetic_bool(ascending_marker));
+    arg(synthetic_bool(descending_marker));
+    auto e = std::make_unique<Expr>();
+    e->span = SourceSpan{begin, end};
+    e->data = CallExpr{"$std.range.generate", std::move(args), {}};
+    return e;
+}
+
 ExprPtr Parser::postfix() {
     auto e = primary();
     for (;;) {
@@ -2407,6 +2497,12 @@ ExprPtr Parser::postfix() {
             indexed->span = SourceSpan{start, end};
             indexed->data = IndexExpr{std::move(e), std::move(items)};
             e = std::move(indexed);
+            continue;
+        }
+        if (!slice_start_marker_stop_ &&
+            (at(TokenKind::Colon) || at_marker_touching_colon())) {
+            const auto begin = e->span.start;
+            e = range_from(std::move(e), begin);
             continue;
         }
         break;
@@ -2549,6 +2645,8 @@ ExprPtr Parser::array_comprehension(SourcePos start) {
 }
 
 ExprPtr Parser::primary() {
+    if (!slice_start_marker_stop_ && at(TokenKind::Colon))
+        return range_from(nullptr, peek().span.start);
     if (match(TokenKind::Integer)) {
         const auto t=previous(); std::uint64_t value{}; const auto* b=t.text.data(); const auto* end=b+t.text.size();
         const auto parsed=std::from_chars(b,end,value);

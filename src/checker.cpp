@@ -5993,6 +5993,63 @@ Type Checker::check_call_expr(const Expr& expression,
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
         const auto& name = node->callee;
+        if (name == "$std.range.generate") {
+            if (node->args.size() != 8 || !node->type_arguments.empty())
+                throw std::logic_error("Malformed compiler-owned range expression.");
+            const auto& start = *node->args[0].value;
+            const auto& stop = *node->args[1].value;
+            const auto& step = *node->args[2].value;
+            const auto flag = [&](std::size_t i) {
+                const auto* value = std::get_if<BoolExpr>(&node->args[i].value->data);
+                if (!value)
+                    throw std::logic_error("Compiler-owned range has a nonconstant flag.");
+                return value->value;
+            };
+            const bool explicit_step = flag(5);
+            const bool marker_asc = flag(6);
+            const bool marker_desc = flag(7);
+            const bool start_literal = integer_category(numeric_literal_family(start));
+            const bool end_literal = integer_category(numeric_literal_family(stop));
+            Type element = simple(TypeKind::Int);
+            bool start_checked = false, end_checked = false;
+            if (expected && expected->kind == TypeKind::Array && expected->first &&
+                expected->first->kind != TypeKind::Auto) {
+                element = *expected->first;
+            } else if (!start_literal) {
+                element = check_expr(start);
+                start_checked = true;
+            } else if (!end_literal) {
+                element = check_expr(stop);
+                end_checked = true;
+            }
+            if (!poisoned(element) && !is_integer_family_type(element))
+                error("TYPE_MISMATCH",
+                      "Range bounds require one integer element type.",
+                      expression.span);
+            if (!start_checked) check_expr(start, &element);
+            if (!end_checked) check_expr(stop, &element);
+            if (explicit_step) check_index_operand(step);
+            const auto from = constant_eval::integer(start);
+            const auto to = constant_eval::integer(stop);
+            const auto increment = explicit_step ? constant_eval::integer(step)
+                                                  : std::optional<long long>{};
+            if (increment && *increment == 0)
+                error("SLICE_STEP", "Range step cannot be zero.", step.span);
+            if (from && to) {
+                if (marker_asc && *from > *to)
+                    error("SLICE_STEP", "Ascending range markers oppose the bounds.", expression.span);
+                if (marker_desc && *from < *to)
+                    error("SLICE_STEP", "Descending range markers oppose the bounds.", expression.span);
+                if (increment && ((*from < *to && *increment < 0) ||
+                                  (*from > *to && *increment > 0)))
+                    error("SLICE_STEP", "Range step opposes the bound direction.", expression.span);
+            }
+            type = Type::array(element);
+            call_resolutions_[&expression] = CallResolution{
+                CallKind::Builtin, name, BuiltinCallable::Array, type};
+            return type;
+        }
+
         if(name=="$std.reflect.each") {
             if(!expected || expected->kind!=TypeKind::Traversal)
                 error("TRAVERSAL","A traversal is only a for-header source or a traversal function's return.",expression.span);

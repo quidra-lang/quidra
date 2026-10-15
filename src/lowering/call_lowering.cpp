@@ -325,6 +325,8 @@ ValueId CallLowering::lower_call(const Expr& e, const CallExpr& n) {
     }
     const auto& resolution=resolution_it->second;
 
+    if (n.callee == "$std.range.generate")
+        return lower_bounded_range(e, n);
     if(resolution.kind==CallKind::FunctionValue) return lower_function_value_call(e,n,resolution);
     if(const auto method=checked_.method_calls.find(&e);method!=checked_.method_calls.end()){
         return lower_enclosing_method_call(e,n,resolution);
@@ -336,6 +338,133 @@ ValueId CallLowering::lower_call(const Expr& e, const CallExpr& n) {
         throw std::logic_error("Unsupported resolved call kind.");
     }
     return lower_function_call(e,n,resolution);
+}
+
+// A standalone colon range materializes its own array; ordinary bracket
+// slicing never uses this path. No language-visible range function exists.
+ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
+    const auto flag = [&](std::size_t i) {
+        return std::get<BoolExpr>(n.args[i].value->data).value;
+    };
+    const bool start_exclusive = flag(3);
+    const bool end_exclusive = flag(4);
+    const bool explicit_step = flag(5);
+    const bool ascending_marker = flag(6);
+    const bool descending_marker = flag(7);
+    const auto integer = Type::simple(TypeKind::Int64);
+    const auto boolean = Type::simple(TypeKind::Bool);
+    const auto array_type = checked_.raw_types.at(&e);
+    const auto element_type = *array_type.first;
+    const SourcePosition site{
+        static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)};
+    auto start = lowerer_.lower_int64(*n.args[0].value);
+    auto stop = lowerer_.lower_int64(*n.args[1].value);
+    auto descending = builder_.fresh();
+    builder_.emit(Binary{descending, ">", start, stop, integer, boolean});
+    ValueId direction = descending;
+    if (ascending_marker) direction = builder_.const_bool(false);
+    if (descending_marker) direction = builder_.const_bool(true);
+    auto plus_one = builder_.const_int(1);
+    auto minus_one = builder_.const_int(-1);
+    const auto step_slot = builder_.hidden("range.step");
+    scope_.local_type(step_slot) = integer;
+    if (explicit_step) {
+        auto value = lowerer_.lower_int64(*n.args[2].value);
+        builder_.emit(StoreLocal{step_slot, value, integer});
+    } else {
+        const auto asc = builder_.label("range.step.asc");
+        const auto desc = builder_.label("range.step.desc");
+        const auto merge = builder_.label("range.step.merge");
+        builder_.emit(Branch{direction, desc, asc});
+        builder_.enter(builder_.add_block(desc));
+        builder_.emit(StoreLocal{step_slot, minus_one, integer});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(asc));
+        builder_.emit(StoreLocal{step_slot, plus_one, integer});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(merge));
+    }
+    auto step = builder_.fresh();
+    builder_.emit(LoadLocal{step, step_slot, integer});
+    {
+        // ForStepCheck rejects a zero or direction-incompatible explicit
+        // step and also protects variable endpoints at run time.
+        const auto asc = builder_.label("range.check.asc");
+        const auto desc = builder_.label("range.check.desc");
+        const auto merge = builder_.label("range.check.end");
+        builder_.emit(Branch{descending, desc, asc});
+        builder_.enter(builder_.add_block(desc));
+        builder_.emit(ForStepCheck{step, true, site});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(asc));
+        builder_.emit(ForStepCheck{step, false, site});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(merge));
+    }
+    if (start_exclusive) {
+        auto first = builder_.fresh();
+        builder_.emit(Binary{first, "+", start, step, integer, integer,
+                             site.line, site.column});
+        start = first;
+    }
+    const auto output_slot = builder_.hidden("range.output");
+    const auto index_slot = builder_.hidden("range.index");
+    scope_.local_type(output_slot) = array_type;
+    scope_.local_type(index_slot) = integer;
+    builder_.emit(DeclareLocal{output_slot, array_type, "", 0, 0});
+    auto empty = builder_.fresh();
+    builder_.emit(ArrayMake{empty, {}, array_type});
+    builder_.emit(StoreLocal{output_slot, empty, array_type});
+    builder_.emit(StoreLocal{index_slot, start, integer});
+    const auto cond = builder_.label("range.cond");
+    const auto asc = builder_.label("range.cond.asc");
+    const auto desc = builder_.label("range.cond.desc");
+    const auto body = builder_.label("range.body");
+    const auto done = builder_.label("range.done");
+    builder_.emit(Jump{cond});
+    builder_.enter(builder_.add_block(cond));
+    builder_.emit(Branch{direction, desc, asc});
+    builder_.enter(builder_.add_block(asc));
+    auto ascending_index = builder_.fresh(), more_ascending = builder_.fresh();
+    builder_.emit(LoadLocal{ascending_index, index_slot, integer});
+    builder_.emit(Binary{
+        more_ascending, end_exclusive ? "<" : "<=",
+        ascending_index, stop, integer, boolean});
+    builder_.emit(Branch{more_ascending, body, done});
+    builder_.enter(builder_.add_block(desc));
+    auto descending_index = builder_.fresh(), more_descending = builder_.fresh();
+    builder_.emit(LoadLocal{descending_index, index_slot, integer});
+    builder_.emit(Binary{
+        more_descending, end_exclusive ? ">" : ">=",
+        descending_index, stop, integer, boolean});
+    builder_.emit(Branch{more_descending, body, done});
+    builder_.enter(builder_.add_block(body));
+    auto index = builder_.fresh();
+    builder_.emit(LoadLocal{index, index_slot, integer});
+    auto value = index;
+    if (element_type.kind == TypeKind::Int) {
+        value = lowerer_.bare_from_int64(index, element_type, true);
+    } else if (element_type != integer) {
+        value = builder_.fresh();
+        builder_.emit(NumericConvert{
+            value, index, integer, element_type, true, site});
+    }
+    auto current = builder_.fresh(), length = builder_.fresh(), grown = builder_.fresh();
+    builder_.emit(LoadLocal{current, output_slot, array_type});
+    builder_.emit(ArrayLength{length, current});
+    builder_.emit(ArrayGrowMove{grown, current, array_type});
+    builder_.emit(StoreLocal{output_slot, grown, array_type, false, true});
+    builder_.emit(ArraySet{grown, length, value, element_type, site, true, true});
+    auto next = builder_.fresh();
+    builder_.emit(Binary{next, "+", index, step, integer, integer,
+                         site.line, site.column});
+    builder_.emit(StoreLocal{index_slot, next, integer});
+    builder_.emit(Jump{cond});
+    builder_.enter(builder_.add_block(done));
+    auto result = builder_.fresh();
+    builder_.emit(LoadLocal{result, output_slot, array_type, true});
+    return result;
 }
 
 ValueId CallLowering::lower_function_value_call(

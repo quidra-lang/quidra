@@ -4330,6 +4330,16 @@ private:
         }
 
         if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            if (call->callee == "$std.range.generate") {
+                auto inferred = infer_expression_type(*call->args[0].value, current_class);
+                if (!inferred)
+                    inferred = infer_expression_type(*call->args[1].value, current_class);
+                TypeName result = inferred.value_or(simple_type("int"));
+                result.dimensions.insert(result.dimensions.begin(), -1);
+                result.array_depth = result.dimensions.size();
+                result.span = expression.span;
+                return result;
+            }
             if ((call->callee == "tensor" || call->callee == "$std.tensor.zeros" ||
                  call->callee == "$std.tensor.ones") &&
                 call->type_arguments.size() == 1 && call->args.size() == 1) {
@@ -4956,6 +4966,9 @@ private:
         // agree; an unknown or mixed branch remains unknown.
         if (std::holds_alternative<ArrayExpr>(expression.data) ||
             std::holds_alternative<ArrayComprehensionExpr>(expression.data))
+            return ContainerDomain::Array;
+        if (const auto* call = std::get_if<CallExpr>(&expression.data);
+            call && call->callee == "$std.range.generate")
             return ContainerDomain::Array;
         if (const auto* call = std::get_if<CallExpr>(&expression.data);
             call && (call->callee == "tensor" || call->callee == "$std.tensor.zeros" ||

@@ -118,15 +118,14 @@ done
 for range in 'start<:stop:-1' 'stop>:start:1' 'start:<stop:-1' \
              'stop:>start:1' 'start:stop:1' 'stop:start:-1' \
              'start:>start:step' 'start:<start:negative_step' 'start:stop:zero'; do
+    # A parameter is not a compile-time constant. This exercises runtime
+    # validation rather than the (equally valid) static constant rejection.
     cat > "$TMP/dynamic.qui" <<QUI
-int start = 3
-int stop = 0
-int step = 1
-int negative_step = -1
-int zero = 0
-print("before" + NL)
-auto values = $range
-print("after" + NL)
+void validate(int start, int stop, int step, int negative_step, int zero)
+    print("before" + NL)
+    auto values = $range
+    print("after" + NL)
+validate(3, 0, 1, -1, 0)
 QUI
     status=0
     "$QUIDRA" "$TMP/dynamic.qui" > "$TMP/out" 2> "$TMP/err" || status=$?

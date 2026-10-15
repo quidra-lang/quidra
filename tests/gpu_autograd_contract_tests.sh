@@ -56,8 +56,11 @@ tensor<bool> gpu_mask = mask.gpu(0)
 tensor<real32> selected = gpu[gpu_mask]
 nat[] expected_shape = [2]
 print(selected.shape() == expected_shape)
+print(NL)
 print(selected.cpu()[0].item() == real32(3))
+print(NL)
 print(selected.cpu()[1].item() == real32(4))
+print(NL)
 tensor<real32> tracked = gpu.track()
 tensor<bool> single_mask = (cpu > real32(3)).gpu(0)
 tensor<real32> singled = tracked[single_mask]
@@ -67,6 +70,7 @@ print(gradient[0, 0].item() == real32(0) and
       gradient[0, 1].item() == real32(0) and
       gradient[1, 0].item() == real32(0) and
       gradient[1, 1].item() == real32(1))
+print(NL)
 QUI
 if ! "$QUIDRA" "$TMP/tensor-mask-fake-gpu.qui" >"$TMP/tensor-mask.out" 2>"$TMP/tensor-mask.err"; then
     echo "fake GPU tensor masking or backward failed:" >&2

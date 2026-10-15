@@ -69,6 +69,60 @@ A fixed declaration such as `int[10] values` allocates its fixed storage immedia
 
 `[]` requires enough contextual element-type information. An `auto` binding initialized directly from an array literal infers runtime-sized `T[]`, preserving the normal appendable-array behavior. When `auto` receives an array-valued expression whose static type is already fixed, such as `.shape()` on a tensor whose rank is compiler-known, that fixed dimension is preserved rather than erased. A trailing comma does not add an element. Indexing accepts an index of every integer kind, starts at zero, and checks bounds. Assignment to an element does not append or resize an array. `len(array)` returns the runtime length as `nat`; lengths, counts, shapes, sizes and the index values APIs return are `nat`, so `len(a) - 1` is a checked `nat` subtraction that fails on an empty array, while the signed `int(len(a)) - 1` is `-1`. Write `int(len(a)) - int(len(b))` for a signed difference of lengths.
 
+### Array selection, elementwise operators and ranges
+
+The six arithmetic operators `+`, `-`, `*`, `/`, `%` and `^` apply
+elementwise to ordinary numeric arrays. Array-array arithmetic requires
+identical shape at every nested axis, including ragged dimensions. Array-scalar
+arithmetic applies the scalar to each leaf; array-array broadcasting and
+implicit element casts do not occur. Exponentiation is `array ^ scalar`
+only. All operations produce independent array values and preserve fixed
+lengths where statically known. Errors in individual operations, such as
+integer overflow or divide by zero, use the scalar numeric contract.
+
+The four ordering comparisons `<`, `<=`, `>` and `>=` also work
+elementwise on ordered numeric arrays and return a same-shaped `bool` array.
+Array `==` and `!=` remain whole-array comparisons, not mask producers;
+array comparison chains are not permitted.
+
+```quidra
+int[] values = [-2, 3, 0, 4]
+bool[] positive = values > 0
+int[] selected = values[positive]   // [3, 4]
+int[] squared = values ^ 2         // [4, 9, 0, 16]
+int[] indices = [3, 1, 3]
+int[] gathered = values[indices]   // [4, 3, 4]
+nat[] locations = values.indices()  // [0, 1, 2, 3]
+```
+
+A `bool[]` mask must match the input array's outer length; it selects complete
+outer-axis elements and preserves their order. A `nat[]` or `int[]`
+index array gathers outer-axis elements in its specified order, including
+repeated positions. The result is a new independent array, and invalid index
+values are errors. Multi-element mask/index selection is read-only in this
+version: use individual indexed assignments for writes. The `.indices()`
+method always creates a `nat[]` for the outermost dimension, including an
+empty result for an empty array.
+
+A bounded colon range can also appear as an independent expression: it
+materializes a normal integer array, never a lazy iterator. Both endpoints
+are inclusive by default, and the same exclusion markers and step form
+used by slices are available. An omitted start is zero. An omitted end is
+only meaningful when indexing an actual array, not in an independent range.
+
+```quidra
+int[] a = 0:3       // [0, 1, 2, 3]
+int[] b = :3        // [0, 1, 2, 3]
+int[] c = 0:<3      // [0, 1, 2]
+int[] d = 5:0:-2    // [5, 3, 1]
+int[] e = 3:0       // [3, 2, 1, 0]
+int[] invalid = 3:  // compile error: no end
+```
+
+A colon within brackets, such as `values[:3]`, remains a direct slice and
+does not first construct an index array. The stand-alone range must fit its
+integer element type and the runtime allocation limit.
+
 ### Slices
 
 A slice `a[start:end:step]` selects elements of an array by position and gives them as a new runtime-sized array: a slice of `T[]` or `T[n]` is a `T[]` whose elements are independent copies, so writing the slice never changes `a`, and writing `a` never changes the slice. Start, end and step accept every integer kind, as an index does. A slice takes one item: `a[1:3]`, never `a[1:3, 0]`.
@@ -1111,6 +1165,19 @@ Slices may share internal storage, but source semantics remain value-oriented. M
 Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. `^` is also a Core basic operator: tensor exponentiation is deliberately one-way as `tensor ^ scalar`, with the scalar having the tensor's exact element type; `tensor ^ tensor` and `scalar ^ tensor` are not implicit operations. Integer tensor exponents must be non-negative and use checked integer arithmetic. Tensor-to-tensor implicit broadcasting requires identical rank and, on every axis, equal extents or an extent of 1 on one side; the result axis takes the common extent, or the other side's extent where one side is 1. 0 is not special: `[0, 3]` with `[1, 3]`, in either order, gives `[0, 3]`, while `[0, 3]` with `[2, 3]` is a runtime error. Rank-changing broadcasting is not implicit: `[3]` with `[0, 3]`, `[1, 3]` or `[2, 3]` is an error, reported at compile time when both ranks are statically known and at runtime otherwise; reshape explicitly, for example to `[1, 3]`, first. Scalars are the one exception and broadcast to any tensor rank. Every tensor arithmetic result remains on the tensor's device. A backend/element-type combination without a native implementation fails explicitly; tensor arithmetic never gains permission to migrate the surrounding operation to CPU implicitly.
 
 Tensor `==`, `!=`, `<`, `<=`, `>`, and `>=` are elementwise and return a same-shaped `tensor<bool>` mask. Tensor-to-tensor comparison requires identical element type, rank, and extents; it never performs tensor-to-tensor broadcasting. A scalar of the tensor's exact element type is the one comparison-broadcast exception and is compared with every element. `!=` is the elementwise logical negation of `==`. Whole-tensor questions are explicit: `mask.all()` requires every mask element to be true and `mask.any()` requires at least one; empty masks use the logical identities `true` for `.all()` and `false` for `.any()`. `tensor<bool>` supports ordinary tensor storage, indexing, slicing, copying, and explicit device transfer, but numeric tensor arithmetic and numeric kernels reject it unless an API explicitly accepts masks. Results remain on the tensor's device.
+
+Boolean tensor masking with `values[mask]` accepts a `tensor<bool>` that
+has exactly the input's shape, including all axes. The result is a new
+rank-one tensor containing the true-selected elements in logical row-major
+order, with an empty rank-one tensor if no position is true. It keeps the
+source's CPU/GPU placement and supports backward propagation through its
+gather graph, accumulating gradients at the selected positions. Output
+length is dynamic; when the mask is stored on a GPU, the implementation
+transfers the mask to the host once to determine the selected indices, then
+performs the gather on the source's original device. This host synchronization
+is currently part of the operation's performance profile and may be
+optimized without changing source semantics. Tensor integer-array indexing
+and masked assignment are separate features and are not implied by this form.
 
 Explicit numeric casts use the destination scalar type as the operation: `real64(value)`, `real32(value)`, `int8(value)`, and so on. Applied to a tensor, the cast preserves rank, shape constraints, known extents, and value semantics while converting every initialized numeric element. A cast between floating tensor element types (`real16`, `real16b`, `real32`, `real64`) preserves tracking. Its forward uses the ordinary numeric conversion, with exact widening and range-checked, nearest-even narrowing; its backward converts the incoming gradient to the source element type with the same conversion rule. Gradient contributions accumulate in each source destination’s own type. Casting a tracked tensor to an integer, bool, or complex type is rejected; call `.untrack()` explicitly when the graph is intentionally cut. A scalar conversion whose runtime value may be outside the destination range has source-visible type `T | error`: bare `auto` infers the non-error destination type and fails fast on error, `auto | error` preserves the union, a success-only destination applies the ordinary contextual fail-fast rule, `try` propagates the error, and `match` handles an explicitly preserved result locally. Integer widening whose complete source range fits the destination is infallible. Integer-to-real and in-range real-to-real conversion may use destination IEEE-754 rounding. Real-to-integer casts accept a mathematically integral value and then check the destination range; they return `T | error` for a fractional or out-of-range value. The conversion preserves the stored IEEE value exactly while checking integrality, so it never rounds a fraction. Container-specific cast methods are not part of the surface language.
 

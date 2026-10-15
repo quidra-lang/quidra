@@ -3545,6 +3545,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
     if(base.kind==TypeKind::Tuple) error("TUPLE","Tuples have no positional access; destructure the tuple instead.",expression.span);
 
     if (base.kind == TypeKind::Tensor) {
+        bool scalar_index_checked = false;
         // A tensor<bool> mask selects all matching logical elements and
         // produces a flat tensor. Reject rank/extent mismatches statically
         // when known, and always validate the exact shape at runtime.
@@ -3580,6 +3581,17 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                 }
                 return Type::tensor(*base.first, 1);
             }
+            // A scalar integer index has already been type-checked by the
+            // speculative mask branch. Re-checking a name or an effectful
+            // expression would distort initialization/effect accounting.
+            if (poisoned(mask)) return mask;
+            if (!is_integer_family_type(mask)) {
+                error("TYPE_MISMATCH",
+                      "Tensor indexing needs an integer or a tensor<bool> mask.",
+                      selector.span);
+                return simple(TypeKind::Invalid);
+            }
+            scalar_index_checked = true;
         }
         if (node->items.empty()) {
             error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
@@ -3592,7 +3604,8 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         for (const auto& item : node->items) {
             if (!item.slice) {
                 if (!item.index) error("INDEX_SYNTAX", "Tensor index is missing.", item.span);
-                check_index_operand(*item.index);
+                if (!scalar_index_checked)
+                    check_index_operand(*item.index);
                 if (result_rank >= 0) --result_rank;
                 continue;
             }

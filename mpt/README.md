@@ -56,7 +56,9 @@ Go, Java, TypeScript, Kotlin, Swift, and Zig, plus J and Julia.
 
 | Source unit | Tokens |
 | --- | ---: |
-| Identifier or type name outside a string (e.g. `real32`) | 1 |
+| Alphanumeric identifier part (e.g. `real32`, `sample`, `Count`) | 1 |
+| Each underscore `_` in an identifier | 1 |
+| Camel/Pascal boundary (e.g. `sampleCount`, `HTTPServer`) | Split into word parts |
 | Each decimal digit, including in signed and multi-digit numeric literals | 1 per digit |
 | Hexadecimal digit (`0`-`9`, `A`-`F`) within a `0x` numeric literal | 1 per digit |
 | Numeric punctuation/signs (e.g. `-`, `_`, `.`) | 1 per mark |
@@ -77,8 +79,14 @@ Examples: `137` = 3 tokens, `-137` = 4, `"Hello"` = 3,
 `"Hello World"` = 5, `"ABC123"` = 6, and `"Hello, World!"` = 7.
 The literal contents are counted from their **source spelling**, so backslash
 escapes and interpolation punctuation are not interpreted or expanded.
-For all source files, digits are separate tokens while ordinary identifiers
-(including alphanumeric names such as `real32`) remain whole tokens.
+Identifiers **outside strings** are split at every underscore, lowercase-to-
+uppercase transition, digit-to-uppercase transition, and acronym-to-word
+boundary (e.g. `HTTPServer` -> `HTTP` + `Server`). An alphanumeric part that
+starts with a letter stays whole (`real32` = 1 token); numeric-only parts after
+underscores still count one digit each. For instance, `sample_count` = 3,
+`sampleCount` = 2, `_value` = 2, `value_2` = 3, and `__init__` = 5 tokens.
+Inside quoted strings, consecutive ASCII letters remain one token regardless
+of case (`"HelloWorld"` = 3); underscores and numbers still split normally.
 
 Whitespace is counted, including blank lines and the final newline if present.
 Comments are **not discarded**; for fair comparisons, remove nonessential

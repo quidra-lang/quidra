@@ -66,7 +66,6 @@ J_WORDS_BY_START = {
     ch: tuple(word for word in SORTED_J_WORDS if word.startswith(ch))
     for ch in {word[0] for word in SORTED_J_WORDS}
 }
-RE_J_FOR = re.compile(r"for_[A-Za-z_]\w*\.")
 RE_CPP_RAW = re.compile(r'(?:u8|u|U|L)?R"([^\s()\\]{0,16})\(')
 RE_HASH_QUOTE = re.compile(r'(?:br|rb|r)?(#{1,16})("""|")')
 RE_STR_PREFIX = re.compile(r'(?i:fr|rf|br|rb|ur|ru|u8|r|f|b|u|l|c|R)?("""|\'\'\'|"|\'|`)')
@@ -167,10 +166,37 @@ def _literal_regions(source: str, i: int) -> tuple[int, int, int, int] | None:
     return prefix_end, m.end(), end - len(opener), end
 
 
+def _identifier_chunks(name: str) -> list[str]:
+    """Split snake_case and camel/PascalCase without changing spelled text.
+
+    An acronym ends immediately before a capital followed by lowercase text
+    (HTTPServer -> HTTP, Server). Digits attached to a word stay attached,
+    e.g. real32; digit-only components after '_' are split by the caller.
+    """
+    parts: list[str] = []
+    start = 0
+    for pos, ch in enumerate(name):
+        if ch == "_":
+            if pos > start:
+                parts.append(name[start:pos])
+            parts.append("_")
+            start = pos + 1
+        elif pos > start and ch.isupper():
+            prev = name[pos - 1]
+            following = name[pos + 1] if pos + 1 < len(name) else ""
+            if prev.islower() or prev.isdecimal() or (prev.isupper() and following.islower()):
+                parts.append(name[start:pos])
+                start = pos
+    if start < len(name):
+        parts.append(name[start:])
+    return parts
+
+
 def tokenize(source: str) -> list[Token]:
     """Split source into tokens under one language-independent rule set.
 
-    Each numeric digit is a token; an identifier outside strings remains one.
+    Each numeric digit is a token; outside strings, identifiers split at '_'
+    and word-case boundaries. Alphanumeric words like real32 remain intact.
     Inside strings, consecutive ASCII letters form one token, while digits,
     punctuation and spaces are split normally. String delimiters are tokens.
     Four leading ASCII spaces count as one indentation token; LF and blank
@@ -247,11 +273,8 @@ def tokenize(source: str) -> list[Token]:
             emit("quote", opener_end)
             continue
 
-        # J's for_i. and i. / NB. / if. are global lexical atoms.
-        fm = RE_J_FOR.match(source, i)
-        if fm and (fm.end() == n or not _id_start(source[fm.end()])):
-            emit("operator_word", fm.end())
-            continue
+        # J primitive words with dot/colon remain lexical atoms, while
+        # for_i. is decomposed through the generic identifier path below.
         matched = False
         for word in J_WORDS_BY_START.get(ch, ()):
             if source.startswith(word, i):
@@ -305,7 +328,18 @@ def tokenize(source: str) -> list[Token]:
             end = i + 1
             while end < n and _id_continue(source[end]):
                 end += 1
-            emit("identifier", end)
+            # Apply the same identifier boundaries to every language. Never
+            # split an alphanumeric word such as real32 solely at its digits.
+            for part in _identifier_chunks(source[i:end]):
+                if part == "_":
+                    emit("symbol", i + 1)
+                    continue
+                leading_digits = 0
+                while leading_digits < len(part) and part[leading_digits].isdecimal():
+                    emit("digit", i + 1)
+                    leading_digits += 1
+                if leading_digits < len(part):
+                    emit("identifier", i + len(part) - leading_digits)
             continue
 
         # Julia permits broadcast of Unicode operators, e.g. .⊗ .√ .∈.

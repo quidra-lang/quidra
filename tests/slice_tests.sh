@@ -82,6 +82,48 @@ int[] values = [1, 2]
 print(values.indices(1))
 QUI
 
+# Read-only gathers preserve order, duplicates, outer-axis rows and values.
+expect gather-indices "true" <<'QUI'
+int[] values = [10, 20, 30, 40, 50]
+int[] indices = [3, 1, 3]
+int[] expected = [40, 20, 40]
+print(values[indices] == expected)
+QUI
+expect gather-nat "true" <<'QUI'
+int[] values = [10, 20, 30, 40]
+nat[] indices = [3, 0]
+int[] expected = [40, 10]
+print(values[indices] == expected)
+QUI
+expect gather-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+nat[] indices = [2, 0]
+int[][] expected = [[5, 6], [1, 2]]
+print(values[indices] == expected)
+QUI
+expect mask-array "true" <<'QUI'
+int[] values = [-2, 3, 0, 4]
+bool[] mask = [false, true, false, true]
+int[] expected = [3, 4]
+print(values[mask] == expected)
+QUI
+expect mask-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+bool[] mask = [true, false, true]
+int[][] expected = [[1, 2], [5, 6]]
+print(values[mask] == expected)
+QUI
+expect mask-empty "true" <<'QUI'
+int[] values = [2, 4]
+bool[] mask = [false, false]
+int[] expected = []
+print(values[mask] == expected)
+QUI
+rejects selection-invalid-kind TYPE_MISMATCH "needs bool[], nat[] or int[]" <<'QUI'
+int[] values = [1, 2]
+real32[] indices = [0.0, 1.0]
+print(values[indices])
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

@@ -594,6 +594,119 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         (facts_.array_initialization.fully_initialized(*n.base) ||
          standard_collection_array);
     auto a=lower(*n.base);
+    if (base_type.kind == TypeKind::Array && n.items.size() == 1 &&
+        !n.items.front().slice && n.items.front().index &&
+        type_of(checked_, *n.items.front().index).kind == TypeKind::Array) {
+        // Indexed gather and boolean masks are read-only selection operators.
+        // Each operand is evaluated exactly once and the output has separate
+        // storage; managed rows receive value copies.
+        const auto& selector_expression = *n.items.front().index;
+        const auto selector_type = type_of(checked_, selector_expression);
+        const auto selector_element = *selector_type.first;
+        const bool is_mask = selector_element.kind == TypeKind::Bool;
+        const auto output_type = checked_.raw_types.at(&e);
+        const auto element_type = *base_type.first;
+        const auto integer = Type::simple(TypeKind::Int64);
+        const auto boolean = Type::simple(TypeKind::Bool);
+        const SourcePosition site{
+            static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)};
+        auto selector = lower(selector_expression);
+        auto selector_length = builder_.fresh();
+        builder_.emit(ArrayLength{selector_length, selector});
+        auto source_length = builder_.fresh();
+        builder_.emit(ArrayLength{source_length, a});
+        if (is_mask)
+            builder_.emit(ExtentEqualCheck{selector_length, source_length, site});
+        auto index_slot = builder_.hidden("selection.index");
+        scope_.local_type(index_slot) = integer;
+        auto zero = builder_.const_int(0);
+        auto one = builder_.const_int(1);
+        auto output_length = selector_length;
+        if (is_mask) {
+            // A mask has dynamic output size: count set bits before allocation.
+            auto count_slot = builder_.hidden("selection.count");
+            scope_.local_type(count_slot) = integer;
+            builder_.emit(StoreLocal{count_slot, zero, integer});
+            builder_.emit(StoreLocal{index_slot, zero, integer});
+            auto cond = builder_.label("selection.count.cond");
+            auto body = builder_.label("selection.count.body");
+            auto accept = builder_.label("selection.count.accept");
+            auto step = builder_.label("selection.count.step");
+            auto done = builder_.label("selection.count.done");
+            builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(cond));
+            auto i = builder_.fresh(), less = builder_.fresh();
+            builder_.emit(LoadLocal{i, index_slot, integer});
+            builder_.emit(Binary{less, "<", i, selector_length, integer, boolean});
+            builder_.emit(Branch{less, body, done}); builder_.enter(builder_.add_block(body));
+            auto flag = builder_.fresh();
+            builder_.emit(ArrayGet{flag, selector, i, boolean, site, false, true});
+            builder_.emit(Branch{flag, accept, step});
+            builder_.enter(builder_.add_block(accept));
+            auto count = builder_.fresh(), incremented = builder_.fresh();
+            builder_.emit(LoadLocal{count, count_slot, integer});
+            builder_.emit(Binary{incremented, "+", count, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{count_slot, incremented, integer});
+            builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
+            auto next = builder_.fresh();
+            builder_.emit(Binary{next, "+", i, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{index_slot, next, integer});
+            builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(done));
+            output_length = builder_.fresh();
+            builder_.emit(LoadLocal{output_length, count_slot, integer});
+        }
+        auto output = builder_.fresh();
+        builder_.emit(ArrayAlloc{output, output_length, output_type});
+        builder_.emit(StoreLocal{index_slot, zero, integer});
+        const auto write_slot = builder_.hidden("selection.write");
+        if (is_mask) {
+            scope_.local_type(write_slot) = integer;
+            builder_.emit(StoreLocal{write_slot, zero, integer});
+        }
+        const auto cond = builder_.label("selection.gather.cond");
+        const auto body = builder_.label("selection.gather.body");
+        const auto selected = builder_.label("selection.gather.selected");
+        const auto step = builder_.label("selection.gather.step");
+        const auto done = builder_.label("selection.gather.done");
+        builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(cond));
+        auto i = builder_.fresh(), less = builder_.fresh();
+        builder_.emit(LoadLocal{i, index_slot, integer});
+        builder_.emit(Binary{less, "<", i, selector_length, integer, boolean});
+        builder_.emit(Branch{less, body, done}); builder_.enter(builder_.add_block(body));
+        auto selection = builder_.fresh();
+        builder_.emit(ArrayGet{selection, selector, i, selector_element, site, false, true});
+        ValueId input_index = i;
+        if (is_mask) {
+            builder_.emit(Branch{selection, selected, step});
+            builder_.enter(builder_.add_block(selected));
+        } else if (selector_element.kind != TypeKind::Int64) {
+            input_index = builder_.fresh();
+            builder_.emit(NumericConvert{input_index, selection, selector_element,
+                                        integer, false, site});
+        } else input_index = selection;
+        auto item = builder_.fresh();
+        builder_.emit(ArrayGet{item, a, input_index, element_type, site});
+        item = lifetime_.copy_value(item, element_type);
+        auto write_index = i;
+        if (is_mask) {
+            write_index = builder_.fresh();
+            builder_.emit(LoadLocal{write_index, write_slot, integer});
+        }
+        builder_.emit(ArraySet{output, write_index, item, element_type, site, true, true});
+        if (is_mask) {
+            auto next_write = builder_.fresh();
+            builder_.emit(Binary{next_write, "+", write_index, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{write_slot, next_write, integer});
+            builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
+        }
+        auto next = builder_.fresh();
+        builder_.emit(Binary{next, "+", i, one, integer, integer, 0, 0, true});
+        builder_.emit(StoreLocal{index_slot, next, integer});
+        builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(done));
+        lifetime_.release_temporary(selector_expression, selector);
+        if (base_owned) release_owned(builder_, a, base_type);
+        return output;
+    }
     if(base_type.kind==TypeKind::String && n.items.front().slice)
         return lower_string_slice(e,n,a,base_owned,base_type);
     auto out=builder_.fresh();

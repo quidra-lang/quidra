@@ -3646,6 +3646,46 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         check_static_slice_bounds(base, item, expression.span);
         return Type::array(*base.first);
     }
+    if (base.kind == TypeKind::Array && node->items.size() == 1 &&
+        !node->items.front().slice && node->items.front().index) {
+        const auto& selector = *node->items.front().index;
+        auto selector_type = check_expr(selector);
+        if (selector_type.kind == TypeKind::Array && selector_type.first) {
+            const auto kind = selector_type.first->kind;
+            if (kind != TypeKind::Bool && kind != TypeKind::Nat &&
+                kind != TypeKind::Int) {
+                error("TYPE_MISMATCH",
+                      "Array selection needs bool[], nat[] or int[] indices.",
+                      selector.span);
+            }
+            if (kind == TypeKind::Bool && base.length >= 0 &&
+                selector_type.length >= 0 && base.length != selector_type.length) {
+                error("SHAPE_MISMATCH",
+                      "A boolean mask must have the same outer length as its array.",
+                      expression.span);
+            }
+            if (kind == TypeKind::Nat || kind == TypeKind::Int) {
+                if (const auto* literals = std::get_if<ArrayExpr>(&selector.data))
+                    for (const auto& index : literals->elements)
+                        check_static_index_bounds(base, *index);
+            }
+            // Every selected row is a value copy, including class/tuple and
+            // nested array elements; an uninitialized row is not readable.
+            check_element_read(*node->base, nullptr, expression.span);
+            return Type::array(*base.first);
+        }
+        // A scalar is already checked here; do not check it twice.
+        if (poisoned(selector_type)) return selector_type;
+        if (!is_integer_family_type(selector_type)) {
+            error("TYPE_MISMATCH",
+                  "An index must be an integer or an index/mask array.",
+                  selector.span);
+            return simple(TypeKind::Invalid);
+        }
+        check_static_index_bounds(base, selector);
+        check_element_read(*node->base, &selector, expression.span);
+        return *base.first;
+    }
     if (node->items.size() != 1 || node->items.front().slice ||
         !node->items.front().index) {
         for (const auto& item : node->items)

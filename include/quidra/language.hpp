@@ -555,7 +555,7 @@ inline constexpr bool is_reserved_value_name(std::string_view name) {
     return is_builtin_text_constant(name) || is_builtin_callable(name) ||
            is_builtin_type_name(name) || is_standard_module(name) ||
            name == "func" || name == "fn" || name == "auto" || name == "union" ||
-           name == "main" || name == "parallel" || name == "local";
+           name == "main" || name == "parallel" || name == "local" || name == "extend";
 }
 
 inline std::string builtin_types_json() {

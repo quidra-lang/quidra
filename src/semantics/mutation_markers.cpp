@@ -379,7 +379,25 @@ private:
         if (call && !chain) {
             chain = &expression;
             covered = marked(expression);
-            if (covered && !chain_has_marked_callee(expression)) {
+            // '.receiver.extension(...)' is the method form of passing
+            // '&receiver' as an explicit reference argument. This dot makes
+            // the writable receiver visible; it is not hidden mutation of
+            // the ordinary function, whose direct f(&receiver) form remains
+            // valid without a leading marker.
+            bool extension_receiver_borrow = false;
+            if (const auto* direct = std::get_if<CallExpr>(&expression.data);
+                direct && !direct->args.empty() && direct->args.front().writable) {
+                if (const auto resolved = checked_.call_resolutions.find(&expression);
+                    resolved != checked_.call_resolutions.end()) {
+                    if (const auto* target = declaration(resolved->second.target);
+                        target && !target->parameters.empty()) {
+                        const auto& param = target->parameters.front();
+                        extension_receiver_borrow = param.is_extension && param.writable;
+                    }
+                }
+            }
+            if (covered && !chain_has_marked_callee(expression) &&
+                !extension_receiver_borrow) {
                 report(Diagnostic{marker_code, "'.' marks a call that changes no existing state.",
                                   expression.span});
             }

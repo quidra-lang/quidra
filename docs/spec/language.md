@@ -264,6 +264,43 @@ Execution order is free while the observable behavior holds: the implementation 
 
 Numeric determinism is a third, separate concept. Evaluation order fixes which operations a program performs and in what order their effects are observed; a determinism policy, such as a package's choice between deterministic and faster nondeterministic kernels, fixes how a numeric operation computes its result. Changing such a policy is an explicit state change made by the program, never a side effect of evaluation order.
 
+## Extension methods
+
+A top-level function may mark its first parameter with `extend` to permit
+both the ordinary function call and a static method call. The definition and
+the implementation remain one function; there is no dynamic dispatch, implicit
+receiver mutation, trait object or access to private class members.
+
+```quidra
+int squared(extend int value)
+    return value * value
+
+int result = 5.squared()  // squared(5)
+```
+
+An imported, public extension function is available as a method only while
+that library is imported. An ordinary `import` does not re-export extensions;
+`public import` explicitly re-exports an imported namespace. Where multiple
+visible extensions match the same call or a built-in/class method conflicts,
+the compiler reports ambiguity instead of silently preferring a candidate.
+
+A writable extension receiver must be marked at the method call site. Its
+ordinary function form continues to use the explicit `&` argument.
+
+```quidra
+void scale(extend int[] &values, int factor)
+    for int &value = &values[]
+        value *= factor
+
+int[] values = [1, 2, 3]
+.values.scale(2)    // scale(&values, 2)
+```
+
+`extend` is permitted only on the first parameter, never on class methods
+or an external C declaration. Extension receivers do not have defaults,
+are evaluated once and use normal value, const, reference, evaluation-order
+and error propagation rules.
+
 ## Text and dynamic array operations
 
 `string` is immutable UTF-8 text. Repetition is explicit as `string.repeat(value, n)`; `value` must contain exactly one Unicode code point and `n` is a `nat`. `len(text)` counts Unicode code points rather than UTF-8 bytes and returns a `nat`. `text[index]` returns a one-code-point `string`, using the same code-point indexing model and deterministic bounds failure as other indexed values. `text.find(needle)` returns the code-point index as `nat`, or `none`; a slice `text[start:<end]` takes the code points from `start` up to `end`, with every slice form of arrays over code points (see "Slices"): `text[len(text)>:0]` reverses the text, and a start past the excluded end gives `""`. `trim()` removes Unicode whitespace at both ends. `split(separator)` preserves empty fields and requires a nonempty separator. `contains`, `starts_with`, and `ends_with` perform exact text matching. `text.utf8()` explicitly returns the UTF-8 encoding as `bin`; `string.from_utf8(data) -> string | error` performs the inverse only for byte-aligned `bin` containing valid UTF-8 without NUL, and reports representation failure as `error`; `text.codepoints()` explicitly returns Unicode scalar values as `int[]`. These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a `char` type.

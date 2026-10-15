@@ -325,7 +325,7 @@ struct Stmt {
     SourceSpan span{};
 };
 
-struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; };
+struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; bool is_extension{}; };
 // The `export "ABI"` prefix of a function declaration: the function is also
 // callable from C. `symbol` is the C symbol, the name as declared, which the
 // frontend records before it qualifies the name with the module namespace.

@@ -1637,7 +1637,8 @@ DeclarationIdentity original_declaration_identity(const FunctionDecl&, std::stri
 
 bool same_parameter_contract(const Parameter& a, const Parameter& b, std::string_view source) {
     (void)source;
-    return a.name == b.name && a.writable == b.writable && a.is_const == b.is_const &&
+    return a.name == b.name && a.writable == b.writable &&
+           a.is_const == b.is_const && a.is_extension == b.is_extension &&
            a.type.name == b.type.name;
 }
 
@@ -1659,6 +1660,7 @@ std::string function_prototype_key(const FunctionDecl& function, std::string_vie
     for (std::size_t i = 0; i < function.parameters.size(); ++i) {
         if (i) key += ",";
         const auto& parameter = function.parameters[i];
+        if (parameter.is_extension) key += "extend ";
         if (parameter.is_const) key += "const ";
         key += canonical_signature_type(parameter.type, function);
         if (parameter.writable) key += "&";
@@ -5447,6 +5449,101 @@ private:
             }
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<MethodCallExpr>(&source.data)) {
+            // Extension methods are ordinary functions with a statically
+            // marked first parameter. Desugar before specialization, so the
+            // existing generic-family, borrow and effect mechanisms resolve
+            // the same implementation for f(x) and x.f().
+            std::optional<std::string> extension;
+            bool extension_writable = false;
+            const auto receiver_type = infer_expression_type(*node->receiver, current_class);
+            for (const auto& [name, family] : function_families_) {
+                if (name != node->method &&
+                    !(name.size() > node->method.size()+1 &&
+                      name.ends_with("." + node->method) &&
+                      name.find('.') == name.size()-node->method.size()-1))
+                    continue;
+                bool matches = false;
+                bool mutable_receiver = false;
+                for (const auto* declaration : family) {
+                    if (declaration->parameters.empty() ||
+                        !declaration->parameters.front().is_extension ||
+                        declaration->is_private)
+                        continue;
+                    const auto& param = declaration->parameters.front();
+                    if (receiver_type) {
+                        const auto& pattern = param.type;
+                        const bool generic_element =
+                            std::find(declaration->type_parameters.begin(),
+                                      declaration->type_parameters.end(),
+                                      pattern.name) != declaration->type_parameters.end();
+                        if (pattern.dimensions.size() != receiver_type->dimensions.size())
+                            continue;
+                        if (!generic_element && pattern.name != receiver_type->name)
+                            continue;
+                    }
+                    matches = true;
+                    mutable_receiver |= param.writable;
+                    if (extension && *extension == name &&
+                        extension_writable != param.writable)
+                        frontend_error("EXTENSION_AMBIGUOUS",
+                                       "One extension family cannot mix value and reference receivers.",
+                                       source.span);
+                }
+                if (!matches) continue;
+                if (extension && *extension != name)
+                    frontend_error("EXTENSION_AMBIGUOUS",
+                                   "Extension method '" + node->method +
+                                   "' is visible from multiple imported modules; call it with a namespace.",
+                                   source.span);
+                extension = name;
+                extension_writable = mutable_receiver;
+            }
+            if (extension) {
+                const bool array_receiver = receiver_type && !receiver_type->dimensions.empty();
+                const bool scalar_receiver = receiver_type && receiver_type->dimensions.empty();
+                const bool native_collision =
+                    (array_receiver && (node->method == "indices" ||
+                        node->method == "append" || node->method == "concat" ||
+                        node->method == "join" || node->method == "sorted" ||
+                        node->method == "string")) ||
+                    (scalar_receiver && node->method == "string") ||
+                    (receiver_type && receiver_type->name == "tensor" &&
+                        (node->method == "track" || node->method == "untrack" ||
+                         node->method == "retrack" || node->method == "backward" ||
+                         node->method == "reshape" || node->method == "shape" ||
+                         node->method == "cpu" || node->method == "gpu" ||
+                         node->method == "item" || node->method == "matmul_not_a_method"));
+                bool class_collision = false;
+                if (receiver_type) for (const auto& cls : source_.classes) {
+                    if (cls.name != receiver_type->name) continue;
+                    class_collision = std::any_of(
+                        cls.methods.begin(), cls.methods.end(),
+                        [&](const FunctionDecl& method) { return method.name == node->method; });
+                }
+                if (native_collision || class_collision)
+                    frontend_error("EXTENSION_COLLISION",
+                                   "Extension method '" + node->method +
+                                   "' conflicts with an existing method of its receiver type.",
+                                   source.span);
+                if (extension_writable && !node->mutation_marker)
+                    frontend_error("MUTATION_MARKER",
+                                   "An extension with a writable receiver must use '.receiver.method(...)'.",
+                                   source.span);
+                CallExpr call;
+                call.callee = *extension;
+                call.type_arguments = node->type_arguments;
+                call.mutation_marker = node->mutation_marker;
+                call.args.push_back(CallArg{
+                    std::nullopt, extension_writable,
+                    clone_expr(*node->receiver, substitution, deferred, current_class),
+                    node->receiver->span});
+                auto other_args = clone_args(node->args, substitution, deferred, current_class);
+                for (auto& argument : other_args) call.args.push_back(std::move(argument));
+                Expr rewritten;
+                rewritten.span = source.span;
+                rewritten.data = std::move(call);
+                return clone_expr(rewritten, {}, deferred, current_class);
+            }
             MethodCallExpr copy;
             copy.receiver = clone_expr(*node->receiver, substitution, deferred, current_class);
             copy.method = node->method;
@@ -5794,6 +5891,7 @@ private:
                 copy.span = parameter.span;
                 copy.is_const = parameter.is_const;
                 copy.is_local = parameter.is_local;
+                copy.is_extension = parameter.is_extension;
                 if (parameter.default_value) {
                     copy.default_value = clone_expr(
                         *parameter.default_value, substitution, deferred, current_class);

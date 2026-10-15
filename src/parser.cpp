@@ -1149,6 +1149,8 @@ ClassDecl Parser::class_decl() {
             if (looks_like_export_prefix()) foreign_export = foreign_export_prefix();
             if (looks_like_declaration(true)) {
                 auto method = function_decl();
+                if (!method.parameters.empty() && method.parameters.front().is_extension)
+                    error(peek(), "'extend' declares top-level extension functions, not class methods.");
                 method.is_private = is_private;
                 method.foreign_export = std::move(foreign_export);
                 methods.push_back(std::move(method));
@@ -1210,11 +1212,27 @@ FunctionDecl Parser::function_decl() {
     auto type_parameters=type_parameter_list(&type_constraints);
     consume(TokenKind::LParen,"Expected '('."); std::vector<Parameter> params;
     while(!at(TokenKind::RParen)) {
+        // 'extend' is a contextual parameter modifier, only valid on the
+        // first parameter of a top-level function or its prototype.
+        const bool extension = at(TokenKind::Identifier) && peek().text == "extend";
+        if (extension) {
+            if (!params.empty())
+                error(peek(), "'extend' is permitted only on the first function parameter.");
+            ++current_;
+        }
         const bool is_local=match(TokenKind::KwLocal);
+        if (extension && is_local)
+            error(peek(), "An extension receiver is a value or reference, not a local class-generation parameter.");
         const bool is_const=match(TokenKind::KwConst);
-        auto type=type_name();bool write=match(TokenKind::Ampersand);reject_const_reference(is_const,write);auto p=consume(TokenKind::Identifier,"Expected parameter name.");
+        auto type=type_name();bool write=match(TokenKind::Ampersand);
+        reject_const_reference(is_const,write);
+        auto p=consume(TokenKind::Identifier,"Expected parameter name.");
         ExprPtr value; if(match(TokenKind::Assign)) value=expression();
-        params.push_back(Parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local});
+        if(extension && value)
+            error(peek(), "An extension receiver cannot have a default value.");
+        Parameter parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local};
+        parameter.is_extension = extension;
+        params.push_back(std::move(parameter));
         if(!match(TokenKind::Comma)) break;
     }
     consume(TokenKind::RParen,"Expected ')'.");

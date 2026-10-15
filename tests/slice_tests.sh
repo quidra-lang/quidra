@@ -229,6 +229,70 @@ QUI
 rejects free-range-opposite-step SLICE_STEP "opposes the bound direction" <<'QUI'
 int[] indices = 0:3:-1
 QUI
+# An extension remains one user function with both call forms, and only
+# its defining/imported library makes its method syntax visible.
+cat > "$TMP/stats.qui" <<'QUI'
+int sum_squares(extend int[] values)
+    int result = 0
+    for int value = values[]
+        result += value * value
+    return result
+
+void scale(extend int[] &values, int factor)
+    for int &value = &values[]
+        value *= factor
+QUI
+expect extension-local "true" <<'QUI'
+int squared(extend int value)
+    return value * value
+
+print(5.squared() == squared(5))
+QUI
+expect extension-imported "true" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+print(values.sum_squares() == 14 and stats.sum_squares(values) == 14)
+QUI
+expect extension-reference "true" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+.values.scale(2)
+int[] expected = [2, 4, 6]
+print(values == expected)
+QUI
+rejects extension-without-import UNKNOWN_MEMBER "sum_squares" <<'QUI'
+int[] values = [1, 2, 3]
+print(values.sum_squares())
+QUI
+rejects extension-writable-without-marker MUTATION_MARKER "writable receiver" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+values.scale(2)
+QUI
+rejects extension-second-param PARSE_ERROR "first function parameter" <<'QUI'
+int bad(int a, extend int b)
+    return a + b
+QUI
+cat > "$TMP/other.qui" <<'QUI'
+int sum_squares(extend int[] values)
+    return 0
+QUI
+rejects extension-ambiguous EXTENSION_AMBIGUOUS "multiple imported modules" <<'QUI'
+import stats = "./stats.qui"
+import other = "./other.qui"
+int[] values = [1, 2]
+print(values.sum_squares())
+QUI
+cat > "$TMP/conflict.qui" <<'QUI'
+nat[] indices(extend int[] values)
+    return [0]
+QUI
+rejects extension-native-collision EXTENSION_COLLISION "conflicts" <<'QUI'
+import conflict = "./conflict.qui"
+int[] values = [1, 2]
+print(values.indices())
+QUI
+
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

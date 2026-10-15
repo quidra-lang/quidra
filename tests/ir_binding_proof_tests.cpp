@@ -31,6 +31,12 @@ int main(){try{
     sources.classes.emplace("renamed_model",BindingClass{model_id,{{"first",leaf,true,false,false},{"second",leaf,true,false,false}},true});
     sources.classes.emplace("renamed_holder",BindingClass{holder_id,{{"bound",list,false,true,false}},true});
     FunctionBindingSource function;function.declaration=origin;function.complete=true;function.semantic_parameter_for_ir_parameter={0};
+    // Hand-built binding metadata must explicitly certify which semantic
+    // components were captured. A populated vector alone is not a proof:
+    // unspecified availability is intentionally false for safe fallback.
+    function.availability.parameter_map = true;
+    function.availability.validated_initialization = true;
+    function.availability.collections = true;
     function.validated_initialization[0]={{{semantics::PathStep::field_named("first")}},{{semantics::PathStep::field_named("second")}}};
     function.collections.push_back(CollectionOrigin{{0,18},11,1,leaf,{{semantics::PathStep::field_named("first")},{semantics::PathStep::field_named("second")}},true});
     sources.functions.emplace(construct.name,function);

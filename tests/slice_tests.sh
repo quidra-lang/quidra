@@ -338,6 +338,15 @@ nat[] values = 9223372036854775808:9223372036854775809
 nat[] expected = [9223372036854775808, 9223372036854775809]
 print(values == expected)
 QUI
+# Reusing exact integer bounds must not consume/mutate caller-owned values.
+expect range-exact-borrowed-operand "true" <<'QUI'
+int start = 18446744073709551616
+int last = start + 2
+int[] values = start:last
+int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+print(values == expected and start == 18446744073709551616 and
+      last == 18446744073709551618)
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys

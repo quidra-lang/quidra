@@ -362,17 +362,29 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     const SourcePosition site{
         static_cast<std::uint32_t>(e.span.start.line),
         static_cast<std::uint32_t>(e.span.start.column)};
-    const auto exact = [&](ValueId value, const Type& from) {
-        if (from == integer) return value;
-        auto result = builder_.fresh();
-        builder_.emit(NumericConvert{result, value, from, integer, true, site});
-        return result;
+    // Exact integers are managed values. Preserve every endpoint in a
+    // hidden owned local and return only a borrowed read, just as integer
+    // for-header lowering does. This avoids stealing a caller's storage
+    // and keeps the end bound live throughout the loop.
+    const auto hold = [&](ValueId value, bool borrowed) {
+        const auto slot = builder_.hidden("range.operand");
+        scope_.local_type(slot) = integer;
+        if (borrowed) value = lifetime_.copy_value(value, integer);
+        builder_.emit(StoreLocal{slot, value, integer});
+        auto out = builder_.fresh();
+        builder_.emit(LoadLocal{out, slot, integer});
+        return out;
     };
     const auto bound = [&](const Expr& source) {
         auto value = lowerer_.lower(source);
-        auto converted = exact(value, type_of(checked_, source));
-        if (converted != value) lifetime_.release_temporary(source, value);
-        return converted;
+        const auto from = type_of(checked_, source);
+        if (from == integer)
+            return hold(value, !lifetime_.expression_owns_result(source));
+        auto converted = builder_.fresh();
+        builder_.emit(NumericConvert{
+            converted, value, from, integer, true, site});
+        lifetime_.release_temporary(source, value);
+        return hold(converted, false);
     };
     auto start = bound(*n.args[0].value);
     auto stop = bound(*n.args[1].value);
@@ -385,21 +397,23 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     auto minus_one = builder_.fresh();
     builder_.emit(ConstantExact{plus_one, "1", integer});
     builder_.emit(ConstantExact{minus_one, "-1", integer});
+    plus_one = hold(plus_one, false);
+    minus_one = hold(minus_one, false);
     const auto step_slot = builder_.hidden("range.step");
     scope_.local_type(step_slot) = integer;
     if (explicit_step) {
         auto value = bound(*n.args[2].value);
-        builder_.emit(StoreLocal{step_slot, value, integer});
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(value, integer), integer});
     } else {
         const auto asc = builder_.label("range.step.asc");
         const auto desc = builder_.label("range.step.desc");
         const auto merge = builder_.label("range.step.merge");
         builder_.emit(Branch{direction, desc, asc});
         builder_.enter(builder_.add_block(desc));
-        builder_.emit(StoreLocal{step_slot, minus_one, integer});
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(minus_one, integer), integer});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(asc));
-        builder_.emit(StoreLocal{step_slot, plus_one, integer});
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(plus_one, integer), integer});
         builder_.emit(Jump{merge});
         builder_.enter(builder_.add_block(merge));
     }
@@ -430,7 +444,7 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
         auto first = builder_.fresh();
         builder_.emit(Binary{first, "+", start, step, integer, integer,
                              site.line, site.column});
-        start = first;
+        start = hold(first, false);
     }
     const auto output_slot = builder_.hidden("range.output");
     const auto index_slot = builder_.hidden("range.index");
@@ -440,7 +454,7 @@ ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
     auto empty = builder_.fresh();
     builder_.emit(ArrayMake{empty, {}, array_type});
     builder_.emit(StoreLocal{output_slot, empty, array_type});
-    builder_.emit(StoreLocal{index_slot, start, integer});
+    builder_.emit(StoreLocal{index_slot, lifetime_.copy_value(start, integer), integer});
     const auto cond = builder_.label("range.cond");
     const auto asc = builder_.label("range.cond.asc");
     const auto desc = builder_.label("range.cond.desc");

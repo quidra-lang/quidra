@@ -63,28 +63,13 @@ jobs:
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      # Every compiler/standard variant must build the actual CLI, its
-      # installed runtime, and the complete language compiler unit suite.
-      # Full cross-domain/OS CTest coverage remains in Ubuntu 22.04, macOS,
-      # Windows and ASan/UBSan, instead of rebuilding 160+ duplicate binaries
-      # on four parallel short-lived runners.
+      # Each compiler/C++ standard builds the complete CLI and language tests.
+      # Full cross-domain CTest remains in Ubuntu 22.04, macOS, Windows
+      # and ASan/UBSan, rather than duplicating 160+ binaries four times.
       - name: Build compiler and language tests
         run: cmake --build build --target quidra quidra_runtime_jit quidra_tests --parallel 3
       - name: Compiler/language tests
-        run: ctest --test-dir build -R '^quidra_tests
-      - name: Package smoke
-        if: matrix.compiler == 'gcc'
-        run: |
-          cpack --config build/CPackConfig.cmake -G DEB -B dist
-          package="$(find dist -maxdepth 1 -name 'quidra_*_amd64.deb' -print -quit)"
-          test -n "$package"
-          dpkg-deb --contents "$package" | grep -q '/usr/bin/quidra'
-          dpkg-deb --contents "$package" | grep -q '/usr/lib/quidra/libquidra_runtime.a'
-          dpkg-deb --contents "$package" | grep -Eq '/usr/lib/quidra/libquidra_runtime_jit\.so$'
-          dpkg-deb --contents "$package" | grep -q '/usr/share/doc/quidra/quidra.manifest.json'
-
-
- --output-on-failure
+        run: ctest --test-dir build -R '^quidra_tests$' --output-on-failure
       - name: Native CLI smoke
         run: bash scripts/native-smoke.sh ./build/quidra "$PWD"
       - name: Package smoke

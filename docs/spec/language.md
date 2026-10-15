@@ -1278,11 +1278,11 @@ The value methods are:
 - `size() -> nat | error`: array length or object member count; other kinds return `error`.
 - `get(key) -> json.Value | none | error`: object lookup. Missing keys are `none`; calling it on a non-object returns `error`.
 - `at(index) -> json.Value | none | error`: array lookup with a `nat` index. Out-of-range is `none`; calling it on a non-array returns `error`.
-- `text() -> string | error`, `integer() -> int | error`, `number() -> real64 | error`, and `boolean() -> bool | error`: explicit typed extraction.
+- `text() -> string | error`, `integer() -> int | error`, `number() -> real64 | error`, `real() -> real | error`, and `boolean() -> bool | error`: explicit typed extraction.
 - `encode() -> string`: compact JSON serialization preserving object insertion order and the original JSON number spelling.
 - `equal(other) -> bool`: recursive structural equality. Object member order does not affect equality. JSON numbers compare by parsed numeric value.
 
-JSON `null` is not Quidra `none`. A present JSON null is a `json.Value` with kind `"null"`; `none` is reserved for missing lookup results. Duplicate object keys are rejected during parsing rather than silently overwritten. Parsing rejects malformed numbers, malformed escapes, unmatched surrogate escapes, trailing content, and nesting deeper than 256 levels. Integer extraction accepts JSON numbers written in integer syntax and representable by Quidra `int`; exponent or fractional spellings use `number()`.
+JSON `null` is not Quidra `none`. A present JSON null is a `json.Value` with kind `"null"`; `none` is reserved for missing lookup results. Duplicate object keys are rejected during parsing rather than silently overwritten. Parsing rejects malformed numbers, malformed escapes, unmatched surrogate escapes, trailing content, and nesting deeper than 256 levels. Integer extraction accepts JSON numbers written in integer syntax as arbitrary-precision `int`. For exponent or fractional spellings, use `number()` for a range-checked `real64` interpretation or `real()` for the exact numeric value.
 
 Ordinary source-level `==` is intentionally not defined for `json.Value`; use `equal` so JSON comparison semantics remain explicit.
 

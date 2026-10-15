@@ -296,7 +296,7 @@ These operations are representation operations rather than arithmetic conversion
 
 Equality and ordering of exact symbolic values must not silently fall back to rounded IEEE guesses. Core decides them by certified refinement: it encloses the difference of the two values in intervals with dyadic bounds, rounded outward, that narrow as the precision doubles from 64 to 4096 bits, using the enclosures that the providers of the atoms and operations supply, until the interval excludes zero. Rationals are compared exactly. If a result cannot be established within this deterministic budget (precision, node visits and nesting, never time), the program stops with `EXACT_UNPROVEN` instead of returning an unproved Boolean, the same way on every run and platform. Decimal formatting is an observation of the exact stored value and does not mutate it.
 
-A contextual constant is declared with `const literal real` (`const literal com` once complex values exist): its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use of the constant is a literal of the real category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
+A contextual constant is declared with `const literal real` or `const literal com`: its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use of the constant is a literal of the real category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
 
 ```quidra
 import math
@@ -330,7 +330,7 @@ int value = 100
 int8 checked = int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (±infinity narrowed to `real32`), `numeric conversion failed: value is not an integer and cannot be represented as bigint` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
 
 A real (`real16`, `real16b`, `real32`, `real64` or exact `real`) converts to an integer-family type only when its mathematical value is integral and fits the destination range. The result has type `T | error`: `NOT_INTEGRAL` for a fractional value, `OUT_OF_RANGE` for an integral value outside the range, and `UNDECIDED` when an exact proof cannot establish integrality. Signed zero converts to integer zero. No integer rounding is performed; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to select one.
 
@@ -394,15 +394,15 @@ An index result is a one-bit `bin`. Bin elements do not expose addressable refer
 
 ## Bin conversion
 
-All conversions between `bin` and other concrete types are explicit. The source must already have a concrete width:
+All conversions between `bin` and other concrete types are explicit. Integer sources must have a fixed-width bit representation; arbitrary-precision `int` and `nat` have no fixed bit width and cannot be converted directly to `bin`:
 
 ```quidra
 bin raw = bin(3567446)          // error: integer-family literal has no width
 bin raw32 = bin(int32(3567446)) // 32-bit representation
-bin raw64 = bin(int(3567446))   // 64-bit representation
+bin raw64 = bin(int64(3567446)) // 64-bit representation
 ```
 
-`bin(integer)` preserves the integer type's fixed-width representation, including the defined two's-complement representation of signed fixed-width integers. `intN(bin)` and `uintN(bin)` require an exact bit-length match. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
+`bin(integer)` accepts only fixed-width `int8`..`int64` and `nat8`..`nat64` sources and preserves their exact bit patterns, including the defined two's-complement representation of signed integers. `intN(bin)` and `natN(bin)` require an exact match between the bit length and the destination width. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
 
 Flat integer and bool arrays use the same rule:
 

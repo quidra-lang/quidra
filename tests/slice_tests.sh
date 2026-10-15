@@ -302,7 +302,7 @@ input[1, 0] = real32(0)
 input[1, 1] = real32(4)
 tensor<bool> mask = input > real32(0)
 tensor<real32> selected = input[mask]
-nat[] expected_shape = [2]
+nat[1] expected_shape = [2]
 print(selected.shape() == expected_shape and
       selected[0].item() == real32(3) and
       selected[1].item() == real32(4))

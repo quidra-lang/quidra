@@ -686,8 +686,32 @@ void Engine::instruction(const Instruction& instruction,Env& env,InstrRef at) {
                 if(a!=integers_.end() && b!=integers_.end()) {transfer.axes=std::pair{a->second,b->second};if(a->second==b->second)fact.contiguous=tensor(input,env).contiguous;}
             }
             if constexpr(std::is_same_v<T,TensorIndex>) {
-                transfer.operation=TensorShapeOp::Index;fact.contiguous=Tri::Unknown;fact.head_extents.clear();fact.tail_extents.clear();
-                for(const auto& item:node.items)transfer.indices.push_back({item.kind==abi::tensor_index_spec::index?TensorShapeTransfer::IndexAxis::Drop:(item.start || item.stop || item.step)?TensorShapeTransfer::IndexAxis::Slice:TensorShapeTransfer::IndexAxis::Preserve});
+                const bool boolean_mask =
+                    node.items.size() == 1 &&
+                    node.items.front().kind == abi::tensor_index_spec::mask;
+                fact.head_extents.clear();
+                fact.tail_extents.clear();
+                if (boolean_mask) {
+                    // Mask compaction has a runtime-dependent output length,
+                    // unrelated to any source-axis extent. In particular,
+                    // preserving the input's first axis would be an unsound
+                    // static shape proof for a rank-one result.
+                    transfer.operation = TensorShapeOp::ExplicitShape;
+                    transfer.explicit_shape = std::vector<ShapeExtent>{ShapeExtent{}};
+                    fact.contiguous = Tri::True;
+                    fact.unique = Tri::True;
+                    fact.owns_storage = true;
+                } else {
+                    transfer.operation=TensorShapeOp::Index;
+                    fact.contiguous=Tri::Unknown;
+                    for(const auto& item:node.items)
+                        transfer.indices.push_back({
+                            item.kind==abi::tensor_index_spec::index
+                                ? TensorShapeTransfer::IndexAxis::Drop
+                                : (item.start || item.stop || item.step)
+                                    ? TensorShapeTransfer::IndexAxis::Slice
+                                    : TensorShapeTransfer::IndexAxis::Preserve});
+                }
             }
         } else if constexpr(std::is_same_v<T,TensorBinary> || std::is_same_v<T,TensorCompare> || std::is_same_v<T,Binary>) {
             if constexpr(std::is_same_v<T,Binary>) {if(node.result_type.kind!=TypeKind::Tensor)return;}

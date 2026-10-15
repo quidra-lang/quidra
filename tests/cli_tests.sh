@@ -68,9 +68,9 @@ assert x["standard_modules"] == ["cli","file","environment","test","time","gpu",
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T>{D0, D1, ...}" in x["current_types"]
-assert "exact-rank shape pattern" in x["tensor_model"]
-assert "runtime expressions are evaluated once" in x["tensor_model"]
-assert "captured constraints survive reassignment" in x["tensor_model"]
+assert "rank is exact" in x["tensor_model"]
+assert "one ... permits zero or more unconstrained axes" in x["tensor_model"]
+assert "captured shape contracts survive reassignment" in x["tensor_model"]
 PY
 # Core exponentiation is a right-associative basic numeric operator. XOR remains
 # the separate uppercase bitwise operator.

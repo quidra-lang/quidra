@@ -36,6 +36,15 @@ int main(){try{
     sources.functions.emplace(construct.name,function);
     ModuleSummaries summaries;
     auto proof=binding_proof(module,summaries,sources);
+    if (proof.collections.size()==1 && !proof.collections[0].available) {
+        const auto& c=proof.collections[0];
+        const auto& array=proof.objects[0].at({0,18},11);
+        std::fprintf(stderr,"binding closure: values=%zu elements=%zu available=%d paths=%d initialized=%d; array.closed=%d array.available=%d array.elements=%zu; gaps:",
+            c.values.size(),c.elements.size(),c.available,c.paths_available,c.initialized,
+            array.array_closed,array.available,array.elements.size());
+        for(const auto why:c.gaps) std::fprintf(stderr," %u",static_cast<unsigned>(why));
+        std::fprintf(stderr,"\n");
+    }
     require(proof.collections.size()==1 && proof.collections[0].available && proof.collections[0].elements.size()==2,
         "actual fixed grow/set list closes through readonly borrowed parameter paths");
     require(proof.bound_fields.size()==1 && proof.bound_fields[0].constructor_or_rebind_only && proof.bound_fields[0].available,

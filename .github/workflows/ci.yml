@@ -63,10 +63,30 @@ jobs:
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      - name: Build
-        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
-      - name: Tests
-        run: ctest --test-dir build --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+      # Every compiler/standard variant must build the actual CLI, its
+      # installed runtime, and the complete language compiler unit suite.
+      # Full cross-domain/OS CTest coverage remains in Ubuntu 22.04, macOS,
+      # Windows and ASan/UBSan, instead of rebuilding 160+ duplicate binaries
+      # on four parallel short-lived runners.
+      - name: Build compiler and language tests
+        run: cmake --build build --target quidra quidra_runtime_jit quidra_tests --parallel 3
+      - name: Compiler/language tests
+        run: ctest --test-dir build -R '^quidra_tests
+      - name: Package smoke
+        if: matrix.compiler == 'gcc'
+        run: |
+          cpack --config build/CPackConfig.cmake -G DEB -B dist
+          package="$(find dist -maxdepth 1 -name 'quidra_*_amd64.deb' -print -quit)"
+          test -n "$package"
+          dpkg-deb --contents "$package" | grep -q '/usr/bin/quidra'
+          dpkg-deb --contents "$package" | grep -q '/usr/lib/quidra/libquidra_runtime.a'
+          dpkg-deb --contents "$package" | grep -Eq '/usr/lib/quidra/libquidra_runtime_jit\.so$'
+          dpkg-deb --contents "$package" | grep -q '/usr/share/doc/quidra/quidra.manifest.json'
+
+
+ --output-on-failure
+      - name: Native CLI smoke
+        run: bash scripts/native-smoke.sh ./build/quidra "$PWD"
       - name: Package smoke
         if: matrix.compiler == 'gcc'
         run: |
@@ -84,9 +104,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install release-equivalent dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang-15 llvm-15 cmake ninja-build git curl xz-utils libcurl4-openssl-dev
+        run: sudo apt-get update && sudo apt-get install -y clang-15 llvm-15 cmake ninja-build git curl xz-utils libcurl4-openssl-dev ccache
+      - name: Restore release-compatible compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-ubuntu2204-release-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          restore-keys: |
+            ccache-ubuntu2204-release-
       - name: Configure
-        run: cmake -S . -B build-release-compat -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
+        run: cmake -S . -B build-release-compat -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
         run: cmake --build build-release-compat --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Tests
@@ -145,8 +172,10 @@ jobs:
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
       - name: Configure test-only fake GPU backend
         run: cmake -S . -B build-gpu-contracts -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      - name: Build
-        run: cmake --build build-gpu-contracts --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+      - name: Build fake-GPU compiler and test targets
+        # All three test cases still run; only unrelated native test binaries
+        # are left to the full-platform jobs.
+        run: cmake --build build-gpu-contracts --target quidra quidra_device_backend_tests --parallel 3
       - name: GPU backend unit tests
         run: ctest --test-dir build-gpu-contracts -R quidra_device_backend_tests --output-on-failure
       - name: GPU placement contracts
@@ -158,6 +187,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Reclaim unused sanitizer runner storage
+        run: |
+          df -h /
+          for path in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL; do
+            if [ -d "$path" ]; then sudo rm -rf -- "$path"; fi
+          done
+          df -h /
       - name: Install compiler cache
         run: sudo apt-get update && sudo apt-get install -y ccache llvm clang lld ninja-build
       - name: Restore compiler cache
@@ -170,6 +206,8 @@ jobs:
             ccache-${{ runner.os }}-clang-sanitizers-
       - name: Install native dependencies
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
+      - name: Limit sanitizer cache disk usage
+        run: ccache --max-size 2G
       - name: Configure ASan/UBSan
         run: >-
           cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug

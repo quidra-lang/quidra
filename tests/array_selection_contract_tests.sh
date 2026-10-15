@@ -173,6 +173,9 @@ for name, body in re.findall(r"^function (snapshot_(?:add|select)_(?:borrowed|ow
         continue  # Shape-checking wrappers contain no operand evaluation.
     before_try = body[:call.start()]
     owned_slots = re.findall(r"^\s*local (\S+) : int\[\]\s*$", before_try, re.M)
+    if len(owned_slots) != 1:
+        print(f"{name}: expected one owned snapshot slot, found {owned_slots}; IR before try:\n"
+              + before_try[-4000:], file=sys.stderr)
     assert len(owned_slots) == 1, (name, owned_slots)
     slot = re.escape(owned_slots[0])
     stored = re.search(rf"^\s*store {slot}, %(\d+)\s*$", before_try, re.M)

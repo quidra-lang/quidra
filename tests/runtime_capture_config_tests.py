@@ -55,7 +55,14 @@ with tempfile.TemporaryDirectory() as directory:
         published = Path(capture["report_path"])
         # Equivalent Windows canonical paths may use different long/short
         # spelling. Verify the same on-disk file, including its Unicode name.
-        assert published.is_absolute() and published.samefile(reports[0]), (
+        try:
+            same_file = published.samefile(reports[0])
+        except OSError as error:
+            raise AssertionError(
+                f"capture report path is inaccessible: published={published!s}, "
+                f"discovered={reports[0]!s}, published_exists={published.exists()}"
+            ) from error
+        assert published.is_absolute() and same_file, (
             f"capture report path mismatch: {published!s} != {reports[0].resolve()!s}"
         )
         output = Path(capture["output_path"])

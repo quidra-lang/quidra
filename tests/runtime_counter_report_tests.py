@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Counter reports survive immediate failures and ordinary steps do no file I/O."""
+"""Counter reports survive immediate failures; buffered steps publish no records."""
 import json
 import os
 from pathlib import Path
@@ -44,7 +44,11 @@ with tempfile.TemporaryDirectory() as temporary:
         try:
             assert process.stdout.readline() == "ready\n"
             if flush is None:
-                assert not path.exists(), "ordinary step wrote a report before exit"
+                # Windows preopens its UTF-16 report stream so a later
+                # allocation failure can still flush. A precreated empty
+                # file is fine; no records may be emitted before shutdown.
+                if path.exists():
+                    assert path.stat().st_size == 0, "ordinary step emitted a report before exit"
             else:
                 assert [row["record"] for row in records(path)] == ["step"]
             output, errors = process.communicate("\n", timeout=10)

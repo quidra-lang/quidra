@@ -442,10 +442,13 @@ void mark_program_started() {
         catch (...) { state.flush_steps = true; }
     }
 #ifdef _WIN32
-    // The Windows CRT may allocate on the first _wfsopen. An opted-in
-    // program acquires its report stream before a low-memory failure, while
-    // retaining all buffered step records until the regular flush.
-    if (!state.path.empty()) (void)report_file_locked(state);
+    // The Windows CRT may allocate on the first _wfsopen and while first
+    // setting up a buffered stream. Complete stream initialization before
+    // heap-pressure failure paths, while retaining the step records in RAM.
+    if (!state.path.empty()) {
+        if (auto* stream = report_file_locked(state); stream && stream != stderr)
+            (void)std::setvbuf(stream, nullptr, _IONBF, 0);
+    }
 #endif
 }
 

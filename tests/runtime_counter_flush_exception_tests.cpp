@@ -136,6 +136,13 @@ int run_child(const char* mode) {
     int totals = 0;
     while (std::fgets(line, sizeof(line), report))
         if (std::strstr(line, "\"record\":\"total\"")) ++totals;
+    if (totals != 1) {
+        // Preserve the actual report in failed Windows CI logs; checking
+        // this file is test code, after normal allocations were restored.
+        std::rewind(report);
+        std::fputs("counter report after allocation-pressure flush:\n", stderr);
+        while (std::fgets(line, sizeof(line), report)) std::fputs(line, stderr);
+    }
     std::fclose(report);
     require(totals == 1, "final total was unavailable before allocations recovered");
     return 0;

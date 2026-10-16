@@ -331,6 +331,21 @@ jobs:
               -not (Test-Path "C:\Program Files\LLVM\bin\lli.exe")) {
             choco install llvm -y --no-progress
           }
+      - name: Locate the MSVC static archiver
+        shell: pwsh
+        run: |
+          # Normal PowerShell sessions do not inherit the Visual Studio
+          # developer command prompt's PATH. Pass the absolute archiver path
+          # to native --lib builds, rather than assuming lib.exe is on PATH.
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $installation) { throw "MSVC installation not found" }
+          $tools = Get-ChildItem (Join-Path $installation "VC\Tools\MSVC") -Directory |
+            Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $tools) { throw "MSVC tools not found" }
+          $archiver = Join-Path $tools.FullName "bin\HostX64\x64\lib.exe"
+          if (-not (Test-Path $archiver)) { throw "MSVC archiver missing: $archiver" }
+          "QUIDRA_AR=$archiver" >> $env:GITHUB_ENV
       - name: Configure
         shell: pwsh
         run: >

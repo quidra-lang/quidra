@@ -2,6 +2,7 @@
 #include "platform/environment.hpp"
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -103,6 +104,10 @@ int run_child(const char* mode) {
 #else
     auto* report = std::fopen(report_path->c_str(), "r");
 #endif
+    if (!report) {
+        std::fprintf(stderr, "report open failed: errno=%d, enabled=%d, path=%s\n",
+                     errno, quidra::counters::enabled() ? 1 : 0, report_path->c_str());
+    }
     require(report != nullptr, "allocation failure lost the buffered report");
     char line[8192];
     int totals = 0;
@@ -157,6 +162,8 @@ int main(int argc, char** argv) {
             std::ifstream error_input(errors);
             const std::string text((std::istreambuf_iterator<char>(error_input)), {});
             std::fputs(text.c_str(), stderr);
+            std::fprintf(stderr, "child mode %s: observed status %d, expected %d\n",
+                         scenario.mode, observed_status, failure ? 101 : 0);
         }
         require(observed_status == (failure ? 101 : 0),
                 "finalization changed the child's original result");

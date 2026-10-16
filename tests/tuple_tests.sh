@@ -95,28 +95,7 @@ print(NL)
 print(missing.string())
 print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/union-string.qui")" == "$1" source="$2"
-    printf '%s\n' "$source" > "$TMP/reject.qui"
-    if "$QUIDRA" check "$TMP/reject.qui" --json > "$TMP/reject.json"; then exit 1; fi
-    python3 - "$TMP/reject.json" "$code" <<'PYJSON'
-import json,sys
-assert any(d['code']==sys.argv[2] for d in json.load(open(sys.argv[1]))['diagnostics'])
-PYJSON
-}
-check_rejected TUPLE $'(int, int) p = (1, 2)\nprint(p[0])'
-check_rejected TUPLE $'(int, int) p = (1, 2)\nprint(p.string())'
-check_rejected TUPLE $'int a = 1\n(a, a) = (1, 2)'
-check_rejected TUPLE $'int a = 1\nint b = 2\n(a, b) += (1, 2)'
-check_rejected UNINITIALIZED $'(string, int) p\n(string &s, int &n) = &p'
-check_rejected MATCH_CASE $'(int, int) initial = (1, 2)\n(int, int) | (int, string) v = initial\nmatch v\n    (int a, _)\n        print(a)'
-check_rejected MATCH_CASE $'(int, string) | none v = (1, "x")\nmatch v\n    (int &a, string &b)\n        print(a)\n    none\n        print("none")'
-check_rejected DISCARD $'(int a, _) = (1, 2)'
-for name in values loops match keys; do
-    cp "$TMP/$name.qui" "$TMP/$name.formatted.qui"
-    "$QUIDRA" fmt "$TMP/$name.formatted.qui"
-    [[ "$("$QUIDRA" "$TMP/$name.qui")" == "$("$QUIDRA" "$TMP/$name.formatted.qui")" ]]
-done
-7\nnone' ]]
+[[ "$("$QUIDRA" "$TMP/union-string.qui")" == $'7\nnone' ]]
 
 check_rejected() {
     local code="$1" source="$2"

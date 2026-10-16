@@ -21,7 +21,7 @@ struct Tensor {
     void* value;
     explicit Tensor(void* raw):value(raw){}
     Tensor(const Tensor&)=delete;
-    ~Tensor(){quidra_tensor_drop(value);}
+    ~Tensor(){quidra_managed_release(value, reinterpret_cast<void*>(&quidra_tensor_drop));}
 };
 void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 void* make(const std::vector<long long>& shape,int dtype=QCORE_DTYPE_FLOAT32,int fill=quidra::abi::tensor_fill_mode::ones){

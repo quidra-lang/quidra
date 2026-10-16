@@ -598,7 +598,19 @@ void AssignmentLowering::lower_plain_assignment(
             base_type.kind==TypeKind::Array &&
             (facts_.array_initialization.fully_initialized(*ix.base) ||
              standard_collection_array);
-        auto a=lowerer_.lower(*ix.base);
+        // A nested index on the assignment LHS denotes the original
+        // storage, not an independently owned value. In particular, a
+        // side-effectful outer index must not route through lower_index:
+        // its safety snapshot copies the selected row, so writing through
+        // it would mutate a temporary and leak that owned row.
+        ValueId a;
+        if (std::holds_alternative<IndexExpr>(ix.base->data)) {
+            std::vector<ValueId> path_indices;
+            std::optional<std::size_t> replay;
+            a=lower_path_value(*ix.base,path_indices,replay);
+        } else {
+            a=lowerer_.lower(*ix.base);
+        }
         if(base_type.kind==TypeKind::Tensor){
             std::vector<ValueId> indices;
             indices.reserve(ix.items.size());

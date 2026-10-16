@@ -267,6 +267,19 @@ void file_identities(const fs::path& scratch) {
 
 #endif
 
+#ifdef _WIN32
+void windows_unicode_cache_directory() {
+    const auto old = environment_wide_value(L"QUIDRA_CACHE_DIR");
+    const auto expected = fs::temp_directory_path() / L"quidra-cache-\u30e6\u30cb\u30b3\u30fc\u30c9";
+    check(::SetEnvironmentVariableW(L"QUIDRA_CACHE_DIR", expected.c_str()) != FALSE,
+          "setting Unicode cache path");
+    check(user_cache_directory() == expected.lexically_normal(),
+          "native Windows cache path preserves Unicode");
+    check(::SetEnvironmentVariableW(L"QUIDRA_CACHE_DIR", old ? old->c_str() : nullptr) != FALSE,
+          "restoring cache path override");
+}
+#endif
+
 } // namespace
 
 int main() {
@@ -288,6 +301,8 @@ int main() {
     file_identities(scratch);
     std::error_code ignored;
     fs::remove_all(scratch, ignored);
+#else
+    windows_unicode_cache_directory();
 #endif
 
     if (failures != 0) {

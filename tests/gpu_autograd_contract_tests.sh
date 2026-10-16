@@ -51,17 +51,17 @@ cpu[0, 1] = real32(3)
 cpu[1, 0] = real32(0)
 cpu[1, 1] = real32(4)
 tensor<bool> mask = cpu > real32(0)
-tensor<real32> gpu = cpu.gpu(0)
+tensor<real32> device_values = cpu.gpu(0)
 tensor<bool> gpu_mask = mask.gpu(0)
-tensor<real32> selected = gpu[gpu_mask]
-nat[] expected_shape = [2]
+tensor<real32> selected = device_values[gpu_mask]
+nat[1] expected_shape = [2]
 print(selected.shape() == expected_shape)
 print(NL)
 print(selected.cpu()[0].item() == real32(3))
 print(NL)
 print(selected.cpu()[1].item() == real32(4))
 print(NL)
-tensor<real32> tracked = gpu.track()
+tensor<real32> tracked = device_values.track()
 tensor<bool> single_mask = (cpu > real32(3)).gpu(0)
 tensor<real32> singled = tracked[single_mask]
 singled.backward(&tracked)

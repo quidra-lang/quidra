@@ -99,6 +99,10 @@ int run_child(const char* mode) {
             quidra::abi::FailureReason::tensor_failure, "forced counter failure", true);
     quidra::counters::flush_report();
     quidra::counters::flush_report();
+    // Only the runtime flush must survive allocation failure. Reopening the
+    // report to inspect it is test code, and MSVC's file-open machinery may
+    // itself allocate before returning FILE*.
+    reject_allocations = false;
 #ifdef _WIN32
     auto* report = _fsopen(report_path->c_str(), "r", _SH_DENYNO);
 #else
@@ -115,7 +119,6 @@ int run_child(const char* mode) {
         if (std::strstr(line, "\"record\":\"total\"")) ++totals;
     std::fclose(report);
     require(totals == 1, "final total was unavailable before allocations recovered");
-    reject_allocations = false;
     return 0;
 }
 } // namespace

@@ -11,7 +11,7 @@ using quidra::counters::Id;
 struct Tensor {
     void* value{};
     explicit Tensor(void* raw) : value(raw) {}
-    ~Tensor() { quidra_tensor_drop(value); }
+    ~Tensor() { quidra_managed_release(value, reinterpret_cast<void*>(&quidra_tensor_drop)); }
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 };

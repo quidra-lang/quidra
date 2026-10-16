@@ -44,6 +44,9 @@ struct DeviceRecord {
 struct Report {
     std::mutex mutex;
     std::string path;
+#ifdef _WIN32
+    std::filesystem::path profile_native_path;
+#endif
     bool configured{}, program{}, finalized{}, written{}, split{};
     bool capture{};
     std::uint64_t capture_step{}, invalid{};
@@ -487,9 +490,18 @@ void configure() noexcept {
                     detail::capture_configured.store(true, std::memory_order_relaxed);
                 }
             }
+#ifdef _WIN32
+            // Preserve the native Unicode path before any heap-pressure flush.
+            // UTF-8 is kept separately for JSON and exclusion metadata.
+            const auto wide_path = platform::environment_wide_value(L"QUIDRA_PROFILE");
+            if (!wide_path || wide_path->empty()) return;
+            state.profile_native_path = std::filesystem::path(*wide_path);
+            state.path = utf8(state.profile_native_path);
+#else
             const auto path = platform::environment_value("QUIDRA_PROFILE");
             if (!path || path->empty()) return;
             state.path = *path;
+#endif
             state.split = platform::environment_value_is("QUIDRA_PROFILE_SPLIT", "1");
             detail::split.store(state.split, std::memory_order_relaxed);
             detail::enabled.store(true, std::memory_order_relaxed);
@@ -638,6 +650,8 @@ bool write_report(const Report& state, bool capture) {
     if (standard) file = stderr;
 #ifdef _WIN32
     else if (capture) file = _wfsopen(state.capture_report_native_path.c_str(), L"w", _SH_DENYNO);
+    else if (!state.profile_native_path.empty())
+        file = _wfsopen(state.profile_native_path.c_str(), L"w", _SH_DENYNO);
     else file = _fsopen(state.path.c_str(), "w", _SH_DENYNO);
     if (file) _lock_file(file);
 #else

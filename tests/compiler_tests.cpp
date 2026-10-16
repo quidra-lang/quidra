@@ -8589,5 +8589,16 @@ while count < 2
     data = partial
     count += 1
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
+ // Returning an array expression in a fallible function must still take
+ // the elementwise lowering path and keep the first operand alive when a
+ // later try can return early. Result-context union widening is not the
+ // operator's own result type.
+ ir_contains(R"(int[] make_values()
+    return [1, 2]
+int[] | error fail_values()
+    return error("intentional failure")
+int[] | error add_values()
+    return make_values() + try fail_values()
+)", "array.elementwise.left");
  std::cout<<"all compiler tests passed\n";
 }

@@ -28,7 +28,11 @@ ValueId OperatorLowering::lower_binary(const Expr& e, const BinaryExpr& n) {
         if (const auto out = lower_empty_string_test(n)) return *out;
         if (const auto out = lower_ascii_character_test(n)) return *out;
     }
-    if (type_of(checked_, e).kind == TypeKind::Array &&
+    // The contextual expression type may be a result union (T[] | error)
+    // even when the binary operation itself produces T[]. Dispatch by the
+    // raw operator result, or a fallible array-returning function can bypass
+    // elementwise lowering and lose its snapshot/try cleanup guarantees.
+    if (checked_.raw_types.at(&e).kind == TypeKind::Array &&
         (type_of(checked_, *n.left).kind == TypeKind::Array ||
          type_of(checked_, *n.right).kind == TypeKind::Array))
         return lower_array_elementwise(e, n);
@@ -326,7 +330,7 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
         if(!binary || operator_policy::is_short_circuit(binary->op)) return nullptr;
         // Nested array operators generate their own indexed IR loops, rather
         // than using the scalar eager-binary path for their operand trees.
-        if (type_of(checked_, expression).kind == TypeKind::Array &&
+        if (checked_.raw_types.at(&expression).kind == TypeKind::Array &&
             (type_of(checked_, *binary->left).kind == TypeKind::Array ||
              type_of(checked_, *binary->right).kind == TypeKind::Array))
             return nullptr;

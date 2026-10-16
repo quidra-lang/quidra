@@ -744,7 +744,16 @@ void ControlFlowLowering::lower_pinned_body(
                 {static_cast<std::uint32_t>(statement.span.start.line),
                 static_cast<std::uint32_t>(statement.span.start.column)}});
         }
-        auto current=lowerer_.lower(*n.iterable);
+        // A writable loop's nested array expression denotes a live place.
+        // Value-index lowering snapshots a borrowed parent when an index
+        // contains a call, so comparing that copy to the pinned entry row
+        // spuriously reports FOR_ITERATION after ordinary element writes.
+        ValueId current;
+        if(n.writable && std::holds_alternative<IndexExpr>(n.iterable->data)) {
+            const auto address=lowerer_.lower_address(*n.iterable, false);
+            current=builder_.fresh();
+            builder_.emit(LoadAddress{current,address,type_of(checked_,*n.iterable)});
+        } else current=lowerer_.lower(*n.iterable);
         builder_.emit(IterationShapeCheck{
             current,entry_array,entry_length,
             {static_cast<std::uint32_t>(statement.span.start.line),

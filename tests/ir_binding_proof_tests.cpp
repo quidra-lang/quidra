@@ -66,9 +66,22 @@ int main(){try{
     auto caller_origin=origin;caller_origin.kind=DeclarationIdentity::Kind::Function;caller_origin.owner_class.clear();caller_origin.source_name="caller";inlined.declaration=caller_origin;
     InlineScope scope;scope.identity=41;scope.callee=construct.name;scope.blocks={"entry"};inlined.inline_scopes.push_back(scope);
     auto caller_source=function;caller_source.declaration=caller_origin;sources.functions.emplace(inlined.name,caller_source);
+    // A real inliner records a source snapshot per inline scope. Membership
+    // alone is not trusted provenance: without this row a constructor write
+    // in an arbitrary caller must be conservatively classified as unknown.
+    ScopedBindingSource inline_source;
+    inline_source.scope=scope.identity;
+    inline_source.source_function=construct.name;
+    inline_source.source=function;
+    inline_source.complete=true;
+    sources.scopes[inlined.name].emplace(scope.identity,std::move(inline_source));
     auto inline_proof=binding_proof(module,summaries,sources);
     require(inline_proof.bound_fields[0].constructor_or_rebind_only && inline_proof.bound_fields[0].writers.back().semantic_function==construct.name,
-        "inline field writer retains constructor declaration rather than ordinary caller spelling");
+        "inline field writer retains constructor declaration with captured inline source");
+    sources.scopes.erase(inlined.name);
+    auto unproven_inline=binding_proof(module,summaries,sources);
+    require(!unproven_inline.bound_fields[0].constructor_or_rebind_only,
+        "inline scope without captured source cannot claim constructor authority");
     sources.functions.erase(inlined.name);module.functions[0]=saved;
     // A known body can mutate class fields even when it is not opaque.
     semantics::EffectSummary mutation;mutation.exposed_writes.resize(1);

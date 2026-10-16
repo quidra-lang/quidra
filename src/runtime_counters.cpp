@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <map>
 #include <limits>
 #include <mutex>
@@ -110,6 +111,9 @@ struct Record {
 struct Report {
     std::mutex mutex;
     std::string path;
+#ifdef _WIN32
+    std::filesystem::path native_path;
+#endif
     // Only the generated program writes the report. The compiler CLI links
     // the device layer too (and `quidra run` shares the environment with the
     // program it starts), so it must not touch the report file.
@@ -174,7 +178,11 @@ std::FILE* report_file_locked(Report& state) {
     // The Windows runtime deprecates fopen (C4996, an error under /WX). Its
     // fopen shares the file with _SH_DENYNO, and so does this; fopen_s would
     // share it in the stricter _SH_SECURE mode.
-    state.file = _fsopen(state.path.c_str(), "w", _SH_DENYNO);
+    // The startup recorded a UTF-16 path. Opening it directly avoids the
+    // active ANSI code page losing characters in report destinations.
+    state.file = state.native_path.empty()
+        ? _fsopen(state.path.c_str(), "w", _SH_DENYNO)
+        : _wfsopen(state.native_path.c_str(), L"w", _SH_DENYNO);
 #else
     state.file = std::fopen(state.path.c_str(), "w");
 #endif
@@ -253,10 +261,19 @@ void capture_record_locked(Report& state, const char* event,
 struct Startup {
     bool configured{};
     Startup() {
+#ifdef _WIN32
+        const auto path = platform::environment_wide_value(L"QUIDRA_COUNTERS");
+        if (!path || path->empty()) return;
+        auto& state = report();
+        state.native_path = std::filesystem::path(*path);
+        const auto bytes = state.native_path.u8string();
+        state.path.assign(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+#else
         const auto path = platform::environment_value("QUIDRA_COUNTERS");
         if (!path || path->empty()) return;
         auto& state = report();
         state.path = *path;
+#endif
         configured = true;
         if (const auto step = platform::environment_value("QUIDRA_COUNTERS_STEP"))
             state.step_on_backward = *step != "none";

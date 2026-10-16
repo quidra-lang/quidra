@@ -6,6 +6,7 @@
 
 #include "lowering/checked_types.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/tuple_text.hpp"
 #include <optional>
 
 namespace quidra::lowering {
@@ -89,8 +90,19 @@ std::optional<ValueId> TextLowering::try_string_method(
 std::optional<ValueId> TextLowering::try_implicit_string_method(
     const Expr& e, const MethodCallExpr& n) {
     if(n.method=="string" && !checked_.method_calls.contains(&e)){
-        auto value=lowerer_.lower(*n.receiver),out=builder_.fresh();
-        builder_.emit(ToString{out,value,type_of(checked_,*n.receiver)});
+        const auto receiver_type = type_of(checked_, *n.receiver);
+        auto value = lowerer_.lower(*n.receiver);
+        ValueId out;
+        // Printable unions need per-case dispatch. A bare ToString IR node
+        // has no union backend, and previously emitted an undefined LLVM SSA
+        // operand in otherwise valid expressions such as value.string().
+        if (receiver_type.kind == TypeKind::Union ||
+            receiver_type.kind == TypeKind::Tuple) {
+            out = value_text(builder_, value, receiver_type);
+        } else {
+            out = builder_.fresh();
+            builder_.emit(ToString{out, value, receiver_type});
+        }
         lifetime_.release_temporary(*n.receiver,value);
         return out;
     }

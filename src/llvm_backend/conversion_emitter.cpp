@@ -1160,6 +1160,10 @@ void ConversionEmitter::emit(const ir::ToString& n,const ir::Instruction&){
         // An error's text is its message (the record's first field), owned.
         builder_.load(symbols_.value(n.out),ptr,symbols_.value(n.value),Align::eight);
         builder_.call(runtime_abi::memory::managed_retain,{{ptr,symbols_.value(n.out)}});
+    }else{
+        // Never silently leave a %%vN operand undefined in LLVM. Aggregate
+        // display must be lowered through value_text before this emitter.
+        throw std::logic_error("ToString reached LLVM with an unsupported source type");
     }
     if(n.source_type.kind==TypeKind::String)
         symbols_.alias_owned(n.out,n.value,Type::simple(TypeKind::String));

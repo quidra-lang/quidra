@@ -2431,7 +2431,7 @@ static void comparison_chains_keep_one_direction() {
                 "'!=' and '<' cannot share a chain");
     // Tensors give masks, which a chain cannot join.
     bad_message("tensor<real32> t = tensor.zeros<real32>([2])\nauto m = t < t <= t\n",
-                "CHAINED_COMPARISON", "Tensors cannot be compared in a chain");
+                "CHAINED_COMPARISON", "Arrays and tensors cannot be compared in a chain");
     // `a < b < c > (d)` reads as the generic call `b<c>(d)`.
     bad_message(values + "int64 d = 4\nbool x = a < b < c > (d)\n", "CHAINED_COMPARISON",
                 "write '(c > d)' if '>' starts a new comparison");

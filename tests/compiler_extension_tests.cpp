@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         require(argc == 2, "temporary directory argument required");
         const fs::path root = argv[1];
         fs::create_directories(root / "kernels");
-        { std::ofstream file(root / "kernels" / "work.qk"); file << "generic kernel snapshot\n"; }
+        { std::ofstream file(root / "kernels" / "work.qk", std::ios::binary); file << "generic kernel snapshot\n"; }
         const auto minimal = parse(root, header + operation);
         require(minimal.schema_revision == 2 && minimal.model,
                 "full descriptor model is missing");
@@ -204,7 +204,7 @@ custom = "opaque"
         require(model.model->tables.at("x-vendor.local").kind == CompilerExtensionTableKind::Passthrough,
                 "opaque extension not retained");
         // The registration owns snapshots even when source content later changes.
-        { std::ofstream file(root / "kernels" / "work.qk"); file << "changed\n"; }
+        { std::ofstream file(root / "kernels" / "work.qk", std::ios::binary); file << "changed\n"; }
         require(model.files.at("kernels/work.qk") == "generic kernel snapshot\n", "snapshot was reread");
         rejected(root, header + operation + "[query.bad]\nfunction = \"q\"\ndepends = \"unknown\"\n", "query.bad.depends");
         rejected(root, header + operation + "[donation.bad]\noperation = \"op\"\nreplacement = \"op\"\ndonate = \"other\"\n", "donation.bad.donate");

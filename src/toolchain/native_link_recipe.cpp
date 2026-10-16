@@ -450,8 +450,13 @@ NativeLinkRecipe native_link_recipe(
 #endif
     for (const auto& flag : pkg_link_flags)
         arguments.emplace_back(platform::native_text(flag));
-    for (const auto& library : system_link_libraries())
-        arguments.emplace_back(platform::native_text(library));
+    // Clang on Windows treats bare SDK .lib arguments as source files and
+    // rejects them before invoking the MSVC-compatible linker. Forward each
+    // system library as a linker default-library directive instead.
+    for (const auto& library : system_link_libraries()) {
+        arguments.emplace_back(L"-Xlinker");
+        arguments.emplace_back(platform::native_text("/DEFAULTLIB:" + library));
+    }
     if (uses_cuda) {
         const auto cuda_library = cuda_runtime_library_directory();
         arguments.emplace_back(L"-L" + cuda_library.native());

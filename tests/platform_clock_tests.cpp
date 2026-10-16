@@ -84,10 +84,18 @@ void os_clocks() {
     expect(cpu_before != 0 && cpu_after >= cpu_before, "process CPU clock is available and ordered");
     expect(start != 0 && start <= before, "OS process creation predates the first clock query");
     expect(process_start_ns() == start, "process start is one immutable clock-pair conversion");
-    volatile std::uint64_t work = 0;
-    for (std::uint64_t i = 0; i != 100000; ++i) work = work + i;
-    (void)work;
-    expect(process_cpu_ns() > cpu_after, "process CPU clock advances with CPU work");
+    // Windows process CPU accounting may advance at coarser intervals than
+    // this short loop. Exercise actual CPU work until the OS clock ticks,
+    // with a bounded deadline so a genuinely broken clock still fails.
+    auto next_cpu = cpu_after;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    while (next_cpu <= cpu_after && std::chrono::steady_clock::now() < deadline) {
+        volatile std::uint64_t work = 0;
+        for (std::uint64_t i = 0; i != 100000; ++i) work = work + i;
+        (void)work;
+        next_cpu = process_cpu_ns();
+    }
+    expect(next_cpu > cpu_after, "process CPU clock advances with CPU work");
     auto previous = monotonic_ns();
     for (int i = 0; i != 100; ++i) {
         const auto next = monotonic_ns();

@@ -219,4 +219,27 @@ report = json.load(open(sys.argv[1]))
 assert any(item["code"] == "CHAINED_COMPARISON" for item in report["diagnostics"]), report
 PY
 
+# A nested indexed assignment writes through the original outer array, even
+# if its outer index calls user code. Evaluating the selector once, before a
+# mutating right-hand side, must not construct or leave an owned row copy.
+cat > "$TMP/nested-index-assignment.qui" <<'QUI'
+int select_row(int &calls)
+    calls += 1
+    return 1
+
+int replace_rows(int[][] &rows)
+    rows = [[7, 8], [9, 10]]
+    return 42
+
+int[][] rows = [[1, 2], [3, 4]]
+int calls = 0
+rows[select_row(&calls)][0] = 77
+print(rows[0][0] == 1 and rows[1][0] == 77 and calls == 1)
+print(NL)
+rows[select_row(&calls)][1] = replace_rows(&rows)
+print(rows[0][0] == 7 and rows[1][0] == 9 and rows[1][1] == 42 and calls == 2)
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/nested-index-assignment.qui")" == "$(printf 'true\\ntrue')" ]]
+
 echo "array selection ownership, independent copies and operator contracts passed"

@@ -72,6 +72,21 @@ inline NativeEnvironmentSnapshot environment_native_snapshot() {
     return snapshot;
 }
 
+// Windows-native values are needed for paths containing Unicode.
+#ifdef _WIN32
+inline std::optional<std::wstring> environment_wide_value(const wchar_t* name) {
+    wchar_t* raw = nullptr;
+    std::size_t size = 0;
+    if (_wdupenv_s(&raw, &size, name) != 0 || !raw) {
+        std::free(raw);
+        return std::nullopt;
+    }
+    std::wstring value(raw, size ? size - 1 : 0);
+    std::free(raw);
+    return value;
+}
+#endif
+
 // The value of environment variable `name`, or nullopt when it is not set. A
 // variable set to the empty string yields an empty value.
 inline std::optional<std::string> environment_value(const char* name) {

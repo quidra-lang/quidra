@@ -9,6 +9,7 @@
 #include "platform/private_directory.hpp"
 #include "platform/user_cache_directory.hpp"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -278,6 +279,26 @@ void windows_unicode_cache_directory() {
     check(::SetEnvironmentVariableW(L"QUIDRA_CACHE_DIR", old ? old->c_str() : nullptr) != FALSE,
           "restoring cache path override");
 }
+
+void windows_filetime_identity() {
+    // A modern FILETIME is too large to multiply directly by 100 in int64.
+    // The actual OS file identity must preserve a Unix-relative timestamp.
+    const auto path = fs::temp_directory_path() /
+        ("quidra-filetime-" + std::to_string(::GetCurrentProcessId()) + ".tmp");
+    {
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        output << "filetime";
+    }
+    const auto identity = file_identity(path);
+    std::error_code ignored;
+    fs::remove(path, ignored);
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    constexpr std::int64_t tolerance = 60000000000LL;
+    check(identity && identity->modified_ns >= now - tolerance &&
+          identity->modified_ns <= now + tolerance,
+          "Windows file identity has a non-overflowing Unix timestamp");
+}
 #endif
 
 } // namespace
@@ -303,6 +324,7 @@ int main() {
     fs::remove_all(scratch, ignored);
 #else
     windows_unicode_cache_directory();
+    windows_filetime_identity();
 #endif
 
     if (failures != 0) {

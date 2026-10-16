@@ -104,7 +104,10 @@ int run_child(const char* mode) {
     // itself allocate before returning FILE*.
     reject_allocations = false;
 #ifdef _WIN32
-    auto* report = _fsopen(report_path->c_str(), "r", _SH_DENYNO);
+    const auto native_path = quidra::platform::environment_wide_value(L"QUIDRA_COUNTERS");
+    auto* report = native_path
+        ? _wfsopen(native_path->c_str(), L"r", _SH_DENYNO)
+        : nullptr;
 #else
     auto* report = std::fopen(report_path->c_str(), "r");
 #endif

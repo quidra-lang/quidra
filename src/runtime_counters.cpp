@@ -441,6 +441,12 @@ void mark_program_started() {
         try { state.records.reserve(4096); }
         catch (...) { state.flush_steps = true; }
     }
+#ifdef _WIN32
+    // The Windows CRT may allocate on the first _wfsopen. An opted-in
+    // program acquires its report stream before a low-memory failure, while
+    // retaining all buffered step records until the regular flush.
+    if (!state.path.empty()) (void)report_file_locked(state);
+#endif
 }
 
 bool current_source_site(SourceSite& site) {

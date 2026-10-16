@@ -4,11 +4,11 @@
 // precise enough that a replaced or rewritten file compares unequal.
 //
 // POSIX takes it from stat(2): the device and inode, the size, and the
-// modification and status-change times in nanoseconds. Windows opens the
-// file for its attributes only and takes the volume serial number and the
-// 128-bit file id (FileIdInfo), the size, and the LastWriteTime and
-// ChangeTime of FileBasicInfo, in 100-nanosecond units scaled to
-// nanoseconds.
+// modification and status-change times in Unix-epoch nanoseconds. Windows
+// opens the file for its attributes only and takes the volume serial number,
+// 128-bit file id (FileIdInfo), size, and FILE_BASIC_INFO timestamps. The
+// 1601-epoch 100ns ticks are converted to the Unix epoch before scaling,
+// preventing overflow when checking whether an input changed recently.
 //
 // The change time moves whenever the inode does (a write, a chmod, a new
 // hard link, a rename onto the name), so an equal identity means the file

@@ -240,6 +240,6 @@ rows[select_row(&calls)][1] = replace_rows(&rows)
 print(rows[0][0] == 7 and rows[1][0] == 9 and rows[1][1] == 42 and calls == 2)
 print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/nested-index-assignment.qui")" == "$(printf 'true\\ntrue')" ]]
+[[ "$("$QUIDRA" "$TMP/nested-index-assignment.qui")" == "$(printf 'true\ntrue')" ]]
 
 echo "array selection ownership, independent copies and operator contracts passed"

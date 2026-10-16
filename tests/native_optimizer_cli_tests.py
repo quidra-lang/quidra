@@ -79,29 +79,41 @@ print(NL)
                     for path in (root / "cache" / "run").rglob("metadata.json")]
 
         first = entries()
-        assert len(first) == 1, "actual native run did not publish its mode cache entry"
-        first_key = first[0]["pre_key"]
-        first_options = {value["name"]: value["value"]
-                         for value in first[0]["invocation"]["options"]}
-        assert first_options["compile.optimizer.check_elimination"] == "on"
-        assert "compile.optimizer.cfg_facts" not in first_options, \
-            "omitted optional mode was flattened into an explicit default"
+        if os.name == "nt":
+            # Windows deliberately does not claim a complete native linker
+            # dependency trace: publishing such a cache entry would be unsafe.
+            assert not first, "Windows published an incompletely traced native cache"
+        else:
+            assert len(first) == 1, "actual native run did not publish its mode cache entry"
+            first_key = first[0]["pre_key"]
+            first_options = {value["name"]: value["value"]
+                             for value in first[0]["invocation"]["options"]}
+            assert first_options["compile.optimizer.check_elimination"] == "on"
+            assert "compile.optimizer.cfg_facts" not in first_options, \
+                "omitted optional mode was flattened into an explicit default"
+
         assert run(on, source, "--opt", "child").stdout == "child\ntrue\n"
-        assert {entry["pre_key"] for entry in entries()} == {first_key}, \
-            "shorthand prefix mode or child arguments changed the executable key"
+        if os.name != "nt":
+            assert {entry["pre_key"] for entry in entries()} == {first_key}, \
+                "shorthand prefix mode or child arguments changed the executable key"
         assert run("run", source, off, "--", "--opt", "child").stdout == "child\ntrue\n"
-        second = entries()
-        assert len(second) == 2 and len({entry["pre_key"] for entry in second}) == 2, \
-            "different optimizer modes shared cached executable identity"
+        if os.name != "nt":
+            second = entries()
+            assert len(second) == 2 and len({entry["pre_key"] for entry in second}) == 2, \
+                "different optimizer modes shared cached executable identity"
         assert run("run", source, on, "--opt=cfg-facts=on").stdout == "program\ntrue\n"
-        explicit = entries()
-        assert len(explicit) == 3 and len({entry["pre_key"] for entry in explicit}) == 3, \
-            "explicit optional On shared the omitted optional mode cache key"
-        assert any(any(value["name"] == "compile.optimizer.cfg_facts" and value["value"] == "on"
-                       for value in entry["invocation"]["options"])
-                   for entry in explicit)
+        if os.name != "nt":
+            explicit = entries()
+            assert len(explicit) == 3 and len({entry["pre_key"] for entry in explicit}) == 3, \
+                "explicit optional On shared the omitted optional mode cache key"
+            assert any(any(value["name"] == "compile.optimizer.cfg_facts" and value["value"] == "on"
+                           for value in entry["invocation"]["options"])
+                       for entry in explicit)
         assert run("run", source, "--no-cache", on, "--", "--opt", "child").stdout == "child\ntrue\n"
-        assert len(entries()) == 3, "uncached mode unexpectedly published an entry"
+        if os.name == "nt":
+            assert not entries(), "Windows native cache must remain unpublished"
+        else:
+            assert len(entries()) == 3, "uncached mode unexpectedly published an entry"
 
         errors = [run("run", source, option, "--", "--opt", "fail", success=False)
                   for option in (off, on)]

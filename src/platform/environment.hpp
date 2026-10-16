@@ -75,15 +75,26 @@ inline NativeEnvironmentSnapshot environment_native_snapshot() {
 // Windows-native values are needed for paths containing Unicode.
 #ifdef _WIN32
 inline std::optional<std::wstring> environment_wide_value(const wchar_t* name) {
-    wchar_t* raw = nullptr;
-    std::size_t size = 0;
-    if (_wdupenv_s(&raw, &size, name) != 0 || !raw) {
-        std::free(raw);
-        return std::nullopt;
+    // The CRT environment can be a stale snapshot after SetEnvironmentVariableW.
+    // Read the live Win32 environment, retaining UTF-16 for filesystem paths.
+    // Retry a concurrent size change instead of returning a truncated value.
+    for (unsigned attempt = 0; attempt != 3; ++attempt) {
+        ::SetLastError(ERROR_SUCCESS);
+        const DWORD capacity = ::GetEnvironmentVariableW(name, nullptr, 0);
+        if (capacity == 0) {
+            return ::GetLastError() == ERROR_SUCCESS
+                ? std::optional<std::wstring>{std::wstring{}}
+                : std::nullopt;
+        }
+        std::wstring value(capacity, L'\0');
+        ::SetLastError(ERROR_SUCCESS);
+        const DWORD written = ::GetEnvironmentVariableW(name, value.data(), capacity);
+        if (written >= capacity) continue;
+        if (written == 0 && ::GetLastError() != ERROR_SUCCESS) return std::nullopt;
+        value.resize(written);
+        return value;
     }
-    std::wstring value(raw, size ? size - 1 : 0);
-    std::free(raw);
-    return value;
+    return std::nullopt;
 }
 #endif
 

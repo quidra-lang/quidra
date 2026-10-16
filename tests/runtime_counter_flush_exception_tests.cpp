@@ -109,8 +109,24 @@ int run_child(const char* mode) {
     auto* report = std::fopen(report_path->c_str(), "r");
 #endif
     if (!report) {
+        const int open_errno = errno;
         std::fprintf(stderr, "report open failed: errno=%d, enabled=%d, path=%s\n",
-                     errno, quidra::counters::enabled() ? 1 : 0, report_path->c_str());
+                     open_errno, quidra::counters::enabled() ? 1 : 0, report_path->c_str());
+#ifdef _WIN32
+        // On a failed flush, distinguish a missing output from an incorrectly
+        // decoded environment path or a missing parent directory.
+        if (const auto wide = quidra::platform::environment_wide_value(L"QUIDRA_COUNTERS")) {
+            const auto native = std::filesystem::path(*wide);
+            std::error_code path_error;
+            const bool parent_exists = std::filesystem::exists(native.parent_path(), path_error);
+            const bool output_exists = std::filesystem::exists(native, path_error);
+            const auto utf8 = native.u8string();
+            std::fprintf(stderr, "native counter report parent=%d, output=%d, utf8=%.*s\n",
+                         parent_exists ? 1 : 0, output_exists ? 1 : 0,
+                         static_cast<int>(utf8.size()),
+                         reinterpret_cast<const char*>(utf8.data()));
+        }
+#endif
     }
     require(report != nullptr, "allocation failure lost the buffered report");
     char line[8192];

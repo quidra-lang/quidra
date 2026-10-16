@@ -81,7 +81,14 @@ void os_clocks() {
     const auto cpu_after = process_cpu_ns();
     expect(before != 0 && after >= before, "monotonic clock is available and ordered");
     expect(after - before >= 1000000, "elapsed clock measures a short sleep in nanoseconds");
+#ifdef _WIN32
+    // GetProcessTimes can report zero until Windows accounts the first CPU
+    // quantum. The bounded work below proves availability without mistaking
+    // a legitimately coarse initial sample for an OS query failure.
+    expect(cpu_after >= cpu_before, "process CPU clock is ordered");
+#else
     expect(cpu_before != 0 && cpu_after >= cpu_before, "process CPU clock is available and ordered");
+#endif
     expect(start != 0 && start <= before, "OS process creation predates the first clock query");
     expect(process_start_ns() == start, "process start is one immutable clock-pair conversion");
     // Windows process CPU accounting may advance at coarser intervals than

@@ -52,9 +52,15 @@ with tempfile.TemporaryDirectory() as directory:
         assert report["schema"] == 1 and report["clock_units"] == "ns" and report["kind"] == "metal_capture"
         capture = report["capture"]
         assert capture["requested_step"] == int(request[5:])
-        assert Path(capture["report_path"]) == reports[0].resolve()
+        published = Path(capture["report_path"])
+        # Equivalent Windows canonical paths may use different long/short
+        # spelling. Verify the same on-disk file, including its Unicode name.
+        assert published.is_absolute() and published.samefile(reports[0]), (
+            f"capture report path mismatch: {published!s} != {reports[0].resolve()!s}"
+        )
         output = Path(capture["output_path"])
-        assert output.name == "capture.gputrace" and output.parent == reports[0].parent.resolve()
+        assert output.is_absolute() and output.name == "capture.gputrace" and \
+            output.parent.samefile(reports[0].parent)
         assert not output.exists(), "portable configuration produced a native capture"
         assert capture["preparation"]["clock_queries"] == 2
         assert capture["preparation"]["failed"] is False

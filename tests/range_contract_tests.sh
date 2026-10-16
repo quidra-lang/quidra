@@ -115,8 +115,22 @@ for range in '0:3:0' '0:3:-1' '3:0:1' '3<:0:-1' '0>:3:1' \
     grep -Fq 'SLICE_STEP' "$TMP/err"
 done
 
-for range in 'start<:stop:-1' 'stop>:start:1' 'start:<stop:-1' \
-             'stop:>start:1' 'start:stop:1' 'stop:start:-1' \
+# A literal step that contradicts a direction marker is statically
+# invalid, even if the endpoints are function parameters.
+for range in 'start<:stop:-1' 'stop>:start:1' 'start:<stop:-1' 'stop:>start:1'; do
+    cat > "$TMP/static-marker.qui" <<QUI
+void check(int start, int stop)
+    int[] values = $range
+QUI
+    if "$QUIDRA" check "$TMP/static-marker.qui" >"$TMP/out" 2>"$TMP/err"; then
+        printf 'invalid static range accepted: %s\n' "$range" >&2
+        exit 1
+    fi
+    grep -Fq 'SLICE_STEP' "$TMP/err"
+done
+
+# Uncertain bound direction or step value must fail at runtime.
+for range in 'start:stop:1' 'stop:start:-1' \
              'start:>start:step' 'start:<start:negative_step' 'start:stop:zero'; do
     # A parameter is not a compile-time constant. This exercises runtime
     # validation rather than the (equally valid) static constant rejection.

@@ -78,7 +78,10 @@ int main(int argc, char** argv) {
     if (!capture_requested()) return 3;
     if (mode == "--bad-cache" || mode == "--prepare-pressure")
         return !config ? 0 : 4;
-    if (!config || config->output_path.empty() || config->excluded_paths.size() != config->excluded_storage.size()) return 4;
+    if (!config || config->output_path.empty() || config->excluded_paths.size() != config->excluded_storage.size()) {
+        std::fprintf(stderr, "capture probe: missing configuration or path (available=%d)\n", config != nullptr);
+        return 4;
+    }
     for (std::size_t i = 0; i < config->excluded_paths.size(); ++i)
         if (config->excluded_paths[i].data() != config->excluded_storage[i].data() ||
             config->excluded_paths[i] != config->excluded_storage[i]) return 4;

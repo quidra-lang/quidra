@@ -139,7 +139,13 @@ with tempfile.TemporaryDirectory() as temporary:
     assert [row["point"] for row in marks] == ["process_start", "runtime_init", "first_statement", "exit_begin", "exit_end"]
     assert all(row["host_ns"] > 0 for row in marks), marks
     assert marks[0]["host_ns"] <= marks[1]["host_ns"] <= marks[2]["host_ns"] <= marks[3]["host_ns"] <= marks[4]["host_ns"]
-    assert marks[0]["cpu_available"] is False and marks[1]["cpu_available"] is True
+    assert marks[0]["cpu_available"] is False
+    # On Windows a new process may have consumed less than one OS CPU-clock
+    # tick. A reported zero is correctly unavailable, not a broken timer;
+    # the separate platform-clock test exercises progress under CPU work.
+    assert marks[1]["cpu_available"] is (marks[1]["cpu_ns"] != 0)
+    if os.name != "nt":
+        assert marks[1]["cpu_available"] is True
 
     # An optional report failure must not replace the producer's exit status.
     run("--records", root)

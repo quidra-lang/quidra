@@ -79,7 +79,30 @@ std::optional<fs::path> user_cache_directory(
 
 std::optional<fs::path> user_cache_directory() {
     CacheDirectoryInputs inputs;
+#ifdef _WIN32
+    // A UTF-8 or ANSI narrow CRT environment value cannot be round-tripped
+    // through std::filesystem::path on every Windows locale. Capture paths
+    // may contain arbitrary Unicode, so take the existing native UTF-16
+    // environment value directly into the Windows-native filesystem path.
+    wchar_t* configured_raw = nullptr;
+    std::size_t configured_size = 0;
+    if (_wdupenv_s(&configured_raw, &configured_size, L"QUIDRA_CACHE_DIR") == 0 &&
+        configured_raw) {
+        fs::path configured(configured_raw);
+        std::free(configured_raw);
+        if (!configured.empty()) {
+            if (configured.is_absolute()) return configured.lexically_normal();
+            std::error_code error;
+            const auto cwd = fs::current_path(error);
+            return error ? std::nullopt : std::optional<fs::path>{(cwd / configured).lexically_normal()};
+        }
+    } else {
+        std::free(configured_raw);
+    }
+    // No override: fall back to Windows' wide local-app-data folder.
+#else
     inputs.quidra_cache_dir = environment_value("QUIDRA_CACHE_DIR");
+#endif
     std::error_code error;
     inputs.working_directory = fs::current_path(error);
     if (error && inputs.quidra_cache_dir && !inputs.quidra_cache_dir->empty() &&

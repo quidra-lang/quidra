@@ -344,7 +344,7 @@ print(text("s1", "x") == text("s2", "x") == text("s3", "x"))
 print(NL)
 print(text("s4", "x") == text("s5", "y") == text("s6", "y"))
 print(NL)
-print(values("v1", 1) == values("v2", 1) == values("v3", 1))
+print(values("v1", 1) == values("v2", 1) and values("v3", 1) == [1, 2])
 print(NL)
 string shared = "k"
 print(text("t0", "k") == shared == text("t1", "k"))

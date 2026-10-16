@@ -130,6 +130,11 @@ struct Report {
     std::map<std::string, std::uint64_t> refusals;
     std::map<std::string, std::uint64_t> total_wait_sites;
     std::map<std::string, std::uint64_t> total_refusals;
+    // MSVC allocates a head node while default-constructing std::map.
+    // Preconstruct the terminal records before an out-of-memory flush so
+    // reporting a failure never needs a new map allocation.
+    Record exit_record;
+    Record total_record;
 };
 
 Report& report() {
@@ -369,10 +374,10 @@ void flush_report() noexcept {
         auto& state = report();
         std::lock_guard lock(state.mutex);
         if (state.finalized || state.path.empty() || !state.program) return;
-        Record exit;
+        auto& exit = state.exit_record;
         exit.step = state.step;
         exit.event = "exit";
-        Record total;
+        auto& total = state.total_record;
         total.totals = true;
         for (std::size_t i = 0; i < count; ++i) {
             total.values[i] = values()[i].load(std::memory_order_relaxed);

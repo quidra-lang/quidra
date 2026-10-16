@@ -16,7 +16,7 @@ def main():
         environment = dict(os.environ)
         for name in tuple(environment):
             if name.startswith("QUIDRA_") and name not in {
-                "QUIDRA_CLANGXX", "QUIDRA_CLANG", "QUIDRA_RUNTIME_LIBRARY",
+                "QUIDRA_CLANGXX", "QUIDRA_CLANG", "QUIDRA_AR", "QUIDRA_RUNTIME_LIBRARY",
                 "QUIDRA_NATIVE_INCLUDE_DIR",
             }:
                 del environment[name]

@@ -446,9 +446,17 @@ void prepare_capture(Report& state) noexcept {
                     }
                     if (!session) preparation_failed(state, metal::Gap::PathUnavailable);
                     else {
-                        configuration->output_path = utf8(*session / "capture.gputrace");
+                        fs::path published_session = *session;
+#ifdef _WIN32
+                        // Keep the caller-accessible UTF-16 cache spelling in
+                        // published paths. Canonicalization can expand 8.3
+                        // aliases on hosted Windows while the caller still
+                        // uses the original spelling to access its files.
+                        published_session = *cache / "profiles" / session->filename();
+#endif
+                        configuration->output_path = utf8(published_session / "capture.gputrace");
                         state.capture_report_native_path = *session / "capture.json";
-                        state.capture_report_path = utf8(state.capture_report_native_path);
+                        state.capture_report_path = utf8(published_session / "capture.json");
                         configuration->excluded_storage.reserve(5);
                         if (!state.path.empty()) configuration->excluded_storage.push_back(state.path);
                         for (const auto* name : {"QUIDRA_TIMELINE", "QUIDRA_COUNTERS"}) {

@@ -57,12 +57,12 @@ int main(){try{
     };
     auto unchanged=analyze_state(tensors);
     require(unchanged.loops[0].locals.at("state").metadata.shape && unchanged.loops[0].locals.at("state").metadata.device &&
-        std::binary_search(unchanged.loops[0].values.begin(),unchanged.loops[0].values.end(),5),
+        std::binary_search(unchanged.loops[0].values.begin(),unchanged.loops[0].values.end(),ValueId{5}),
         "unexposed tensor descriptor queries and local shape/device are invariant without writes");
     tensors.blocks[2].instructions.insert(tensors.blocks[2].instructions.begin(),TensorClearGrad{4});
     auto mutated=analyze_state(tensors);
     require(!mutated.loops[0].locals.at("state").metadata.tracked &&
-        !std::binary_search(mutated.loops[0].values.begin(),mutated.loops[0].values.end(),5),
+        !std::binary_search(mutated.loops[0].values.begin(),mutated.loops[0].values.end(),ValueId{5}),
         "descriptor mutation cannot become an invariant query or local descriptor fact");
     require(!mutated.loops[0].storage.empty() && mutated.loops[0].storage[0].region_only_writes==17 &&
         !mutated.loops[0].storage[0].exclusive_ownership_available && mutated.loops[0].storage[0].backedge_live_available &&

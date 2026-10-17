@@ -156,6 +156,7 @@ FORBIDDEN_IMPLEMENTATION_MARKERS = (
     "libswscale",
     "QUIDRA_IMAGE_LIBRARY_PATH",
     "QUIDRA_VIDEO_LIBRARY_PATH",
+    ".qnn",
     ".dnn",
 )
 

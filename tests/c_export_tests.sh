@@ -211,10 +211,9 @@ else
     fail "overflow: build failed"
 fi
 
-# No real value from C is NaN or an infinity: a non-finite argument of an
-# exported function stops the program at the function's declaration before
-# its body runs (NUMERIC_CONVERSION, NON_FINITE), and a non-finite result of
-# an extern function stops it at the call (NONFINITE_RESULT).
+# Signed infinities cross the C ABI unchanged. NaN arguments stop before
+# the exported body (NUMERIC_CONVERSION); NaN extern results stop at the
+# call (NONFINITE_RESULT).
 cat > "$TMP/nonfinite_argument.qui" <<'QUI'
 export "C" real64 halve(real64 value)
     print("body")
@@ -261,7 +260,7 @@ cat > "$TMP/nonfinite_result_driver.c" <<'C'
 #include <math.h>
 #include <stdint.h>
 float make_value(int32_t which) {
-    return which == 0 ? 2.5f : INFINITY;
+    return which == 0 ? 2.5f : NAN;
 }
 C
 if compile nonfinite_result_driver && build nonfinite_result --link "$TMP/nonfinite_result_driver.o"; then
@@ -272,11 +271,44 @@ if compile nonfinite_result_driver && build nonfinite_result --link "$TMP/nonfin
         fail "nonfinite_result: output"; cat "$TMP/nonfinite_result.out"
     elif ! python3 "$HELPER" "$TMP/nonfinite_result.err" kind=runtime_error code=NONFINITE_RESULT \
             'file=/nonfinite_result\.qui$/' line=5 column=16 \
-            "message=extern 'make_value' produced a non-finite real32 value"; then
+            "message=extern 'make_value' produced a NaN real32 value"; then
         fail "nonfinite_result: report"; cat "$TMP/nonfinite_result.err"
     fi
 else
     fail "nonfinite_result: build failed"
+fi
+
+# Both directions of the C ABI preserve the sign of infinity.
+cat > "$TMP/infinity_roundtrip.qui" <<'QUI'
+export "C" real64 halve_infinity(real64 value)
+    return value / 2.0
+extern real32 native_infinity(int32 negative) = "native_infinity"
+extern void infinity_driver() = "infinity_driver"
+infinity_driver()
+print(native_infinity(0))
+print(" ")
+print(native_infinity(1))
+QUI
+cat > "$TMP/infinity_roundtrip_driver.c" <<'C'
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+double halve_infinity(double);
+float native_infinity(int32_t negative) { return negative ? -INFINITY : INFINITY; }
+void infinity_driver(void) {
+    double positive = halve_infinity(INFINITY);
+    double negative = halve_infinity(-INFINITY);
+    if (!isinf(positive) || signbit(positive) || !isinf(negative) || !signbit(negative)) abort();
+}
+C
+if compile infinity_roundtrip_driver && build infinity_roundtrip --link "$TMP/infinity_roundtrip_driver.o"; then
+    run infinity_roundtrip
+    if [[ "$rc" -ne 0 || "$(cat "$TMP/infinity_roundtrip.out")" != "inf -inf" ]]; then
+        fail "infinity_roundtrip: signed infinity did not cross the C ABI"
+        cat "$TMP/infinity_roundtrip.out" "$TMP/infinity_roundtrip.err"
+    fi
+else
+    fail "infinity_roundtrip: build failed"
 fi
 
 # An exported function that leaves a failing deferred GPU check behind

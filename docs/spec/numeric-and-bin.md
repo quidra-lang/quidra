@@ -148,7 +148,7 @@ Floating and `real` operands support real exponents. The operands have the
 same concrete numeric type; `^` does not introduce implicit numeric conversion.
 
 Powers without a value are `POWER_DOMAIN` failures in every numeric family:
-`0 ^ 0`, a zero base with a negative exponent, a negative integer exponent,
+`0 ^ 0`, a negative integer exponent,
 and, for `real32`, `real64` and `real`, a negative base with an exponent that is not an
 integer (`real64 a = -2.0; a ^ 0.5`; there is no promotion to a complex
 result). With literal operands these are compile-time errors; otherwise the
@@ -169,40 +169,40 @@ power that only a provider's refinement can decide.
 Bitwise XOR is deliberately separate and continues to use the uppercase `XOR`
 operator.
 
-## No NaN or infinity
+## Signed infinity without NaN
 
-No value of a fixed-width real type that a program can observe is NaN or an
-infinity. Producing one is an error at the operation that would produce it,
-and the program stops with status 101:
+The real types (`real16`, `real16b`, `real32`, `real64` and exact `real`)
+admit signed infinity, written `inf` and `-inf`. Exact `real` displays these
+values as `∞` and `-∞`; fixed-width types display `inf` and `-inf`. The same
+spellings are used by printing, interpolation and `.string()`.
 
-- `+`, `-`, `*`, `/` and `^` whose result lies beyond the type's finite
-  range stop with `REAL_OVERFLOW` (`real64 multiplication overflow`);
-- a division by zero, `0.0 / 0.0` included, stops with `DIVISION_BY_ZERO`
-  (`real32 division by zero`);
-- the powers without a value stop with `POWER_DOMAIN` before they are
-  computed (see Exponentiation).
+Real overflow, nonzero real division by zero and zero to a negative real
+power may produce infinity. NaN is never observable: an indeterminate
+operation such as `inf - inf`, `0 * inf` or `inf / inf` fails with
+`NONFINITE_RESULT`, while `0.0 / 0.0` fails with `DIVISION_BY_ZERO`.
+Undefined powers, including `0 ^ 0` and a negative real base with a
+fractional exponent, retain `POWER_DOMAIN`.
 
-Unary minus and the comparisons never produce such a value, conversions
-check their destination's range, and parsing rejects `nan`, `inf` and text
-beyond the finite range. Signed zero and subnormal values are finite: `-0.0`
-prints as `-0.0` and equals `0.0`. A constant expression of real literals is
-computed in its type at compile time, so its overflow is a compile-time
-error:
+A constant expression follows the same rules in its concrete type:
 
 ```quidra
-real64 big = 1.0e308 * 10.0 // compile-time error
+real64 big = 1.0e308 * 10.0 // inf: arithmetic overflow is allowed
+real64 invalid = 0.0 / 0.0 // compile-time error: indeterminate division
 ```
 
-Tensors follow the same rule element by element: a real tensor operation
-tests every element it computes (on a GPU the test stays on the device and
-fails at the next synchronization point), a gradient that a backward pass
-delivers is tested, and so is a real tensor that a package function writes.
+Finite out-of-range literals and finite narrowing conversions still fail;
+an already infinite real value preserves its sign in real-family conversions.
+Infinity cannot convert to an integer. Parsing accepts `inf` and `-inf`,
+rejects NaN, and retains range checks for finite text. Exact `real.parse`
+also accepts `∞` and `-∞`. Signed zero and subnormal behavior is unchanged;
+fixed-width `-0.0` prints with its sign and compares equal to `0.0`.
 
-When several operations of one expression overflow, the first one in
-evaluation order is reported, at its own location. The implementation may
-test the operations of one expression together, or the single operation of
-a loop once at the loop's end; the failure it reports is the one the
-operation-by-operation test would report.
+Arrays, tensor elements, delivered gradients and native package outputs
+obey this policy. CPU tensor checks report the first failing logical element;
+GPU checks stay on the device and report at the next synchronization point.
+Merged checks must report the same first indeterminate operation, at its
+own location, as unmerged checks. An intermediate NaN cannot be hidden by a
+later operation such as raising it to zero.
 
 ## Complex numbers
 
@@ -229,9 +229,9 @@ The operators are `+`, `-`, `*`, `/`, unary `-`, `==`, `!=` and, for the
 fixed-width types, `^`. Complex values have no ordering. Each part operation
 of a fixed-width type rounds once to the part type: `*` is
 `(ac - bd) + (ad + bc)i` with no fused operation, and `/` is Smith's
-algorithm. A result, or an intermediate value of `/`, that is not finite
-stops the program like a real overflow (`REAL_OVERFLOW`,
-`com32 multiplication overflow`), and a divisor `0.0 + 0.0i` is
+algorithm. A NaN result, or a NaN intermediate value of `/`, stops the
+program (`NONFINITE_RESULT`, `com32 multiplication produced NaN`);
+infinite parts are valid. A divisor `0.0 + 0.0i` remains
 `DIVISION_BY_ZERO` (`com64 division by zero`). `z ^ w` is the principal value `exp(w Log z)`,
 computed in binary64 with the platform's math library and rounded once per
 part: it is deterministic on one platform but not correctly rounded. `0 ^ w`
@@ -330,7 +330,7 @@ int value = 100
 int8 checked = int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Already infinite values retain their sign in real-family conversions; they cannot convert to an integer. Integer widening whose source range is fully contained in the destination is infallible.
 
 A real (`real16`, `real16b`, `real32`, `real64` or exact `real`) converts to an integer-family type only when its mathematical value is integral and fits the destination range. The result has type `T | error`: `NOT_INTEGRAL` for a fractional value, `OUT_OF_RANGE` for an integral value outside the range, and `UNDECIDED` when an exact proof cannot establish integrality. Signed zero converts to integer zero. No integer rounding is performed; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to select one.
 

@@ -321,19 +321,18 @@ are declared and specified in `include/quidra/native_extension.h`:
   point without a host wait now, reads it at once with
   `qcore_device_status_wait`, or discards it with
   `qcore_device_status_release`.
-- Non-finite values: no real value a program can observe is NaN or an
-  infinity. After a call of an extern function that wrote a `real32` or
-  `real64` tensor through a `&` argument, Core validates that tensor (one
-  pass; on a GPU a deferred check) and stops the program with
-  `NONFINITE_RESULT` at the call, unless the package declared the function's
-  C symbol with `qcore_op_register_flags`: `QCORE_OP_VALIDATES_NONFINITE`
-  when its kernels check what they write (a CPU kernel reports a non-finite
-  value with `qcore_tensor_report_status`, a GPU kernel through a status
-  slot), `QCORE_OP_FINITE_PRESERVING` when finite inputs give finite outputs
-  (`relu`). Values that stay inside the package, such as a `-inf` mask
-  inside a softmax, are the package's own. Until a package declares its
-  functions, Core's validation is correct but costs one pass per output
-  (counted as `finite_validations` by the runtime counters).
+- NaN validation: real values may be infinite but never NaN. Core validates
+  tensors and tensor arrays written through native `&` arguments and reports
+  `NONFINITE_RESULT` for NaN, at the call or the next GPU synchronization.
+  A package may waive this scan using `qcore_op_register_flags` with
+  `QCORE_OP_VALIDATES_NAN` when its kernels check outputs, or
+  `QCORE_OP_NAN_PRESERVING` when NaN-free inputs, including infinities, imply
+  NaN-free outputs. `QCORE_OP_VALIDATES_NONFINITE` remains an alias of the
+  validation flag. The legacy `QCORE_OP_FINITE_PRESERVING` flag is accepted
+  but does not waive checks: finite-input preservation says nothing about
+  infinite inputs. CPU kernels can report invalid outputs through
+  `qcore_tensor_report_status`; GPU kernels use deferred status slots.
+  The runtime counter retains its historical name `finite_validations`.
 - Scratch from `qcore_device_buffer_allocate` holds unspecified bytes and no
   queued GPU work uses it when it is returned, so on Metal the package may
   write it through shared storage at once. A tensor's storage may still be in

@@ -2,7 +2,7 @@
 # The 16-bit reals real16 (IEEE binary16) and real16b (bfloat16): literals
 # rounded once, arithmetic computed exactly and rounded once per operation,
 # the shortest text that reads back per format, parsing, conversions with
-# their range checks, the finite checks, arrays, CPU tensors and their
+# their range checks, infinity and NaN checks, arrays, CPU tensors and their
 # gradients.
 set -euo pipefail
 set -x
@@ -150,19 +150,30 @@ TXT
 )
 [[ "$("$QUIDRA" run "$TMP/parse.qui")" == "$expected_parse" ]]
 
-# No visible infinity: overflow stops the program at the operation.
+# Overflow and nonzero division by zero produce infinity; NaN remains an error.
 cat > "$TMP/overflow16.qui" <<'QUI'
 real16 big = 60000.0
 real16 two = 2.0
 print(big * two)
 QUI
-fails overflow16 REAL_OVERFLOW 'real16 multiplication overflow' '3:7'
+[[ "$("$QUIDRA" run "$TMP/overflow16.qui")" == "inf" ]]
 cat > "$TMP/divide16b.qui" <<'QUI'
 real16b one = 1.0
 real16b zero = 0.0
 print(one / zero)
 QUI
-fails divide16b DIVISION_BY_ZERO 'real16b division by zero' '3:7'
+[[ "$("$QUIDRA" run "$TMP/divide16b.qui")" == "inf" ]]
+cat > "$TMP/nan16.qui" <<'QUI'
+real16 infinity = inf
+real16 zero = 0.0
+print(infinity * zero)
+QUI
+fails nan16 NONFINITE_RESULT 'real16 multiplication produced NaN' '3:7'
+cat > "$TMP/nan16b.qui" <<'QUI'
+real16b zero = 0.0
+print(zero / zero)
+QUI
+fails nan16b DIVISION_BY_ZERO 'real16b division by zero' '2:7'
 cat > "$TMP/literal16.qui" <<'QUI'
 real16 bad = 70000.0
 QUI
@@ -210,5 +221,11 @@ QUI
 cat > "$TMP/tensor_overflow16.qui" <<'QUI'
 tensor<real16> big = tensor.ones<real16>([2]) * real16(60000.0)
 tensor<real16> twice = big + big
+print(twice[0].item())
 QUI
-fails tensor_overflow16 REAL_OVERFLOW 'tensor<real16> addition overflow' '2:24'
+[[ "$("$QUIDRA" run "$TMP/tensor_overflow16.qui")" == "inf" ]]
+cat > "$TMP/tensor_nan16.qui" <<'QUI'
+tensor<real16> infinite = tensor.ones<real16>([2]) * real16(inf)
+tensor<real16> invalid = infinite - infinite
+QUI
+fails tensor_nan16 NONFINITE_RESULT 'tensor<real16> subtraction produced NaN' '2:26'

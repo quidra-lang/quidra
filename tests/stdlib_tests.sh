@@ -2673,9 +2673,9 @@ for case_name in bitwise shift tensor extern negative-nat; do
     grep -q "$code" "$TMP/int-reject-$case_name.out"
 done
 
-# Powers without a value stop with POWER_DOMAIN in every family: 0 ^ 0, a
-# zero base with a negative exponent and a negative fixed-width real base
-# with a fractional exponent. Literal operands are compile-time errors.
+# Undefined powers retain POWER_DOMAIN: 0 ^ 0 and a negative real base
+# with a fractional exponent. Zero to a negative real power is infinity.
+# Literal operands obey the same rules during constant evaluation.
 power_domain_case() {
     local name="$1" type="$2" base="$3" exponent="$4" message="$5"
     cat > "$TMP/power-$name.qui" <<QUI
@@ -2699,8 +2699,6 @@ power_domain_case nat-zero nat 0 0 '0 ^ 0 is undefined'
 power_domain_case real64-zero real64 0.0 0.0 '0 ^ 0 is undefined'
 power_domain_case real32-zero real32 0.0 0.0 '0 ^ 0 is undefined'
 power_domain_case real-zero real 0.0 0.0 '0 ^ 0 is undefined'
-power_domain_case real64-negative real64 0.0 -1.0 '0 ^ a negative exponent is undefined'
-power_domain_case real-negative real 0.0 -2.0 '0 ^ a negative exponent is undefined'
 power_domain_case real64-base real64 -2.0 0.5 'a negative base requires an integer exponent'
 power_domain_case real32-base real32 -8.0 0.25 'a negative base requires an integer exponent'
 
@@ -2725,11 +2723,21 @@ real32 i = 2.0
 real32 j = 0.0
 print(i ^ j)
 print(NL)
+real64 negative = -1.0
+print(g ^ negative)
+print(NL)
+real exact_zero = 0.0
+real exact_negative = -2.0
+print(exact_zero ^ exact_negative)
+print(NL)
+real64 constant = 0.0 ^ -1.0
+print(constant)
+print(NL)
 QUI
-power_defined_expected="$(printf '0\n0\n-8.0\n0.0\n1.0')"
+power_defined_expected="$(printf '0\n0\n-8.0\n0.0\n1.0\ninf\n∞\ninf')"
 [[ "$("$QUIDRA" run "$TMP/power-defined.qui")" == "$power_defined_expected" ]]
 
-for literal in '0 ^ 0' '0.0 ^ 0.0' '0.0 ^ -1.0' '(-2.0) ^ 0.5'; do
+for literal in '0 ^ 0' '0.0 ^ 0.0' '(-2.0) ^ 0.5'; do
     case "$literal" in
         0.*|\(*) printf 'real64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
         *) printf 'int64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
@@ -3405,7 +3413,7 @@ print("{values.h} {values.b} {values.f} {values.d}" + NL)
 QUI
 for index in 0 1 2 3
  do
-    for bad in nan inf -inf
+    for bad in nan -nan invalid
      do
         finite_cli_args=(1.0 1.0 1.0 1.0)
         finite_cli_args[$index]="$bad"
@@ -3414,6 +3422,12 @@ for index in 0 1 2 3
         finite_cli_rc=$?
         set -e
         [[ "$finite_cli_rc" -eq 2 ]]
+     done
+    for infinity in inf -inf
+     do
+        finite_cli_args=(1.0 1.0 1.0 1.0)
+        finite_cli_args[$index]="$infinity"
+        [[ "$("$QUIDRA" "$TMP/cli-finite.qui" "${finite_cli_args[@]}")" == "${finite_cli_args[*]}" ]]
      done
  done
 cat > "$TMP/time-numeric-kinds.qui" <<'QUI'

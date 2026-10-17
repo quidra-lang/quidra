@@ -58,9 +58,25 @@ with tempfile.TemporaryDirectory() as directory:
         try:
             same_file = published.samefile(reports[0])
         except OSError as error:
+            def describe(path):
+                raw = str(path)
+                return {
+                    "text": raw,
+                    "escaped": raw.encode("unicode_escape").decode("ascii"),
+                    "exists": path.exists(),
+                    "parent_exists": path.parent.exists(),
+                    "parts": [
+                        part.encode("unicode_escape").decode("ascii") for part in path.parts
+                    ],
+                }
+            # Keep the exact Unicode code points in CI diagnostics. Display
+            # spelling alone can mask a path round-trip failure on Windows.
             raise AssertionError(
-                f"capture report path is inaccessible: published={published!s}, "
-                f"discovered={reports[0]!s}, published_exists={published.exists()}"
+                f"capture report path is inaccessible: "
+                f"published={describe(published)!r}, "
+                f"discovered={describe(reports[0])!r}, "
+                f"cache={describe(cache)!r}, "
+                f"same_text={os.path.normcase(str(published)) == os.path.normcase(str(reports[0]))}"
             ) from error
         assert published.is_absolute() and same_file, (
             f"capture report path mismatch: {published!s} != {reports[0].resolve()!s}"

@@ -397,6 +397,32 @@ std::string utf8(const std::filesystem::path& path) {
     const auto value = path.u8string();
     return std::string(reinterpret_cast<const char*>(value.data()), value.size());
 }
+#ifdef _WIN32
+// Publish a path from the existing directory handle, rather than joining a
+// caller-supplied alias with a separately canonicalized session. In
+// particular, 8.3 paths and Unicode cache components must resolve to the
+// very same directory used to write the capture report.
+std::filesystem::path opened_capture_session_path(const std::filesystem::path& path) {
+    const HANDLE handle = ::CreateFileW(
+        path.c_str(), FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) return path;
+    const DWORD capacity = ::GetFinalPathNameByHandleW(handle, nullptr, 0, FILE_NAME_NORMALIZED);
+    std::wstring resolved;
+    if (capacity != 0 && capacity < 32768) {
+        std::wstring buffer(static_cast<std::size_t>(capacity) + 1, L'\0');
+        const DWORD written = ::GetFinalPathNameByHandleW(
+            handle, buffer.data(), static_cast<DWORD>(buffer.size()), FILE_NAME_NORMALIZED);
+        if (written != 0 && written < buffer.size()) {
+            buffer.resize(written);
+            resolved = std::move(buffer);
+        }
+    }
+    ::CloseHandle(handle);
+    return resolved.empty() ? path : std::filesystem::path(resolved);
+}
+#endif
 void preparation_failed(Report& state, metal::Gap gap) noexcept {
     state.capture_preparation_failed = true;
     state.capture_status.state = metal::State::Unavailable;
@@ -448,15 +474,14 @@ void prepare_capture(Report& state) noexcept {
                     else {
                         fs::path published_session = *session;
 #ifdef _WIN32
-                        // Keep the caller-accessible UTF-16 cache spelling in
-                        // published paths. Canonicalization can expand 8.3
-                        // aliases on hosted Windows while the caller still
-                        // uses the original spelling to access its files.
-                        published_session = *cache / "profiles" / session->filename();
+                        // The opened session is authoritative. Report paths
+                        // obtained from its Win32 directory handle remain
+                        // accessible across short-name aliases and Unicode.
+                        published_session = opened_capture_session_path(*session);
 #endif
                         configuration->output_path = utf8(published_session / "capture.gputrace");
-                        state.capture_report_native_path = *session / "capture.json";
-                        state.capture_report_path = utf8(published_session / "capture.json");
+                        state.capture_report_native_path = published_session / "capture.json";
+                        state.capture_report_path = utf8(state.capture_report_native_path);
                         configuration->excluded_storage.reserve(5);
                         if (!state.path.empty()) configuration->excluded_storage.push_back(state.path);
                         for (const auto* name : {"QUIDRA_TIMELINE", "QUIDRA_COUNTERS"}) {

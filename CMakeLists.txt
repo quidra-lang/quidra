@@ -1309,6 +1309,42 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_exact_real_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_exact_real_tests COMMAND quidra_exact_real_tests)
 
+  add_executable(quidra_exact_infinity_tests tests/exact_infinity_tests.cpp)
+  target_include_directories(quidra_exact_infinity_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_exact_infinity_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_exact_infinity_tests COMMAND quidra_exact_infinity_tests)
+  add_executable(quidra_fixed_infinity_tests tests/fixed_infinity_tests.cpp)
+  target_include_directories(quidra_fixed_infinity_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_fixed_infinity_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_fixed_infinity_tests COMMAND quidra_fixed_infinity_tests)
+  add_executable(quidra_infinity_literal_tests tests/infinity_literal_tests.cpp src/lexer.cpp)
+  target_include_directories(quidra_infinity_literal_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  add_test(NAME quidra_infinity_literal_tests COMMAND quidra_infinity_literal_tests)
+  foreach(infinity_feature IN ITEMS tensor_infinity infinity_package_validation)
+    add_executable(quidra_${infinity_feature}_tests tests/${infinity_feature}_tests.cpp)
+    target_include_directories(quidra_${infinity_feature}_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_link_libraries(quidra_${infinity_feature}_tests PRIVATE quidra_runtime)
+    add_test(NAME quidra_${infinity_feature}_tests COMMAND quidra_${infinity_feature}_tests)
+  endforeach()
+  if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+    add_executable(quidra_device_infinity_tests tests/device_infinity_tests.cpp)
+    target_include_directories(quidra_device_infinity_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_device_infinity_tests PRIVATE quidra_runtime)
+    add_test(NAME quidra_device_infinity_tests COMMAND quidra_device_infinity_tests)
+    set_tests_properties(quidra_device_infinity_tests PROPERTIES ENVIRONMENT "QUIDRA_TEST_FAKE_GPU_COUNT=1")
+  endif()
+  add_test(NAME quidra_infinity_runtime_failures
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/infinity_runtime_failure_tests.py
+      --exact $<TARGET_FILE:quidra_exact_infinity_tests>
+      --fixed $<TARGET_FILE:quidra_fixed_infinity_tests>
+      --tensor $<TARGET_FILE:quidra_tensor_infinity_tests>
+      --package $<TARGET_FILE:quidra_infinity_package_validation_tests>)
+  add_test(NAME quidra_infinity_contract
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/infinity_tests.py $<TARGET_FILE:quidra>)
+  set_tests_properties(quidra_infinity_contract PROPERTIES TIMEOUT 600)
+
+
   # Arbitrary-precision integer words agree with the boxed big integers.
   add_executable(quidra_runtime_integer_tests tests/runtime_integer_tests.cpp)
   target_include_directories(quidra_runtime_integer_tests PRIVATE

@@ -241,7 +241,9 @@ std::string ConversionEmitter::float32_range_check(const std::string& value){
     const auto low=names_.value("cast.low");
     const auto outside=names_.value("cast.outside");
     const auto bad=names_.value("cast.bad");
-    builder_.fcmp(finite,FloatPredicate::ord,double_type,value,value);
+    const auto difference=names_.value("cast.finite.difference");
+    builder_.binary(difference,BinaryOp::fsub,double_type,value,value);
+    builder_.fcmp(finite,FloatPredicate::ord,double_type,difference,difference);
     builder_.fcmp(high,FloatPredicate::ogt,double_type,value,"0x47EFFFFFE0000000");
     builder_.fcmp(low,FloatPredicate::olt,double_type,value,"0xC7EFFFFFE0000000");
     builder_.binary(outside,BinaryOp::or_,i1,high,low);
@@ -286,7 +288,12 @@ std::string ConversionEmitter::real_range_check(const std::string& value,const T
     const auto high=names_.value("cast.real.high"),low=names_.value("cast.real.low"),bad=names_.value("cast.real.outside");
     builder_.fcmp(high,FloatPredicate::oge,double_type,value,float_literal(threshold,Type::simple(TypeKind::Real64)));
     builder_.fcmp(low,FloatPredicate::ole,double_type,value,float_literal(-threshold,Type::simple(TypeKind::Real64)));
-    builder_.binary(bad,BinaryOp::or_,i1,high,low);
+    const auto outside=names_.value("cast.real.range"),finite=names_.value("cast.real.finite");
+    const auto difference=names_.value("cast.real.difference");
+    builder_.binary(outside,BinaryOp::or_,i1,high,low);
+    builder_.binary(difference,BinaryOp::fsub,double_type,value,value);
+    builder_.fcmp(finite,FloatPredicate::ord,double_type,difference,difference);
+    builder_.binary(bad,BinaryOp::and_,i1,outside,finite);
     return bad;
 }
 

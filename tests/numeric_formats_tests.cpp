@@ -198,7 +198,10 @@ void runtime_parsers() {
     parse32("3.4028235677973366e38", 0x7f7fffffU);
     reject("1.0e-400");
     reject("1.0e400");
-    reject("inf");
+    parse64("inf", 0x7ff0000000000000ULL);
+    parse32("inf", 0x7f800000U);
+    parse64("-inf", 0xfff0000000000000ULL);
+    parse32("-inf", 0xff800000U);
     reject("nan");
     reject("1.5 ");
     reject("1.5x");

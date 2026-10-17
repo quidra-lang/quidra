@@ -1,0 +1,55 @@
+name: infinity-source-snapshot
+
+# Temporary source-only snapshot for restoring the Infinity implementation
+# workspace. No credentials, build outputs, or untracked files are archived.
+on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/infinity-source-snapshot.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: core
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/math
+          ref: develop
+          path: math
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/nn
+          ref: develop
+          path: nn
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/vision
+          ref: develop
+          path: vision
+          persist-credentials: false
+      - name: Archive tracked source at recorded revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir snapshots
+          for repo in core math nn vision; do
+            git -C "$repo" rev-parse HEAD > "snapshots/$repo.sha"
+            git -C "$repo" archive --format=tar HEAD -- . ':!benchmarks' | gzip > "snapshots/$repo.tar.gz"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: infinity-source-snapshot
+          path: snapshots/
+          if-no-files-found: error
+          retention-days: 1

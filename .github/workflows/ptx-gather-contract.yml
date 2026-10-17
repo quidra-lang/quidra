@@ -1,0 +1,44 @@
+name: ptx-gather-contract
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'project.toml'
+      - 'CMakeLists.txt'
+      - 'tests/ptx_gather_exit_tests.cpp'
+      - '.github/workflows/ptx-gather-contract.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'project.toml'
+      - 'CMakeLists.txt'
+      - 'tests/ptx_gather_exit_tests.cpp'
+      - '.github/workflows/ptx-gather-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generated-gather-exit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure generated headers
+        run: cmake -S . -B build-ptx-contract -DBUILD_TESTING=OFF
+      - name: Compile real PTX generator test
+        run: >-
+          clang++ -std=c++20 -O0 -g0 -ffunction-sections -fdata-sections
+          -Iinclude -Isrc -Ibuild-ptx-contract/generated
+          tests/ptx_gather_exit_tests.cpp -Wl,--gc-sections -ldl
+          -o build-ptx-contract/ptx_gather_exit_tests
+      - name: Verify the gather loop exit for real32 and real64
+        run: build-ptx-contract/ptx_gather_exit_tests

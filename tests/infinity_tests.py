@@ -36,6 +36,8 @@ def cases() -> list[Case]:
             Case(f'{ty}-array', f'{ty}[] a = [inf, 2.0, -inf]\nprint("{{a[0]}} {{a[1]}} {{a[2]}}")\n', f'{pos} 2.0 {neg}'),
             Case(f'{ty}-constant-zero-divide', f'{ty} a = 1.0 / 0.0\nprint(a)\n', pos),
             Case(f'{ty}-zero-negative-power', f'{ty} zero = 0.0\n{ty} exponent = -2.0\nprint(zero ^ exponent)\n', pos),
+            Case(f'{ty}-constant-zero-negative-power', f'{ty} result = 0.0 ^ -2.0\nprint(result)\n', pos),
+            Case(f'{ty}-constant-signed-zero-power', f'{ty} result = (-0.0) ^ -3.0\nprint(result)\n', pos if ty == 'real' else neg),
         ])
         for name, expression in (
             ('zero-zero', 'zero / zero'),

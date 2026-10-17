@@ -41,6 +41,7 @@ int main(int argc,char** argv){
         Tensor one(quidra_tensor_create(shape,QCORE_DTYPE_FLOAT32,a::tensor_fill_mode::ones,false,0,1,1));
         float inf=std::numeric_limits<float>::infinity(),zero=0;
         Tensor huge(quidra_tensor_binary(one.raw,nullptr,&inf,a::scalar_side::right,a::tensor_binary_opcode::multiply,1,1));
+        std::fputs("before", stdout); std::fflush(stdout);
         if(std::string(argv[1])=="inf-minus-inf"){
             Tensor bad(quidra_tensor_binary(huge.raw,huge.raw,nullptr,a::scalar_side::none,a::tensor_binary_opcode::subtract,1,1));
         } else if(std::string(argv[1])=="zero-times-inf"){

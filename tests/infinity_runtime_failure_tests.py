@@ -28,6 +28,8 @@ def main() -> int:
         header = ("Quidra runtime error: internal error: NaN reached real text formatting"
                   if executable == args.fixed else "Quidra runtime error[")
         ok = run.returncode == 101 and header in run.stderr
+        if executable == args.tensor or executable == args.package:
+            ok = ok and run.stdout == "before"
         print(f'{"PASS" if ok else "FAIL"} {executable.name} {mode}: exit={run.returncode}')
         if not ok:
             failures += 1

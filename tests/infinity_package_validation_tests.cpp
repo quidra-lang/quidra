@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
     if (!data) return 2;
     data[0] = legacy_nan || normal_nan ? std::numeric_limits<float>::quiet_NaN()
                                      : std::numeric_limits<float>::infinity();
+    if (legacy_nan || normal_nan) { std::fputs("before", stdout); std::fflush(stdout); }
     quidra_tensor_validate_package(tensor, symbol, "infinity.test", 1, 1);
     quidra_managed_release(tensor, reinterpret_cast<void*>(&quidra_tensor_drop));
     if (legacy_nan || normal_nan) return 3; // Must terminate with status 101 before here.

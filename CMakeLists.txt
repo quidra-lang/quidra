@@ -1313,6 +1313,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_exact_real_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_exact_real_tests COMMAND quidra_exact_real_tests)
 
+  add_executable(quidra_infinity_constant_tests tests/infinity_constant_tests.cpp)
+  target_link_libraries(quidra_infinity_constant_tests PRIVATE quidra_core)
+  add_test(NAME quidra_infinity_constant_tests COMMAND quidra_infinity_constant_tests)
   add_executable(quidra_exact_infinity_tests tests/exact_infinity_tests.cpp)
   target_include_directories(quidra_exact_infinity_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)

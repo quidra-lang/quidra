@@ -38,7 +38,7 @@ std::string tensor_cast_range_message(int target_dtype) {
 }
 
 // The status bits a real tensor kernel ORs into its status word for a
-// failing element: no NaN or infinity enters a tensor
+// failing element: no NaN enters a tensor; signed infinity is valid
 // (docs/spec/numeric-and-bin.md). A kernel computes every element, so
 // several bits may be set; the message names the first in the order below.
 namespace real_status {
@@ -68,7 +68,7 @@ std::string real_status_message(int dtype, int operation, std::uint32_t bits) {
         : operation == abi::tensor_binary_opcode::multiply ? "multiplication"
         : operation == abi::tensor_binary_opcode::divide ? "division"
         : operation == abi::tensor_binary_opcode::power ? "power" : "gradient";
-    return abi::format(FailureReason::real_overflow,
+    return abi::format(FailureReason::real_invalid,
                        abi::FailureArgs{.type = type, .operation = name});
 }
 
@@ -89,10 +89,10 @@ template <typename T>
 std::uint32_t real_element_status(T left, T right, int operation, T result) {
     if (operation == abi::tensor_binary_opcode::power) {
         if (left == T{0} && right == T{0}) return real_status::zero_power_zero;
-        if (left == T{0} && right < T{0}) return real_status::zero_power_negative;
         if (left < T{0} && std::trunc(static_cast<double>(right)) != static_cast<double>(right)) return real_status::negative_base;
     }
-    if (std::isfinite(static_cast<double>(result))) return 0;
+    if (!std::isnan(static_cast<double>(left)) && !std::isnan(static_cast<double>(right)) &&
+        !std::isnan(static_cast<double>(result))) return 0;
     return operation == abi::tensor_binary_opcode::divide && right == T{0}
         ? real_status::zero_divisor : real_status::overflow;
 }
@@ -350,7 +350,7 @@ bool fake_complex_binary(Buffer* output,const Buffer* left,std::size_t left_offs
         else if(operation==abi::tensor_binary_opcode::subtract)z=a-b;
         else if(operation==abi::tensor_binary_opcode::multiply)z=a*b;
         else z=a/b;
-        if(!abi::complex::part_is_finite(z.re)||!abi::complex::part_is_finite(z.im)){
+        if(std::isnan(static_cast<double>(z.re))||std::isnan(static_cast<double>(z.im))){
             const int dtype=std::is_same_v<P,float>?QCORE_DTYPE_COMPLEX_FLOAT32:
                 std::is_same_v<P,double>?QCORE_DTYPE_COMPLEX_FLOAT64:
                 std::is_same_v<P,abi::half::Real16>?QCORE_DTYPE_COMPLEX_FLOAT16:QCORE_DTYPE_COMPLEX_BFLOAT16;
@@ -400,7 +400,9 @@ bool fake_numeric_cast(Src source,Dst& value,int target_dtype,std::string& error
                 if(!std::isfinite(static_cast<double>(value))){error=tensor_cast_range_message(target_dtype);return false;}
             } else {
                 value=static_cast<Dst>(static_cast<double>(source));
-                if(!std::isfinite(static_cast<double>(value))){error=tensor_cast_range_message(target_dtype);return false;}
+                if(std::isnan(static_cast<double>(source)) || std::isnan(static_cast<double>(value)) ||
+                   (std::isfinite(static_cast<double>(source)) && !std::isfinite(static_cast<double>(value)))){
+                    error=tensor_cast_range_message(target_dtype);return false;}
             }
         } else if constexpr (std::is_integral_v<Src> && std::is_integral_v<Dst>) {
             if (!std::in_range<Dst>(source)) {
@@ -421,7 +423,7 @@ bool fake_numeric_cast(Src source,Dst& value,int target_dtype,std::string& error
             value = static_cast<Dst>(source);
             if constexpr (std::is_floating_point_v<Src> &&
                           std::is_floating_point_v<Dst>) {
-                if (std::isfinite(source) && !std::isfinite(value)) {
+                if (std::isnan(source) || (std::isfinite(source) && !std::isfinite(value))) {
                     error = tensor_cast_range_message(target_dtype);
                     return false;
                 }
@@ -787,13 +789,12 @@ std::string hip_float_binary_source(int dtype,int operation,int scalar_side) {
     out<<type<<" lv="<<l<<";"<<type<<" rv="<<r<<";unsigned int bits=0u;";
     if(operation==abi::tensor_binary_opcode::power) {
         out<<"if(lv==0&&rv==0)bits="<<real_status::zero_power_zero<<"u;"
-             "else if(lv==0&&rv<0)bits="<<real_status::zero_power_negative<<"u;"
              "else if(lv<0&&trunc(rv)!=rv)bits="<<real_status::negative_base<<"u;"
            <<type<<" result="<<power<<"(lv,rv);";
     } else {
         out<<type<<" result=lv"<<op<<"rv;";
     }
-    out<<"if(bits==0u&&!isfinite(result))bits=";
+    out<<"if(bits==0u&&(isnan(lv)||isnan(rv)||isnan(result)))bits=";
     if(operation==abi::tensor_binary_opcode::divide)
         out<<"rv==0?"<<real_status::zero_divisor<<"u:";
     out<<real_status::overflow<<"u;"
@@ -972,7 +973,7 @@ std::string ptx_float_binary_kernel(int dtype, int operation, int scalar_side) {
         const char* op = operation == abi::tensor_binary_opcode::add ? "add" : operation == abi::tensor_binary_opcode::subtract ? "sub" :
                          operation == abi::tensor_binary_opcode::multiply ? "mul" : "div";
         out << "  " << op << "." << kind << " %f3, " << lhs << ", " << rhs << ";\n"
-               "  testp.finite.f32 %p2, %f3;\n"
+               "  testp.number.f32 %p2, %f3;\n"
                "  @%p2 bra STORE;\n";
         if (operation == abi::tensor_binary_opcode::divide)
             out << "  setp.eq.f32 %p3, " << rhs << ", 0f00000000;\n"
@@ -991,7 +992,7 @@ std::string ptx_float_binary_kernel(int dtype, int operation, int scalar_side) {
         const char* op = operation == abi::tensor_binary_opcode::add ? "add" : operation == abi::tensor_binary_opcode::subtract ? "sub" :
                          operation == abi::tensor_binary_opcode::multiply ? "mul" : "div";
         out << "  " << op << "." << kind << " %fd3, " << lhs << ", " << rhs << ";\n"
-               "  testp.finite.f64 %p2, %fd3;\n"
+               "  testp.number.f64 %p2, %fd3;\n"
                "  @%p2 bra STORE;\n";
         if (operation == abi::tensor_binary_opcode::divide)
             out << "  setp.eq.f64 %p3, " << rhs << ", 0d0000000000000000;\n"
@@ -1068,8 +1069,8 @@ std::string ptx_float_cast_kernel(int source_dtype, int target_dtype) {
     return out.str();
 }
 
-// The exponent bits of each binary32 (width 4) or binary64 (width 8) value:
-// all ones for NaN and the infinities, which set the status word.
+// Signless IEEE bits above the infinity encoding represent NaN. Both signs
+// of infinity are accepted; only NaN sets the status word.
 std::string ptx_validate_finite_kernel(std::size_t width) {
     const bool wide = width == 8;
     std::ostringstream out;
@@ -1085,12 +1086,12 @@ std::string ptx_validate_finite_kernel(std::size_t width) {
            "  add.u64 %rd9, %rd1, %rd8;\n";
     if (wide)
         out << "  ld.global.u64 %rd10, [%rd9];\n"
-               "  and.b64 %rd11, %rd10, 0x7ff0000000000000;\n"
-               "  setp.ne.u64 %p2, %rd11, 0x7ff0000000000000;\n";
+               "  and.b64 %rd11, %rd10, 0x7fffffffffffffff;\n"
+               "  setp.le.u64 %p2, %rd11, 0x7ff0000000000000;\n";
     else
         out << "  ld.global.u32 %r6, [%rd9];\n"
-               "  and.b32 %r7, %r6, 0x7f800000;\n"
-               "  setp.ne.u32 %p2, %r7, 0x7f800000;\n";
+               "  and.b32 %r7, %r6, 0x7fffffff;\n"
+               "  setp.le.u32 %p2, %r7, 0x7f800000;\n";
     out << "  @%p2 bra DONE;\n"
            "  atom.global.exch.b32 %r8, [%rd4], 1;\n"
            "DONE:\n  ret;\n}\n";
@@ -1104,8 +1105,8 @@ std::string hip_validate_finite_source(std::size_t width) {
            "* in,unsigned long long count,unsigned int* status){"
            "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
            "if(i>=count)return;" +
-           (wide ? "if((in[i]&0x7ff0000000000000ull)==0x7ff0000000000000ull)"
-                 : "if((in[i]&0x7f800000u)==0x7f800000u)") +
+           (wide ? "if((in[i]&0x7fffffffffffffffull)>0x7ff0000000000000ull)"
+                 : "if((in[i]&0x7fffffffu)>0x7f800000u)") +
            "atomicExch(status,1u);}";
 }
 
@@ -1229,7 +1230,7 @@ std::string msl_bfloat_soften(const std::string& source) {
             auto end=i+1;while(end<source.size()&&identifier(source[end]))++end;
             const auto word=source.substr(i,end-i);
             result+=word=="float"?"qf":word=="float2"?"qf2":word=="pow"?"qpow":
-                word=="fabs"?"qabs":word=="isfinite"?"qfinite":word=="trunc"?"qtrunc":word;
+                word=="fabs"?"qabs":word=="isfinite"?"qfinite":word=="isnan"?"qnan":word=="trunc"?"qtrunc":word;
             i=end;
         }else result+=source[i++];
     }
@@ -1839,15 +1840,16 @@ std::string msl_real_element(int operation, const char* l, const char* r) {
     out << "  float lv = " << l << ";\n  float rv = " << r << ";\n  uint bits = 0u;\n";
     if (operation == abi::tensor_binary_opcode::power) {
         out << "  if (lv == 0.0f && rv == 0.0f) bits = " << real_status::zero_power_zero << "u;\n"
-               "  else if (lv == 0.0f && rv < 0.0f) bits = " << real_status::zero_power_negative << "u;\n"
                "  else if (lv < 0.0f && trunc(rv) != rv) bits = " << real_status::negative_base << "u;\n"
                "  float result = pow(lv, rv);\n";
     } else {
         out << "  float result = lv " << op << " rv;\n";
     }
-    // The exponent bits, not isfinite(): under Metal fast math (the default,
-    // metal_safe_math_default) the compiler may assume results are finite.
-    out << "  if (bits == 0u && (as_type<uint>(result) & 0x7f800000u) == 0x7f800000u) bits = "
+    // Test signless encodings including payload bits: under optional fast
+    // math the compiler may otherwise assume values are finite. Infinity is
+    // exactly the threshold; NaN is above it. Check inputs so pow(NaN, 0)
+    // cannot hide an invalid operand.
+    out << "  if (bits == 0u && ((as_type<uint>(lv) & 0x7fffffffu) > 0x7f800000u || (as_type<uint>(rv) & 0x7fffffffu) > 0x7f800000u || (as_type<uint>(result) & 0x7fffffffu) > 0x7f800000u)) bits = "
         << (operation == abi::tensor_binary_opcode::divide ? "rv == 0.0f ? " + std::to_string(real_status::zero_divisor) + "u : " : std::string())
         << real_status::overflow << "u;\n"
            "  if (bits != 0u) atomic_fetch_or_explicit(status, bits, memory_order_relaxed);\n"
@@ -1967,14 +1969,14 @@ std::string msl_complex_binary_source(int dtype,int operation,int scalar_side) {
     else {
         source+="float a=x.x,b=x.y,c=y.x,d=y.y,r,t,rn,in;bool finite=true;"
                 "if(fabs(c)>=fabs(d)){r=qr(d/c);float dr=qr(d*r),br=qr(b*r),ar=qr(a*r);"
-                "t=qr(c+dr);rn=qr(a+br);in=qr(b-ar);finite=isfinite(r)&&isfinite(dr)&&isfinite(br)&&isfinite(ar); }"
+                "t=qr(c+dr);rn=qr(a+br);in=qr(b-ar);finite=!isnan(r)&&!isnan(dr)&&!isnan(br)&&!isnan(ar); }"
                 "else {r=qr(c/d);float crv=qr(c*r),ar=qr(a*r),br=qr(b*r);"
-                "t=qr(crv+d);rn=qr(ar+b);in=qr(br-a);finite=isfinite(r)&&isfinite(crv)&&isfinite(ar)&&isfinite(br); }"
+                "t=qr(crv+d);rn=qr(ar+b);in=qr(br-a);finite=!isnan(r)&&!isnan(crv)&&!isnan(ar)&&!isnan(br); }"
                 "z=float2(qr(rn/t),qr(in/t));"
-                "finite=finite&&isfinite(t)&&isfinite(rn)&&isfinite(in);"
+                "finite=finite&&!isnan(t)&&!isnan(rn)&&!isnan(in);"
                 "if(!finite)bits=(c==0.0f&&d==0.0f)?8u:16u;";
     }
-    source+="if(!isfinite(z.x)||!isfinite(z.y))bits=bits!=0u?bits:16u;"
+    source+="if(isnan(z.x)||isnan(z.y))bits=bits!=0u?bits:16u;"
             "if(bits!=0u)atomic_fetch_or_explicit(status,bits,memory_order_relaxed);out[gid]=cw(z);}\n";
     return source;
 }
@@ -2003,10 +2005,9 @@ std::string msl_float_binary_source(int operation, int scalar_side) {
 }
 
 
-// One thread per element: the exponent bits of a binary32 (width 4) or
-// binary64 (width 8) value are all ones exactly for NaN and the
-// infinities. Integer arithmetic on the bits, so neither fast math nor
-// missing FP64 support on the GPU matters.
+// One thread per element: a signless IEEE encoding is above infinity
+// exactly for NaN. Integer arithmetic preserves this check under fast math
+// and does not require native FP64 support on the GPU.
 std::string msl_validate_finite_source(int dtype) {
     const auto width = compute_dtype_width(dtype);
     const bool wide = width == 8;
@@ -2016,7 +2017,7 @@ std::string msl_validate_finite_source(int dtype) {
             "kernel void q_kernel(const device ushort* in [[buffer(0)]],"
             "constant ulong& count [[buffer(1)]],device atomic_uint* status [[buffer(2)]],"
             "uint gid [[thread_position_in_grid]]) { if(ulong(gid)<count && "
-            "(in[gid]&" + std::string(mask) + ")==" + mask +
+            "(in[gid]&0x7fffu)>" + std::string(mask) +
             ")atomic_store_explicit(status,1u,memory_order_relaxed); }\n";
     }
     std::ostringstream out;
@@ -2026,8 +2027,8 @@ std::string msl_validate_finite_source(int dtype) {
            "device atomic_uint* status [[buffer(2)]], "
            "uint gid [[thread_position_in_grid]]) {\n"
            "  if (ulong(gid) >= count) return;\n"
-        << (wide ? "  if ((in[gid] & 0x7ff0000000000000ul) == 0x7ff0000000000000ul)\n"
-                 : "  if ((in[gid] & 0x7f800000u) == 0x7f800000u)\n")
+        << (wide ? "  if ((in[gid] & 0x7ffffffffffffffful) > 0x7ff0000000000000ul)\n"
+                 : "  if ((in[gid] & 0x7fffffffu) > 0x7f800000u)\n")
         << "    atomic_store_explicit(status, 1u, memory_order_relaxed);\n"
            "}\n";
     return out.str();
@@ -2107,7 +2108,7 @@ std::string msl_complex_cast_source(int source_dtype,int target_dtype){
         "* in [[buffer(1)]],constant ulong& count [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
         "uint gid [[thread_position_in_grid]]){if(ulong(gid)>=count)return;float2 v="+read+";"+
         dst+" value="+write+";float2 checked=tcr(value);"
-        "if(!all(isfinite(checked)))atomic_store_explicit(status,1u,memory_order_relaxed);out[gid]=value;}\n";
+        "if(isnan(checked.x)||isnan(checked.y)||(isfinite(v.x)&&!isfinite(checked.x))||(isfinite(v.y)&&!isfinite(checked.y)))atomic_store_explicit(status,1u,memory_order_relaxed);out[gid]=value;}\n";
 }
 
 std::string msl_real_integer_cast_source(int source,int target){
@@ -2178,21 +2179,21 @@ bool validate_finite(Buffer* buffer, std::size_t byte_offset, int dtype, std::si
         // A synchronous backend: the failure is reported now.
         for (std::size_t i = 0; i < count; ++i) {
             const auto* slot = buffer->test_data.data() + byte_offset + i * width;
-            bool finite = true;
+            bool valid = true;
             if (width == 8) {
                 double value{};
                 std::memcpy(&value, slot, 8);
-                finite = std::isfinite(value);
+                valid = !std::isnan(value);
             } else if (width == 2) {
                 std::uint16_t bits{};
                 std::memcpy(&bits,slot,2);
-                finite=abi::half::is_finite(bits,dtype==QCORE_DTYPE_FLOAT16?abi::half::binary16:abi::half::bfloat16);
+                valid=!std::isnan(abi::half::value_of(bits,dtype==QCORE_DTYPE_FLOAT16?abi::half::binary16:abi::half::bfloat16));
             } else {
                 float value{};
                 std::memcpy(&value, slot, 4);
-                finite = std::isfinite(value);
+                valid = !std::isnan(value);
             }
-            if (!finite) {
+            if (!valid) {
                 error = message;
                 return false;
             }

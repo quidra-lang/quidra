@@ -102,6 +102,15 @@ bool element_is_finite(T value) {
     else return std::isfinite(value);
 }
 
+// The observable extended-real contract excludes NaN, not signed infinity.
+// Keep element_is_finite separate for range-checked storage conversions.
+template <typename T>
+bool element_is_nan(T value) {
+    if constexpr (complex_element<T>)
+        return std::isnan(static_cast<double>(value.re)) || std::isnan(static_cast<double>(value.im));
+    else return std::isnan(static_cast<double>(value));
+}
+
 // The value of a real element as binary64, exactly.
 template <typename T>
 double element_value(T value) {
@@ -2978,7 +2987,8 @@ bool exact_numeric_cast(Src source, Dst& destination) {
             const double value = element_value(source);
             if constexpr (half_element<Dst>) destination = Dst(value);
             else destination = static_cast<Dst>(value);
-            return element_is_finite(destination) || !element_is_finite(source);
+            return !element_is_nan(source) && !element_is_nan(destination) &&
+                   (element_is_finite(destination) || !element_is_finite(source));
         }
     } else if constexpr (std::is_integral_v<Src> && std::is_integral_v<Dst>) {
         if (!std::in_range<Dst>(source)) return false;
@@ -2991,7 +3001,7 @@ bool exact_numeric_cast(Src source, Dst& destination) {
         return false;
     } else {
         destination = static_cast<Dst>(source);
-        if (std::isfinite(source) && !std::isfinite(destination)) return false;
+        if (std::isnan(source) || (std::isfinite(source) && !std::isfinite(destination))) return false;
         return true;
     }
 }
@@ -4932,8 +4942,8 @@ TensorValue* autograd_tensor_from_node(const AutogradNode& node) {
 }
 
 // Fails when `tensor`, a real tensor whose values code outside Core's checked
-// kernels computed (a package's output, a gradient), holds NaN or an
-// infinity: on the CPU now, with `reason` and `args`; on a GPU through a
+// kernels computed (a package's output, a gradient), holds NaN: on the CPU now
+// with `reason` and `args`; on a GPU through a
 // deferred check with the same message. Elements not yet initialized are not
 // read; a GPU storage that is only partly initialized is not validated (its
 // other elements are never read before they are written).
@@ -4958,21 +4968,21 @@ void tensor_validate_finite(const TensorValue& tensor, abi::FailureReason reason
                 !tracker_bit(tensor.storage->initialization, element_index))
                 continue;
             const auto index = element_index * parts + element % parts;
-            bool finite = true;
+            bool valid = true;
             if (width == 8) {
                 double value{};
                 std::memcpy(&value, data + index * 8, 8);
-                finite = std::isfinite(value);
+                valid = !std::isnan(value);
             } else if (width == 2) {
                 std::uint16_t bits{};
                 std::memcpy(&bits, data + index * 2, 2);
-                finite = quidra::abi::half::is_finite(bits, autograd_half_format(dtype));
+                valid = !std::isnan(quidra::abi::half::value_of(bits, autograd_half_format(dtype)));
             } else {
                 float value{};
                 std::memcpy(&value, data + index * 4, 4);
-                finite = std::isfinite(value);
+                valid = !std::isnan(value);
             }
-            if (!finite) {
+            if (!valid) {
                 end_package_hold_before_failure(line, column);
                 quidra::runtime::report_failure(reason, args, line, column);
             }
@@ -5001,12 +5011,11 @@ void autograd_accumulate_slot(
     if(!autograd_dtype(slot->dtype))
         autograd_fail("invalid autograd gradient slot dtype",line,column);
     {
-        // The gradient a backward pass delivers is observable: no NaN or
-        // infinity (a backward operation that overflowed, or a package's
-        // backward callback) reaches it.
+        // A delivered gradient may be infinite, but no NaN from Core or
+        // a package backward callback becomes observable.
         const auto type = "tensor<" + std::string(tensor_element_name(gradient->storage->dtype)) + ">";
         tensor_validate_finite(
-            *gradient, abi::FailureReason::real_overflow,
+            *gradient, abi::FailureReason::real_invalid,
             abi::FailureArgs{.type = type,
                              .operation = abi::real_operation_info(abi::RealOperation::gradient).name},
             line, column);
@@ -8396,8 +8405,7 @@ bool tensor_apply_operator(T left, T right, int operation, T& out) {
     }
 }
 
-// A real tensor element type: its operation results are tested for NaN and
-// the infinities.
+// A real tensor element type: its operation results are tested for NaN.
 template <typename T>
 inline constexpr bool tensor_real_element = real_element<T> || complex_element<T>;
 
@@ -8406,14 +8414,14 @@ std::string tensor_type_text(int dtype) {
     return "tensor<" + std::string(abi::dtype_info(static_cast<abi::Dtype>(dtype)).quidra_name) + ">";
 }
 
-// A real tensor operation whose element result is not finite: REAL_OVERFLOW,
-// or DIVISION_BY_ZERO for a zero divisor.
+// A real tensor operation whose result is NaN keeps the established error
+// categories: NONFINITE_RESULT, or DIVISION_BY_ZERO for a zero/zero quotient.
 [[noreturn]] void tensor_real_failure(int dtype, abi::RealOperation operation, bool zero_divisor,
                                       unsigned long long line, unsigned long long column) {
     end_package_hold_before_failure(line, column);
     const auto type = tensor_type_text(dtype);
     quidra::runtime::report_failure(
-        zero_divisor ? abi::FailureReason::real_zero_divisor : abi::FailureReason::real_overflow,
+        zero_divisor ? abi::FailureReason::real_zero_divisor : abi::FailureReason::real_invalid,
         abi::FailureArgs{.type = type, .operation = abi::real_operation_info(operation).name},
         line, column);
 }
@@ -8429,9 +8437,9 @@ abi::RealOperation tensor_real_operation(int operation) {
     return abi::RealOperation::power;
 }
 
-// The powers without a value (POWER_DOMAIN), as for scalars: 0 ^ 0, 0 ^ a
-// negative exponent, and a negative real base with an exponent that is not
-// an integer.
+// The powers without a value (POWER_DOMAIN), as for scalars: 0 ^ 0 and a
+// negative real base with a non-integer exponent. Zero to a negative real
+// exponent is a signed infinity under the extended-real policy.
 [[noreturn]] void tensor_power_domain_failure(abi::FailureReason reason, unsigned long long line,
                                               unsigned long long column) {
     end_package_hold_before_failure(line, column);
@@ -8444,8 +8452,6 @@ void tensor_power_domain(T base, T exponent, unsigned long long line, unsigned l
         tensor_power_domain_failure(abi::FailureReason::zero_power_zero, line, column);
     if constexpr (real_element<T>) {
         const double whole = element_value(exponent);
-        if (base == T{0} && exponent < T{0})
-            tensor_power_domain_failure(abi::FailureReason::zero_power_negative, line, column);
         if (base < T{0} && std::trunc(whole) != whole)
             tensor_power_domain_failure(abi::FailureReason::negative_base_fractional_exponent,
                                         line, column);
@@ -8454,16 +8460,20 @@ void tensor_power_domain(T base, T exponent, unsigned long long line, unsigned l
 
 // One element of a tensor binary: the domain of a power, the operation
 // (operation_failure() when a checked integer operation fails), and for a
-// real type the finiteness of the result, so no NaN or infinity enters a
-// tensor. The first failing element in logical order is the one reported.
+// real type the absence of NaN. Signed infinity is valid. The first failing
+// element in logical order is the one reported.
 template <typename T, typename Failure>
 T tensor_element_result(T left, T right, int operation, int dtype, const Failure& operation_failure,
                         unsigned long long line, unsigned long long column) {
+    if constexpr (tensor_real_element<T>) {
+        if (element_is_nan(left) || element_is_nan(right))
+            tensor_real_failure(dtype, tensor_real_operation(operation), false, line, column);
+    }
     if (operation == abi::tensor_binary_opcode::power) tensor_power_domain(left, right, line, column);
     T result{};
     if (!tensor_apply_operator(left, right, operation, result)) operation_failure();
     if constexpr (tensor_real_element<T>) {
-        if (!element_is_finite(result))
+        if (element_is_nan(result))
             tensor_real_failure(dtype, tensor_real_operation(operation),
                                 operation == abi::tensor_binary_opcode::divide && right == T{0},
                                 line, column);
@@ -9040,7 +9050,7 @@ std::uint32_t op_flags(const char* symbol) {
 
 extern "C" int qcore_op_register_flags(const char* symbol, uint32_t flags) {
     if (!symbol || !*symbol ||
-        (flags & ~static_cast<uint32_t>(QCORE_OP_VALIDATES_NONFINITE | QCORE_OP_FINITE_PRESERVING)) != 0)
+        (flags & ~static_cast<uint32_t>(QCORE_OP_VALIDATES_NAN | QCORE_OP_FINITE_PRESERVING | QCORE_OP_NAN_PRESERVING)) != 0)
         return -1;
     auto& registry = op_flag_registry();
     std::lock_guard lock(registry.mutex);
@@ -9074,14 +9084,14 @@ extern "C" int qcore_tensor_report_conversion_status(const void* tensor, uint32_
 
 // After a call of a package (extern) function that wrote the real tensor
 // `raw` through a `&` argument: unless the function declared that it
-// validates its outputs or keeps finite inputs finite (qcore_op_register_flags
-// under `symbol`), Core validates the tensor and a NaN or an infinity fails
-// with NONFINITE_RESULT, naming the function as the program calls it.
+// validates its outputs or preserves the absence of NaN for infinite inputs
+// (qcore_op_register_flags under `symbol`), Core validates the tensor and NaN
+// fails with NONFINITE_RESULT. The legacy finite-preserving flag is not enough.
 extern "C" void quidra_tensor_validate_package(void* raw, const char* symbol, const char* name,
                                                unsigned long long line,
                                                unsigned long long column) {
     if (!raw) return;
-    if ((op_flags(symbol) & (QCORE_OP_VALIDATES_NONFINITE | QCORE_OP_FINITE_PRESERVING)) != 0)
+    if ((op_flags(symbol) & (QCORE_OP_VALIDATES_NAN | QCORE_OP_NAN_PRESERVING)) != 0)
         return;
     // The package code has returned: an encode it left open is reported as
     // the next statement would report it, before any Core work.
@@ -9218,7 +9228,7 @@ extern "C" void quidra_tensor_array_validate_package(
     unsigned long long line, unsigned long long column) {
     const auto& view = tensor_array_borrow(raw);
     if (!view.writable || !abi::real_dtype_code(static_cast<int>(view.dtype))) return;
-    if ((op_flags(symbol) & (QCORE_OP_VALIDATES_NONFINITE | QCORE_OP_FINITE_PRESERVING)) != 0) return;
+    if ((op_flags(symbol) & (QCORE_OP_VALIDATES_NAN | QCORE_OP_NAN_PRESERVING)) != 0) return;
     for (std::uint64_t index = 0; index < view.count; ++index)
         quidra_tensor_validate_package(tensor_array_borrow_element(view, index), symbol, name, line, column);
 }

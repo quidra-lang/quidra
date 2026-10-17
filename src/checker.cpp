@@ -216,8 +216,8 @@ std::optional<double> literal_number_value(const Expr& expression) {
 // The value of a constant real expression in the fixed-width real type
 // `type`, each operation rounded in the type as the program computes it:
 // real literals, their negation, and +, -, * and / of such operands;
-// nothing for any other expression, or where an operation's result is not
-// finite (the check of that operation reports it).
+// nothing for any other expression, or a NaN result (the check of that
+// operation reports it). Signed infinity remains a usable constant value.
 std::optional<double> constant_real_value(const Expr& expression, const Type& type) {
     if (const auto* real = std::get_if<RealLiteralExpr>(&expression.data))
         return constant_eval::real_literal_value(real->spelling, type);
@@ -235,7 +235,7 @@ std::optional<double> constant_real_value(const Expr& expression, const Type& ty
         if (!left || !right) return std::nullopt;
         const auto value =
             constant_eval::real_operation_value(binary->op.front(), *left, *right, type);
-        if (!value || !std::isfinite(*value)) return std::nullopt;
+        if (!value || std::isnan(*value)) return std::nullopt;
         return value;
     }
     return std::nullopt;
@@ -8299,17 +8299,14 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 if (node->op == "^" && is_real(left)) {
                     // Literal operands decide the undefined powers at
-                    // compile time: a zero base with a zero or negative
-                    // exponent, and a negative base with an exponent that is
-                    // not an integer.
+                    // compile time: zero to zero, or a negative base with
+                    // a non-integer exponent. Zero to a negative real power
+                    // is an infinity, as in runtime evaluation.
                     const auto base = literal_number_value(*node->left);
                     const auto exponent = literal_number_value(*node->right);
                     if (base && exponent) {
                         if (*base == 0.0 && *exponent == 0.0)
                             error("POWER_DOMAIN", "0 ^ 0 is undefined.", expression.span);
-                        else if (*base == 0.0 && *exponent < 0.0)
-                            error("POWER_DOMAIN", "0 ^ a negative exponent is undefined.",
-                                  expression.span);
                         else if (*base < 0.0 && std::trunc(*exponent) != *exponent)
                             error("POWER_DOMAIN",
                                   "A negative base requires an integer exponent.",
@@ -8319,20 +8316,20 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (is_fixed_real(left) && (node->op == "+" || node->op == "-" ||
                                             node->op == "*" || node->op == "/")) {
                     // A constant real expression is computed in its type at
-                    // compile time: a result that is not finite is an error
-                    // there, as it would be when the program runs.
+                    // compile time: NaN is an error there, as at runtime.
+                    // Signed infinities from division or overflow are valid.
                     const auto dividend = constant_real_value(*node->left, left);
                     const auto divisor = constant_real_value(*node->right, left);
                     if (dividend && divisor) {
                         const auto value = constant_eval::real_operation_value(
                             node->op.front(), *dividend, *divisor, left);
-                        if (node->op == "/" && *divisor == 0.0) {
+                        if (node->op == "/" && *dividend == 0.0 && *divisor == 0.0) {
                             error("DIVIDE_BY_ZERO",
-                                  "Real division by zero is known at compile time.",
+                                  "Indeterminate real division 0 / 0 is known at compile time.",
                                   node->right->span);
-                        } else if (value && !std::isfinite(*value)) {
+                        } else if (value && std::isnan(*value)) {
                             error("REAL_RANGE",
-                                  "Constant " + type_name(left) + " expression overflows: " +
+                                  "Constant " + type_name(left) + " expression produces NaN: " +
                                       spelled_expression(expression) + ".",
                                   expression.span);
                         }

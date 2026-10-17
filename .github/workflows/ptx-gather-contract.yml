@@ -9,6 +9,7 @@ on:
       - 'project.toml'
       - 'CMakeLists.txt'
       - 'tests/ptx_gather_exit_tests.cpp'
+      - 'tests/device_infinity_source_tests.cpp'
       - '.github/workflows/ptx-gather-contract.yml'
   pull_request:
     branches: [develop]
@@ -18,6 +19,7 @@ on:
       - 'project.toml'
       - 'CMakeLists.txt'
       - 'tests/ptx_gather_exit_tests.cpp'
+      - 'tests/device_infinity_source_tests.cpp'
       - '.github/workflows/ptx-gather-contract.yml'
   workflow_dispatch:
 
@@ -42,3 +44,11 @@ jobs:
           -o build-ptx-contract/ptx_gather_exit_tests
       - name: Verify the gather loop exit for real32 and real64
         run: build-ptx-contract/ptx_gather_exit_tests
+      - name: Compile real CUDA and HIP infinity generator tests
+        run: >-
+          clang++ -std=c++20 -O0 -g0 -ffunction-sections -fdata-sections
+          -Iinclude -Isrc -Ibuild-ptx-contract/generated
+          tests/device_infinity_source_tests.cpp -Wl,--gc-sections -ldl
+          -o build-ptx-contract/device_infinity_source_tests
+      - name: Verify infinity, NaN, and finite-narrowing guards
+        run: build-ptx-contract/device_infinity_source_tests

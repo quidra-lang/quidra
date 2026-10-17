@@ -1,0 +1,85 @@
+name: array-contracts
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - .github/workflows/array-contracts.yml
+      - CMakeLists.txt
+      - include/**
+      - src/**
+      - tests/array*
+      - tests/range_contract_tests.sh
+      - tests/extension_visibility_tests.sh
+      - tests/gpu_autograd_contract_tests.sh
+  pull_request:
+    paths:
+      - .github/workflows/array-contracts.yml
+      - CMakeLists.txt
+      - include/**
+      - src/**
+      - tests/array*
+      - tests/range_contract_tests.sh
+      - tests/extension_visibility_tests.sh
+      - tests/gpu_autograd_contract_tests.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: array-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  array-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ccache clang llvm libcurl4-openssl-dev
+      - name: Reuse the verified GPU-contract compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-gpu-contracts-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-gpu-contracts-
+      - name: Configure the production compiler with the test GPU backend
+        run: cmake -S . -B build-gpu-contracts -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build compiler and selector initialization tests
+        run: cmake --build build-gpu-contracts --target quidra quidra_array_selector_initialization_tests --parallel 3
+      - name: Package the exact compiler for reproducing native failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/array-compiler"
+          git rev-parse HEAD > "$RUNNER_TEMP/array-compiler/core.sha"
+          tar -czf "$RUNNER_TEMP/array-compiler/compiler.tar.gz" \
+            build-gpu-contracts/quidra \
+            build-gpu-contracts/libquidra_runtime.a \
+            build-gpu-contracts/libquidra_runtime_jit.so
+          (cd "$RUNNER_TEMP/array-compiler" && sha256sum compiler.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: array-contract-compiler-${{ github.sha }}
+          path: ${{ runner.temp }}/array-compiler/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Array, range, extension and GPU autograd contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctest --test-dir build-gpu-contracts --output-on-failure --parallel 2 \
+            -R '^quidra_(array_selector_initialization_tests|array_selector_runtime|array_extensions|array_selection_contracts|range_contracts|extension_visibility|gpu_contracts_autograd)$'
+      - name: Preserve execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: array-contract-logs-${{ github.sha }}
+          path: build-gpu-contracts/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
+          retention-days: 7

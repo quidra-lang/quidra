@@ -3723,6 +3723,10 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                       "Array selection needs bool[], nat[] or int[] indices.",
                       selector.span);
             }
+            // Selection reads every index/mask element, not just the
+            // selector's length. Unknown element states retain the existing
+            // runtime initialization checks in array selection lowering.
+            check_element_read(selector, nullptr, selector.span);
             if (kind == TypeKind::Bool && base.length >= 0 &&
                 selector_type.length >= 0 && base.length != selector_type.length) {
                 error("SHAPE_MISMATCH",

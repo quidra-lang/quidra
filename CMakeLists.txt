@@ -899,6 +899,10 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_parser_tests PRIVATE quidra_core)
   add_test(NAME quidra_parser_tests COMMAND quidra_parser_tests)
 
+  add_executable(quidra_array_selector_initialization_tests tests/array_selector_initialization_tests.cpp)
+  target_link_libraries(quidra_array_selector_initialization_tests PRIVATE quidra_core)
+  add_test(NAME quidra_array_selector_initialization_tests COMMAND quidra_array_selector_initialization_tests)
+
   add_executable(quidra_type_policy_tests tests/type_policy_tests.cpp)
   target_link_libraries(quidra_type_policy_tests PRIVATE quidra_core)
   add_test(NAME quidra_type_policy_tests COMMAND quidra_type_policy_tests)
@@ -1465,6 +1469,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_slices COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_array_extensions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_extension_contract_tests.py $<TARGET_FILE:quidra>)
     add_test(NAME quidra_array_selection_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/array_selection_contract_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_selector_runtime COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_selector_runtime_tests.py $<TARGET_FILE:quidra>)
     add_test(NAME quidra_range_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/range_contract_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_extension_visibility COMMAND bash ${CMAKE_SOURCE_DIR}/tests/extension_visibility_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_slice_direction COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_direction_tests.sh $<TARGET_FILE:quidra>)
@@ -1577,6 +1582,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_ir_value_allocator
     quidra_import_path_tests
     quidra_parser_tests
+    quidra_array_selector_initialization_tests
     quidra_type_policy_tests
     quidra_shape_relation_tests
     quidra_package_manifest_tests

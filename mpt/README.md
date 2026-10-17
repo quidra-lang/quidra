@@ -96,25 +96,10 @@ model-specific tokenizer.
 
 ## 2. Count meanings with AI
 
-Ask an AI reviewer to read each program and follow [`meaning.md`](meaning.md).
-Record the visible scope, observation points, semantic basis, and a common set
-of questions before scoring. Require a section-by-section ledger with evidence
-and a score of 1 for each distinct guaranteed fact, or 0 when it is unknown.
-Include relevant types, shapes, mutation authority, and enforced error conditions.
-Credit explicit and inferred guarantees equally; a known reference model earns
-the same point as a known value model. The reviewer must not invent guarantees
-or count the same fact twice.
-
-For example, the Quidra type-and-binding fragment:
-
-```text
-tensor<real32>{nat N, N} matrix
-```
-
-has **5 meanings** under the worked example in `meaning.md`: one name-binding
-fact and four type/shape facts. The shape checker is evidence for a constraint,
-not an additional meaning. The fragment has **14 tokens** under `tokenizer.py`
-(with no trailing newline).
+Ask an AI reviewer to apply every applicable item in the fixed checklist in
+[`meaning.md`](meaning.md). Use the same visible scope and observation points
+for each language. Record one point per distinct guaranteed fact and zero for
+unknown or inapplicable items, with no duplicate points for the same fact.
 
 ## 3. Calculate MPT
 

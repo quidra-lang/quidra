@@ -4485,10 +4485,11 @@ nat b = twice(nat(4))
  bad_code("nat x = 3 - 5\n", "INTEGER_RANGE");
  bad_code("int64 x = 9223372036854775807 + 1\n", "INTEGER_RANGE");
  good("int x = 9223372036854775807 + 1\nnat y = 18446744073709551615 + 1\n");
- // Literal powers without a value are compile-time errors.
+ // Undefined literal powers are compile-time errors; zero to a negative
+ // real exponent now produces positive infinity.
  bad_message("int64 x = 0 ^ 0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
  bad_message("real64 x = 0.0 ^ 0.0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
- bad_message("real64 x = 0.0 ^ -1.0\n", "POWER_DOMAIN", "0 ^ a negative exponent is undefined.");
+ good("real64 x = 0.0 ^ -1.0\n");
  bad_message("real64 x = (-2.0) ^ 0.5\n", "POWER_DOMAIN", "A negative base requires an integer exponent.");
  good("real64 x = (-2.0) ^ 3.0\nint64 y = 0 ^ 2\n");
  llvm_contains("real64 f(real64 a, real64 b)\n    return a ^ b\n", "call double @quidra.power.real64(");

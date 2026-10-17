@@ -1,0 +1,115 @@
+name: selector-source-objects
+
+# Temporary source-object transport for the reviewed selector fix. This job
+# creates blobs only: branch updates are performed separately with a HEAD lease.
+on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/selector-source-objects.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  verified-source-objects:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure generated headers without native dependencies
+        run: cmake -S . -B build-selector -DBUILD_TESTING=OFF -DQUIDRA_BUILD_WASM_FRONTEND=ON
+      - name: Compile production checker dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p selector-objects selector-results
+          for source in checker_shapes lexer parser class_initialization parallel_for_check traversal_plan semantics/binding_entry ir/facts/tensor semantics/effect_summary semantics/tensor_extents semantics/mutation_markers semantics/storage_path semantics/parallel_effects; do
+            clang++ -std=c++20 -O0 -Iinclude -Isrc -Ibuild-selector/generated -c "src/$source.cpp" -o "selector-objects/${source//\//_}.o"
+          done
+          clang++ -std=c++20 -O0 -Wall -Wextra -Werror -Iinclude -Isrc -Ibuild-selector/generated -c tests/array_selector_initialization_tests.cpp -o selector-objects/test.o
+          clang++ -std=c++20 -O0 -Iinclude -Isrc -Ibuild-selector/generated -c src/checker.cpp -o selector-objects/checker.o
+          clang++ selector-objects/*.o -o selector-before
+          set +e
+          ./selector-before > selector-results/before.log 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep -Fx '29/35 selector initialization contracts passed' selector-results/before.log
+          test "$(grep -c '^FAIL ' selector-results/before.log)" -eq 6
+      - name: Apply and verify the exact reviewed source edits
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected = {
+              'src/checker.cpp': ('0a56b1e04a5613896ae3a3c1bd2e2ae9d9b27f4b5e434f033e5ef96535af8292', 'dc93fc68b769abf076146c8cbaf8c517ba9c2e24680f7705ab395ec36c057fc3'),
+              'CMakeLists.txt': ('d9c2e12e6836094d5d06676518e10aee4144629347ac52e14f1f4be65edbba66', 'b3e3eb14cf2c0c8d17aa6cd97f3ee4feddfa45437f62a7e6d9d44cb35c31c0ca'),
+          }
+          texts = {}
+          for name, (before, after) in expected.items():
+              data = Path(name).read_bytes()
+              assert hashlib.sha256(data).hexdigest() == before, ('source changed', name)
+              texts[name] = data.decode('utf-8')
+          name = 'src/checker.cpp'
+          anchor = '            if (kind == TypeKind::Bool && base.length >= 0 &&\n'
+          addition = ('            // Selection reads every index/mask element, not just the\n'
+                      "            // selector's length. Unknown element states retain the existing\n"
+                      '            // runtime initialization checks in array selection lowering.\n'
+                      '            check_element_read(selector, nullptr, selector.span);\n')
+          assert texts[name].count(anchor) == 1
+          texts[name] = texts[name].replace(anchor, addition + anchor)
+          name = 'CMakeLists.txt'
+          edits = [
+              ('  add_test(NAME quidra_parser_tests COMMAND quidra_parser_tests)\n', '\n  add_executable(quidra_array_selector_initialization_tests tests/array_selector_initialization_tests.cpp)\n  target_link_libraries(quidra_array_selector_initialization_tests PRIVATE quidra_core)\n  add_test(NAME quidra_array_selector_initialization_tests COMMAND quidra_array_selector_initialization_tests)\n'),
+              ('    add_test(NAME quidra_array_selection_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/array_selection_contract_tests.sh $<TARGET_FILE:quidra>)\n', '    add_test(NAME quidra_array_selector_runtime COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_selector_runtime_tests.py $<TARGET_FILE:quidra>)\n'),
+              ('    quidra_parser_tests\n', '    quidra_array_selector_initialization_tests\n'),
+          ]
+          for anchor, addition in edits:
+              assert texts[name].count(anchor) == 1
+              texts[name] = texts[name].replace(anchor, anchor + addition)
+          for name, text in texts.items():
+              data = text.encode('utf-8')
+              assert hashlib.sha256(data).hexdigest() == expected[name][1], ('result mismatch', name)
+              Path(name).write_bytes(data)
+          PY
+      - name: Verify the repaired production checker
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang++ -std=c++20 -O0 -Wall -Wextra -Werror -Iinclude -Isrc -Ibuild-selector/generated -c src/checker.cpp -o selector-objects/checker.o
+          clang++ selector-objects/*.o -o selector-after
+          ./selector-after | tee selector-results/after.log
+          grep -Fx '35/35 selector initialization contracts passed' selector-results/after.log
+      - name: Store verified source blobs without moving any branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, urllib.request
+          records = []
+          for name in ('src/checker.cpp', 'CMakeLists.txt'):
+              data = Path(name).read_bytes()
+              blob = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+              request = urllib.request.Request(
+                  'https://api.github.com/repos/quidra-lang/quidra/git/blobs',
+                  data=json.dumps({'content': data.decode('utf-8'), 'encoding': 'utf-8'}).encode(),
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'},
+                  method='POST')
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  stored = json.load(response)
+              assert stored['sha'] == blob, ('blob mismatch', name)
+              records.append({'path': name, 'sha': blob, 'sha256': hashlib.sha256(data).hexdigest()})
+          Path('selector-results/blobs.json').write_text(json.dumps(records, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selector-source-objects
+          path: selector-results/
+          if-no-files-found: error
+          retention-days: 1

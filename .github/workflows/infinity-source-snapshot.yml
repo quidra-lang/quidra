@@ -1,7 +1,7 @@
 name: infinity-source-snapshot
 
-# Temporary source-only snapshot for restoring the Infinity implementation
-# workspace. No credentials, build outputs, or untracked files are archived.
+# Source-only snapshot for reproducing first-party implementation and
+# compatibility checks. No credentials, build outputs, or untracked files are archived.
 on:
   push:
     branches: [develop]
@@ -38,12 +38,24 @@ jobs:
           ref: develop
           path: vision
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/video
+          ref: develop
+          path: video
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/dnn
+          ref: develop
+          path: dnn
+          persist-credentials: false
       - name: Archive tracked source at recorded revisions
         shell: bash
         run: |
           set -euo pipefail
           mkdir snapshots
-          for repo in core math nn vision; do
+          for repo in core math nn vision video dnn; do
             git -C "$repo" rev-parse HEAD > "snapshots/$repo.sha"
             git -C "$repo" archive --format=tar HEAD -- . ':!benchmarks' | gzip > "snapshots/$repo.tar.gz"
           done

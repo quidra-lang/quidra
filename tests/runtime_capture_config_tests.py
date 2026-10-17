@@ -39,16 +39,18 @@ with tempfile.TemporaryDirectory() as directory:
         if mode in ("--compiler", "--off", "--invalid", "--prepare-pressure"):
             assert not cache.exists(), "unclaimed/off/invalid capture created a cache directory"
             if mode == "--prepare-pressure" and profile:
-                return None, json.loads(trace.read_text())
+                return None, json.loads(trace.read_text(encoding="utf-8"))
             assert not trace.exists(), "compiler claimed the profile report"
             return None, None
         if bad_cache:
             assert cache.read_text() == "preserve cache refusal"
             assert not reports
-            doc = json.loads(trace.read_text()) if profile else None
+            doc = json.loads(trace.read_text(encoding="utf-8")) if profile else None
             return None, doc
         assert len(reports) == 1, "standalone capture request produced no companion status"
-        report = json.loads(reports[0].read_text())
+        # Runtime JSON is UTF-8. Locale-default decoding on Windows corrupts
+        # Unicode paths before samefile() can check their filesystem identity.
+        report = json.loads(reports[0].read_text(encoding="utf-8"))
         assert report["schema"] == 1 and report["clock_units"] == "ns" and report["kind"] == "metal_capture"
         capture = report["capture"]
         assert capture["requested_step"] == int(request[5:])
@@ -89,7 +91,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert capture["preparation"]["failed"] is False
         if os.name != "nt":
             assert stat.S_IMODE(output.parent.stat().st_mode) == 0o700
-        doc = json.loads(trace.read_text()) if profile else None
+        doc = json.loads(trace.read_text(encoding="utf-8")) if profile else None
         if doc:
             assert doc["schema"] == 2 and doc["capture"] == capture
         return capture, doc
@@ -170,7 +172,7 @@ with tempfile.TemporaryDirectory() as directory:
                 reports = list((folder / "cache").rglob("capture.json"))
                 if reports:
                     try:
-                        capture = json.loads(reports[0].read_text())["capture"]
+                        capture = json.loads(reports[0].read_text(encoding="utf-8"))["capture"]
                         break
                     except (OSError, json.JSONDecodeError):
                         pass
@@ -179,7 +181,7 @@ with tempfile.TemporaryDirectory() as directory:
             child.stdin.write("\n")
             child.stdin.flush()
             assert child.stdout.readline() == "advanced\n"
-            with trace.open() as stream:
+            with trace.open(encoding="utf-8") as stream:
                 paired = json.load(stream)
             _, errors = child.communicate(timeout=5)
             assert child.returncode == 0 and errors == ""

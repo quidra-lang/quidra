@@ -177,6 +177,7 @@ enum class FailureReason : std::uint16_t {
     slice_length_mismatch,
     tensor_slice_step_negative,
     real_overflow,
+    real_invalid,
     real_zero_divisor,
     extern_nonfinite,
     package_nonfinite,
@@ -316,18 +317,21 @@ inline constexpr std::array failure_reasons{
     // the operation's name (abi::real_operations).
     FailureReasonInfo{FailureReason::real_overflow, RuntimeFailureCode::real_overflow,
                       "REAL_OVERFLOW", "{type} {operation} overflow"},
-    // A fixed-width real division by zero (0.0 / 0.0 included).
+    // A NaN-producing arithmetic operation. Infinities are valid results.
+    FailureReasonInfo{FailureReason::real_invalid, RuntimeFailureCode::nonfinite_result,
+                      "REAL_INVALID", "{type} {operation} produced NaN"},
+    // An indeterminate real division (0.0 / 0.0).
     FailureReasonInfo{FailureReason::real_zero_divisor, RuntimeFailureCode::division_by_zero,
                       "REAL_ZERO_DIVISOR", "{type} division by zero"},
     // A real value that C code gave Quidra code is not finite: the result of
     // an extern function ({operation}, the name the program calls it by).
     FailureReasonInfo{FailureReason::extern_nonfinite, RuntimeFailureCode::nonfinite_result,
-                      "EXTERN_RESULT", "extern '{operation}' produced a non-finite {type} value"},
+                      "EXTERN_RESULT", "extern '{operation}' produced a NaN {type} value"},
     // A package function wrote a real tensor that holds NaN or an infinity
     // ({operation}: the function as the program calls it).
     FailureReasonInfo{FailureReason::package_nonfinite, RuntimeFailureCode::nonfinite_result,
                       "PACKAGE_OPERATION",
-                      "package operation {operation} produced a non-finite {type} value"},
+                      "package operation {operation} produced a NaN {type} value"},
     // A tensor stored in a binding whose brace shape fixes an axis by a
     // shape variable (L17): the variable, its value and the axis's extent.
     FailureReasonInfo{FailureReason::shape_variable_mismatch, RuntimeFailureCode::shape_mismatch,

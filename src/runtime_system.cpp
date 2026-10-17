@@ -458,7 +458,7 @@ extern "C" void quidra_runtime_real_fail(int type, int operation, bool zero_divi
                            ? static_cast<std::size_t>(operation)
                            : static_cast<std::size_t>(abi::RealOperation::power);
     const auto reason = zero_divisor ? abi::FailureReason::real_zero_divisor
-                                     : abi::FailureReason::real_overflow;
+                                     : abi::FailureReason::real_invalid;
     quidra::runtime::report_failure(
         reason,
         abi::FailureArgs{.type = abi::conversion_type_name(type),

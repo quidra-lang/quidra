@@ -97,18 +97,24 @@ model-specific tokenizer.
 ## 2. Count meanings with AI
 
 Ask an AI reviewer to read each program and follow [`meaning.md`](meaning.md).
-Require a section-by-section ledger of independently testable facts, including
-relevant types, shapes, mutation authority, and enforced error conditions.
-The reviewer must not invent guarantees or count the same fact twice.
+Record the visible scope, observation points, semantic basis, and a common set
+of questions before scoring. Require a section-by-section ledger with evidence
+and a score of 1 for each distinct guaranteed fact, or 0 when it is unknown.
+Include relevant types, shapes, mutation authority, and enforced error conditions.
+Credit explicit and inferred guarantees equally; a known reference model earns
+the same point as a known value model. The reviewer must not invent guarantees
+or count the same fact twice.
 
-For example, the Quidra type fragment:
+For example, the Quidra type-and-binding fragment:
 
 ```text
 tensor<real32>{nat N, N} matrix
 ```
 
-has **5 meanings** under the worked example in `meaning.md` and **14 tokens**
-under `tokenizer.py` (with no trailing newline).
+has **5 meanings** under the worked example in `meaning.md`: one name-binding
+fact and four type/shape facts. The shape checker is evidence for a constraint,
+not an additional meaning. The fragment has **14 tokens** under `tokenizer.py`
+(with no trailing newline).
 
 ## 3. Calculate MPT
 
@@ -118,13 +124,19 @@ For a program with 5 meanings and 14 tokens:
 MPT = 5 / 14 = 0.357142857...
 ```
 
-For logical sections, compute each section's MPT separately, then compute the
-whole-program MPT from the **totals**, not the average of section ratios:
+Build one deduplicated fact ledger for the whole program, then allocate each
+fact to exactly one logical section. Compute the whole-program MPT from that
+ledger and the complete token count, not the average of section ratios:
 
 ```text
-section MPT = section meanings / section tokens
-program MPT = sum(section meanings) / sum(section tokens)
+section MPT = facts allocated to section / section tokens
+program MPT = distinct whole-program facts / complete program tokens
 ```
+
+Summing section meanings gives the program numerator only when the sections
+use the same whole-program scope and their allocated facts do not overlap.
+Do not sum independently scored local fragments: a larger visible scope can
+resolve an unknown, while two fragments can repeat the same guarantee.
 
 Document how newlines between sections are assigned so that section token
 counts add up to the complete program. Do not compute an MPT for an empty

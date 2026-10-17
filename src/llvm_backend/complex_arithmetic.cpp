@@ -254,13 +254,11 @@ std::string ComplexArithmetic::nonfinite(const Type& part, const std::string& va
     const auto bad = names_.value("complex.bad");
     if (part.kind == TypeKind::Real16b) {
         const auto exponent = names_.value("complex.exponent");
-        builder_.binary(exponent, BinaryOp::and_, i16, value, 32640);
-        builder_.icmp(bad, IntPredicate::eq, i16, exponent, 32640);
+        builder_.binary(exponent, BinaryOp::and_, i16, value, 32767);
+        builder_.icmp(bad, IntPredicate::ugt, i16, exponent, 32640);
         return bad;
     }
-    const auto difference = names_.value("complex.difference");
-    builder_.binary(difference, BinaryOp::fsub, llvm_type(part), value, value);
-    builder_.fcmp(bad, FloatPredicate::uno, llvm_type(part), difference, difference);
+    builder_.fcmp(bad, FloatPredicate::uno, llvm_type(part), value, value);
     return bad;
 }
 

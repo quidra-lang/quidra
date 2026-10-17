@@ -237,11 +237,10 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
 }
 
 void CallEmitter::check_foreign_real(const ir::Call& n,const std::string& result){
-    // x - x is NaN exactly when x is NaN or an infinity.
+    // Foreign infinities are valid; foreign NaN must not enter Quidra.
     const auto type=llvm_type(n.result);
-    const auto difference=names_.value("ffi.real.difference"),bad=names_.value("ffi.real.bad");
-    builder_.binary(difference,BinaryOp::fsub,type,result,result);
-    builder_.fcmp(bad,FloatPredicate::uno,type,difference,difference);
+    const auto bad=names_.value("ffi.real.bad");
+    builder_.fcmp(bad,FloatPredicate::uno,type,result,result);
     const auto fail=names_.label("ffi.real.fail"),ok=names_.label("ffi.real.ok");
     builder_.br(bad,fail,ok);
     builder_.block(fail);

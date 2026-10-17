@@ -6,8 +6,22 @@
 #include <string>
 int main(int argc,char**argv){
     if(argc>1){
-        if(std::string(argv[1])=="nan-format")
-            quidra_format_float(std::numeric_limits<double>::quiet_NaN());
+        const std::string mode(argv[1]);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        if(mode=="nan-format") quidra_format_float(nan);
+        if(mode=="nan-fixed") quidra_format_number(nan,10,3,-1,1);
+        if(mode=="nan-significant") quidra_format_number(nan,10,-1,3,1);
+        if(mode=="nan32-format") quidra_format_number32(static_cast<float>(nan),10,-1,-1,1);
+        if(mode=="nan32-fixed") quidra_format_number32(static_cast<float>(nan),10,3,-1,1);
+        if(mode=="nan32-significant") quidra_format_number32(static_cast<float>(nan),10,-1,3,1);
+        for(int format:{0,1}) {
+            const auto half = format==0?quidra::abi::half::binary16:quidra::abi::half::bfloat16;
+            const auto bits = quidra::abi::half::round_to(nan,half);
+            const std::string prefix = format==0?"nan16-":"nan16b-";
+            if(mode==prefix+"format") quidra_half_format(bits,format,10,-1,-1,1);
+            if(mode==prefix+"fixed") quidra_half_format(bits,format,10,3,-1,1);
+            if(mode==prefix+"significant") quidra_half_format(bits,format,10,-1,3,1);
+        }
         return 5;
     }
     int failures=0;
@@ -16,6 +30,7 @@ int main(int argc,char**argv){
     for(bool negative:{false,true}){
         const char* spelling=negative?"-inf":"inf";
         const double infinity=negative?-std::numeric_limits<double>::infinity():std::numeric_limits<double>::infinity();
+        expect(quidra_cli_parse_float(spelling)==infinity,"CLI inf parse");
         double wide=0;float narrow=0;
         bool parsed64=quidra_parse_float64(spelling,&wide),parsed32=quidra_parse_float32(spelling,&narrow);
         expect(parsed64&&wide==infinity,"real64 inf parse");expect(parsed32&&narrow==infinity,"real32 inf parse");
@@ -28,6 +43,8 @@ int main(int argc,char**argv){
         if(parsed32){
             text(quidra_format_number32(narrow,-1,-1,-1,0),spelling);
             text(quidra_format_number32(narrow,10,3,-1,1),spelling);
+            text(quidra_format_number32(narrow,10,-1,3,1),spelling);
+            text(quidra_format_number32(narrow,10,-1,-1,1),spelling);
         }
         for(int format:{0,1}){
             unsigned short bits=0;
@@ -37,15 +54,18 @@ int main(int argc,char**argv){
                 expect(quidra::abi::half::value_of(bits,format==0?quidra::abi::half::binary16:quidra::abi::half::bfloat16)==infinity,"half inf sign");
                 text(quidra_half_format(bits,format,-1,-1,-1,0),spelling);
                 text(quidra_half_format(bits,format,10,3,-1,1),spelling);
+                text(quidra_half_format(bits,format,10,-1,3,1),spelling);
+                text(quidra_half_format(bits,format,10,-1,-1,1),spelling);
             }
         }
     }
     for(const char* invalid:{"nan","-nan","inf suffix","∞"}){
-        double d=0;float f=0;unsigned short h=0;
+        double d=7;float f=7;unsigned short h=7;
         expect(!quidra_parse_float64(invalid,&d),"real64 invalid text");
         expect(!quidra_parse_float32(invalid,&f),"real32 invalid text");
         expect(!quidra_half_parse(invalid,0,&h),"real16 invalid text");
         expect(!quidra_half_parse(invalid,1,&h),"real16b invalid text");
+        expect(d==7 && f==7 && h==7,"invalid parse leaves output unchanged");
     }
     double d=0;float f=0;unsigned short h=0;
     expect(!quidra_parse_float64("1.0e999",&d),"finite real64 parse range remains checked");

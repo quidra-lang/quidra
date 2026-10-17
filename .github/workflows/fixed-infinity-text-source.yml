@@ -1,0 +1,213 @@
+name: fixed-infinity-text-source
+
+# Temporary transport of the locally verified runtime edit. This creates a
+# content-addressed source blob only; the final source commit removes this job.
+on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/fixed-infinity-text-source.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 39046749694
+          name: array-contract-compiler-25d921a34df6dd91972135365158e99c1a10a2de
+          path: runtime-baseline
+      - name: Prepare recorded runtime and generated headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd runtime-baseline && sha256sum -c SHA256SUMS && tar -xzf compiler.tar.gz)
+          test "$(cat runtime-baseline/core.sha)" = 25d921a34df6dd91972135365158e99c1a10a2de
+          sudo apt-get update -qq
+          sudo apt-get install -y libcurl4-openssl-dev
+          cmake -S . -B build-text-metadata -DBUILD_TESTING=OFF -DQUIDRA_BUILD_WASM_FRONTEND=ON
+          mkdir -p text-results
+          echo 'ad0a0b3e5c299186c3bfa7d538fcff69afbe54906e5b6d9866b2f5ffc40c1194  src/runtime.cpp' | sha256sum -c -
+      - name: Reproduce the old CLI infinity rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang++ -std=c++20 -O0 -Iinclude -Isrc tests/fixed_infinity_tests.cpp runtime-baseline/build-gpu-contracts/libquidra_runtime.a -lcurl -ldl -pthread -o text-before
+          set +e
+          ./text-before > text-results/before.log 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -Fx 'Quidra CLI error: invalid real64 value' text-results/before.log
+      - name: Apply the exact reviewed source change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply <<'PATCH'
+          --- a/src/runtime.cpp
+          +++ b/src/runtime.cpp
+          @@ -973,14 +973,15 @@
+ 
+           }
+ 
+          -// No real value the program can observe is NaN or an infinity: the
+          -// formatters below never receive one.
+          +// Signed infinities are observable real values; NaN is never valid text.
+          +// Formatting options do not pad or append decimal digits to inf/-inf.
+           [[noreturn]] void runtime_nonfinite_text() {
+          -    runtime_text_failure("internal error: a non-finite real value reached text formatting");
+          +    runtime_text_failure("internal error: NaN reached real text formatting");
+           }
+ 
+           extern "C" char* quidra_format_float(double value) {
+          -    if (!std::isfinite(value)) runtime_nonfinite_text();
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
+               if (value == 0.0) return runtime_copy_string(std::signbit(value) ? "-0.0" : "0.0");
+ 
+               char buffer[64];
+          @@ -1061,7 +1062,8 @@
+           }
+ 
+           std::string format_float_significant(double value, int significant) {
+          -    if (!std::isfinite(value)) runtime_nonfinite_text();
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return std::signbit(value) ? "-inf" : "inf";
+               if (value == 0.0) return format_fixed(value, significant - 1);
+ 
+               const auto exponent = static_cast<int>(std::floor(std::log10(std::fabs(value))));
+          @@ -1080,7 +1082,8 @@
+ 
+           template<class Float>
+           std::string canonical_float_text(Float value) {
+          -    if (!std::isfinite(value)) runtime_nonfinite_text();
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return std::signbit(value) ? "-inf" : "inf";
+               if (value == 0.0) return std::signbit(value) ? "-0.0" : "0.0";
+               if constexpr (std::is_same_v<Float, float>) {
+                   // Choose the first decimal precision that round-trips to binary32.
+          @@ -1156,7 +1159,8 @@
+               namespace ieee = quidra::ieee_decimal;
+               const auto value = quidra::abi::half::value_of(static_cast<std::uint16_t>(bits),
+                                                              half_format_of(format));
+          -    if (!std::isfinite(value)) runtime_nonfinite_text();
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
+               std::string text;
+               if (fractional >= 0) {
+                   text = format_fixed(value, fractional);
+          @@ -1213,10 +1217,10 @@
+               char* end = nullptr;
+               const double value = std::strtod(text, &end);
+               if (errno == ERANGE) return failed(true);
+          -    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return failed(false);
+          +    if (end == text || !end || *end != '\0' || std::isnan(value)) return failed(false);
+               const auto& half = half_format_of(format);
+               const auto bits = quidra::abi::half::round_to(value, half);
+          -    if (!quidra::abi::half::is_finite(bits, half)) return failed(true);
+          +    if (std::isfinite(value) && !quidra::abi::half::is_finite(bits, half)) return failed(true);
+               if (value != 0.0 && quidra::abi::half::value_of(bits, half) == 0.0) return failed(true);
+               *out = bits;
+               return true;
+          @@ -1292,9 +1296,10 @@
+           }
+ 
+           extern "C" char* quidra_format_number(double value, int integer_width, int fractional, int significant, int zero) {
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
+               std::string text;
+               if (fractional >= 0) {
+          -        if (!std::isfinite(value)) runtime_nonfinite_text();
+                   text = format_fixed(value, fractional);
+               } else if (significant >= 0) {
+                   text = format_float_significant(value, significant);
+          @@ -1307,6 +1312,8 @@
+           // Preserve binary32 for canonical text; explicit digit formats retain the
+           // same exactly widened value used by the binary64 formatting functions.
+           extern "C" char* quidra_format_number32(float value, int integer_width, int fractional, int significant, int zero) {
+          +    if (std::isnan(value)) runtime_nonfinite_text();
+          +    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
+               if (fractional >= 0 || significant >= 0)
+                   return quidra_format_number(static_cast<double>(value), integer_width, fractional, significant, zero);
+               return runtime_copy_string(format_integer_padding(canonical_float_text(value), integer_width, zero != 0));
+          @@ -11835,7 +11842,7 @@
+               char* end = nullptr;
+               value = std::strtof(text, &end);
+               if (errno == ERANGE) return parse_failed(true);
+          -    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return parse_failed(false);
+          +    if (end == text || !end || *end != '\0' || std::isnan(value)) return parse_failed(false);
+               *out = value;
+               return true;
+           }
+          @@ -11852,7 +11859,7 @@
+               char* end = nullptr;
+               value = std::strtod(text, &end);
+               if (errno == ERANGE) return parse_failed(true);
+          -    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return parse_failed(false);
+          +    if (end == text || !end || *end != '\0' || std::isnan(value)) return parse_failed(false);
+               *out = value;
+               return true;
+           }
+          @@ -11877,7 +11884,7 @@
+               errno = 0;
+               char* end = nullptr;
+               value = std::strtod(text, &end);
+          -    if (errno == ERANGE || end == text || !end || *end != '\0' || !std::isfinite(value)) cli_fail("invalid real64 value");
+          +    if (errno == ERANGE || end == text || !end || *end != '\0' || std::isnan(value)) cli_fail("invalid real64 value");
+               return value;
+           }
+ 
+          PATCH
+          echo '4fce31cd3bf57c330e5cd0b202bd493c373cfd41023b05fdedc0635c19598610  src/runtime.cpp' | sha256sum -c -
+          git diff --check
+      - name: Compile changed production source and run regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang++ -std=c++20 -O1 -g0 -fPIC -Wall -Wextra -Wpedantic -Werror -ffunction-sections -fdata-sections -DQUIDRA_ENABLE_TEST_GPU_BACKEND=1 -Iinclude -Isrc -Ibuild-text-metadata/generated -c src/runtime.cpp -o runtime.cpp.o
+          cp runtime-baseline/build-gpu-contracts/libquidra_runtime.a ./libquidra_runtime.a
+          ar r libquidra_runtime.a runtime.cpp.o
+          for name in fixed_infinity numeric_formats runtime_string; do
+            clang++ -std=c++20 -O0 -Iinclude -Isrc -Ibuild-text-metadata/generated "tests/${name}_tests.cpp" ./libquidra_runtime.a -lcurl -ldl -pthread -o "text-$name"
+            "./text-$name" > "text-results/$name.log" 2>&1
+            cat "text-results/$name.log"
+          done
+          python3 - <<'PYTEST'
+          import os, subprocess
+          modes = ('nan-format', 'nan-fixed', 'nan-significant', 'nan32-format', 'nan32-fixed', 'nan32-significant', 'nan16-format', 'nan16-fixed', 'nan16-significant', 'nan16b-format', 'nan16b-fixed', 'nan16b-significant')
+          for mode in modes:
+              run = subprocess.run(['./text-fixed_infinity', mode], capture_output=True, text=True, timeout=30, env=dict(os.environ, QUIDRA_ERROR_FORMAT='text'))
+              assert run.returncode == 101 and 'internal error: NaN reached real text formatting' in run.stderr, (mode, run)
+          print('12/12 NaN formatting rejection cases passed')
+          PYTEST
+      - name: Store the verified source blob without updating a branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYSTORE'
+          from pathlib import Path
+          import hashlib, json, os, urllib.request
+          data = Path('src/runtime.cpp').read_bytes()
+          assert hashlib.sha256(data).hexdigest() == '4fce31cd3bf57c330e5cd0b202bd493c373cfd41023b05fdedc0635c19598610'
+          expected = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+          request = urllib.request.Request('https://api.github.com/repos/quidra-lang/quidra/git/blobs', data=json.dumps({'content': data.decode('utf-8'), 'encoding': 'utf-8'}).encode(), headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}, method='POST')
+          with urllib.request.urlopen(request, timeout=60) as response:
+              stored = json.load(response)
+          assert stored['sha'] == expected == 'a89d627a034fb84115ca90298d11663dfdf6fb86'
+          record = {'path': 'src/runtime.cpp', 'sha': expected, 'sha256': hashlib.sha256(data).hexdigest()}
+          Path('text-results/source.json').write_text(json.dumps(record, indent=2) + '\n')
+          print(json.dumps(record))
+          PYSTORE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fixed-infinity-text-source
+          path: text-results/
+          retention-days: 1
+          if-no-files-found: error

@@ -973,14 +973,15 @@ bool unicode_space(std::uint32_t v){return(v>=0x09U&&v<=0x0dU)||v==0x20U||v==0x8
 
 }
 
-// No real value the program can observe is NaN or an infinity: the
-// formatters below never receive one.
+// Signed infinities are observable real values; NaN is never valid text.
+// Formatting options do not pad or append decimal digits to inf/-inf.
 [[noreturn]] void runtime_nonfinite_text() {
-    runtime_text_failure("internal error: a non-finite real value reached text formatting");
+    runtime_text_failure("internal error: NaN reached real text formatting");
 }
 
 extern "C" char* quidra_format_float(double value) {
-    if (!std::isfinite(value)) runtime_nonfinite_text();
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
     if (value == 0.0) return runtime_copy_string(std::signbit(value) ? "-0.0" : "0.0");
 
     char buffer[64];
@@ -1061,7 +1062,8 @@ std::string finish_integer_format(std::string text, int integer_width, int fract
 }
 
 std::string format_float_significant(double value, int significant) {
-    if (!std::isfinite(value)) runtime_nonfinite_text();
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return std::signbit(value) ? "-inf" : "inf";
     if (value == 0.0) return format_fixed(value, significant - 1);
 
     const auto exponent = static_cast<int>(std::floor(std::log10(std::fabs(value))));
@@ -1080,7 +1082,8 @@ std::string format_float_significant(double value, int significant) {
 
 template<class Float>
 std::string canonical_float_text(Float value) {
-    if (!std::isfinite(value)) runtime_nonfinite_text();
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return std::signbit(value) ? "-inf" : "inf";
     if (value == 0.0) return std::signbit(value) ? "-0.0" : "0.0";
     if constexpr (std::is_same_v<Float, float>) {
         // Choose the first decimal precision that round-trips to binary32.
@@ -1156,7 +1159,8 @@ extern "C" char* quidra_half_format(unsigned int bits, int format, int integer_w
     namespace ieee = quidra::ieee_decimal;
     const auto value = quidra::abi::half::value_of(static_cast<std::uint16_t>(bits),
                                                    half_format_of(format));
-    if (!std::isfinite(value)) runtime_nonfinite_text();
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
     std::string text;
     if (fractional >= 0) {
         text = format_fixed(value, fractional);
@@ -1213,10 +1217,10 @@ extern "C" bool quidra_half_parse(const char* text, int format, unsigned short* 
     char* end = nullptr;
     const double value = std::strtod(text, &end);
     if (errno == ERANGE) return failed(true);
-    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return failed(false);
+    if (end == text || !end || *end != '\0' || std::isnan(value)) return failed(false);
     const auto& half = half_format_of(format);
     const auto bits = quidra::abi::half::round_to(value, half);
-    if (!quidra::abi::half::is_finite(bits, half)) return failed(true);
+    if (std::isfinite(value) && !quidra::abi::half::is_finite(bits, half)) return failed(true);
     if (value != 0.0 && quidra::abi::half::value_of(bits, half) == 0.0) return failed(true);
     *out = bits;
     return true;
@@ -1292,9 +1296,10 @@ extern "C" char* quidra_int_format(long long value, int integer_width, int fract
 }
 
 extern "C" char* quidra_format_number(double value, int integer_width, int fractional, int significant, int zero) {
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
     std::string text;
     if (fractional >= 0) {
-        if (!std::isfinite(value)) runtime_nonfinite_text();
         text = format_fixed(value, fractional);
     } else if (significant >= 0) {
         text = format_float_significant(value, significant);
@@ -1307,6 +1312,8 @@ extern "C" char* quidra_format_number(double value, int integer_width, int fract
 // Preserve binary32 for canonical text; explicit digit formats retain the
 // same exactly widened value used by the binary64 formatting functions.
 extern "C" char* quidra_format_number32(float value, int integer_width, int fractional, int significant, int zero) {
+    if (std::isnan(value)) runtime_nonfinite_text();
+    if (std::isinf(value)) return runtime_copy_string(std::signbit(value) ? "-inf" : "inf");
     if (fractional >= 0 || significant >= 0)
         return quidra_format_number(static_cast<double>(value), integer_width, fractional, significant, zero);
     return runtime_copy_string(format_integer_padding(canonical_float_text(value), integer_width, zero != 0));
@@ -11835,7 +11842,7 @@ extern "C" bool quidra_parse_float32(const char* text, float* out) {
     char* end = nullptr;
     value = std::strtof(text, &end);
     if (errno == ERANGE) return parse_failed(true);
-    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return parse_failed(false);
+    if (end == text || !end || *end != '\0' || std::isnan(value)) return parse_failed(false);
     *out = value;
     return true;
 }
@@ -11852,7 +11859,7 @@ extern "C" bool quidra_parse_float64(const char* text, double* out) {
     char* end = nullptr;
     value = std::strtod(text, &end);
     if (errno == ERANGE) return parse_failed(true);
-    if (end == text || !end || *end != '\0' || !std::isfinite(value)) return parse_failed(false);
+    if (end == text || !end || *end != '\0' || std::isnan(value)) return parse_failed(false);
     *out = value;
     return true;
 }
@@ -11877,7 +11884,7 @@ extern "C" double quidra_cli_parse_float(const char* text) {
     errno = 0;
     char* end = nullptr;
     value = std::strtod(text, &end);
-    if (errno == ERANGE || end == text || !end || *end != '\0' || !std::isfinite(value)) cli_fail("invalid real64 value");
+    if (errno == ERANGE || end == text || !end || *end != '\0' || std::isnan(value)) cli_fail("invalid real64 value");
     return value;
 }
 

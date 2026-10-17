@@ -20,10 +20,7 @@ entry:
   br i1 %zero, label %zero.base, label %nonzero.base
 zero.base:
   %bzero = fcmp oeq @T %b, 0.0
-  br i1 %bzero, label %fail.zero, label %zero.exponent
-zero.exponent:
-  %bnegative = fcmp olt @T %b, 0.0
-  br i1 %bnegative, label %fail.negative, label %compute
+  br i1 %bzero, label %fail.zero, label %compute
 nonzero.base:
   %anegative = fcmp olt @T %a, 0.0
   br i1 %anegative, label %negative.base, label %compute
@@ -36,9 +33,6 @@ compute:
   ret @T %r
 fail.zero:
   call void @quidra_fail_at(ptr @.power.code, ptr @.power.zero, i64 %line, i64 %column)
-  unreachable
-fail.negative:
-  call void @quidra_fail_at(ptr @.power.code, ptr @.power.negative, i64 %line, i64 %column)
   unreachable
 fail.base:
   call void @quidra_fail_at(ptr @.power.code, ptr @.power.base, i64 %line, i64 %column)
@@ -63,8 +57,6 @@ std::string support_text() {
         out, ".power.code", abi::spelling(abi::RuntimeFailureCode::power_domain));
     llvm_text::append_string_constant(
         out, ".power.zero", abi::failure_reason_info(FailureReason::zero_power_zero).message);
-    llvm_text::append_string_constant(
-        out, ".power.negative", abi::failure_reason_info(FailureReason::zero_power_negative).message);
     llvm_text::append_string_constant(
         out, ".power.base",
         abi::failure_reason_info(FailureReason::negative_base_fractional_exponent).message);

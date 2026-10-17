@@ -147,17 +147,16 @@ int real_type_code(const Type& type){
 
 std::string CheckEmitter::non_finite(const ir::CheckedReal& value){
     if(value.type.kind==TypeKind::Real16b){
-        // bfloat16 bits: the exponent all ones.
+        // bfloat16 NaN: unsigned magnitude strictly beyond infinity.
         const auto exponent=names_.value("finite.exponent"),bad=names_.value("finite.bad");
-        builder_.binary(exponent,BinaryOp::and_,i16,symbols_.value(value.value),32640);
-        builder_.icmp(bad,IntPredicate::eq,i16,exponent,32640);
+        builder_.binary(exponent,BinaryOp::and_,i16,symbols_.value(value.value),32767);
+        builder_.icmp(bad,IntPredicate::ugt,i16,exponent,32640);
         return bad;
     }
-    // x - x is 0 for a finite x and NaN for NaN and the infinities.
+    // An unordered self-comparison rejects NaN without rejecting infinity.
     const auto type=llvm_type(value.type);
-    const auto difference=names_.value("finite.difference"),bad=names_.value("finite.bad");
-    builder_.binary(difference,BinaryOp::fsub,type,symbols_.value(value.value),symbols_.value(value.value));
-    builder_.fcmp(bad,FloatPredicate::uno,type,difference,difference);
+    const auto bad=names_.value("finite.bad");
+    builder_.fcmp(bad,FloatPredicate::uno,type,symbols_.value(value.value),symbols_.value(value.value));
     return bad;
 }
 

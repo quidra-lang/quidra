@@ -151,7 +151,7 @@ bool parse_decimal(std::string_view text,Rational&out){
 
 Rational exact_double(double value){
     if(!std::isfinite(value))
-        exact_fail("real cannot contain NaN or infinity");
+        exact_fail("real cannot contain NaN");
     if(value==0.0)return {};
     const auto bits=std::bit_cast<std::uint64_t>(value);
     const bool negative=(bits>>63U)!=0;
@@ -192,7 +192,7 @@ Rational exact_double(double value){
 //   Atom      a provider's atom.
 //   Op        a provider's operation applied to args.
 enum class RealKind{
-    Rational,Sum,Product,Power,Atom,Op
+    Rational,Sum,Product,Power,Atom,Op,Infinity
 };
 struct Real;
 using RealPtr=std::shared_ptr<Real>;
@@ -310,6 +310,27 @@ RealPtr rr(Rational rational){
     value->kind=RealKind::Rational;value->rational=std::move(rational);
     return intern_real(std::move(value));
 }
+// An infinity is a distinct node, never a rational with denominator zero.
+// The existing rational numerator stores only its sign for structural interning.
+RealPtr infinity(int sign){
+    auto value=std::make_shared<Real>();
+    value->kind=RealKind::Infinity;
+    value->rational=Rational(BigInt::from_i64(sign<0?-1:1),BigInt::from_u64(1));
+    return intern_real(std::move(value));
+}
+int infinity_sign(const RealPtr& value){
+    return value->kind==RealKind::Infinity?value->rational.num.sign:0;
+}
+// Text parsing is separate from decimal/rational parsing: finite exact values
+// must never be rounded through an IEEE value to manufacture an infinity.
+int infinity_text_sign(std::string_view text){
+    if(text=="inf"||text=="+inf"||text=="∞"||text=="+∞")return 1;
+    if(text=="-inf"||text=="-∞")return -1;
+    return 0;
+}
+int arithmetic_sign(const RealPtr& value);
+void arithmetic_defined(const RealPtr& value);
+std::optional<abi::ConversionReason> real_to_integer(const RealPtr& value,BigInt& out);
 RealPtr atom(std::string provider,std::uint32_t opcode){
     auto value=std::make_shared<Real>();
     value->kind=RealKind::Atom;
@@ -371,6 +392,7 @@ int kind_rank(RealKind kind){
         case RealKind::Op:return 3;
         case RealKind::Product:return 4;
         case RealKind::Sum:return 5;
+        case RealKind::Infinity:return 6;
     }
     return 6;
 }
@@ -388,6 +410,9 @@ int node_order(const Real* a,const Real* b){
     if(kind_rank(a->kind)!=kind_rank(b->kind))
         return kind_rank(a->kind)<kind_rank(b->kind)?-1:1;
     switch(a->kind){
+        case RealKind::Infinity:
+            return a->rational.num.sign<b->rational.num.sign?-1:
+                   a->rational.num.sign>b->rational.num.sign?1:0;
         case RealKind::Rational:
             return rat_cmp(a->rational,b->rational);
         case RealKind::Atom:
@@ -490,6 +515,8 @@ ProvenSign multiply_signs(ProvenSign left,ProvenSign right){
 ProvenSign proven_sign(const RealPtr&x,std::size_t&budget){
     if(!x||!budget--)return ProvenSign::Unknown;
     switch(x->kind){
+        case RealKind::Infinity:
+            return x->rational.num.sign<0?ProvenSign::Negative:ProvenSign::Positive;
         case RealKind::Rational:
             return x->rational.num.sign<0?ProvenSign::Negative:
                    x->rational.num.sign>0?ProvenSign::Positive:
@@ -565,6 +592,7 @@ ProvenSign proven_sign(const RealPtr&x,std::size_t&budget){
 bool provably_defined(const RealPtr&x,std::size_t&budget){
     if(!x||!budget--)return false;
     switch(x->kind){
+        case RealKind::Infinity:
         case RealKind::Rational:
             return true;
         case RealKind::Atom:{
@@ -735,6 +763,10 @@ ProductForm product_form(const RealPtr& x){
     return {rational_one(),{{x,rational_one()}}};
 }
 RealPtr scale(const RealPtr& x,const Rational& factor){
+    if(const auto sign=infinity_sign(x)){
+        if(!factor.num.sign)exact_fail("indeterminate real multiplication: zero times infinity");
+        return infinity(sign*factor.num.sign);
+    }
     if(rational_is_one(factor))return x;
     if(x->kind==RealKind::Rational)return rr(rat_mul(x->rational,factor));
     if(!factor.num.sign){
@@ -758,6 +790,13 @@ RealPtr real_neg(RealPtr a){
     return scale(a,Rational(BigInt::from_i64(-1),BigInt::from_u64(1)));
 }
 RealPtr real_add(RealPtr a,RealPtr b){
+    const int ai=infinity_sign(a),bi=infinity_sign(b);
+    if(ai||bi){
+        if(ai&&bi&&ai!=bi)exact_fail("indeterminate real addition: opposite infinities");
+        if(!ai)arithmetic_defined(a);
+        if(!bi)arithmetic_defined(b);
+        return ai?a:b;
+    }
     if(a->kind==RealKind::Rational&&b->kind==RealKind::Rational)
         return rr(rat_add(a->rational,b->rational));
     auto left=linear_form(a);
@@ -774,6 +813,11 @@ RealPtr real_sub(RealPtr a,RealPtr b){
     return real_add(std::move(a),real_neg(std::move(b)));
 }
 RealPtr real_mul(RealPtr a,RealPtr b){
+    if(infinity_sign(a)||infinity_sign(b)){
+        const int as=arithmetic_sign(a),bs=arithmetic_sign(b);
+        if(!as||!bs)exact_fail("indeterminate real multiplication: zero times infinity");
+        return infinity(as*bs);
+    }
     if(a->kind==RealKind::Rational)return scale(b,a->rational);
     if(b->kind==RealKind::Rational)return scale(a,b->rational);
     auto left=product_form(a);
@@ -784,8 +828,21 @@ RealPtr real_mul(RealPtr a,RealPtr b){
     return make_product(rat_mul(left.coefficient,right.coefficient),std::move(factors));
 }
 RealPtr real_div(RealPtr a,RealPtr b){
+    const int ai=infinity_sign(a),bi=infinity_sign(b);
+    if(bi){
+        if(ai)exact_fail("indeterminate real division: infinity divided by infinity");
+        arithmetic_defined(a);
+        return rr({});
+    }
+    // Exact real has no signed zero: its zero divisor is the positive zero.
+    const int bs=arithmetic_sign(b);
+    if(ai)return infinity(bs<0?-ai:ai);
+    if(!bs){
+        const int as=arithmetic_sign(a);
+        if(!as)exact_division_by_zero();
+        return infinity(as);
+    }
     if(b->kind==RealKind::Rational){
-        if(!b->rational.num.sign)exact_division_by_zero();
         return scale(a,rat_div(rational_one(),b->rational));
     }
     auto form=product_form(b);
@@ -799,14 +856,34 @@ RealPtr rational_power_of(RealPtr base,const Rational& exponent,
 std::optional<RealPtr> canonical_power(const RealPtr& base,const RealPtr& exponent);
 RealPtr real_pow_generic(RealPtr base,RealPtr exponent,
                          unsigned long long line,unsigned long long column){
-    // 0 ^ e is undefined for e <= 0 (a zero base is decided when it is a
-    // rational, the form every exact zero value takes).
-    if(base->kind==RealKind::Rational&&base->rational.num.sign==0&&
-       exponent->kind==RealKind::Rational&&exponent->rational.num.sign<=0)
-        quidra::runtime::report_failure(
-            exponent->rational.num.sign==0?abi::FailureReason::zero_power_zero
-                                          :abi::FailureReason::zero_power_negative,
-            {},line,column);
+    const int bi=infinity_sign(base),ei=infinity_sign(exponent);
+    if(ei){
+        const int bs=arithmetic_sign(base);
+        const auto magnitude=bs<0?real_neg(base):base;
+        const int compared=arithmetic_sign(real_sub(magnitude,rr(rational_one())));
+        if(!compared)return rr(rational_one());
+        return compared*ei>0?infinity(1):rr({});
+    }
+    if(bi){
+        const int es=arithmetic_sign(exponent);
+        if(!es)return rr(rational_one());
+        int result_sign=1;
+        if(bi<0){
+            BigInt integer;
+            if(const auto reason=real_to_integer(exponent,integer)){
+                if(*reason==abi::ConversionReason::not_integral)
+                    quidra::runtime::report_failure(abi::FailureReason::negative_base_fractional_exponent,{},line,column);
+                exact_unproven(abi::FailureReason::exact_zero_undecided,"exact infinity power exponent could not be proven integral",line,column);
+            }
+            if(!integer.limbs.empty()&&(integer.limbs[0]&1U))result_sign=-1;
+        }
+        return es<0?rr({}):infinity(result_sign);
+    }
+    if(base->kind==RealKind::Rational&&!base->rational.num.sign){
+        const int es=arithmetic_sign(exponent);
+        if(!es)quidra::runtime::report_failure(abi::FailureReason::zero_power_zero,{},line,column);
+        return es<0?infinity(1):rr({});
+    }
     if(exponent->kind==RealKind::Rational&&!rat_int(exponent->rational))
         return rational_power_of(std::move(base),exponent->rational,line,column);
     if(exponent->kind!=RealKind::Rational){
@@ -843,7 +920,8 @@ RealPtr real_pow(RealPtr base,RealPtr exponent,
     auto result=real_pow_generic(base,exponent,line,column);
     // Exact rational results and integer powers keep the generic path.
     // A provider may normalize a remaining radical without changing its value.
-    if(result->kind!=RealKind::Rational&&exponent->kind==RealKind::Rational&&
+    if(result->kind!=RealKind::Rational&&result->kind!=RealKind::Infinity&&
+       exponent->kind==RealKind::Rational&&
        !rat_int(exponent->rational)){
         if(auto canonical=canonical_power(base,exponent))return *canonical;
     }
@@ -900,6 +978,11 @@ RealPtr provider_node(const std::string& name,std::uint32_t opcode,std::vector<R
                                :"exact-real provider operation is unavailable");
     if(args.empty())return atom(name,opcode);
     const auto flags=provider->flags?provider->flags(opcode):0U;
+    const bool has_infinity=std::any_of(args.begin(),args.end(),[](const RealPtr& a){return infinity_sign(a)!=0;});
+    // Existing providers only declare finite domains. They must explicitly
+    // opt in and canonicalize infinite inputs before algebra may simplify them.
+    if(has_infinity&&!(flags&QCORE_EXACT_UNARY_CANONICALIZES_INFINITY))
+        exact_fail("exact-real provider does not support infinity inputs");
     for(const auto& argument:args)check_provider_domain(flags,argument);
     if(provider->canonicalize){
         std::vector<void*> handles;
@@ -924,6 +1007,7 @@ RealPtr provider_node(const std::string& name,std::uint32_t opcode,std::vector<R
             return value;
         }
     }
+    if(has_infinity)exact_fail("exact-real provider did not canonicalize infinity input");
     return op_node(name,opcode,std::move(args));
 }
 
@@ -1204,6 +1288,7 @@ public:
 private:
     Interval compute(const RealPtr& x){
         switch(x->kind){
+            case RealKind::Infinity:throw RefineStop{abi::FailureReason::exact_no_refinement};
             case RealKind::Rational:return rational_interval(x->rational,bits_);
             case RealKind::Atom:return atom(x);
             case RealKind::Op:return operation(x);
@@ -1359,7 +1444,7 @@ int provider_answer(const RealPtr& x,std::uint32_t query){
 
 // The sign of x, certified: -1, 0 or 1. Throws RefineStop when it cannot be.
 int certified_sign(const RealPtr& x){
-    if(x->kind==RealKind::Rational)return x->rational.num.sign;
+    if(x->kind==RealKind::Rational||x->kind==RealKind::Infinity)return x->rational.num.sign;
     int sign=0;
     const bool decided=refine_until(x,[&](const Interval& interval){
         if(dyadic_sign(interval.lo)>0){sign=1;return true;}
@@ -1392,8 +1477,7 @@ RealPtr rational_power_of(RealPtr base,const Rational& exponent,
         quidra::runtime::report_failure(abi::FailureReason::negative_base_fractional_exponent,
                                         {},line,column);
     if(sign==0){
-        if(exponent.num.sign<0)
-            quidra::runtime::report_failure(abi::FailureReason::zero_power_negative,{},line,column);
+        if(exponent.num.sign<0)return infinity(1);
         return rr({});
     }
     if(base->kind==RealKind::Rational){
@@ -1415,6 +1499,17 @@ void certify_defined(const RealPtr& x){
     if(provably_defined(x,budget))return;
     if(!refine_until(x,[](const Interval&){return true;}))
         throw RefineStop{abi::FailureReason::exact_zero_undecided};
+}
+
+// Keep proof-budget failures on the ordinary exact error channel rather
+// than allowing a C++ refinement exception to escape an arithmetic entry.
+int arithmetic_sign(const RealPtr& value){
+    try{return certified_sign(value);}
+    catch(const RefineStop& stop){exact_unproven(stop.reason,"exact arithmetic sign could not be proven");}
+}
+void arithmetic_defined(const RealPtr& value){
+    try{certify_defined(value);}
+    catch(const RefineStop& stop){exact_unproven(stop.reason,"exact arithmetic operand could not be proven defined");}
 }
 
 // Correct rounding into an IEEE binary format, round to nearest, ties to
@@ -1483,6 +1578,10 @@ bool same_bits(double a,double b){
 std::optional<abi::ConversionReason> real_to_format(const RealPtr& x,const IeeeFormat& format,
                                                     double& out,
                                                     abi::FailureReason* why=nullptr){
+    if(const auto sign=infinity_sign(x)){
+        out=sign<0?-std::numeric_limits<double>::infinity():std::numeric_limits<double>::infinity();
+        return std::nullopt;
+    }
     if(x->kind==RealKind::Rational){
         if(rational_to_format(x->rational,format,out))return std::nullopt;
         return abi::ConversionReason::out_of_range;
@@ -1523,6 +1622,7 @@ BigInt dyadic_floor(const Dyadic& x){
 // strictly between two consecutive integers, the integer when its provider
 // proves it integral and refinement isolates it, else UNDECIDED.
 std::optional<abi::ConversionReason> real_to_integer(const RealPtr& x,BigInt& out){
+    if(infinity_sign(x))return abi::ConversionReason::out_of_range;
     if(x->kind==RealKind::Rational){
         if(!rat_int(x->rational))return abi::ConversionReason::not_integral;
         out=x->rational.num;
@@ -1737,6 +1837,7 @@ std::string term_text(const RealPtr& monomial,const Rational& coefficient,bool u
 
 std::string node_text(const RealPtr& x){
     switch(x->kind){
+        case RealKind::Infinity:return x->rational.num.sign<0?"-∞":"∞";
         case RealKind::Rational:
             return rat_int(x->rational)?integer_text(x->rational.num)
                                        :fraction_text(x->rational);
@@ -1870,6 +1971,7 @@ bool negative_value(const RealPtr& x){
 }
 std::string real_format(const RealPtr& x,int integer_width,int fractional,int significant,
                         bool zero){
+    if(infinity_sign(x))return real_text(x);
     std::string text;
     if(fractional>=0){
         const auto digits=round_scaled(x,fractional);
@@ -1900,6 +2002,12 @@ std::string real_format(const RealPtr& x,int integer_width,int fractional,int si
 // otherwise the sign of the difference, certified by refinement.
 int real_compare(const RealPtr&a,const RealPtr&b,
                  unsigned long long line,unsigned long long column){
+    const int ai=infinity_sign(a),bi=infinity_sign(b);
+    if(ai||bi){
+        if(!ai)arithmetic_defined(a);
+        if(!bi)arithmetic_defined(b);
+        return ai<bi?-1:ai>bi?1:0;
+    }
     try{
         std::size_t budget=8192;
         if(structurally_equal(a,b,budget)){
@@ -1963,6 +2071,7 @@ extern "C" void* qcore_exact_real_unary(
     const std::string name(provider);
     const auto source=br(const_cast<void*>(input))->value;
     if(exact_provider_v2(name))return make_br(provider_node(name,opcode,{source}));
+    if(infinity_sign(source))exact_fail("version-1 exact-real provider does not support infinity inputs");
     const auto registered=exact_unary_provider(name);
     if(!registered||!registered->evaluate||!registered->flags)
         exact_fail("exact-real unary provider is unavailable");
@@ -2047,6 +2156,14 @@ extern "C" void* qcore_exact_real_node(
     return make_br(provider_node(provider,opcode,std::move(arguments)));
 }
 
+extern "C" void* qcore_exact_real_infinity(int sign){
+    if(sign!=-1&&sign!=1)exact_fail("infinity sign must be -1 or 1");
+    return make_br(infinity(sign));
+}
+extern "C" int qcore_exact_real_infinity_sign(const void* value){
+    if(!value)exact_fail("null exact real");
+    return infinity_sign(br(const_cast<void*>(value))->value);
+}
 extern "C" void* qcore_exact_real_rational(const char* numerator,const char* denominator){
     bool numerator_ok=false,denominator_ok=false;
     auto n=BigInt::parse(numerator?numerator:"",numerator_ok);
@@ -2152,6 +2269,7 @@ extern "C" void quidra_bigreal_drop(void*p){
 #if QUIDRA_EXACT_SECTION == 15
 extern "C" void* quidra_bigreal_literal(const char*text){
     if(!text)exact_fail("invalid real literal");
+    if(const auto sign=infinity_text_sign(text))return make_br(infinity(sign));
     Rational rational;
     if(!parse_decimal(text,rational))exact_fail("invalid real literal");
     return make_br(rr(std::move(rational)));
@@ -2171,6 +2289,7 @@ static bool parse_fraction(std::string_view text,Rational& out){
     return true;
 }
 extern "C" void* quidra_bigreal_parse(const char*text){
+    if(text)if(const auto sign=infinity_text_sign(text))return make_br(infinity(sign));
     Rational rational;
     if(!text||!(parse_decimal(text,rational)||parse_fraction(text,rational)))return nullptr;
     return make_br(rr(std::move(rational)));
@@ -2236,6 +2355,7 @@ extern "C" void* quidra_bigreal_from_u64(unsigned long long value){
     return make_br(rr(Rational(BigInt::from_u64(value),BigInt::from_u64(1))));
 }
 extern "C" void* quidra_bigreal_from_float64(double value){
+    if(std::isinf(value))return make_br(infinity(std::signbit(value)?-1:1));
     return make_br(rr(exact_double(value)));
 }
 extern "C" void* quidra_bigreal_from_bigint(void*p){

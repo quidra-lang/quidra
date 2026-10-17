@@ -75,7 +75,9 @@ enum qcore_exact_real_unary_flag {
     QCORE_EXACT_UNARY_DOMAIN_POSITIVE = 1u << 1,
     QCORE_EXACT_UNARY_DOMAIN_NONNEGATIVE = 1u << 2,
     QCORE_EXACT_UNARY_RESULT_POSITIVE = 1u << 3,
-    QCORE_EXACT_UNARY_RESULT_NONNEGATIVE = 1u << 4
+    QCORE_EXACT_UNARY_RESULT_NONNEGATIVE = 1u << 4,
+    // Version-2 only: canonicalize must resolve every infinite argument.
+    QCORE_EXACT_UNARY_CANONICALIZES_INFINITY = 1u << 5
 };
 
 int qcore_exact_real_provider_register_unary(
@@ -172,6 +174,10 @@ int qcore_exact_real_power_provider_register_v2(const char* provider, uint32_t o
 
 // Core constructors for canonical forms. Each returns an owned value and
 // fails as the corresponding operator of `real` does.
+// Exact extended-real infinities. sign is -1 or 1; the observer returns
+// -1/+1 for an infinity and 0 for an ordinary finite exact value.
+void* qcore_exact_real_infinity(int sign);
+int qcore_exact_real_infinity_sign(const void* value);
 void* qcore_exact_real_rational(const char* numerator, const char* denominator);
 void* qcore_exact_real_add(const void* left, const void* right);
 void* qcore_exact_real_sub(const void* left, const void* right);
@@ -483,28 +489,23 @@ int qcore_device_status_wait(long long device, uint64_t slot,
                              uint32_t* value);
 void qcore_device_status_release(long long device, uint64_t slot);
 
-// Non-finite values (additive to ABI version 1). No real value a Quidra
-// program can observe is NaN or an infinity. After a call of an extern
-// function that wrote a real tensor through a `&` argument, Core validates
-// that tensor (one pass; on a GPU a deferred check, consumed at the next
-// synchronization point) and stops the program with NONFINITE_RESULT
-// ("package operation NAME produced a non-finite real32 value") at the
-// call, unless the function's C symbol declared one of these flags:
-//   QCORE_OP_VALIDATES_NONFINITE: the function checks the real values it
-//     writes itself: a CPU kernel reports a non-finite one through
-//     qcore_tensor_report_status, a GPU kernel through a status slot
-//     (qcore_device_status_slot, qcore_device_defer_status);
-//   QCORE_OP_FINITE_PRESERVING: finite inputs give finite outputs (for
-//     example relu), so nothing needs checking.
-// Values that stay inside the package (a -inf mask inside a softmax) are
-// the package's own. qcore_op_register_flags returns 0, or -1 for an empty
-// symbol or an unknown flag; a later registration replaces an earlier one.
-// qcore_tensor_report_status returns 0 for status 0; for any other status
-// it stops the program with NONFINITE_RESULT naming `operation` and the
-// element type of `tensor`, at the user's statement.
+// Numeric result validation (additive to ABI version 1). Infinity is valid,
+// but no public real value may be NaN. After an extern writes a real tensor,
+// Core checks for NaN unless the symbol declares that it validates its own
+// results or preserves the absence of NaN even for infinite inputs.
+// QCORE_OP_FINITE_PRESERVING is retained for source/binary compatibility but
+// is insufficient to waive the NaN check: finite-only closure says nothing
+// about the now-valid infinite inputs. Do not change its legacy bit value.
+// A validation failure is NONFINITE_RESULT at the call. On a device it is
+// deferred to the next synchronization. A package reports status through
+// qcore_tensor_report_status or the device status API. Registration returns
+// 0 on success, -1 for an empty symbol or unknown flags; later calls replace
+// earlier registrations.
 enum qcore_op_flag {
     QCORE_OP_VALIDATES_NONFINITE = 1u << 0,
-    QCORE_OP_FINITE_PRESERVING = 1u << 1
+    QCORE_OP_VALIDATES_NAN = QCORE_OP_VALIDATES_NONFINITE,
+    QCORE_OP_FINITE_PRESERVING = 1u << 1,
+    QCORE_OP_NAN_PRESERVING = 1u << 2
 };
 int qcore_op_register_flags(const char* symbol, uint32_t flags);
 int qcore_tensor_report_status(const void* tensor, const char* operation, uint32_t status);

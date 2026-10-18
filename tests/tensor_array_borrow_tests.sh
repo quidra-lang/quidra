@@ -97,10 +97,12 @@ print(NL)
 print(values[0][0].item() == real32(inf) and saved[0][0].item() == real32(1))
 print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/infinity.qui")" ==  'untracked'
-expect_failure uninitialized UNINITIALIZED 'uninitialized'
-expect_failure wrong_handle TENSOR 'invalid or expired'
-true\ntrue' ]]
+cat > "$TMP/infinity.expected" <<'EXPECTED'
+true
+true
+EXPECTED
+"$QUIDRA" "$TMP/infinity.qui" > "$TMP/infinity.out"
+cmp "$TMP/infinity.expected" "$TMP/infinity.out"
 expect_failure tracked TENSOR 'untracked'
 expect_failure uninitialized UNINITIALIZED 'uninitialized'
 expect_failure wrong_handle TENSOR 'invalid or expired'

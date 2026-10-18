@@ -68,6 +68,7 @@ std::string half_bits(llvm_text::LlvmBuilder& builder, TemporaryNames& names, co
 // The prefixes a module's bodies contain when they name a helper or an entry.
 inline constexpr std::string_view half_helper_prefix = "@quidra.half.";
 inline constexpr std::string_view half_entry_prefix = "@quidra_half_";
+inline constexpr std::string_view real16_entry_prefix = "@quidra_real16_";
 inline constexpr std::string_view real16b_entry_prefix = "@quidra_real16b_";
 
 // The declarations of the support block.

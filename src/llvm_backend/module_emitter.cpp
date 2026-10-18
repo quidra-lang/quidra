@@ -278,9 +278,12 @@ void ModuleEmitter::emit_helpers() {
     // The helpers and entries of the 16-bit reals.
     if (text_.contains(Section::bodies, half_helper_prefix) ||
         text_.contains(Section::bodies, half_entry_prefix) ||
+        text_.contains(Section::bodies, real16_entry_prefix) ||
         text_.contains(Section::bodies, real16b_entry_prefix) ||
         text_.contains(Section::helpers, half_helper_prefix) ||
-        text_.contains(Section::helpers, half_entry_prefix))
+        text_.contains(Section::helpers, half_entry_prefix) ||
+        text_.contains(Section::helpers, real16_entry_prefix) ||
+        text_.contains(Section::helpers, real16b_entry_prefix))
         text_.append(Section::helpers, half_support_text());
     // The power helpers of fixed-width reals, where `^` is used on them.
     if (text_.contains(Section::bodies, real_power_helper_prefix))

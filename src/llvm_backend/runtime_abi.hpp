@@ -547,6 +547,8 @@ inline constexpr LlvmCallee text =
     llvm_callee<decltype(&quidra_half_format)>("quidra_half_format");
 inline constexpr LlvmCallee parse =
     llvm_callee<decltype(&quidra_half_parse)>("quidra_half_parse");
+inline constexpr LlvmCallee real16_from_float64 =
+    llvm_callee<decltype(&quidra_real16_from_float64)>("quidra_real16_from_float64");
 inline constexpr LlvmCallee real16b_from_float64 =
     llvm_callee<decltype(&quidra_real16b_from_float64)>("quidra_real16b_from_float64");
 inline constexpr LlvmCallee real16b_from_int64 =

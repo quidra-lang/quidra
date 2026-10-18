@@ -211,6 +211,8 @@ std::string ComplexArithmetic::widen(const Type& part, const std::string& value)
 
 std::string narrow_complex_part(LlvmBuilder& builder, TemporaryNames& names,
                                 const Type& part, const std::string& value) {
+    if (part.kind == TypeKind::Real16)
+        return real16_from_float64(builder, names, value);
     const auto out = names.value("complex.part");
     switch (part.kind) {
         case TypeKind::Real64:

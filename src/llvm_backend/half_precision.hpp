@@ -3,16 +3,18 @@
 // HalfPrecision: the 16-bit reals in generated code.
 //
 // real16 is LLVM's `half`: its arithmetic, comparisons and conversions to
-// and from float and double are LLVM's, which round once and correctly
-// (on targets without half arithmetic LLVM computes in float and rounds,
-// which is correctly rounded since 24 >= 2 * 11 + 2 bits). real16b is held
+// and from float are LLVM's; binary64-to-real16 uses an explicit runtime
+// conversion for platform independence and direct nearest-even rounding.
+// (On targets without half arithmetic LLVM computes in float and rounds,
+// correctly since 24 >= 2 * 11 + 2 bits.) real16b is held
 // as an i16 (its bfloat16 bits), so generated code does not depend on the
 // `bfloat` support of the installed LLVM: its arithmetic widens both
 // operands to float exactly (@quidra.half.bf16.widen), computes in float and
 // rounds once to bfloat16, to nearest with ties to even
 // (@quidra.half.bf16.narrow), which is correctly rounded too
 // (24 >= 2 * 8 + 2). Conversions that need a single correct rounding from a
-// wider format (real64 and the 64-bit integers to real16b), the text of both
+// wider format (real64 to either half format and 64-bit integers to
+// real16b), the text of both
 // types (the shortest decimal that reads back to the value, per format) and
 // their parsing are runtime entries (quidra_half_*, quidra_real16b_*).
 //
@@ -54,6 +56,12 @@ inline int half_format_code(const Type& type) {
 // The 16 bits of `value`, a real16 or real16b of `type`, zero-extended to the
 // i32 the runtime entries take them as (a 32-bit C parameter, so no
 // platform's rule for extending narrow arguments applies).
+// Portable, directly rounded binary64 -> binary16 conversion. The runtime
+// returns bits, so generated code does not require a platform half soft-float
+// helper (for example __truncdfhf2 on Windows).
+std::string real16_from_float64(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
+                                const std::string& value);
+
 std::string half_bits(llvm_text::LlvmBuilder& builder, TemporaryNames& names, const Type& type,
                       const std::string& value);
 

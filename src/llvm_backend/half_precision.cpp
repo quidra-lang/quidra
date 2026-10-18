@@ -10,10 +10,11 @@ namespace quidra::llvm_backend {
 
 namespace {
 
-constexpr std::array<const llvm_text::LlvmCallee*, 6> declarations{{
+constexpr std::array<const llvm_text::LlvmCallee*, 7> declarations{{
     &runtime_abi::half_support::try_real,
     &runtime_abi::half_support::text,
     &runtime_abi::half_support::parse,
+    &runtime_abi::half_support::real16_from_float64,
     &runtime_abi::half_support::real16b_from_float64,
     &runtime_abi::half_support::real16b_from_int64,
     &runtime_abi::half_support::real16b_from_uint64,
@@ -57,6 +58,24 @@ std::string support_text() {
 }
 
 } // namespace
+
+// Round binary64 directly into binary16 integer bits in the runtime and bitcast
+// to LLVM half. Windows' JIT linker has no __truncdfhf2, which fptrunc
+// double->half would otherwise emit; a float intermediate also risks double
+// rounding at binary16 midpoints. The C helper uses the ABI's nearest-even
+// binary64->binary16 rounding and handles signed infinities and zero.
+std::string real16_from_float64(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
+                                const std::string& value) {
+    using namespace llvm_text;
+    using namespace llvm_text::types;
+    const auto raw = names.value("half.from.float64.raw");
+    builder.call(raw, runtime_abi::half_support::real16_from_float64, {{double_type, value}});
+    const auto bits = names.value("half.from.float64.bits");
+    builder.cast(bits, CastOp::trunc, {i32, raw}, i16);
+    const auto result = names.value("half.from.float64.value");
+    builder.cast(result, CastOp::bitcast, {i16, bits}, half_type);
+    return result;
+}
 
 std::string half_bits(llvm_text::LlvmBuilder& builder, TemporaryNames& names, const Type& type,
                       const std::string& value) {

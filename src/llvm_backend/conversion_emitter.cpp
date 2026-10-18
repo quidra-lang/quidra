@@ -268,6 +268,7 @@ std::string ConversionEmitter::widen_to_double(const std::string& value,const Ty
 
 std::string ConversionEmitter::narrow_from_double(const std::string& value,const Type& type){
     if(type.kind==TypeKind::Real64) return value;
+    if(type.kind==TypeKind::Real16) return real16_from_float64(builder_,names_,value);
     const auto narrow=names_.value("cast.narrow");
     if(type.kind==TypeKind::Real16b){
         const auto bits=names_.value("cast.narrow.bits");

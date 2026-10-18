@@ -60,6 +60,31 @@ def cases() -> list[Case]:
     for ty, large in (('real16', '60000.0'), ('real16b', '3.0e38'), ('real32', '3.0e38'), ('real64', '1.0e308')):
         result.append(Case(f'{ty}-overflow', f'{ty} large = {large}\n{ty} result = large * 10.0\nprint(result)\n', 'inf'))
         result.append(Case(f'{ty}-constant-overflow', f'{ty} result = {large} * 10.0\nprint(result)\n', 'inf'))
+    # The platform-independent real64 -> real16 helper must avoid double
+    # rounding: a binary64 value slightly above a binary16 midpoint rounds
+    # UP to the next half, whereas going via binary32 can round down.
+    result.extend([
+        Case('real64-real16-halfway-even',
+             'real64 value = 1.0 + 1.0 / 2048.0\n'
+             'real16 rounded = real16(value)\n'
+             'print(rounded == real16(1.0))\n', 'true'),
+        Case('real64-real16-above-halfway',
+             'real64 value = 1.0 + 1.0 / 2048.0 + 1.0 / 1099511627776.0\n'
+             'real16 rounded = real16(value)\n'
+             'print(rounded == real16(1.0009765625))\n', 'true'),
+        Case('exact-real16-above-halfway',
+             'real value = real(1) + real(1) / real(2048) + real(1) / real(1099511627776)\n'
+             'real16 rounded = real16(value)\n'
+             'print(rounded == real16(1.0009765625))\n', 'true'),
+        Case('exact-real16-subnormal',
+             'real value = real(1) / real(16777216)\n'
+             'real16 rounded = real16(value)\n'
+             'print(rounded == real16(0.000000059604644775390625))\n', 'true'),
+        Case('real64-real16-negative-zero',
+             'real64 value = -0.0\n'
+             'real16 rounded = real16(value)\n'
+             'print(rounded.string() == "-0.0")\n', 'true'),
+    ])
     for source in ('real16', 'real16b', 'real32', 'real64', 'real'):
         for target in ('real16', 'real16b', 'real32', 'real64', 'real'):
             if source == target: continue

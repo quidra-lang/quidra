@@ -1238,6 +1238,10 @@ extern "C" bool quidra_half_parse(const char* text, int format, unsigned short* 
 // real64 and the 64-bit integers to real16b, rounded once. An integer beyond
 // 2^53 first keeps its 53 leading bits with the rest ORed into the last one,
 // which decides every rounding to 8 bits as the full value does.
+extern "C" unsigned int quidra_real16_from_float64(double value) {
+    return quidra::abi::half::round_to(value, quidra::abi::half::binary16);
+}
+
 extern "C" unsigned int quidra_real16b_from_float64(double value) {
     return quidra::abi::half::round_to(value, quidra::abi::half::bfloat16);
 }

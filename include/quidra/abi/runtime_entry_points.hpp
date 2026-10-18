@@ -37,6 +37,7 @@ extern "C" char* quidra_format_float(double value);
 extern "C" char* quidra_half_format(
     unsigned int bits, int format, int integer_width, int fractional, int significant, int zero);
 extern "C" bool quidra_half_parse(const char* text, int format, unsigned short* out);
+extern "C" unsigned int quidra_real16_from_float64(double value);
 extern "C" unsigned int quidra_real16b_from_float64(double value);
 extern "C" unsigned int quidra_real16b_from_int64(long long value);
 extern "C" unsigned int quidra_real16b_from_uint64(unsigned long long value);

@@ -106,6 +106,8 @@ void NumericEmitter::emit(const ir::RealLoopValue& n,const ir::Instruction&) {
         auto bits=names_.value("real.loop.bf16.bits");exact=names_.value("real.loop.bf16.value");
         builder_.call(bits,runtime_abi::half_support::real16b_from_float64,{{double_type,wide}});
         builder_.cast(exact,CastOp::trunc,{i32,bits},i16);
+    } else if(n.type.kind==TypeKind::Real16) {
+        exact=real16_from_float64(builder_,names_,wide);
     } else if(n.type.kind!=TypeKind::Real64) {
         exact=names_.value("real.loop.narrow");
         builder_.cast(exact,CastOp::fptrunc,{double_type,wide},target);
@@ -207,6 +209,8 @@ void NumericEmitter::emit(const ir::ExactScaledConvert& n,const ir::Instruction&
         auto bits=names_.value("exact.scaled.bf16.bits");value=names_.value("exact.scaled.bf16.value");
         builder_.call(bits,runtime_abi::half_support::real16b_from_float64,{{double_type,wide}});
         builder_.cast(value,CastOp::trunc,{i32,bits},i16);
+    } else if(n.target.kind==TypeKind::Real16) {
+        value=real16_from_float64(builder_,names_,wide);
     } else if(n.target.kind!=TypeKind::Real64) {
         value=names_.value("exact.scaled.narrow");builder_.cast(value,CastOp::fptrunc,{double_type,wide},llvm_type(n.target));
     }

@@ -555,6 +555,19 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         builder_.cast(symbols_.value(n.out),CastOp::fptrunc,{float_type,result},half_type);
         return;
     }
+    if(ot.kind==TypeKind::Real16 &&
+       (n.op=="=="||n.op=="!="||n.op=="<"||n.op=="<="||n.op==">"||n.op==">=")){
+        // The Windows/MSVC LLVM target lowers fcmp half to __extendhfsf2.
+        // Decode the half bits into exact real32 values and compare there:
+        // all 65536 half encodings widen exactly without a platform libcall.
+        const auto left=real16_to_float32(builder_,names_,symbols_.value(n.left));
+        const auto right=real16_to_float32(builder_,names_,symbols_.value(n.right));
+        const auto predicate=n.op=="=="?FloatPredicate::oeq:n.op=="!="?FloatPredicate::une:
+                             n.op=="<"?FloatPredicate::olt:n.op=="<="?FloatPredicate::ole:
+                             n.op==">"?FloatPredicate::ogt:FloatPredicate::oge;
+        builder_.fcmp(symbols_.value(n.out),predicate,float_type,left,right);
+        return;
+    }
     if(is_fixed_real(ot)){
         const auto ty=llvm_type(ot);
         if(n.op=="+")builder_.binary(symbols_.value(n.out),BinaryOp::fadd,ty,symbols_.value(n.left),symbols_.value(n.right));

@@ -85,6 +85,23 @@ def cases() -> list[Case]:
              'real16 rounded = real16(value)\n'
              'print(rounded.string() == "-0.0")\n', 'true'),
     ])
+    # Native real16 comparisons must not pull __extendhfsf2 into Windows
+    # executables; comparisons retain IEEE zero and infinity semantics.
+    result.extend([
+        Case('real16-ordered-zero-and-infinities',
+             'real16 neg_inf = -inf\nreal16 neg = -1.0\n'
+             'real16 neg_zero = -0.0\nreal16 pos_zero = 0.0\n'
+             'real16 pos = 1.0\nreal16 pos_inf = inf\n'
+             'print("{neg_inf < neg} {neg < neg_zero} {neg_zero == pos_zero} '
+             '{pos_zero <= pos} {pos < pos_inf} {neg_inf != pos_inf}")\n',
+             'true true true true true true'),
+        Case('real16-subnormal-comparisons',
+             'real16 negative = -0.000000059604644775390625\n'
+             'real16 zero = 0.0\n'
+             'real16 positive = 0.000000059604644775390625\n'
+             'print("{negative < zero} {positive > zero} {negative <= positive}")\n',
+             'true true true'),
+    ])
     for source in ('real16', 'real16b', 'real32', 'real64', 'real'):
         for target in ('real16', 'real16b', 'real32', 'real64', 'real'):
             if source == target: continue

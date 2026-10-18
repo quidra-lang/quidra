@@ -62,6 +62,12 @@ inline int half_format_code(const Type& type) {
 std::string real16_from_float64(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
                                 const std::string& value);
 
+// Widen real16 exactly to real32 without a target-dependent half runtime
+// libcall (notably __extendhfsf2 on Windows x86-64). This conversion accepts
+// the raw half bits, retaining IEEE signed zeros, infinities and NaNs.
+std::string real16_to_float32(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
+                              const std::string& value);
+
 std::string half_bits(llvm_text::LlvmBuilder& builder, TemporaryNames& names, const Type& type,
                       const std::string& value);
 

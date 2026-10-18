@@ -10,11 +10,12 @@ namespace quidra::llvm_backend {
 
 namespace {
 
-constexpr std::array<const llvm_text::LlvmCallee*, 7> declarations{{
+constexpr std::array<const llvm_text::LlvmCallee*, 8> declarations{{
     &runtime_abi::half_support::try_real,
     &runtime_abi::half_support::text,
     &runtime_abi::half_support::parse,
     &runtime_abi::half_support::real16_from_float64,
+    &runtime_abi::half_support::real16_to_float32,
     &runtime_abi::half_support::real16b_from_float64,
     &runtime_abi::half_support::real16b_from_int64,
     &runtime_abi::half_support::real16b_from_uint64,
@@ -74,6 +75,16 @@ std::string real16_from_float64(llvm_text::LlvmBuilder& builder, TemporaryNames&
     builder.cast(bits, CastOp::trunc, {i32, raw}, i16);
     const auto result = names.value("half.from.float64.value");
     builder.cast(result, CastOp::bitcast, {i16, bits}, half_type);
+    return result;
+}
+
+std::string real16_to_float32(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
+                              const std::string& value) {
+    using namespace llvm_text;
+    using namespace llvm_text::types;
+    const auto bits = half_bits(builder, names, Type::simple(TypeKind::Real16), value);
+    const auto result = names.value("half.to.float32");
+    builder.call(result, runtime_abi::half_support::real16_to_float32, {{i32, bits}});
     return result;
 }
 

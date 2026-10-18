@@ -1242,6 +1242,23 @@ extern "C" unsigned int quidra_real16_from_float64(double value) {
     return quidra::abi::half::round_to(value, quidra::abi::half::binary16);
 }
 
+// Binary16 widens exactly to binary32 (including subnormals). Decode the
+// sign, exponent and fraction instead of depending on the unavailable
+// Windows/MSVC LLVM helper __extendhfsf2.
+extern "C" float quidra_real16_to_float32(unsigned int bits) {
+    const auto raw = static_cast<std::uint32_t>(bits & 0xffffU);
+    const auto sign = (raw & 0x8000U) << 16U;
+    const auto exponent = (raw >> 10U) & 0x1fU;
+    const auto fraction = raw & 0x3ffU;
+    if (exponent == 0U) {
+        if (fraction == 0U) return std::bit_cast<float>(sign);
+        const float magnitude = static_cast<float>(fraction) * 0x1p-24f;
+        return sign ? -magnitude : magnitude;
+    }
+    const auto shifted_exponent = exponent == 31U ? 255U : exponent + 112U;
+    return std::bit_cast<float>(sign | (shifted_exponent << 23U) | (fraction << 13U));
+}
+
 extern "C" unsigned int quidra_real16b_from_float64(double value) {
     return quidra::abi::half::round_to(value, quidra::abi::half::bfloat16);
 }

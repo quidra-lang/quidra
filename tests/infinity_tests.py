@@ -101,18 +101,26 @@ def main() -> int:
             source.write_text(case.source, encoding='utf-8')
             try:
                 checked = subprocess.run([str(compiler), 'check', str(source)], capture_output=True,
-                                         text=True, env=env, timeout=60)
+                                         text=True, encoding='utf-8', env=env, timeout=60)
                 if checked.returncode:
                     records.append(dict(name=case.name, ok=False, stage='check',
                                         returncode=checked.returncode, stdout=checked.stdout, stderr=checked.stderr))
-                    print(f'FAIL {case.name}: rejected by checker'); continue
+                    print(f'FAIL {case.name}: checker exit={checked.returncode}, '
+                          f'stdout={ascii(checked.stdout)}, stderr={ascii(checked.stderr)}'); continue
                 ran = subprocess.run([str(compiler), 'run', str(source)], capture_output=True,
-                                     text=True, env=env, timeout=60)
+                                     text=True, encoding='utf-8', env=env, timeout=60)
                 ok = (ran.returncode == (101 if case.failure else 0) and ran.stdout == case.expected)
                 if case.failure: ok = ok and 'Quidra runtime error[' in ran.stderr
                 records.append(dict(name=case.name, ok=ok, stage='run', returncode=ran.returncode,
                                     stdout=ran.stdout, stderr=ran.stderr, expected=case.expected))
-                print(f'{"PASS" if ok else "FAIL"} {case.name}')
+                if ok:
+                    print(f'PASS {case.name}')
+                else:
+                    # ASCII-escaped diagnostics survive Windows console encodings;
+                    # the subprocess text itself is decoded as UTF-8, not CP1252.
+                    print(f'FAIL {case.name}: exit={ran.returncode}, '
+                          f'expected={ascii(case.expected)}, '
+                          f'actual={ascii(ran.stdout)}, stderr={ascii(ran.stderr)}')
             except subprocess.TimeoutExpired as exc:
                 records.append(dict(name=case.name, ok=False, stage='timeout', message=str(exc)))
                 print(f'FAIL {case.name}: timeout')

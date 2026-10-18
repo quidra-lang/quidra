@@ -5587,7 +5587,15 @@ cat > "$TMP/float-exception-text.qui" <<'QUI'
 print(real64(0.0 / 0.0))
 QUI
 if "$QUIDRA" check "$TMP/float-exception-text.qui" >"$TMP/float-exception-text.err" 2>&1; then exit 1; fi
-grep -q 'error\[REAL_RANGE\].*NaN' "$TMP/float-exception-text.err"
+grep -q 'error\[DIVIDE_BY_ZERO\] Indeterminate real division 0 / 0 is known at compile time.' "$TMP/float-exception-text.err"
+# Two valid infinities whose subtraction is indeterminate are instead a
+# compile-time REAL_RANGE/NaN error. Distinguish the two failure reasons.
+cat > "$TMP/float-constant-nan.qui" <<'QUI'
+real64 result = (1.0 / 0.0) - (1.0 / 0.0)
+print(result)
+QUI
+if "$QUIDRA" check "$TMP/float-constant-nan.qui" >"$TMP/float-constant-nan.err" 2>&1; then exit 1; fi
+grep -q 'error\[REAL_RANGE\].*NaN' "$TMP/float-constant-nan.err"
 cat > "$TMP/float-exception-runtime.qui" <<'QUI'
 real64 zero = 0.0
 print(zero / zero)

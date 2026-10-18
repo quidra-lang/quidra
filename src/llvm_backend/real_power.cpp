@@ -20,7 +20,27 @@ entry:
   br i1 %zero, label %zero.base, label %nonzero.base
 zero.base:
   %bzero = fcmp oeq @T %b, 0.0
-  br i1 %bzero, label %fail.zero, label %compute
+  br i1 %bzero, label %fail.zero, label %zero.exponent
+zero.exponent:
+  %bnegative = fcmp olt @T %b, 0.0
+  br i1 %bnegative, label %zero.negative.exponent, label %compute
+zero.negative.exponent:
+  ; Do not depend on platform libm pow(+/-0, negative exponent) pole handling.
+  ; Signed zero to an odd negative integer is -inf, otherwise +inf.
+  %wholeexp = call @T @llvm.trunc.@S(@T %b)
+  %integerexp = fcmp oeq @T %wholeexp, %b
+  %halfexp = fmul @T %b, 0.5
+  %halfwhole = call @T @llvm.trunc.@S(@T %halfexp)
+  %evenexp = fmul @T %halfwhole, 2.0
+  %odd = fcmp one @T %b, %evenexp
+  %oddinteger = and i1 %odd, %integerexp
+  %signedone = call @T @llvm.copysign.@S(@T 1.0, @T %a)
+  %negativebase = fcmp olt @T %signedone, 0.0
+  %negativeodd = and i1 %negativebase, %oddinteger
+  %posinf = fdiv @T 1.0, 0.0
+  %neginf = fneg @T %posinf
+  %pole = select i1 %negativeodd, @T %neginf, @T %posinf
+  ret @T %pole
 nonzero.base:
   %anegative = fcmp olt @T %a, 0.0
   br i1 %anegative, label %negative.base, label %compute
@@ -62,6 +82,8 @@ std::string support_text() {
         abi::failure_reason_info(FailureReason::negative_base_fractional_exponent).message);
     out += "declare double @llvm.trunc.f64(double)\n";
     out += "declare float @llvm.trunc.f32(float)\n";
+    out += "declare double @llvm.copysign.f64(double, double)\n";
+    out += "declare float @llvm.copysign.f32(float, float)\n";
     out += power_helper_text(power_helper::real64, "double", "f64", "pow");
     out += power_helper_text(power_helper::real32, "float", "f32", "powf");
     return out;

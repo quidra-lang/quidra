@@ -86,6 +86,21 @@ QUI
 expect_failure readonly TENSOR 'read-only'
 expect_failure bounds TENSOR 'out of range'
 expect_failure nonfinite NONFINITE_RESULT 'bump'
+# A native tensor-array write of infinity is now valid. The copied owner
+# remains independent and no NaN can reach the public array.
+cat > "$TMP/infinity.qui" <<'QUI'
+import probe = array_fixture
+tensor<real32>[] values = [tensor.ones<real32>([1])]
+tensor<real32>[] saved = values
+print(probe.bump(&values, int32(2)) == int32(0))
+print(NL)
+print(values[0][0].item() == real32(inf) and saved[0][0].item() == real32(1))
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/infinity.qui")" ==  'untracked'
+expect_failure uninitialized UNINITIALIZED 'uninitialized'
+expect_failure wrong_handle TENSOR 'invalid or expired'
+true\ntrue' ]]
 expect_failure tracked TENSOR 'untracked'
 expect_failure uninitialized UNINITIALIZED 'uninitialized'
 expect_failure wrong_handle TENSOR 'invalid or expired'

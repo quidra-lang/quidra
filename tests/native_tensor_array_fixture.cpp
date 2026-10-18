@@ -13,7 +13,8 @@ extern "C" std::int32_t qtest_tensor_array_bump(void* values, std::int32_t mode)
         auto* data = static_cast<float*>(qcore_tensor_cpu_data(value));
         if (!data) return 1;
         for (std::uint64_t element = 0; element < qcore_tensor_element_count(value); ++element)
-            data[element] = mode == 1 ? std::numeric_limits<float>::infinity() : data[element] + 1.0f;
+            data[element] = mode == 1 ? std::numeric_limits<float>::quiet_NaN() :
+                            mode == 2 ? std::numeric_limits<float>::infinity() : data[element] + 1.0f;
     }
     return 0;
 }

@@ -5580,14 +5580,14 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
 
-# No real value is NaN or an infinity: a constant division by zero is a
-# compile-time error, and a division by zero at run time stops the program
-# (tests/nonfinite_tests.sh covers every operation).
+# Infinity is legal, but no public real may be NaN. The indeterminate
+# constant 0/0 is rejected by the checker; a runtime 0/0 also traps.
+# tests/nonfinite_tests.sh covers the other arithmetic cases.
 cat > "$TMP/float-exception-text.qui" <<'QUI'
 print(real64(0.0 / 0.0))
 QUI
 if "$QUIDRA" check "$TMP/float-exception-text.qui" >"$TMP/float-exception-text.err" 2>&1; then exit 1; fi
-grep -q 'error\[DIVIDE_BY_ZERO\] Real division by zero is known at compile time.' "$TMP/float-exception-text.err"
+grep -q 'error\[REAL_RANGE\].*NaN' "$TMP/float-exception-text.err"
 cat > "$TMP/float-exception-runtime.qui" <<'QUI'
 real64 zero = 0.0
 print(zero / zero)

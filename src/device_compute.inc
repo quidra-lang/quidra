@@ -1238,6 +1238,10 @@ std::string msl_bfloat_soften(const std::string& source) {
         std::size_t i=0;while((i=result.find(from,i))!=std::string::npos){result.replace(i,from.size(),to);i+=to.size();}
     };
     replace("precise::qpow(","qpow(");
+    // The bfloat-softened scalar operands are qf structures, not native
+    // float scalars. as_type<uint>(qf) is invalid Metal syntax.
+    replace("as_type<uint>(lv)","qraw(lv)");
+    replace("as_type<uint>(rv)","qraw(rv)");
     replace("as_type<uint>(result)","qraw(result)");
     replace("as_type<qf2>(", "qpair(");
     replace("as_type<qf>(", "qfromraw(");

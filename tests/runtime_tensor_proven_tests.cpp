@@ -80,7 +80,7 @@ void failure(std::string_view kind,bool proven){
         Tensor left(make({2},QCORE_DTYPE_FLOAT32,quidra::abi::tensor_fill_mode::uninitialized)),right(make({2}));
         entry(left.value,right.value,nullptr,quidra::abi::scalar_side::none,quidra::abi::tensor_binary_opcode::divide,41,7);
     }else if(kind=="nonfinite"){
-        Tensor left(make({2})),right(make({2}));values(left,{std::numeric_limits<float>::max(),1});values(right,{2,0});
+        Tensor left(make({2})),right(make({2}));values(left,{std::numeric_limits<float>::infinity(),1});values(right,{0,2});
         entry(left.value,right.value,nullptr,quidra::abi::scalar_side::none,quidra::abi::tensor_binary_opcode::multiply,41,7);
     }else if(kind=="dtype"){
         Tensor left(make({2},QCORE_DTYPE_INT8,quidra::abi::tensor_fill_mode::uninitialized)),right(make({2}));

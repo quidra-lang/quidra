@@ -24,7 +24,7 @@ def main():
         original_errors = {
             "overflow-first": b"Quidra runtime error[TENSOR]: tensor integer arithmetic overflow\n",
             "uninitialized": b"Quidra runtime error[UNINITIALIZED]: value is uninitialized\n",
-            "nonfinite": b"Quidra runtime error[REAL_OVERFLOW]: tensor<real32> multiplication overflow\n",
+            "nonfinite": b"Quidra runtime error[NONFINITE_RESULT]: tensor<real32> multiplication produced NaN\n",
             "dtype": b"Quidra runtime error[TENSOR]: tensor operands must have identical element types\n",
             "compare-init": b"Quidra runtime error[UNINITIALIZED]: value is uninitialized\n",
         }

@@ -84,6 +84,19 @@ TXT
 )
 [[ "$(cat "$TMP/arithmetic.out")" == "$expected_arithmetic" ]]
 
+# Comparing com16 components must not require the Windows/MSVC compiler-rt
+# binary16-to-binary32 helper (__extendhfsf2). Signed zeros compare equal.
+cat > "$TMP/com16-equality.qui" <<'QUI'
+com16 a = 1.0 + 2.0i
+com16 same = 1.0 + 2.0i
+com16 different = 1.0 - 2.0i
+com16 negative_zero = -0.0 + 0.0i
+com16 positive_zero = 0.0 + 0.0i
+print("{a == same} {a != different} {negative_zero == positive_zero}")
+print(NL)
+QUI
+[[ "$("$QUIDRA" run "$TMP/com16-equality.qui")" == "true true true" ]]
+
 # Failures name the complex type.
 cat > "$TMP/overflow.qui" <<'QUI'
 com32 big = 3.0e38 + 0.0i

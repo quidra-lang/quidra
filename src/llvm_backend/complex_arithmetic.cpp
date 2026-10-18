@@ -76,6 +76,13 @@ std::string widen_complex_part(LlvmBuilder& builder, TemporaryNames& names, cons
         case TypeKind::Real64:
             builder.binary(out, BinaryOp::fadd, double_type, value, "-0.0");
             return out;
+        case TypeKind::Real16: {
+            // Native half widening can reference __extendhfsf2 on Windows.
+            // Every binary16 value is represented exactly as binary32.
+            const auto single = real16_to_float32(builder, names, value);
+            builder.cast(out, CastOp::fpext, {float_type, single}, double_type);
+            return out;
+        }
         case TypeKind::Real16b: {
             const auto single = names.value("complex.bf16");
             builder.call(single, float_type, LlvmOperand::global(half_helper::bf16_widen),
@@ -254,6 +261,15 @@ std::string ComplexArithmetic::op(BinaryOp operation, const Type& part, const st
 
 std::string ComplexArithmetic::nonfinite(const Type& part, const std::string& value) {
     const auto bad = names_.value("complex.bad");
+    if (part.kind == TypeKind::Real16) {
+        // Inspect bit encodings directly instead of emitting fcmp half.
+        // Infinity is valid; only an all-ones exponent with payload is NaN.
+        const auto bits = half_bits(builder_, names_, part, value);
+        const auto magnitude = names_.value("complex.magnitude.bits");
+        builder_.binary(magnitude, BinaryOp::and_, i32, bits, 32767);
+        builder_.icmp(bad, IntPredicate::ugt, i32, magnitude, 31744);
+        return bad;
+    }
     if (part.kind == TypeKind::Real16b) {
         const auto exponent = names_.value("complex.exponent");
         builder_.binary(exponent, BinaryOp::and_, i16, value, 32767);
@@ -275,10 +291,13 @@ std::string ComplexArithmetic::any(const std::vector<std::string>& conditions) {
 }
 
 LlvmType ComplexArithmetic::comparable_type(const Type& part) {
-    return part.kind == TypeKind::Real16b ? float_type : llvm_type(part);
+    return part.kind == TypeKind::Real16 || part.kind == TypeKind::Real16b
+               ? float_type : llvm_type(part);
 }
 
 std::string ComplexArithmetic::comparable(const Type& part, const std::string& value) {
+    if (part.kind == TypeKind::Real16)
+        return real16_to_float32(builder_, names_, value);
     if (part.kind != TypeKind::Real16b) return value;
     const auto out = names_.value("complex.bf16.value");
     builder_.call(out, float_type, LlvmOperand::global(half_helper::bf16_widen), {{i16, value}});

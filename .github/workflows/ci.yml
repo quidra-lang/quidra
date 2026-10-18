@@ -270,27 +270,7 @@ jobs:
     env:
       VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite"
     steps:
-      # Benchmark evidence can contain POSIX-valid names such as "aux" that
-      # Win32 refuses to materialize. Core CI does not consume benchmark runs,
-      # so keep the frozen evidence untouched and omit it from this checkout.
       - uses: actions/checkout@v4
-        env:
-          # Git for Windows rejects reserved DOS names anywhere in the index
-          # before sparse rules can omit them. The excluded benchmark tree is
-          # never materialized, so disable only that pre-check for this step.
-          GIT_CONFIG_COUNT: 1
-          GIT_CONFIG_KEY_0: core.protectNTFS
-          GIT_CONFIG_VALUE_0: "false"
-        with:
-          sparse-checkout: |
-            .github
-            assets
-            docs
-            examples
-            include
-            scripts
-            src
-            tests
       - name: Identify vcpkg binary cache ABI
         id: vcpkg-cache-abi
         shell: pwsh

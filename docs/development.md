@@ -113,11 +113,6 @@ prose, because build requirements have to be readable without running a script.
 That is the only permitted restatement, and the check above verifies it rather
 than trusting it.
 
-Benchmark metadata is deliberately outside this. `benchmark/template/` is
-copied whole into the measurement sandbox and must stay immutable during a
-frozen measurement window, so it owns its own metadata under
-`benchmark/template/config/`.
-
 ## Environment variables
 
 Core reads the process environment only through `src/platform/environment.hpp`:
@@ -328,12 +323,9 @@ A core release is not complete until the applicable checks pass:
 - `quidra --version` and `quidra describe` consistency;
 - documented examples.
 
-Benchmarks are not part of the release procedure. Do not start, rerun, or
-regenerate benchmark measurements merely because a release is being performed,
-even when semantics or performance-sensitive behavior changed. Run benchmarks
-only when the release instruction explicitly requests benchmark execution.
-An already completed formal benchmark result may be published or synchronized
-during the release without starting a new benchmark run.
+Benchmarks live in the separate
+[quidra-lang/benchmark](https://github.com/quidra-lang/benchmark) repository and
+are not part of the release procedure.
 
 ## Coordinated multi-repository release order
 

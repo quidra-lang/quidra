@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Keep domain frameworks out of Quidra Core.
 
-This intentionally scans only live Core implementation/configuration. Historical
-benchmark evidence is excluded by construction and must remain immutable.
+This intentionally scans only live Core implementation/configuration.
 """
 
 from __future__ import annotations

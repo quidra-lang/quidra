@@ -327,7 +327,7 @@ def check_generated_header_placeholders() -> None:
 
 # Where a version literal would be a second definition rather than an example.
 # tests/ and docs/ are excluded on purpose: their version strings are fixtures
-# and tutorial snippets. benchmark/ records the toolchain a frozen run measured.
+# and tutorial snippets.
 VERSION_SCAN_ROOTS = (
     "src",
     "include",

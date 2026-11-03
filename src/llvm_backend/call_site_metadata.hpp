@@ -10,7 +10,8 @@
 //   subprogram), then the C entry point of each exported function.
 // - Sites: every call written into such a function gets a site id (from 1;
 //   0 is the unknown site of merged calls), in the order the calls are
-//   written.
+//   written, then stably grouped by logical owner when metadata is finalized.
+//   Tail operands are resolved through that exact id remapping.
 // - Release metadata: one compile unit with emissionKind LineTablesOnly and
 //   a synthetic file; a subprogram named by the function's LLVM symbol on
 //   every function with an id (the C entry points artificial); a location
@@ -43,6 +44,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <map>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -64,6 +66,7 @@ public:
                      bool library, DebugModule* debug);
 
     Mode mode() const { return mode_; }
+    std::size_t source_file_id(const std::string& file) const { return debug_ ? debug_->source_file_id(file) : 0; }
 
     // The function id of module function `index`, or none (an external
     // declaration; in --debug builds a function without a subprogram).
@@ -86,14 +89,17 @@ public:
     // lexical block file of `scope` whose discriminator is the site id
     // (--debug).
     std::size_t locate(const CallSite& site, std::size_t scope, std::size_t file,
-                       std::uint32_t line, std::uint32_t column);
+                       std::uint32_t line, std::uint32_t column, std::size_t inlined_at = 0);
 
     // The library's reference to the table's anchor (a library build), in
     // the module's constants.
     void emit_anchor_reference(llvm_text::LlvmModule& module) const;
     // The release metadata, or the --debug call locations after
     // DebugModule's.
-    void emit_metadata(llvm_text::LlvmModule& module) const;
+    void emit_metadata(llvm_text::LlvmModule& module);
+    // Preserve the shared table's contiguous logical-owner ranges, then
+    // resolve only compiler-generated tail operands in function call lines.
+    std::string resolve_tail_operands(std::string text) const;
 
     std::uint32_t next_site() const { return static_cast<std::uint32_t>(info_.sites.size()); }
     CallSiteInfo take_info() { return std::move(info_); }
@@ -103,6 +109,7 @@ private:
         std::size_t id{};
         std::size_t scope{};
         std::uint32_t site{};
+        std::size_t inlined_at{};
         // --debug: the lexical block file's id and its file.
         std::size_t block{};
         std::size_t file{};
@@ -110,6 +117,7 @@ private:
         std::uint32_t column{};
     };
     std::size_t next_id();
+    void group_sites();
 
     Mode mode_;
     DebugModule* debug_{};
@@ -122,6 +130,8 @@ private:
     // Release metadata ids: 0 to 5 are the compile unit's nodes.
     std::size_t next_release_id_{6};
     std::vector<Location> locations_;
+    std::vector<std::uint32_t> site_remap_;
+    std::vector<std::pair<std::uint32_t,std::uint32_t>> site_ranges_;
     struct ParallelScope {std::uint32_t function;std::size_t file;std::uint32_t line;};
     std::vector<ParallelScope> parallel_scopes_;
 };
@@ -141,7 +151,8 @@ class FunctionCallSites final : public llvm_text::LlvmCallLocations {
 public:
     FunctionCallSites(CallSiteMetadata& metadata, const ModuleContext& context,
                       const StatementAttribution* attribution, std::uint32_t owner,
-                      std::size_t scope, std::size_t file, std::uint32_t function_line);
+                      std::size_t scope, std::size_t file, std::uint32_t function_line,
+                      const ir::Function* function = nullptr);
 
     // The position of the instruction being written (0, 0: none).
     void set_instruction_position(std::uint32_t line, std::uint32_t column) {
@@ -157,6 +168,7 @@ public:
         tail_records_ = emitter;
     }
     std::size_t call_location(std::string_view symbol) override;
+    void select_inline_scope(std::uint64_t identity) { inline_scope_ = identity; }
 
 private:
     CallSiteMetadata& metadata_;
@@ -166,6 +178,12 @@ private:
     std::size_t scope_;
     std::size_t file_;
     std::uint32_t function_line_;
+    struct InlineLocation {
+        std::uint32_t owner{};
+        std::size_t scope{}, file{}, at{};
+    };
+    std::map<std::uint64_t, InlineLocation> inline_locations_;
+    std::uint64_t inline_scope_{};
     std::uint32_t instruction_line_{};
     std::uint32_t instruction_column_{};
     bool synthesized_{};

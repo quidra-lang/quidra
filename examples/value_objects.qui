@@ -24,9 +24,6 @@ ShiftedPoint shifted = ShiftedPoint()
 int[] left = [1, 2, 3]
 int[] right = [1, 2, 3]
 
-print(a == b)
-print(NL)
-print(left == right)
-print(NL)
-print(shifted.sum())
-print(NL)
+print.line(a == b)
+print.line(left == right)
+print.line(shifted.sum())

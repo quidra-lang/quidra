@@ -21,7 +21,7 @@ public:
           scope_(scope), lifetime_(lifetime) {}
 
     // scan()
-    ValueId lower_scan(const Expr& e);
+    ValueId lower_scan(const Expr& e, ValueId external_raw = 0, bool from_file = false);
 
 private:
     Lowerer& lowerer_;

@@ -13,6 +13,7 @@ ValueId BuiltinLowering::lower_builtin_call(
     if(!resolution.builtin) throw std::logic_error("Builtin resolution has no builtin kind.");
     switch(*resolution.builtin){
         case BuiltinCallable::Print: return console_.lower_print(e, n);
+        case BuiltinCallable::PrintLine: return console_.lower_print(e, n, true);
         case BuiltinCallable::Scan: return scan_.lower_scan(e);
         case BuiltinCallable::Exit: return control_flow_.lower_exit(n);
         case BuiltinCallable::ReflectTypeName: return reflection_.lower_reflect_type_name(n);
@@ -36,11 +37,11 @@ ValueId BuiltinLowering::lower_builtin_call(
         case BuiltinCallable::CliFinish: return system_.lower_cli_finish();
         case BuiltinCallable::FileOpen:
         case BuiltinCallable::FileCreate:
-        case BuiltinCallable::FileAppend: return files_.lower_file_open(e, n, resolution);
-        case BuiltinCallable::FileRead: return files_.lower_file_read(e, n);
+        case BuiltinCallable::FileAppend:
+        case BuiltinCallable::FileRead:
+        case BuiltinCallable::FileWrite: return files_.lower_file_open(e, n, resolution);
         case BuiltinCallable::FileReadBin: return files_.lower_file_read_bin(e, n);
         case BuiltinCallable::FileList: return files_.lower_file_list(e, n);
-        case BuiltinCallable::FileWrite: return files_.lower_file_write(e, n);
         case BuiltinCallable::FileWriteBin: return files_.lower_file_write_bin(e, n);
         case BuiltinCallable::FileExists: return files_.lower_file_exists(e, n);
         case BuiltinCallable::FileIsDirectory: return files_.lower_file_is_directory(e, n);

@@ -43,6 +43,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -55,6 +56,12 @@ public:
 
     // The statement a source location opens: writes the call that names it.
     void begin_statement(const ir::SourceLocation& location);
+    // Semantic scope/block selection restores the emitter's state. Runtime
+    // user-statement state is saved at the dominating bind block and restored
+    // after that scope's cleanup; innermost attribution remains the callee's.
+    void select_inline_scope(const ir::InlineScope* scope);
+    void begin_inline_scope(const ir::InlineScope& scope);
+    void end_inline_scope(const ir::InlineScope& scope);
 
     // The failure immediates of an instruction of the current statement: in
     // user code the line carries the file's index in its upper 32 bits
@@ -80,6 +87,24 @@ public:
     void after_call(std::string_view symbol) override;
 
 private:
+    struct State {
+        bool user{};
+        std::size_t file_index{};
+        std::uint32_t line{}, column{};
+        std::string record;
+        bool entered_user{};
+        std::string pending_user;
+    };
+    struct InlineState {
+        State callee, caller;
+        std::string saved_user;
+    };
+    State state() const;
+    void state(const State&);
+    State location_state(const ir::SourceLocation&);
+    std::map<std::uint64_t, InlineState> inline_states_;
+    State root_state_;
+    std::uint64_t inline_scope_{};
     enum Effect : unsigned { none = 0, reads = 1, enters = 2 };
     unsigned long long encode(std::uint32_t line) const {
         return (static_cast<unsigned long long>(file_index_) << 32) | line;

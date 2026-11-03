@@ -18,6 +18,14 @@ fact unambiguously.
 - Playground: <https://quidra-lang.github.io/playground/>
 - Playground source: <https://github.com/quidra-lang/playground>
 
+> **Contributors welcome!** Help build Quidra's compiler, LLVM backend,
+> developer tooling, mathematical/ML libraries, documentation, and tests.
+> Newcomers are welcome too. **[Join the project — contributors wanted!](https://github.com/quidra-lang/quidra/issues/4)**
+> Read the [contribution guide](CONTRIBUTING.md)
+> and explore [good first issues](https://github.com/quidra-lang/quidra/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+> or [all open issues](https://github.com/quidra-lang/quidra/issues).
+> New to Quidra? Start with the [10-minute getting-started guide](docs/getting-started.md).
+
 The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or
 essence of a thing.
 
@@ -292,6 +300,10 @@ pending[0] = 7
 
 int[] zeros = array(100, fill = 0)
 values = values.append(4)
+
+string[] names = ["Aki", "Yui", "Haru"]
+int[] scores = [90, 85, 95]
+auto ranked = names.sorted(by = scores, descending = true)
 ```
 
 Fixed array lengths are part of the type. Runtime-sized arrays may be created
@@ -328,10 +340,8 @@ Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `
 ```quidra
 string name = "Quidra"
 string repeated = string.repeat("a", 6)
-print("Hello, {name}")
-print(NL)
-print("first{NL}second")
-print(NL)
+print.line("Hello, {name}")
+print.line("first{NL}second")
 ```
 
 Backslash is literal rather than an escape introducer. The eight two-letter uppercase immutable values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` represent the built-in control characters.
@@ -346,10 +356,8 @@ Strings are immutable UTF-8 text. `len(text)` counts Unicode code points (a `nat
 int add(int a, int b = 1)
     return a + b
 
-print(add(41)) // output: 42
-print(NL)
-print(add(a = 40, b = 2)) // output: 42
-print(NL)
+print.line(add(41)) // output: 42
+print.line(add(a = 40, b = 2)) // output: 42
 ```
 
 Positional arguments come before named arguments. Parameters can have defaults; defaults are evaluated afresh when omitted. Ordinary function overloading is not supported: one function name has one ordinary definition, including argument-count and return-type variants. Optional call forms use default parameters.
@@ -362,8 +370,7 @@ class Point(real64 x, real64 y)
         return x * x + y * y
 
 Point point = Point(3.0, 4.0)
-print(point.length_squared())
-print(NL)
+print.line(point.length_squared())
 
 Point origin
 origin = Point(0.0, 0.0)
@@ -402,8 +409,7 @@ int count = 1
 Holder first = Holder(&count)
 Holder second = first
 second.value = 7
-print(&first.value == &second.value)
-print(NL)
+print.line(&first.value == &second.value)
 ```
 
 Passing `&storage` makes writes to that target visible. A call that changes
@@ -425,8 +431,7 @@ Tuples compare and hash recursively; their printed string elements are quoted.
 (int number, string word) = pair
 (int &stored, string &label) = &pair
 stored = number + 1
-print(pair)
-print(NL)
+print.line(pair)
 ```
 
 ### Modules
@@ -442,8 +447,7 @@ an explicit import:
 
 ```quidra
 import math
-print(math.sqrt(real64(16.0)))
-print(NL)
+print.line(math.sqrt(real64(16.0)))
 ```
 
 Local source modules use explicit quoted paths, while unquoted non-standard imports denote installed packages:
@@ -471,8 +475,7 @@ T first<T>(T[] values)
     return values[0]
 
 Box<int> box = Box<int>(7)
-print(first<int>([4, 5]))
-print(NL)
+print.line(first<int>([4, 5]))
 ```
 
 Generic class type arguments are explicit in type positions. Class generation, generic function and method calls may infer them when every generic parameter is uniquely determined by typed call arguments; otherwise write them explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
@@ -485,19 +488,15 @@ Repeated function or method names are permitted only for a generic specializatio
 bool condition = false
 
 void work()
-    print("work")
-    print(NL)
+    print.line("work")
 
 if condition
-    print("yes")
-    print(NL)
+    print.line("yes")
 else
-    print("no")
-    print(NL)
+    print.line("no")
 
 for 0 <= nat i < 10
-    print(i)
-    print(NL)
+    print.line(i)
 
 while condition
     work()
@@ -515,8 +514,7 @@ int[] values = [2, 4, 6]
 for int &value = &values[nat index]
     value += int(index)
 for real32 value <= 1.0 step 0.25
-    print(value)
-    print(NL)
+    print.line(value)
 ```
 
 A collection value loop takes a snapshot. A reference loop writes the current
@@ -536,8 +534,7 @@ int second
 parallel
     first = 20
     second = first + 22
-print(second)
-print(NL)
+print.line(second)
 ```
 
 Use `elif` for flat conditional chains:
@@ -545,21 +542,19 @@ Use `elif` for flat conditional chains:
 ```quidra
 int score = 85
 if score >= 90
-    print("A")
-    print(NL)
+    print.line("A")
 elif score >= 80
-    print("B")
-    print(NL)
+    print.line("B")
 else
-    print("C")
-    print(NL)
+    print.line("C")
 ```
 
 ### Basic I/O
 
 ```quidra
 print("line")
-print(NL)
+print.line("line with newline")
+print.line()
 print("prompt: ")
 flush()
 
@@ -567,11 +562,23 @@ string line
 scan(&line)
 
 int n
-int m
-scan("{&n} {&m}")
+scan("{&n} {int &m}")
+print.line("{n} + {m}")
+
+int amount = 123456789
+print.line("{amount:group=3}") // 123,456,789
+
+file.read input("pairs.txt")
+while .input("{int &left} {int &right}")
+    print.line("{left} {right}")
+
+file.write output("output.txt")
+.output("{n} {m}")
+.output.line("next line")
+.output.line()
 ```
 
-`print` writes exactly the supplied value and never appends a newline; output a separate `NL` when line termination is wanted. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
+`print.line(value)` writes one value followed by `NL`, and `print.line()` writes only `NL`; `print` writes exactly the supplied value and never appends a newline. Prefer `print.line` for line output, retaining explicit `NL` only for embedded line breaks. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value, `{&name}` refers to an existing target, and `{int &age}` declares a new target in a standalone fail-fast statement. `bool`, strings and numeric scalars are supported. Delimiters are literal and every field is parsed before any target is modified; a bad field leaves all destinations unchanged. `file.read` accepts the same input format but returns `bool | error` (`false` on EOF), with inline declared targets scoped to the successful condition branch. `file.write` and `file.append` accept the same output interpolation as `print`, without inserting spaces or newlines. Their writable streams additionally support `.writer.line(value)` and `.writer.line()` to append exactly one `NL` after the value (or alone), with the same `void | error` status. `file.read` has no `.line()` method. `scan` EOF and malformed input are `error` and a standalone call fails fast.
 
 ## Tensors and explicit devices
 
@@ -780,7 +787,7 @@ The current implementation includes:
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, transpose views, and autograd/device substrate operations,
-- deterministic `file.Handle` resources with automatic lifetime-bound close independent of GC timing, value-semantic copies, incremental read/write/seek/flush, and optional explicit early `close()`,
+- distinct `file.read` / `file.write` / `file.append` resource types, typed and formatted `.f(T &value)` / `.f("{&x} {T &y}")` reads (atomic multi-field parsing) and `.f(value)` scalar/interpolated writes (no implicit newline), lifetime-bound close, and direct declarations such as `file.read f(path)`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.
@@ -895,7 +902,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.5.0
+Quidra 0.6.0
 >>> int(1) + 2
 3
 >>> int x = 5
@@ -928,8 +935,7 @@ The core C FFI is intentionally narrow and explicit:
 
 ```quidra
 extern int64 c_abs(int64 value) = "llabs"
-print(c_abs(-42))
-print(NL)
+print.line(c_abs(-42))
 ```
 
 Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `func` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `nat32`, `int64`, `nat64`, `real32`, `real64`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit borrows: `const string` and `const bin` parameters are read-only and take a value at the call, while `bin &` is an explicit mutable byte borrow passed as `&storage`. Tensor input uses the same explicit authority model: `const tensor<T>` is a read-only opaque tensor borrow and `tensor<T> &` is a mutable opaque tensor borrow. String/bin borrows lower to a `(data pointer, nat64 byte length)` pair; tensor borrows lower to one opaque handle defined by `quidra/native_extension.h`. Native code must not retain a borrowed pointer or tensor handle after the call. Mutation is permitted only through a mutable borrow and the corresponding native-extension API; tracked tensors deliberately reject raw mutable CPU access so native code cannot bypass autograd silently. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
@@ -957,6 +963,7 @@ quidra lock program.qui
 quidra lock program.qui --check
 quidra package-path
 quidra gpu
+quidra gpu --verbose
 quidra info
 quidra --version
 quidra program.qui
@@ -974,6 +981,10 @@ quidra build program.qui --debug -o program-debug
 quidra debug program.qui -- arg1 arg2
 quidra describe
 ```
+
+`quidra gpu --verbose` and `quidra info` include CPU topology and GPU capability
+metadata, with unavailable fields shown as `unknown`. Device keys identify the
+backend, hardware, software and math mode for persistent device-specific data.
 
 Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
 from `main`, `develop`, or another moving branch. A canonical first-party
@@ -1012,7 +1023,7 @@ unstable global names. They are reserved, always visible, and are not imported.
 Source-file imports stay explicit: quoted targets are source modules and
 unquoted non-standard targets are installed packages.
 
-The reserved standard namespaces are `cli`, `file`, `environment`, `test`, `time`, `gpu`, `autograd`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`. Generic mathematical semantics are provided by the explicit `math` package and therefore require `import math`.
+The reserved standard namespaces are `cli`, `file`, `environment`, `test`, `time`, `gpu`, `autograd`, `reflect`, `random`, `process`, `map`, `distinct`, `json`, `http`, `tensor`. Generic mathematical semantics are provided by the explicit `math` package and therefore require `import math`.
 
 Only referenced standard implementations are linked into a program. The
 namespaces are grouped by semantic role rather than exposed as unrelated global
@@ -1022,7 +1033,7 @@ functions:
 | --- | --- |
 | Tensor execution | `tensor`, `autograd`, `gpu` |
 | Exact numeric extension | `exact` |
-| Structured data | `map`, `set`, `json` |
+| Structured data | `map`, `distinct`, `json` |
 | I/O and host interaction | `file`, `environment`, `process`, `http` |
 | Explicit state and coordination | `random`, `time`; `parallel` blocks |
 | Tooling and program structure | `cli`, `test`, `reflect` |
@@ -1050,14 +1061,17 @@ Quidra Core
 
 Official source packages
 ├── math                mathematical functions, reductions, linear algebra, and numerical algorithms
+├── collections         priority queues, frequency counting, reusable data structures
+├── text                text parsing, CSV and URL query decoding
+├── encoding            binary-to-text encoding and decoding
 ├── nn                  architecture-independent neural-network mechanisms, layers, losses, optimizers, and training semantics
 ├── vision              image codecs, image processing, computer vision
 ├── video               video decoding and video processing
 └── dnn                 concrete deep-neural-network model compositions built on NN and Math
 ```
 
-Core, Math, NN, Vision, Video, and DNN use one lockstep `MAJOR.MINOR.PATCH`
-version. A first-party package release never advances independently of Core.
+Core, Math, Collections, Text, Encoding, NN, Vision, Video, and DNN use one
+lockstep `MAJOR.MINOR.PATCH` version. A first-party package release never advances independently of Core.
 
 These packages use the ordinary package/native-extension system and receive no
 compiler-specific name handling. Their C++/CUDA/vendor-backend implementations

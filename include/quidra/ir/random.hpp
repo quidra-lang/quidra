@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 
@@ -14,13 +15,13 @@
 namespace quidra::ir {
 
 struct RandomGenerator { ValueId out; ValueId seed; };
-struct RandomInt { ValueId out; ValueId generator; ValueId start; ValueId end; std::uint32_t line{}; std::uint32_t column{}; };
+struct RandomInt { ValueId out; ValueId generator; ValueId start; ValueId end; SourcePosition position{}; };
 struct RandomFloat { ValueId out; ValueId generator; };
 struct RandomBool { ValueId out; ValueId generator; };
 
-template <> struct InstructionTraits<RandomGenerator> : InDomain<Domain::random> {};
-template <> struct InstructionTraits<RandomInt> : InDomain<Domain::random> {};
-template <> struct InstructionTraits<RandomFloat> : InDomain<Domain::random> {};
-template <> struct InstructionTraits<RandomBool> : InDomain<Domain::random> {};
+template <> struct InstructionTraits<RandomGenerator> : WithOperands<Domain::random, RandomGenerator> {};
+template <> struct InstructionTraits<RandomInt> : WithOperands<Domain::random, RandomInt> {};
+template <> struct InstructionTraits<RandomFloat> : WithOperands<Domain::random, RandomFloat> {};
+template <> struct InstructionTraits<RandomBool> : WithOperands<Domain::random, RandomBool> {};
 
 } // namespace quidra::ir

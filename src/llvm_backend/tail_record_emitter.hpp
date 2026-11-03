@@ -16,8 +16,8 @@ namespace quidra::llvm_backend {
 class TailRecordEmitter {
 public:
     TailRecordEmitter(llvm_text::LlvmBuilder& builder, TemporaryNames& names,
-                      bool self_depth, std::uint32_t first_site)
-        : builder_(builder), names_(names), self_depth_(self_depth), first_site_(first_site) {}
+                      bool self_depth, std::uint32_t owner)
+        : builder_(builder), names_(names), self_depth_(self_depth), owner_(owner) {}
 
     void record(std::uint32_t site, bool self);
     void normal_return();
@@ -29,7 +29,7 @@ private:
     llvm_text::LlvmBuilder& builder_;
     TemporaryNames& names_;
     bool self_depth_;
-    std::uint32_t first_site_;
+    std::uint32_t owner_;
 };
 
 } // namespace quidra::llvm_backend

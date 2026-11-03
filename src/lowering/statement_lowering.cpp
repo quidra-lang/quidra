@@ -18,6 +18,7 @@ namespace quidra::lowering {
 void StatementLowering::lower_block(
     const std::vector<StmtPtr>& statements,
     const std::function<void(std::size_t)>& before_statement) {
+    lowerer_.statement_sites().register_tree(builder_.function()->name, statements);
     const auto guard = nesting_depth_.statement(
         statements.empty() ? SourceSpan{} : statements.front()->span);
     for (std::size_t i = 0; i < statements.size(); ++i) {
@@ -36,6 +37,8 @@ void StatementLowering::lower_block(
 
 void StatementLowering::lower_statement(const Stmt& s) {
     const auto guard = nesting_depth_.statement(s.span);
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, s)});
     builder_.emit(locator_.locate(s.span, builder_.function()));
     lower_statement_kind(s);
     lowerer_.initialization_flags().after(s);
@@ -60,6 +63,8 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
     // A contextual constant has no storage: each use is its own value.
     if(n.pattern) {
         const auto& expansion=checked_.pattern_expansions.at(&s);
+        lowerer_.statement_sites().register_expansion(builder_.function()->name,
+            lowerer_.statement_sites().current_identity(builder_.function()->name), expansion.bindings);
         bool move=false;ir::ValueId subject=0;
         if(n.reference){auto name=scope_.bind_source_reference(builder_,expansion.subject,expansion.type);builder_.emit(DeclareReference{name,expansion.type});auto address=lowerer_.lower_address(*n.value);builder_.emit(BindReference{name,address});}
         else {subject=lowerer_.lower_into(*n.value,expansion.type);scope_.bind_source_value(expansion.subject,subject);move=lifetime_.expression_owns_result(*n.value) || checked_.fail_fast_expressions.contains(n.value.get());if(move)lifetime_.enter_tuple_move(expansion.subject);}
@@ -79,8 +84,30 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
     if(n.reference){
         const auto ir_name=hoisted?scope_.source_reference(n.name):scope_.bind_source_reference(builder_,n.name,t);
         if(!hoisted) builder_.emit(DeclareReference{ir_name,t,n.is_const});
+        const ShapePlan* plan = nullptr;
+        std::optional<ShapeConstraintLowering::BraceShape> shape;
+        if (t.kind == TypeKind::Tensor && n.declared_type.brace_shape) {
+            if (const auto found = checked_.shape_plans.find(&n.declared_type);
+                found != checked_.shape_plans.end()) {
+                plan = &found->second;
+                shape = shape_constraints_.capture_brace_shape(*plan, s.span);
+            }
+        }
         auto address=n.value ? lowerer_.lower_address(*n.value, !n.is_const) : 0;
         builder_.emit(BindReference{ir_name,address});
+        if (shape && n.value) {
+            const auto value = builder_.fresh();
+            builder_.emit(LoadReference{value, ir_name, t});
+            shape_constraints_.finish_brace_shape(*plan, *shape, value, t.kind, n.name, s.span);
+            shapes_.constrain_tensor(ir_name, shape->extents);
+        } else if (t.kind == TypeKind::Tensor && n.value) {
+            if (const auto* source = std::get_if<NameExpr>(&n.value->data)) {
+                const auto source_name = scope_.is_source_reference(source->name)
+                    ? scope_.source_reference(source->name) : scope_.source_local(source->name);
+                if (const auto* captured = shapes_.tensor_extents(source_name))
+                    shapes_.constrain_tensor(ir_name, *captured);
+            }
+        }
         return;
     }
     const auto ir_name=hoisted?scope_.source_local(n.name):scope_.bind_source_local(builder_,n.name,t);
@@ -220,16 +247,23 @@ void StatementLowering::lower_rebind(const RebindStmt& n) {
                         auto selected=builder_.fresh();builder_.emit(Binary{selected,"AND",mask,bit,word,word});
                         auto zero=builder_.fresh();builder_.emit(ConstantInt{zero,"0",word});
                         auto set=builder_.fresh();builder_.emit(Binary{set,"!=",selected,zero,word,Type::simple(TypeKind::Bool)});
-                        builder_.emit(InitializedCheck{set,InitializedSubject::field,"reference target",static_cast<std::uint32_t>(n.target->span.start.line),static_cast<std::uint32_t>(n.target->span.start.column)});
+                        builder_.emit(InitializedCheck{set,InitializedSubject::field,"reference target",{static_cast<std::uint32_t>(n.target->span.start.line),static_cast<std::uint32_t>(n.target->span.start.column)}});
                     } else {auto child=builder_.fresh();const auto& child_type=info.fields[index].type;builder_.emit(FieldGet{child,parent,index,child_type});parent=child;type=child_type;}
                 }
             }
         }
+        const auto rebind_at=BindingOriginRecorder::site(builder_);
         builder_.emit(BindFieldReference{object,field.index,address,0});
+        ir::analysis::BindingRebindEvent event;event.kind=ir::analysis::BindingRebindEvent::Kind::Field;
+        event.at=rebind_at;event.object=object;event.address=address;event.field=field.index;
+        lowerer_.binding_origins().rebind(*builder_.function(),std::move(event));
         return;
     }
     auto address=lowerer_.lower_address(*n.target);
+    const auto rebind_at=BindingOriginRecorder::site(builder_);
     builder_.emit(BindReference{scope_.source_reference(n.name),address});
+    ir::analysis::BindingRebindEvent event;event.at=rebind_at;event.local=scope_.source_reference(n.name);event.address=address;
+    lowerer_.binding_origins().rebind(*builder_.function(),std::move(event));
 }
 
 void StatementLowering::lower_loop_control(const LoopControlStmt& n) {
@@ -267,6 +301,7 @@ void StatementLowering::lower_return(const Stmt& s, const ReturnStmt& n) {
 }
 
 void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt& n) {
+    for (const auto& binding : n.inline_bindings) lowerer_.lower_statement(*binding);
     const auto residual_is_void=[&](){
         const auto& source=checked_.raw_types.at(n.value.get());
         if(source.kind!=TypeKind::Union) return false;
@@ -288,8 +323,8 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
                                           *hop,abi::ErrorHopKind::fail_fast);
         }
         builder_.emit(FailError{
-            problem,static_cast<std::uint32_t>(s.span.start.line),
-            static_cast<std::uint32_t>(s.span.start.column)});
+            problem,{static_cast<std::uint32_t>(s.span.start.line),
+            static_cast<std::uint32_t>(s.span.start.column)}});
         return;
     }
     if((!displayed_result || residual_is_void()) &&
@@ -304,8 +339,15 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
                           owned,s.span,hop?&*hop:nullptr);
         return;
     }
-    auto value=lowerer_.lower(*n.value);
-    const auto type=type_of(checked_,*n.value);
+    // Displayable REPL expressions keep their error alternative as a value.
+    // The checker marks discarded fallible expressions for fail-fast, but the
+    // current displayed result (and an accepted replayed result) is not discarded.
+    const bool preserve_error_value =
+        displayed_result && checked_.fail_fast_expressions.contains(n.value.get());
+    auto value = preserve_error_value ? lowerer_.lower_at_raw_type(*n.value)
+                                      : lowerer_.lower(*n.value);
+    const auto type = preserve_error_value ? checked_.raw_types.at(n.value.get())
+                                           : type_of(checked_, *n.value);
     if(n.value.get()==replay_.displayed_expression() && type.kind!=TypeKind::Void && type.kind!=TypeKind::Never){
         std::vector<std::string> initialized_paths;
         if (const auto it = checked_.class_expr_initialized_paths.find(n.value.get());

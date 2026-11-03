@@ -1,0 +1,6 @@
+// A fresh tensor result and a view of live storage exercise distinct donor
+// decisions. Reading the original afterward keeps its storage observable.
+tensor<real32> source = tensor.ones<real32>([2, 2])
+tensor<real32> view = source.transpose(0, 1)
+tensor<real32> result = (source + source) * view
+print("{source[0, 0].item()} {view[1, 1].item()} {result[1, 1].item()}{NL}")

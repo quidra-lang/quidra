@@ -22,10 +22,10 @@ struct Release { ValueId value; Type type; };
 struct Pin { ValueId value; };
 struct Unpin { ValueId value; };
 
-template <> struct InstructionTraits<Clone> : InDomain<Domain::lifetime> {};
-template <> struct InstructionTraits<Retain> : InDomain<Domain::lifetime> {};
-template <> struct InstructionTraits<Release> : InDomain<Domain::lifetime> {};
-template <> struct InstructionTraits<Pin> : InDomain<Domain::lifetime> {};
-template <> struct InstructionTraits<Unpin> : InDomain<Domain::lifetime> {};
+template <> struct InstructionTraits<Clone> : WithOperands<Domain::lifetime, Clone> {};
+template <> struct InstructionTraits<Retain> : WithOperands<Domain::lifetime, Retain> {};
+template <> struct InstructionTraits<Release> : WithOperands<Domain::lifetime, Release> {};
+template <> struct InstructionTraits<Pin> : WithOperands<Domain::lifetime, Pin> {};
+template <> struct InstructionTraits<Unpin> : WithOperands<Domain::lifetime, Unpin> {};
 
 } // namespace quidra::ir

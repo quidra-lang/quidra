@@ -14,15 +14,23 @@
 
 namespace quidra::ir {
 
+// Runtime/debug attribution only; optimizer decisions must not inspect it.
+struct SourcePosition { std::uint32_t line{}; std::uint32_t column{}; };
+
 struct SourceLocation {
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
     std::string source_file;
     std::string source_revision;
     std::string node_id;
     std::string node_kind;
 };
 
-template <> struct InstructionTraits<SourceLocation> : InDomain<Domain::debug> {};
+// Semantic boundary of one user statement, scoped to its function.
+// Inlining must remap the ordinal per call site; debug attribution is separate.
+struct StatementBoundary { std::uint64_t identity{}; };
+
+template <> struct InstructionTraits<StatementBoundary> : WithOperands<Domain::debug, StatementBoundary> {};
+
+template <> struct InstructionTraits<SourceLocation> : WithOperands<Domain::debug, SourceLocation> {};
 
 } // namespace quidra::ir

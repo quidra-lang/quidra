@@ -13,7 +13,7 @@ inline std::optional<long long> integer(
     const Expr& expression,
     const std::unordered_map<std::string, long long>* names = nullptr) {
     if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
-        if (literal->value >
+        if (!literal->fits_u64 || literal->value >
             static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
             return std::nullopt;
         }

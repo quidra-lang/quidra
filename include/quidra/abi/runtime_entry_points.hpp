@@ -37,6 +37,8 @@ extern "C" char* quidra_format_float(double value);
 extern "C" char* quidra_half_format(
     unsigned int bits, int format, int integer_width, int fractional, int significant, int zero);
 extern "C" bool quidra_half_parse(const char* text, int format, unsigned short* out);
+extern "C" unsigned int quidra_real16_from_float64(double value);
+extern "C" float quidra_real16_to_float32(unsigned int bits);
 extern "C" unsigned int quidra_real16b_from_float64(double value);
 extern "C" unsigned int quidra_real16b_from_int64(long long value);
 extern "C" unsigned int quidra_real16b_from_uint64(unsigned long long value);
@@ -49,6 +51,9 @@ extern "C" char* quidra_format_number(
     double value, int integer_width, int fractional, int significant, int zero);
 extern "C" char* quidra_format_number32(
     float value, int integer_width, int fractional, int significant, int zero);
+// Inserts grouping separators into the integer part of an already formatted number.
+extern "C" char* quidra_format_group_digits(const char* text, int group_size);
+extern "C" char* quidra_format_radix_text(const char* decimal, int base, bool uppercase);
 extern "C" char* quidra_int_format(
     long long value, int integer_width, int fractional, int significant, int zero);
 extern "C" void* quidra_managed_alloc(unsigned long long bytes);
@@ -84,8 +89,11 @@ extern "C" void* quidra_array_sorted(
     void* raw, int kind, unsigned long long raw_stride, unsigned long long line,
     unsigned long long column);
 // The same in descending order (sorted(descending = true)).
-extern "C" void* quidra_array_sorted_desc(
-    void* raw, int kind, unsigned long long raw_stride, unsigned long long line,
+extern "C" void* quidra_array_sort_indices(
+    void* source, void* prior, void* key, int kind, unsigned long long stride,
+    bool descending, unsigned long long line, unsigned long long column);
+extern "C" void* quidra_array_sorted_desc(void* raw, int kind,
+ unsigned long long raw_stride, unsigned long long line,
     unsigned long long column);
 extern "C" bool quidra_numeric_cast_element_fits(
     const void* source, int source_dtype, int target_dtype, unsigned long long line,
@@ -154,6 +162,11 @@ extern "C" bool quidra_tensor_is_tracked(void* raw);
 extern "C" bool quidra_tensor_has_grad(void* raw);
 extern "C" void quidra_tensor_clear_grad(
     void* raw, unsigned long long line, unsigned long long column);
+// Select all true positions from a same-shaped tensor<bool> mask,
+// preserving logical row-major order and the source's gradient.
+extern "C" void* quidra_tensor_mask_select(
+    void* source, void* mask, unsigned long long line,
+    unsigned long long column);
 extern "C" void* quidra_tensor_gather(
     void* raw, void* indices_array, void* shape_array, unsigned long long line,
     unsigned long long column);
@@ -179,9 +192,17 @@ extern "C" void* quidra_tensor_unary(
 extern "C" void* quidra_tensor_compare(
     void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column);
+// Compiler-proven compatibility only; all other Tensor validations remain.
+extern "C" void* quidra_tensor_compare_proven(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column);
 extern "C" bool quidra_tensor_bool_reduce(
     void* raw, bool all, unsigned long long line, unsigned long long column);
 extern "C" void* quidra_tensor_binary(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column);
+// Compiler-proven compatibility only; all other Tensor validations remain.
+extern "C" void* quidra_tensor_binary_proven(
     void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column);
 extern "C" void* quidra_tensor_index(
@@ -218,6 +239,7 @@ extern "C" void quidra_slice_assignment_check(long long count, long long given,
                                               unsigned long long line,
                                               unsigned long long column);
 extern "C" char* quidra_string_trim(const char* text);
+extern "C" char* quidra_string_ascii_case(const char* text, bool upper);
 extern "C" void* quidra_string_split_iter_begin(const char* text, const char* separator);
 extern "C" void* quidra_string_split_iter_begin_move(const char* text, const char* separator);
 extern "C" char* quidra_string_split_iter_next(void* raw);

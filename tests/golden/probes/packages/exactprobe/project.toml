@@ -6,7 +6,7 @@ version = "0.1.0"
 repository = "https://example.invalid/exactprobe"
 
 [requires]
-quidra = ">=0.5.0 <0.6.0"
+quidra = ">=0.6.0 <0.7.0"
 abi = 1
 
 [native.source]

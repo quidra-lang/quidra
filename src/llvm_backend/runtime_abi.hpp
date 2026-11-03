@@ -193,6 +193,8 @@ inline constexpr LlvmCallee sorted =
     llvm_callee<decltype(&quidra_array_sorted)>("quidra_array_sorted");
 inline constexpr LlvmCallee sorted_desc =
     llvm_callee<decltype(&quidra_array_sorted_desc)>("quidra_array_sorted_desc");
+inline constexpr LlvmCallee sort_indices =
+    llvm_callee<decltype(&quidra_array_sort_indices)>("quidra_array_sort_indices");
 } // namespace array
 
 // Bins (bit strings).
@@ -242,6 +244,7 @@ inline constexpr LlvmCallee slice =
 inline constexpr LlvmCallee slice_stepped =
     llvm_callee<decltype(&quidra_string_slice_stepped)>("quidra_string_slice_stepped");
 inline constexpr LlvmCallee trim = llvm_callee<decltype(&quidra_string_trim)>("quidra_string_trim");
+inline constexpr LlvmCallee ascii_case = llvm_callee<decltype(&quidra_string_ascii_case)>("quidra_string_ascii_case");
 inline constexpr LlvmCallee split =
     llvm_callee<decltype(&quidra_string_split)>("quidra_string_split");
 inline constexpr LlvmCallee split_iter_begin =
@@ -308,6 +311,10 @@ inline constexpr LlvmCallee format_number =
     llvm_callee<decltype(&quidra_format_number)>("quidra_format_number");
 inline constexpr LlvmCallee format_number32 =
     llvm_callee<decltype(&quidra_format_number32)>("quidra_format_number32");
+inline constexpr LlvmCallee group_digits =
+    llvm_callee<decltype(&quidra_format_group_digits)>("quidra_format_group_digits");
+inline constexpr LlvmCallee radix_text =
+    llvm_callee<decltype(&quidra_format_radix_text)>("quidra_format_radix_text");
 inline constexpr LlvmCallee integer_pow_signed =
     llvm_callee<decltype(&quidra_integer_pow_signed)>("quidra_integer_pow_signed");
 inline constexpr LlvmCallee integer_pow_unsigned =
@@ -547,6 +554,10 @@ inline constexpr LlvmCallee text =
     llvm_callee<decltype(&quidra_half_format)>("quidra_half_format");
 inline constexpr LlvmCallee parse =
     llvm_callee<decltype(&quidra_half_parse)>("quidra_half_parse");
+inline constexpr LlvmCallee real16_from_float64 =
+    llvm_callee<decltype(&quidra_real16_from_float64)>("quidra_real16_from_float64");
+inline constexpr LlvmCallee real16_to_float32 =
+    llvm_callee<decltype(&quidra_real16_to_float32)>("quidra_real16_to_float32");
 inline constexpr LlvmCallee real16b_from_float64 =
     llvm_callee<decltype(&quidra_real16b_from_float64)>("quidra_real16b_from_float64");
 inline constexpr LlvmCallee real16b_from_int64 =
@@ -622,6 +633,8 @@ inline constexpr LlvmCallee reshape =
     llvm_callee<decltype(&quidra_tensor_reshape)>("quidra_tensor_reshape");
 inline constexpr LlvmCallee gather =
     llvm_callee<decltype(&quidra_tensor_gather)>("quidra_tensor_gather");
+inline constexpr LlvmCallee mask_select =
+    llvm_callee<decltype(&quidra_tensor_mask_select)>("quidra_tensor_mask_select");
 inline constexpr LlvmCallee scatter =
     llvm_callee<decltype(&quidra_tensor_scatter)>("quidra_tensor_scatter");
 inline constexpr LlvmCallee transpose =
@@ -669,8 +682,12 @@ inline constexpr LlvmCallee unary =
     llvm_callee<decltype(&quidra_tensor_unary)>("quidra_tensor_unary");
 inline constexpr LlvmCallee binary =
     llvm_callee<decltype(&quidra_tensor_binary)>("quidra_tensor_binary");
+inline constexpr LlvmCallee binary_proven =
+    llvm_callee<decltype(&quidra_tensor_binary_proven)>("quidra_tensor_binary_proven");
 inline constexpr LlvmCallee compare =
     llvm_callee<decltype(&quidra_tensor_compare)>("quidra_tensor_compare");
+inline constexpr LlvmCallee compare_proven =
+    llvm_callee<decltype(&quidra_tensor_compare_proven)>("quidra_tensor_compare_proven");
 inline constexpr LlvmCallee bool_reduce =
     llvm_callee<decltype(&quidra_tensor_bool_reduce)>("quidra_tensor_bool_reduce");
 inline constexpr LlvmCallee index =
@@ -926,10 +943,13 @@ struct RuntimeHandleClass {
     const LlvmCallee* clone;
 };
 
-inline constexpr std::array<RuntimeHandleClass, 4> runtime_handle_classes{{
+inline constexpr std::array<RuntimeHandleClass, 7> runtime_handle_classes{{
     {standard_class::json_value, &json::drop, nullptr},
     {standard_class::http_response, &http::response_drop, &http::response_clone},
     {standard_class::file_handle, &file::handle_drop, &file::handle_clone},
+    {standard_class::file_read, &file::handle_drop, &file::handle_clone},
+    {standard_class::file_write, &file::handle_drop, &file::handle_clone},
+    {standard_class::file_append, &file::handle_drop, &file::handle_clone},
     {standard_class::autograd_target, &autograd::target_drop, &autograd::target_clone},
 }};
 

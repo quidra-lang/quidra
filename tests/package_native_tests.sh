@@ -1046,7 +1046,7 @@ cat > "$TMP/packages/invalid_extension/quidra.package" <<'MANIFEST'
 name = invalid_extension
 version = 0.1.0
 repository = https://example.invalid/invalid_extension
-requires.quidra = >=0.5.0 <0.6.0
+requires.quidra = >=0.6.0 <0.7.0
 MANIFEST
 cat > "$TMP/packages/invalid_extension/project.toml" <<'TOML'
 [package]
@@ -1057,7 +1057,7 @@ version = "0.1.0"
 repository = "https://example.invalid/invalid_extension"
 
 [requires]
-quidra = ">=0.5.0 <0.6.0"
+quidra = ">=0.6.0 <0.7.0"
 abi = 1
 
 [compiler.extension]
@@ -1217,7 +1217,7 @@ cat > "$TMP/packages/policy_extension/quidra.package" <<'MANIFEST'
 name = policy_extension
 version = 0.1.0
 repository = https://example.invalid/policy_extension
-requires.quidra = >=0.5.0 <0.6.0
+requires.quidra = >=0.6.0 <0.7.0
 MANIFEST
 cat > "$TMP/packages/policy_extension/project.toml" <<'TOML'
 [package]
@@ -1228,7 +1228,7 @@ version = "0.1.0"
 repository = "https://example.invalid/policy_extension"
 
 [requires]
-quidra = ">=0.5.0 <0.6.0"
+quidra = ">=0.6.0 <0.7.0"
 abi = 1
 
 [compiler.extension]

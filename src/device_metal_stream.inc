@@ -114,6 +114,115 @@ enum class MetalHold : std::uint8_t {
     CommandBuffer, // the package holds Core's open command buffer: no Core work
 };
 
+struct MetalObservedPass {
+    observation::Source source;
+    std::uint64_t begin{},end{},thread{},bytes{};
+    std::string kernel;
+    detail::EncoderAttribution attribution;
+    bool known{};
+};
+struct MetalObservation {
+    std::int32_t device{};
+    std::shared_ptr<timeline::metal::Batch> batch;
+    observation::Source source;
+    std::uint64_t commit_ns{},thread{};
+    std::uint32_t step{},ops{};
+    std::uint64_t bytes{};
+    std::vector<MetalObservedPass> passes;
+    std::size_t current_compute{std::numeric_limits<std::size_t>::max()};
+    void gap(std::uint64_t serial,std::uint32_t step_id,const char* reason,
+             bool compute=true,bool additional=false,bool timing_incomplete=true) noexcept {
+        timeline::note_gpu_sampling_gap({device,serial,step_id,reason,compute,additional,timing_incomplete});
+    }
+    static void stage(void* context,const timeline::metal::StageResult& result) noexcept {
+        auto& observed=*static_cast<MetalObservation*>(context);
+        if(result.gap!=timeline::metal::Gap::None)
+            observed.gap(result.interval.serial,result.interval.step,
+                         timeline::metal::name(result.gap),result.compute,result.additional_encoder);
+        profile::ProfileEvent event;
+        event.kind=result.compute ? profile::ProfileEvent::Kind::Dispatch : profile::ProfileEvent::Kind::Copy;
+        event.device=observed.device;
+        event.gpu_begin_ns=result.interval.gpu_begin_ns; event.gpu_end_ns=result.interval.gpu_end_ns;
+        if(result.pass_index<observed.passes.size() && observed.passes[result.pass_index].known) {
+            const auto& pass=observed.passes[result.pass_index];
+            event.site=pass.source.site(); event.host_begin_ns=pass.begin; event.host_end_ns=pass.end;
+            event.host_thread=pass.thread; event.bytes=pass.bytes;
+            const auto owner=pass.attribution.owner();
+            event.owner=owner==detail::EncoderAttribution::Owner::Mixed ? "mixed"
+                : owner==detail::EncoderAttribution::Owner::Package ? "package" : "core";
+            event.name=result.compute ? (owner==detail::EncoderAttribution::Owner::Mixed ? "metal mixed encoder"
+                : owner==detail::EncoderAttribution::Owner::Package ? "package encoder" : "metal compute encoder") : "metal blit encoder";
+            event.kernel=pass.kernel.empty() ? event.name : pass.kernel.c_str();
+            if(result.compute) {
+                if(!pass.attribution.source_available()) event.site={"","",0,0};
+                if(const char* reason=pass.attribution.gap_reason())
+                    observed.gap(result.interval.serial,result.interval.step,reason,true,result.additional_encoder,false);
+                else if(pass.attribution.kernel() && pass.kernel.empty())
+                    observed.gap(result.interval.serial,result.interval.step,"kernel_label_unavailable",true,result.additional_encoder,false);
+            }
+        } else {
+            event.site={"","",0,0}; event.host_thread=observed.thread;
+            event.owner="core"; event.name=event.kernel="metal encoder";
+            observed.gap(result.interval.serial,result.interval.step,"provenance_unavailable",result.compute,result.additional_encoder,false);
+        }
+        profile::record(event);
+    }
+    void begin_pass(bool compute,bool package) noexcept {
+        if(!batch) return;
+        const auto stats=batch->summary();
+        const auto count=stats.compute_encoders+stats.blit_encoders;
+        if(!count) return;
+        const auto index=static_cast<std::size_t>(count-1);
+        try {
+            if(passes.size()<=index) passes.resize(index+1);
+            auto& pass=passes[index];
+            pass.known=pass.source.capture(); pass.begin=platform::monotonic_ns();
+            pass.thread=profile::current_thread();
+            if(package) pass.attribution.package_open();
+            if(compute) current_compute=index;
+        } catch (...) { gap(0,timeline::current_step(),"provenance_storage_failed",compute,false,false); }
+    }
+    void end_compute() noexcept {
+        if(current_compute<passes.size()) passes[current_compute].end=platform::monotonic_ns();
+        current_compute=std::numeric_limits<std::size_t>::max();
+    }
+    void complete(id<MTLCommandBuffer> command,std::uint64_t serial) noexcept {
+        @autoreleasepool {
+            const auto seconds=[](double value) noexcept -> std::uint64_t {
+                if(!std::isfinite(value) || value<=0 || value>=static_cast<double>(std::numeric_limits<std::uint64_t>::max())/1e9)
+                    return 0;
+                return static_cast<std::uint64_t>(value*1e9);
+            };
+            const auto ordered=[](std::uint64_t& begin,std::uint64_t& end) noexcept {
+                if(!begin || end<begin) begin=end=0;
+            };
+            std::uint64_t scheduled_begin{},scheduled_end{},gpu_begin{},gpu_end{};
+            if(@available(macOS 10.15,*)) {
+                scheduled_begin=seconds([command kernelStartTime]); scheduled_end=seconds([command kernelEndTime]);
+                gpu_begin=seconds([command GPUStartTime]); gpu_end=seconds([command GPUEndTime]);
+            } else gap(serial,step,"command_buffer_timestamps_unsupported");
+            ordered(scheduled_begin,scheduled_end); ordered(gpu_begin,gpu_end);
+            timeline::note_gpu({device,serial,step,commit_ns,scheduled_begin,scheduled_end,gpu_begin,gpu_end,ops,bytes,source.site()});
+            profile::ProfileEvent event;
+            event.kind=profile::ProfileEvent::Kind::CommandBuffer; event.device=device; event.site=source.site();
+            event.host_begin_ns=commit_ns; event.host_end_ns=commit_ns;
+            event.gpu_begin_ns=gpu_begin; event.gpu_end_ns=gpu_end;
+            event.host_thread=thread; event.bytes=bytes; event.owner="core"; event.name=event.kernel="metal command buffer";
+            profile::record(event);
+            if(batch) {
+                const auto stats=batch->complete((void*)command,serial);
+                timeline::note_gpu_sampling({device,serial,timeline::metal::name(stats.setup_gap),
+                    stats.sample_buffer_allocations,stats.compute_encoders,stats.blit_encoders,
+                    stats.sampled_passes,stats.additional_compute_encoders,stats.calibration_queries,
+                    stats.calibration_host_ns,stats.before.cpu_ns,stats.before.gpu_ticks,
+                    stats.after.cpu_ns,stats.after.gpu_ticks,stats.resolved_intervals,stats.missing_intervals});
+                if(stats.gaps[static_cast<std::size_t>(timeline::metal::Gap::StorageFailed)])
+                    gap(serial,step,"sample_storage_failed");
+            } else if(ops) gap(serial,step,"sampling_unavailable");
+        }
+    }
+};
+
 struct MetalStream {
     // Encoding state. Recursive: a package hold keeps it across the
     // package's own calls back into Core on the same thread.
@@ -127,6 +236,12 @@ struct MetalStream {
     std::uint32_t ops{};              // dispatches/copies/fills in `open`
     std::uint64_t bytes{};            // bytes touched by them (estimate)
     std::uint64_t opened_ns{};
+    std::shared_ptr<timeline::metal::Sampler> observer_sampler;
+    std::shared_ptr<MetalObservation> observation;
+    bool observation_reopen{};
+    profile::metal::CommandToken capture_token;
+    std::uint64_t capture_first_step{},capture_last_step{};
+    bool capture_extra_commit{};
     // Serial `open` receives at commit. Written under `mutex`; read without
     // it when a buffer is released (see metal_pool_give).
     std::atomic<std::uint64_t> next_serial{1};
@@ -337,6 +452,7 @@ void metal_drain_completions(MetalStream& stream) {
         return;
     counters::add(counters::Id::PackageCompletionWaits); // qcount
     std::unique_lock lock(stream.done_mutex);
+    observation::Scope observed(observation::Kind::Wait,stream.global_index,"metal package completions",counters::WaitReason::Status);
     stream.done_cv.wait(lock, [&] {
         return stream.completion_batches_done.load(std::memory_order_acquire) >=
                target;
@@ -408,8 +524,19 @@ void metal_command_completed(MetalStream* stream, std::uint64_t serial,
 void metal_submit_locked(MetalStream& stream, id<MTLCommandBuffer> command,
                          std::vector<MetalCompletion> completions,
                          runtime_parallel::detail::DeferredTicket ticket={},
-                         std::optional<runtime::ReportSite> site=std::nullopt) {
+                         std::optional<runtime::ReportSite> site=std::nullopt,
+                         std::shared_ptr<MetalObservation> observed={},
+                         profile::metal::CommandToken capture_token={},
+                         std::uint64_t first_capture_step=0,std::uint64_t last_capture_step=0,
+                         bool capture_extra_commit=false) {
     const auto serial = stream.next_serial.fetch_add(1, std::memory_order_acq_rel);
+    if(!observed && observation::enabled()) try {
+        observed=std::make_shared<MetalObservation>(); observed->device=stream.global_index;
+        observed->source.capture(); observed->thread=profile::current_thread();
+    } catch (...) { timeline::note_gpu_sampling_gap({stream.global_index,serial,timeline::current_step(),"observation_storage_failed",false,false}); }
+    if(observed) {
+        observed->commit_ns=platform::monotonic_ns(); observed->step=timeline::current_step();
+    }
     {
         std::lock_guard lock(stream.done_mutex);
         MetalInFlight entry;
@@ -422,14 +549,24 @@ void metal_submit_locked(MetalStream& stream, id<MTLCommandBuffer> command,
     }
     MetalStream* owner = &stream;
     [command addCompletedHandler:^(id<MTLCommandBuffer> completed) {
+        if(observed) observed->complete(completed,serial);
         metal_command_completed(owner, serial, completed);
     }];
     [command commit];
+    if(profile::capture_requested()) if(auto* capture=metal_capture_created.load(std::memory_order_acquire)) {
+        if(capture_token && capture_token.serial==serial) {
+            if(!capture->command_committed(capture_token,first_capture_step,last_capture_step,capture_extra_commit) && capture_extra_commit)
+                capture->note_edge({true,false,false,false,1,0});
+        } else if(capture_extra_commit) capture->note_edge({true,false,false,false,1,0});
+        if(capture_token && capture_token.serial!=serial) capture->note_edge({false,false,false,false,0,1});
+        note_metal_capture(capture);
+    }
 }
 
 void metal_end_encoder_locked(MetalStream& stream) {
     if (!stream.encoder) return;
     [stream.encoder endEncoding];
+    if(stream.observation) stream.observation->end_compute();
     [stream.encoder release];
     stream.encoder = nil;
 }
@@ -441,25 +578,40 @@ void metal_commit_locked(MetalStream& stream) {
     metal_end_encoder_locked(stream);
     id<MTLCommandBuffer> command = stream.open;
     stream.open = nil;
+    auto observed=std::move(stream.observation);
+    if(observed) { observed->ops=stream.ops; observed->bytes=stream.bytes; }
+    stream.observation_reopen=false;
     stream.ops = 0;
     stream.bytes = 0;
     auto completions = std::move(stream.open_completions);
     stream.open_completions.clear();
     counters::add(counters::Id::MetalCommandBuffers); // qcount
+    const auto capture_token=stream.capture_token;
+    const auto first_step=stream.capture_first_step,last_step=stream.capture_last_step;
+    const bool capture_extra_commit=stream.capture_extra_commit;
+    if(profile::capture_requested()) { stream.capture_token={}; stream.capture_extra_commit=false; }
     metal_submit_locked(stream, command, std::move(completions),
-                        std::move(stream.open_ticket),std::exchange(stream.open_site,std::nullopt));
+                        std::move(stream.open_ticket),std::exchange(stream.open_site,std::nullopt),std::move(observed),
+                        capture_token,first_step,last_step,capture_extra_commit);
 }
 
 // An empty command buffer committed after package-committed work, so a wait
 // on it (or a completion attached to it) covers that work too.
 bool metal_commit_marker_locked(MetalStream& stream, std::string& error,
                                 std::vector<MetalCompletion> completions = {}) {
+    profile::metal::CommandToken capture_token;
+    const bool capturing=profile::capture_requested();
+    const auto capture_step=capturing ? profile::capture_current_step() : 0;
+    auto* capture=capturing ? metal_capture_controller() : nullptr;
+    if(capture) capture_token=metal_capture_command(capture,{capture_step,stream.next_serial.load(std::memory_order_relaxed),
+        stream.global_index,(void*)stream.device,{!stream.open,stream.hold!=MetalHold::None,false,stream.package_lent,0,0}});
     id<MTLCommandBuffer> marker = [stream.queue commandBuffer];
     if (!marker) {
         error = "Metal synchronization command creation failed";
         return false;
     }
     [marker retain];
+    if(capture && capture_token) capture->command_created(capture_token);
     counters::add(counters::Id::MetalMarkerBuffers); // qcount
     runtime_parallel::detail::DeferredTicket ticket;
     std::optional<runtime::ReportSite> site;
@@ -467,7 +619,7 @@ bool metal_commit_marker_locked(MetalStream& stream, std::string& error,
         ticket=owner->enqueue(stream.global_index,stream.next_serial.load(std::memory_order_relaxed));
         site=runtime::report_site(0,0,runtime::current_user_statement(),true);
     }
-    metal_submit_locked(stream,marker,std::move(completions),std::move(ticket),site);
+    metal_submit_locked(stream,marker,std::move(completions),std::move(ticket),site,{},capture_token,capture_step,capture_step);
     return true;
 }
 
@@ -498,6 +650,8 @@ void metal_discard_open_locked(MetalStream& stream) {
     if(stream.open_ticket) stream.open_ticket.complete(runtime_parallel::detail::DeferredFailure{
         "Metal work discarded after a package encode scope violation",{},false,{},{},stream.open_site});
     stream.open_site.reset();
+    stream.observation.reset(); stream.observation_reopen=false;
+    if(profile::capture_requested()) { stream.capture_token={}; stream.capture_extra_commit=false; }
     stream.encoder = nil;
     stream.open = nil;
     stream.ops = 0;
@@ -515,18 +669,44 @@ void metal_align_node_locked(MetalStream& stream) {
 }
 bool metal_open_locked(MetalStream& stream, std::string& error) {
     if(stream.hold==MetalHold::None) metal_align_node_locked(stream);
-    if (stream.open) return true;
+    const bool capturing=profile::capture_requested();
+    if (stream.open) {
+        if(capturing) stream.capture_last_step=profile::capture_current_step();
+        return true;
+    }
+    auto* capture=capturing ? metal_capture_controller() : nullptr;
+    const auto capture_step=capturing ? profile::capture_current_step() : 0;
+    profile::metal::CommandToken capture_token;
+    if(capture) capture_token=metal_capture_command(capture,{capture_step,stream.next_serial.load(std::memory_order_relaxed),
+        stream.global_index,(void*)stream.device,{true,stream.hold!=MetalHold::None,false,stream.package_lent,0,0}});
     id<MTLCommandBuffer> command = [stream.queue commandBuffer];
     if (!command) {
         error = "Metal command buffer creation failed";
         return false;
     }
     stream.open = [command retain];
+    if(capturing) {
+        stream.capture_token=capture_token;
+        stream.capture_first_step=stream.capture_last_step=capture_step;
+        if(capture && capture_token) capture->command_created(capture_token);
+        note_metal_capture(capture);
+    }
     if(auto owner=runtime_parallel::detail::deferred_node()) {
         stream.open_ticket=owner->enqueue(stream.global_index,stream.next_serial.load(std::memory_order_relaxed));
         stream.open_site=runtime::report_site(0,0,runtime::current_user_statement(),true);
     }
     stream.opened_ns = metal_now_ns();
+    if(observation::enabled()) {
+        try {
+            auto observed=std::make_shared<MetalObservation>(); observed->device=stream.global_index;
+            observed->source.capture(); observed->thread=profile::current_thread();
+            if(!stream.observer_sampler)
+                stream.observer_sampler=timeline::metal::make_sampler((void*)stream.device,stream.global_index).sampler;
+            if(stream.observer_sampler)
+                observed->batch=stream.observer_sampler->begin_command((void*)command,2048,MetalObservation::stage,observed.get()).batch;
+            stream.observation=std::move(observed);
+        } catch (...) { timeline::note_gpu_sampling_gap({stream.global_index,stream.next_serial.load(std::memory_order_relaxed),timeline::current_step(),"observation_storage_failed",true,false}); }
+    }
     return true;
 }
 
@@ -539,14 +719,26 @@ id<MTLComputeCommandEncoder> metal_compute_encoder_locked(
     if (core_work && metal_scope_refuses_locked(stream, "a Core compute kernel", error))
         return nil;
     if (!metal_open_locked(stream, error)) return nil;
-    if (stream.encoder) return stream.encoder;
-    id<MTLComputeCommandEncoder> encoder = [stream.open computeCommandEncoder];
+    if (stream.encoder) {
+        if(!core_work && stream.observation && stream.observation->current_compute<stream.observation->passes.size()) {
+            auto& pass=stream.observation->passes[stream.observation->current_compute];
+            pass.attribution.package_open();
+            pass.kernel.clear();
+            if(pass.attribution.source_available()) pass.known=pass.source.capture();
+        }
+        return stream.encoder;
+    }
+    id<MTLComputeCommandEncoder> encoder = stream.observation && stream.observation->batch
+        ? (id<MTLComputeCommandEncoder>)stream.observation->batch->begin_compute((void*)stream.open,timeline::current_step(),stream.observation_reopen)
+        : [stream.open computeCommandEncoder];
     if (!encoder) {
         error = "Metal compute command creation failed";
         return nil;
     }
     counters::add(counters::Id::MetalComputeEncoders); // qcount
     stream.encoder = [encoder retain];
+    stream.observation_reopen=false;
+    if(stream.observation) stream.observation->begin_pass(true,!core_work);
     return stream.encoder;
 }
 
@@ -557,18 +749,28 @@ id<MTLBlitCommandEncoder> metal_blit_encoder_locked(
     if (metal_scope_refuses_locked(stream, "a Core blit", error)) return nil;
     if (!metal_open_locked(stream, error)) return nil;
     metal_end_encoder_locked(stream);
-    id<MTLBlitCommandEncoder> encoder = [stream.open blitCommandEncoder];
+    stream.observation_reopen=false;
+    id<MTLBlitCommandEncoder> encoder = stream.observation && stream.observation->batch
+        ? (id<MTLBlitCommandEncoder>)stream.observation->batch->begin_blit((void*)stream.open,timeline::current_step())
+        : [stream.open blitCommandEncoder];
     if (!encoder) {
         error = "Metal copy command creation failed";
         return nil;
     }
     counters::add(counters::Id::MetalBlitEncoders); // qcount
+    if(stream.observation) stream.observation->begin_pass(false,false);
     return encoder;
 }
 
 // Called after one unit of work was appended to the open command buffer.
 void metal_note_work_locked(MetalStream& stream, std::uint32_t ops,
                             std::uint64_t bytes) {
+    if(stream.observation && !stream.observation->passes.empty()) {
+        auto& pass=stream.observation->passes.back();
+        pass.bytes+=bytes;
+        if(!stream.encoder && pass.end==0) pass.end=platform::monotonic_ns();
+    }
+    if(profile::capture_requested()) stream.capture_last_step=profile::capture_current_step();
     stream.ops += ops;
     stream.bytes += bytes;
     stream.work_epoch.fetch_add(1, std::memory_order_acq_rel);
@@ -588,6 +790,8 @@ void metal_note_work_locked(MetalStream& stream, std::uint32_t ops,
 }
 
 std::vector<MetalStream*> create_metal_streams() {
+    const bool observing=observation::enabled();
+    if(observing) timeline::note_point(timeline::Point::DeviceInitBegin);
     std::vector<MetalStream*> streams;
     @autoreleasepool {
         NSArray<id<MTLDevice>>* metal_devices = MTLCopyAllDevices();
@@ -606,6 +810,7 @@ std::vector<MetalStream*> create_metal_streams() {
         if (info.backend == Backend::Metal && info.backend_index >= 0 &&
             static_cast<std::size_t>(info.backend_index) < streams.size())
             streams[static_cast<std::size_t>(info.backend_index)]->global_index = info.index;
+    if(observing) timeline::note_point(timeline::Point::DeviceInitEnd);
     return streams;
 }
 
@@ -658,11 +863,13 @@ bool metal_peek_async_error(MetalStream& stream, std::string& error) {
     return false;
 }
 
-void metal_wait_serial(MetalStream& stream, std::uint64_t target) {
+void metal_wait_serial(MetalStream& stream, std::uint64_t target,
+                       counters::WaitReason reason=counters::WaitReason::Sync) {
     if (target == 0 ||
         stream.completed_serial.load(std::memory_order_acquire) >= target)
         return;
     std::unique_lock lock(stream.done_mutex);
+    observation::Scope observed(observation::Kind::Wait,stream.global_index,"metal serial",reason);
     stream.done_cv.wait(lock, [&] {
         return stream.completed_serial.load(std::memory_order_acquire) >= target;
     });
@@ -691,7 +898,7 @@ bool metal_stream_synchronize(MetalStream& stream, counters::WaitReason reason,
     }
     if (stream.completed_serial.load(std::memory_order_acquire) < target) {
         counters::note_wait(reason); // qcount
-        metal_wait_serial(stream, target);
+        metal_wait_serial(stream, target,reason);
     }
     metal_drain_completions(stream);
     if (covered) *covered = target;
@@ -758,10 +965,12 @@ void metal_lend_to_package(MetalStream& stream, const Buffer* buffer) {
         metal_commit_locked(stream);
     }
     stream.package_lent = true;
+    if(observation::enabled()) timeline::note_gpu_sampling_gap({stream.global_index,0,timeline::current_step(),"external_package_submission",true,false});
 }
 
 MetalStreamTeardown::~MetalStreamTeardown() {
     if (!streams) return;
+    timeline::note_point(timeline::Point::ExitBegin);
     // A hold the exiting thread still has would refuse the synchronization
     // below; it is a protocol violation of its own.
     check_package_hold_returned("the program exited");

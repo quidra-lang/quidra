@@ -55,7 +55,7 @@ int | error parse_port(string text)
     return try int.parse(text)
 
 int | error read_port(string path)
-    string text = try file.read(path)
+    string text = try string.from_utf8(try file.read_bin(path))
     return try parse_port(text)
 
 int | error load_settings(string path)
@@ -135,7 +135,7 @@ TXT
 # after. (A file without read permission: skipped when running as root.)
 program mixed <<'QUI'
 string | error read_file(string path)
-    return try file.read(path)
+    return try string.from_utf8(try file.read_bin(path))
 
 string | error read_dataset(string path)
     string text = try read_file(path)
@@ -168,7 +168,7 @@ Quidra runtime error[DATASET_LOAD] at main.qui:13:20
    |
    | propagated through load_dataset() at main.qui:16:23
    | propagated through train() at main.qui:19:13
-   | caused by: [FILE_READ] cannot read "data.csv": permission denied (at main.qui:2:16)
+   | caused by: [FILE_READ] cannot read "data.csv": permission denied (at main.qui:2:37)
    |     propagated through read_file() at main.qui:5:23
    |     propagated through read_dataset() at main.qui:9:11
 TXT
@@ -186,7 +186,7 @@ assert report["unhandled_at"] is None, report
 cause = report["causes"][0]
 assert len(report["causes"]) == 1 and cause["code"] == "FILE_READ", report["causes"]
 assert cause["details"] == {"path": "data.csv", "reason": "PERMISSION_DENIED"}, cause
-assert cause["location"]["line"] == 2 and cause["location"]["column"] == 16, cause
+assert cause["location"]["line"] == 2 and cause["location"]["column"] == 37, cause
 assert [(h["function"], h["via"]) for h in cause["hops"]] == [
     ("read_file", "try"), ("read_dataset", "match")], cause["hops"]
 PY
@@ -428,7 +428,7 @@ expect plain-four-deep-debug 101 --debug <<< "$plain_four_deep"
 # stopped.
 program library-fail-fast <<'QUI'
 string read_config(string path)
-    string text = file.read(path)
+    string text = string.from_utf8(file.read_bin(path))
     return text
 
 int config_length(string path)
@@ -440,10 +440,10 @@ print(n)
 print(NL)
 QUI
 expect library-fail-fast <<'TXT'
-Quidra runtime error[FILE_READ] at main.qui:2:19
+Quidra runtime error[FILE_READ] at main.qui:2:36
 
-2 |     string text = file.read(path)
-  |                   ^
+2 |     string text = string.from_utf8(file.read_bin(path))
+  |                                    ^
   | cannot read "settings.toml": file not found
   |
   | propagated through read_config() at main.qui:6:19
@@ -453,7 +453,7 @@ TXT
 # --- Without a snippet: the same, after main.qui was deleted.
 program no-snippet <<'QUI'
 string read_config(string path)
-    string text = file.read(path)
+    string text = string.from_utf8(file.read_bin(path))
     return text
 
 int config_length(string path)
@@ -468,7 +468,7 @@ if (cd "$TMP/no-snippet" && "$QUIDRA" build main.qui -o prog > build.log 2>&1); 
     rm "$TMP/no-snippet/main.qui"
     rc=0
     (cd "$TMP/no-snippet" && ./prog > /dev/null 2> err.txt) || rc=$?
-    if [[ "$rc" -ne 101 ]] || [[ "$(cat "$TMP/no-snippet/err.txt")" != 'Quidra runtime error[FILE_READ] at main.qui:2:19
+    if [[ "$rc" -ne 101 ]] || [[ "$(cat "$TMP/no-snippet/err.txt")" != 'Quidra runtime error[FILE_READ] at main.qui:2:36
 | cannot read "settings.toml": file not found
 |
 | propagated through read_config() at main.qui:6:19

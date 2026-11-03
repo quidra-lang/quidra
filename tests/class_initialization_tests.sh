@@ -139,22 +139,22 @@ match accepted
 QUI
 [[ "$("$QUIDRA" "$TMP/errors.qui")" == $'refused\nready' ]]
 cat > "$TMP/standard-generation.qui" <<'QUI'
-map.Map<int, int> explicit_map = map.Map<int, int>()
-map.Map<int, int> bare_map
-set.Set<int> explicit_set = set.Set<int>()
-set.Set<int> bare_set
-print("{explicit_map.size()} {bare_map.size()} {explicit_set.size()} {bare_set.size()}{NL}")
+map<int, int> explicit_map = map<int, int>()
+map<int, int> bare_map
+distinct<int> explicit_distinct = distinct<int>()
+distinct<int> bare_distinct
+print("{explicit_map.size()} {bare_map.size()} {explicit_distinct.size()} {bare_distinct.size()}{NL}")
 .explicit_map.set(1, 10)
 .bare_map.set(2, 20)
-.explicit_set.add(1)
-.bare_set.add(2)
-print("{explicit_map.has(1)} {bare_map.has(2)} {explicit_set.has(1)} {bare_set.has(2)}{NL}")
-map.Map<int, int> copied_map = explicit_map
-set.Set<int> copied_set = explicit_set
+.explicit_distinct.add(1)
+.bare_distinct.add(2)
+print("{explicit_map.has(1)} {bare_map.has(2)} {explicit_distinct.has(1)} {bare_distinct.has(2)}{NL}")
+map<int, int> copied_map = explicit_map
+distinct<int> copied_distinct = explicit_distinct
 .copied_map.set(3, 30)
-.copied_set.add(3)
-print("{explicit_map.has(3)} {copied_map.has(3)} {explicit_set.has(3)} {copied_set.has(3)}{NL}")
-print("{explicit_map.size()} {bare_map.size()} {explicit_set.size()} {bare_set.size()}{NL}")
+.copied_distinct.add(3)
+print("{explicit_map.has(3)} {copied_map.has(3)} {explicit_distinct.has(3)} {copied_distinct.has(3)}{NL}")
+print("{explicit_map.size()} {bare_map.size()} {explicit_distinct.size()} {bare_distinct.size()}{NL}")
 QUI
 [[ "$("$QUIDRA" "$TMP/standard-generation.qui")" == $'0 0 0 0\ntrue true true true\nfalse true false true\n1 1 1 1' ]]
 reject() {

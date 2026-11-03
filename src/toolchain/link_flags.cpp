@@ -26,7 +26,7 @@ bool llvm_uses_http(const fs::path& llvm) {
 
 std::vector<std::string> system_link_libraries() {
 #ifdef _WIN32
-    return {};
+    return {"advapi32.lib", "ole32.lib", "shell32.lib"};
 #elif defined(__APPLE__)
     return {"-lm", "-pthread", "-framework", "Foundation", "-framework", "Metal",
             "-framework", "MetalPerformanceShaders"};

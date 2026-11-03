@@ -4,5 +4,4 @@ int factorial(int n)
     else
         return n * factorial(n - 1)
 
-print(factorial(5))
-print(NL)
+print.line(factorial(5))

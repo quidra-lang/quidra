@@ -1,0 +1,13 @@
+// Persistent tensor state and a shape-preserving loop update are visible
+// through an ordinary Core class, without a package or model dependency.
+class State this()
+    tensor<real32> value = tensor.zeros<real32>([2])
+
+    void .advance(tensor<real32> delta)
+        this.value = this.value + delta
+
+State state = State()
+tensor<real32> delta = tensor.ones<real32>([2])
+for 0 <= nat i < 3
+    .state.advance(delta)
+print("{state.value[0].item()} {state.value[1].item()}{NL}")

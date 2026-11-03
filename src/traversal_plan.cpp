@@ -29,7 +29,7 @@ public:
         if(found==classes_.end()) {seen.erase(type.class_name);return false;}
         const auto& info=found->second;
         const bool container=standard_class::is_map_instance(info.name,info.standard_library)||
-                             standard_class::is_set_instance(info.name,info.standard_library);
+                             standard_class::is_distinct_instance(info.name,info.standard_library);
         if(info.standard_library&&!container) {seen.erase(type.class_name);return false;}
         for(const auto& field:info.fields) {
             if(reference_field(field) || (!container&&field.name.starts_with('$'))) continue;
@@ -62,7 +62,7 @@ public:
         if(type.kind!=TypeKind::Class) return node;
         const auto& info=classes_.at(type.class_name);
         if(standard_class::is_map_instance(info.name,info.standard_library)||
-           standard_class::is_set_instance(info.name,info.standard_library))
+           standard_class::is_distinct_instance(info.name,info.standard_library))
             throw TraversalError("'"+subject+"' holds "+type_name(element_)+" inside '"+
                 type_name(type)+"', which the traversal does not enter.");
         if(info.standard_library) return node;

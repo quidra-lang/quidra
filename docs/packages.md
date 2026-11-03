@@ -11,10 +11,10 @@ A higher layer may depend on lower layers; a lower layer must not depend on a
 higher layer. Sibling repositories in the same layer are independent by
 default and must not import one another merely to reuse domain semantics.
 
-Core, Math, NN, Vision, Video, and DNN also use one synchronized release-train
+Core, Math, Collections, Text, Encoding, NN, Vision, Video, and DNN also use one synchronized release-train
 version. On `develop`, every first-party package's `package.version` must equal
 Core's `project.version`. A coordinated release publishes the same immutable
-`vX.Y.Z` across all six repositories; package versions do not advance
+`vX.Y.Z` across all nine repositories; package versions do not advance
 independently. Dependency ranges may remain compatibility ranges, but they must
 admit that same shared version, and release validation uses same-version
 dependency tags.
@@ -24,7 +24,7 @@ Layer 4:  DNN
           |
 Layer 3:  NN    Vision    Video
            \      |      /
-Layer 2:         Math
+Layer 2:  Math  Collections  Text  Encoding
                   |
 Layer 1:         Core
 ```
@@ -35,6 +35,9 @@ The layers define semantic ownership, not implementation technology:
 | --- | --- | --- |
 | 1 | Core | Language/compiler, tensor and autograd substrate, devices, execution, package/native-extension mechanisms, and domain-neutral optimization infrastructure. Core provides mechanisms, not package semantics. |
 | 2 | Math | Generic mathematical semantics, including numerical operations, exact mathematical semantics, native implementations, autograd rules, and Math-owned compiler optimizations. |
+| 2 | Collections | Generic data structures and algorithms such as stable priority queues and frequency counting. |
+| 2 | Text | Text parsing, ASCII tokenization, CSV, and form query decoding. |
+| 2 | Encoding | Binary-to-text encoding and decoding, including Base64. |
 | 3 | NN | Architecture-independent neural-network mechanisms: modules/layers, losses, optimizers, parameter/training semantics, and NN-owned rewrites or fused kernels such as Conv + BatchNorm + ReLU. |
 | 3 | Vision | Image and computer-vision semantics such as resize, crop, color/image transforms, image codecs, and Vision-owned kernels or optimizations. |
 | 3 | Video | Video/temporal media semantics such as frame/video transforms, sampling, codecs, and Video-owned kernels or optimizations. |
@@ -45,13 +48,15 @@ The allowed dependency direction for these packages is:
 ```text
 Layer 4 packages -> Layer 3 packages / Math / Core as needed
 Layer 3 packages -> Math / Core
-Math             -> Core
+Math / Collections / Text / Encoding -> Core
 Core             -> no higher first-party layer
 ```
 
 This is an upper bound, not a declaration that every allowed edge exists.
 The current DNN manifest depends on NN and Math (with Core as the substrate);
 it does not depend on Vision or Video.
+
+Layer-2 sibling packages are also independent by default: Math, Collections, Text and Encoding must not acquire dependencies on one another without an explicit architectural decision.
 
 Layer-3 sibling dependencies are forbidden by default. For example, NN does
 not import Vision, Vision does not import NN, and Video does not import either
@@ -72,7 +77,7 @@ move semantics into Core.
 
 ```text
 quidra install quidra-dnn
-quidra install quidra-dnn@0.5.0
+quidra install quidra-dnn@0.6.0
 quidra install owner/repository
 quidra install https://github.com/owner/repository.git@1.2.3
 quidra install ./local-package
@@ -126,19 +131,21 @@ Released packages contain `quidra.package` at the repository root:
 
 ```text
 name = dnn
-version = 0.5.0
+version = 0.6.0
 repository = https://github.com/quidra-lang/dnn
 description = Deep neural network models for Quidra
 license = MIT
 homepage = https://github.com/quidra-lang/dnn
-requires.quidra = >=0.5.0 <0.6.0
-requires.math = >=0.5.0 <0.6.0
-requires.nn = >=0.5.0 <0.6.0
+requires.quidra = >=0.6.0 <0.7.0
+requires.math = >=0.6.0 <0.7.0
+requires.nn = >=0.6.0 <0.7.0
 ```
 
 Package-to-package requirements use the same `requires.<import>` form. The
 DNN example above follows the current layer graph: DNN depends on Math and NN,
-not on sibling Layer-3 packages such as Vision or Video.
+not on sibling Layer-3 packages such as Vision or Video. The 0.6.0 versions
+shown are the current `develop` package train; install commands pinned to a
+version require the coordinated release tag to exist before they can run.
 
 Versions use exact `MAJOR.MINOR.PATCH` Semantic Versioning. Requirement terms
 are conjunctive and support `=`, `<`, `<=`, `>`, and `>=`. A released
@@ -146,7 +153,7 @@ package must declare `requires.quidra`. Its manifest version must exactly match
 the release tag.
 
 Official first-party computational packages are versioned in lockstep with
-Core. Math, NN, Vision, Video, and DNN must carry the exact same
+Core. Math, Collections, Text, Encoding, NN, Vision, Video, and DNN must carry the exact same
 `MAJOR.MINOR.PATCH` value as the corresponding Core release, including when a
 repository has no code change in that release. Their release workflows check
 out first-party dependencies at that same version tag and reject divergence.
@@ -321,19 +328,18 @@ are declared and specified in `include/quidra/native_extension.h`:
   point without a host wait now, reads it at once with
   `qcore_device_status_wait`, or discards it with
   `qcore_device_status_release`.
-- Non-finite values: no real value a program can observe is NaN or an
-  infinity. After a call of an extern function that wrote a `real32` or
-  `real64` tensor through a `&` argument, Core validates that tensor (one
-  pass; on a GPU a deferred check) and stops the program with
-  `NONFINITE_RESULT` at the call, unless the package declared the function's
-  C symbol with `qcore_op_register_flags`: `QCORE_OP_VALIDATES_NONFINITE`
-  when its kernels check what they write (a CPU kernel reports a non-finite
-  value with `qcore_tensor_report_status`, a GPU kernel through a status
-  slot), `QCORE_OP_FINITE_PRESERVING` when finite inputs give finite outputs
-  (`relu`). Values that stay inside the package, such as a `-inf` mask
-  inside a softmax, are the package's own. Until a package declares its
-  functions, Core's validation is correct but costs one pass per output
-  (counted as `finite_validations` by the runtime counters).
+- NaN validation: real values may be infinite but never NaN. Core validates
+  tensors and tensor arrays written through native `&` arguments and reports
+  `NONFINITE_RESULT` for NaN, at the call or the next GPU synchronization.
+  A package may waive this scan using `qcore_op_register_flags` with
+  `QCORE_OP_VALIDATES_NAN` when its kernels check outputs, or
+  `QCORE_OP_NAN_PRESERVING` when NaN-free inputs, including infinities, imply
+  NaN-free outputs. `QCORE_OP_VALIDATES_NONFINITE` remains an alias of the
+  validation flag. The legacy `QCORE_OP_FINITE_PRESERVING` flag is accepted
+  but does not waive checks: finite-input preservation says nothing about
+  infinite inputs. CPU kernels can report invalid outputs through
+  `qcore_tensor_report_status`; GPU kernels use deferred status slots.
+  The runtime counter retains its historical name `finite_validations`.
 - Scratch from `qcore_device_buffer_allocate` holds unspecified bytes and no
   queued GPU work uses it when it is returned, so on Metal the package may
   write it through shared storage at once. A tensor's storage may still be in
@@ -540,16 +546,18 @@ optional `project.toml` next to it, which older compilers simply never open:
 name = "quidra-dnn"
 import = "dnn"
 display_name = "Quidra DNN"
-version = "0.5.0"
+version = "0.6.0"
 repository = "https://github.com/quidra-lang/dnn"
 
 [requires]
-quidra = ">=0.5.0 <0.6.0"
+quidra = ">=0.6.0 <0.7.0"
 abi = 1
-
-[compiler.extension]
-graph = "compiler/graph.toml"
+math = ">=0.6.0 <0.7.0"
+nn = ">=0.6.0 <0.7.0"
 ```
+
+The DNN manifest intentionally has no `[compiler.extension]`: NN and Math
+own compiler-extension descriptors, while DNN composes their public APIs.
 
 It separates four identities that `quidra.package`'s single `name` cannot carry
 at once:
@@ -659,8 +667,8 @@ transitive package reached by the program's import graph records both identities
 
 ```text
 quidra-lock-v3
-quidra-dnn dnn 0.5.0 <sha256>
-quidra-vision vision 0.5.0 <sha256>
+quidra-dnn dnn 0.6.0 <sha256>
+quidra-vision vision 0.6.0 <sha256>
 ```
 
 The columns are distribution name, import name, version and content hash.

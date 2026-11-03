@@ -47,13 +47,11 @@ jobs:
           state.weight = state.weight.track()
           tensor<real32> loss = (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
-          print(state.weight.has_grad())
-          print(NL)
+          print.line(state.weight.has_grad())
           tensor<real32> gradient = state.weight.grad
           state.weight.clear_grad()
           state.weight = state.weight.untrack() - gradient * real32(0.1)
-          print(state.weight[0].item() < before and not state.weight.has_grad())
-          print(NL)
+          print.line(state.weight[0].item() < before and not state.weight.has_grad())
           '@
           & build/Release/quidra.exe check build/autograd-smoke.qui
           $checkExit = $LASTEXITCODE

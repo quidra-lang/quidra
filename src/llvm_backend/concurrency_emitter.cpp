@@ -25,7 +25,7 @@ void ConcurrencyEmitter::emit(const ir::ParallelBlock& n,const ir::Instruction& 
             const auto receipt=names_.value("parallel.array.receipt"),slot=names_.value("parallel.array.receipt.slot");
             builder_.call(receipt,runtime_abi::concurrency::array_prepare,
                 {{ptr,symbols_.value(array.array)},{i1,array.read_only?"true":"false"},
-                 {i1,array.bare_integer?"true":"false"},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                 {i1,array.bare_integer?"true":"false"},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             builder_.getelementptr(slot,Inbounds::no,ptr,scratch_.instruction_slot(ins,n.nodes.size()+1),{{i64,i}});
             builder_.store({ptr,receipt},slot,Align::none);receipt_storage.emplace(array.capture,slot);
             if(array.read_only && array.bare_integer) {
@@ -61,11 +61,11 @@ void ConcurrencyEmitter::emit(const ir::ParallelBlock& n,const ir::Instruction& 
             {{ptr,LlvmOperand::global(table+".pointers")},{ptr,LlvmOperand::global(table+".numbers")},
              {ptr,captures},{i32,n.nodes.front().captures.size()},{i64,symbols_.value(n.iterations->count)},
              {i1,worker_safe},{ptr,LlvmOperand::global(".quidra.parallel.state")},
-             {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+             {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     } else builder_.call(raw,runtime_abi::concurrency::parallel_block,
         {{ptr,LlvmOperand::global(table+".pointers")},{ptr,LlvmOperand::global(table+".numbers")},
          {ptr,frames},{i32,n.nodes.size()},{ptr,LlvmOperand::global(".quidra.parallel.state")},
-         {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+         {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     const auto type=Type::union_of({Type::simple(TypeKind::Void),Type::simple(TypeKind::Error)});
     symbols_.set_type(n.out,type);
     const auto empty=names_.value("parallel.empty"),success=names_.label("parallel.success"),failure=names_.label("parallel.failure"),done=names_.label("parallel.joined");

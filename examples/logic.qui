@@ -3,8 +3,6 @@ bool is_even(int value)
 
 int value = 42
 if is_even(value) and value > 0
-    print("positive even integer")
-    print(NL)
+    print.line("positive even integer")
 else
-    print("other")
-    print(NL)
+    print.line("other")

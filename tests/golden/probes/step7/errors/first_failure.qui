@@ -1,0 +1,7 @@
+// Both divisions can fail. The first reachable source operation determines
+// the runtime failure even if checks are grouped or execution is deferred.
+tensor<real32> one = tensor.ones<real32>([2])
+tensor<real32> zero = tensor.zeros<real32>([2])
+tensor<real32> first = one / zero
+tensor<real32> second = zero / zero
+print("{first[0].item()} {second[1].item()}{NL}")

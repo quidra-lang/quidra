@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 #include "quidra/types.hpp"
@@ -24,22 +25,22 @@ struct EnvironmentHas { ValueId out; ValueId name; };
 struct TimeNow { ValueId out; ValueId sync; };
 struct TimeSince { ValueId out; ValueId start; ValueId sync; };
 struct TimeSeconds { ValueId out; ValueId seconds; };
-struct TimeSleep { ValueId duration; std::uint32_t line{}; std::uint32_t column{}; };
+struct TimeSleep { ValueId duration; SourcePosition position{}; };
 struct ProcessRun { ValueId out; ValueId program; ValueId args; };
 struct ProcessShell { ValueId out; ValueId command; };
 
-template <> struct InstructionTraits<CliArgument> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<CliArgumentOptional> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<CliOption> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<CliFlag> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<CliFinish> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<EnvironmentGet> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<EnvironmentHas> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<TimeNow> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<TimeSince> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<TimeSeconds> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<TimeSleep> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<ProcessRun> : InDomain<Domain::system> {};
-template <> struct InstructionTraits<ProcessShell> : InDomain<Domain::system> {};
+template <> struct InstructionTraits<CliArgument> : WithOperands<Domain::system, CliArgument> {};
+template <> struct InstructionTraits<CliArgumentOptional> : WithOperands<Domain::system, CliArgumentOptional> {};
+template <> struct InstructionTraits<CliOption> : WithOperands<Domain::system, CliOption> {};
+template <> struct InstructionTraits<CliFlag> : WithOperands<Domain::system, CliFlag> {};
+template <> struct InstructionTraits<CliFinish> : WithOperands<Domain::system, CliFinish> {};
+template <> struct InstructionTraits<EnvironmentGet> : WithOperands<Domain::system, EnvironmentGet> {};
+template <> struct InstructionTraits<EnvironmentHas> : WithOperands<Domain::system, EnvironmentHas> {};
+template <> struct InstructionTraits<TimeNow> : WithOperands<Domain::system, TimeNow> {};
+template <> struct InstructionTraits<TimeSince> : WithOperands<Domain::system, TimeSince> {};
+template <> struct InstructionTraits<TimeSeconds> : WithOperands<Domain::system, TimeSeconds> {};
+template <> struct InstructionTraits<TimeSleep> : WithOperands<Domain::system, TimeSleep> {};
+template <> struct InstructionTraits<ProcessRun> : WithOperands<Domain::system, ProcessRun> {};
+template <> struct InstructionTraits<ProcessShell> : WithOperands<Domain::system, ProcessShell> {};
 
 } // namespace quidra::ir

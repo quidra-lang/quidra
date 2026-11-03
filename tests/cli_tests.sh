@@ -64,13 +64,18 @@ for name in ["print","flush","scan","array","len","tensor","error"]:
     assert name in x["current_builtins"], name
 for name in ["write","input","abs","sqrt","min","max","range"]:
     assert name not in x["current_builtins"], name
-assert x["standard_modules"] == ["cli","file","environment","test","time","gpu","autograd","reflect","random","process","map","set","json","http","tensor"]
+assert x["standard_modules"] == ["cli","file","environment","test","time","gpu","autograd","reflect","random","process","map","distinct","json","http","tensor"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T>{D0, D1, ...}" in x["current_types"]
-assert "exact-rank shape pattern" in x["tensor_model"]
-assert "runtime expressions are evaluated once" in x["tensor_model"]
-assert "captured constraints survive reassignment" in x["tensor_model"]
+assert "map<K,V>" in x["current_types"]
+assert "distinct<T>" in x["current_types"]
+assert "set<T>" not in x["current_types"]
+assert "tuples" in x["map_model"]
+assert "tuples" in x["distinct_model"]
+assert "rank is exact" in x["tensor_model"]
+assert "one ... permits zero or more unconstrained axes" in x["tensor_model"]
+assert "captured shape contracts survive reassignment" in x["tensor_model"]
 PY
 # Core exponentiation is a right-associative basic numeric operator. XOR remains
 # the separate uppercase bitwise operator.
@@ -344,7 +349,7 @@ print(text("s1", "x") == text("s2", "x") == text("s3", "x"))
 print(NL)
 print(text("s4", "x") == text("s5", "y") == text("s6", "y"))
 print(NL)
-print(values("v1", 1) == values("v2", 1) == values("v3", 1))
+print(values("v1", 1) == values("v2", 1) and values("v3", 1) == [1, 2])
 print(NL)
 string shared = "k"
 print(text("t0", "k") == shared == text("t1", "k"))
@@ -4201,7 +4206,7 @@ QUI
 
 # Generic type parameter names of imported functions and classes are
 # checked against their own module's declarations, not the importer's; the
-# standard library's map.Map<K, V> never conflicts with root declarations.
+# standard library's map<K, V> never conflicts with root declarations.
 mkdir -p "$TMP/imported-type-parameter-scope"
 cat > "$TMP/imported-type-parameter-scope/lib.qui" <<'QUI'
 class Holder<M>()
@@ -4228,7 +4233,7 @@ class V()
 lib.Holder<int> holder = lib.Holder<int>()
 holder.value = 4
 int[] values = [1, 2]
-map.Map<string, int> counts = map.Map<string, int>()
+map<string, int> counts = map<string, int>()
 .counts.set("a", 7)
 print("{lib.first(values, 2)} {holder.value} {M()} {counts.size()}{NL}")
 QUI
@@ -4758,7 +4763,8 @@ int doubled_after_blank(int n)
 if args.mode == "steady"
     time.Instant unused = time.now()
 
-file.write("effect.txt", "A")
+file.write output = file.write("effect.txt")
+.output("A")
 print(doubled_after_blank(3))
 print(NL)
 QUI
@@ -4833,12 +4839,17 @@ PY
 mkdir -p "$TMP/repl-blank"
 cat > "$TMP/repl-blank/input.txt" <<'QUI'
 void emit(string path)
-    auto | error prev = file.read(path)
-    match prev
-        string
-            auto | error saved = file.write(path, prev + "X")
+    file.read | error opened = file.read(path)
+    match opened
+        file.read reader
+            string text = ""
+            while .reader(string &line)
+                text += line
+            file.write output = file.write(path)
+            .output("{text}X")
         error
-            auto | error saved = file.write(path, "X")
+            file.write output = file.write(path)
+            .output("X")
     print("MARK")
     print(NL)
 
@@ -4854,7 +4865,11 @@ grep -q MARK "$TMP/repl-blank/output.txt"
 
 mkdir -p "$TMP/repl-replay-barrier"
 cat > "$TMP/repl-replay-barrier/input.txt" <<'QUI'
-auto | error saved = file.write("effect.txt", "A")
+void create_effect()
+    file.write output = file.write("effect.txt")
+    .output("A")
+
+create_effect()
 int plus_one(int value)
     return value + 1
 
@@ -4877,13 +4892,8 @@ grep -q '3' "$TMP/repl-replay-barrier/output.txt"
 mkdir -p "$TMP/repl-handle-barrier"
 cat > "$TMP/repl-handle-barrier/input.txt" <<'QUI'
 void create_effect(string path)
-    auto | error created = file.create(path)
-    match created
-        file.Handle handle
-            auto | error written = .handle.write("A")
-        error problem
-            print(problem)
-            print(NL)
+    file.write output = file.write(path)
+    .output("A")
 
 create_effect("effect.txt")
 int(1) + 2
@@ -4898,13 +4908,20 @@ grep -q 'REPL_REPLAY_UNSAFE' "$TMP/repl-handle-barrier/error.txt"
 
 mkdir -p "$TMP/repl-failed-effect"
 cat > "$TMP/repl-failed-effect/input.txt" <<'QUI'
+void write_effect_then_return(string path, string text)
+    file.write output = file.write(path)
+    .output(text)
+
 void effect_then_fail(string path)
-    auto | error previous = file.read(path)
+    file.read | error previous = file.read(path)
     match previous
-        string text
-            auto | error saved = file.write(path, text + "X")
+        file.read reader
+            string text = ""
+            while .reader(string &line)
+                text += line
+            write_effect_then_return(path, "{text}X")
         error
-            auto | error saved = file.write(path, "X")
+            write_effect_then_return(path, "X")
     int zero = 0
     print(1 / zero)
     print(NL)
@@ -4921,7 +4938,12 @@ QUI
 )
 # The first call performs the write before its runtime failure. The second call
 # must be blocked even though the failing candidate was never accepted.
-[[ "$(cat "$TMP/repl-failed-effect/effect.txt")" == "X" ]]
+if [[ "$(cat "$TMP/repl-failed-effect/effect.txt")" != "X" ]]; then
+    echo "repl-failed-effect diagnostic output:" >&2
+    cat "$TMP/repl-failed-effect/output.txt" >&2
+    cat "$TMP/repl-failed-effect/error.txt" >&2
+    exit 1
+fi
 grep -q 'DIVISION_BY_ZERO' "$TMP/repl-failed-effect/error.txt"
 grep -q 'REPL_REPLAY_UNSAFE' "$TMP/repl-failed-effect/error.txt"
 grep -q 'REPL state reset.' "$TMP/repl-failed-effect/output.txt"
@@ -5580,14 +5602,22 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
 
-# No real value is NaN or an infinity: a constant division by zero is a
-# compile-time error, and a division by zero at run time stops the program
-# (tests/nonfinite_tests.sh covers every operation).
+# Infinity is legal, but no public real may be NaN. The indeterminate
+# constant 0/0 is rejected by the checker; a runtime 0/0 also traps.
+# tests/nonfinite_tests.sh covers the other arithmetic cases.
 cat > "$TMP/float-exception-text.qui" <<'QUI'
 print(real64(0.0 / 0.0))
 QUI
 if "$QUIDRA" check "$TMP/float-exception-text.qui" >"$TMP/float-exception-text.err" 2>&1; then exit 1; fi
-grep -q 'error\[DIVIDE_BY_ZERO\] Real division by zero is known at compile time.' "$TMP/float-exception-text.err"
+grep -q 'error\[DIVIDE_BY_ZERO\] Indeterminate real division 0 / 0 is known at compile time.' "$TMP/float-exception-text.err"
+# Two valid infinities whose subtraction is indeterminate are instead a
+# compile-time REAL_RANGE/NaN error. Distinguish the two failure reasons.
+cat > "$TMP/float-constant-nan.qui" <<'QUI'
+real64 result = (1.0 / 0.0) - (1.0 / 0.0)
+print(result)
+QUI
+if "$QUIDRA" check "$TMP/float-constant-nan.qui" >"$TMP/float-constant-nan.err" 2>&1; then exit 1; fi
+grep -q 'error\[REAL_RANGE\].*NaN' "$TMP/float-constant-nan.err"
 cat > "$TMP/float-exception-runtime.qui" <<'QUI'
 real64 zero = 0.0
 print(zero / zero)

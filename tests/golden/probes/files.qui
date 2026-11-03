@@ -35,28 +35,10 @@ match written
     error e
         print("{e}{NL}")
 
-auto | error created = file.create("probe-handle.txt")
-match created
-    file.Handle handle
-        match .handle.write("alpha")
-            void
-                match .handle.seek(0)
-                    void
-                        print("seek{NL}")
-                    error problem
-                        print("seek-error{NL}")
-            error problem
-                print("write-error{NL}")
-    error e
-        print("{e}{NL}")
-
-auto | error appended = file.append("probe-handle.txt")
-match appended
-    file.Handle handle
-        match .handle.write_line("tail")
-            void
-                .handle.close()
-            error problem
-                print("append-error{NL}")
-    error e
-        print("{e}{NL}")
+file.write created = file.write("probe-stream.txt")
+.created("alpha")
+file.append appended = file.append("probe-stream.txt")
+.appended("{NL}tail")
+file.read reader = file.read("probe-stream.txt")
+while .reader(string &line)
+    print("{line}{NL}")

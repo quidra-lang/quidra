@@ -22,7 +22,7 @@ struct ReplDisplay {
 };
 struct ReplReplayMode { bool active{}; };
 
-template <> struct InstructionTraits<ReplDisplay> : InDomain<Domain::repl> {};
-template <> struct InstructionTraits<ReplReplayMode> : InDomain<Domain::repl> {};
+template <> struct InstructionTraits<ReplDisplay> : WithOperands<Domain::repl, ReplDisplay> {};
+template <> struct InstructionTraits<ReplReplayMode> : WithOperands<Domain::repl, ReplReplayMode> {};
 
 } // namespace quidra::ir

@@ -174,6 +174,12 @@ std::optional<std::string> canonical_gap(
     const auto previous=tokens[index-1]->kind;
     const auto current=tokens[index]->kind;
 
+    // A run of three dots is a shape ellipsis, not a marked call or member
+    // access. Keep the comma gap before it and join its dots.
+    const bool ellipsis_start = current == TokenKind::Dot && index + 2 < tokens.size() &&
+        tokens[index + 1]->kind == TokenKind::Dot && tokens[index + 2]->kind == TokenKind::Dot;
+    if (ellipsis_start) return previous == TokenKind::Comma ? " " : "";
+    if (previous == TokenKind::Dot && current == TokenKind::Dot) return "";
     if(current==TokenKind::Dot && previous!=TokenKind::KwThis){
         // One space before a marker, none after '(' or '['; a member
         // access takes none.

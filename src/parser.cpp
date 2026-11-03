@@ -650,6 +650,19 @@ TypeName Parser::type_name() {
             return kind == TokenKind::Comma || kind == TokenKind::RBrace;
         };
         while (true) {
+            if (at(TokenKind::Dot)) {
+                const auto ellipsis = peek();
+                if (peek(1).kind != TokenKind::Dot || peek(2).kind != TokenKind::Dot)
+                    error(ellipsis, "A shape ellipsis is written as '...'.");
+                if (t.tensor_shape_ellipsis)
+                    error(ellipsis, "A shape pattern may contain only one ellipsis.");
+                current_ += 3;
+                t.tensor_shape_ellipsis = t.tensor_shape_prefix.size();
+                if (!axis_end(0)) error(peek(), "Expected ',' or '}' after shape ellipsis.");
+                if (!match(TokenKind::Comma)) break;
+                if (at(TokenKind::RBrace)) error(peek(), "Trailing comma is not allowed in a shape pattern.");
+                continue;
+            }
             ShapeAxis axis;
             axis.span = peek().span;
             long long code = -2;
@@ -709,7 +722,8 @@ TypeName Parser::type_name() {
             if (at(TokenKind::RBrace)) error(peek(), "Trailing comma is not allowed in a shape pattern.");
         }
         consume(TokenKind::RBrace, "Expected '}' after shape pattern.");
-        t.tensor_rank = static_cast<long long>(t.tensor_shape_prefix.size());
+        if (!t.tensor_shape_ellipsis)
+            t.tensor_rank = static_cast<long long>(t.tensor_shape_prefix.size());
         t.span.end = previous().span.end;
     };
 
@@ -1028,7 +1042,7 @@ void Parser::cli_decl(Program& program) {
     finish_expr->data = CallExpr{"$std.cli.finish", {}, {}};
     auto finish_stmt = std::make_unique<Stmt>();
     finish_stmt->span = finish_expr->span;
-    finish_stmt->data = ExprStmt{std::move(finish_expr)};
+    finish_stmt->data = ExprStmt{std::move(finish_expr), {}};
     program.statements.push_back(std::move(finish_stmt));
 }
 
@@ -1135,6 +1149,8 @@ ClassDecl Parser::class_decl() {
             if (looks_like_export_prefix()) foreign_export = foreign_export_prefix();
             if (looks_like_declaration(true)) {
                 auto method = function_decl();
+                if (!method.parameters.empty() && method.parameters.front().is_extension)
+                    error(peek(), "'extend' declares top-level extension functions, not class methods.");
                 method.is_private = is_private;
                 method.foreign_export = std::move(foreign_export);
                 methods.push_back(std::move(method));
@@ -1196,11 +1212,27 @@ FunctionDecl Parser::function_decl() {
     auto type_parameters=type_parameter_list(&type_constraints);
     consume(TokenKind::LParen,"Expected '('."); std::vector<Parameter> params;
     while(!at(TokenKind::RParen)) {
+        // 'extend' is a contextual parameter modifier, only valid on the
+        // first parameter of a top-level function or its prototype.
+        const bool extension = at(TokenKind::Identifier) && peek().text == "extend";
+        if (extension) {
+            if (!params.empty())
+                error(peek(), "'extend' is permitted only on the first function parameter.");
+            ++current_;
+        }
         const bool is_local=match(TokenKind::KwLocal);
+        if (extension && is_local)
+            error(peek(), "An extension receiver is a value or reference, not a local class-generation parameter.");
         const bool is_const=match(TokenKind::KwConst);
-        auto type=type_name();bool write=match(TokenKind::Ampersand);reject_const_reference(is_const,write);auto p=consume(TokenKind::Identifier,"Expected parameter name.");
+        auto type=type_name();bool write=match(TokenKind::Ampersand);
+        reject_const_reference(is_const,write);
+        auto p=consume(TokenKind::Identifier,"Expected parameter name.");
         ExprPtr value; if(match(TokenKind::Assign)) value=expression();
-        params.push_back(Parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local});
+        if(extension && value)
+            error(peek(), "An extension receiver cannot have a default value.");
+        Parameter parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local};
+        parameter.is_extension = extension;
+        params.push_back(std::move(parameter));
         if(!match(TokenKind::Comma)) break;
     }
     consume(TokenKind::RParen,"Expected ')'.");
@@ -1489,7 +1521,14 @@ StmtPtr Parser::if_stmt() {
             keyword, keyword == TokenKind::KwIf ? "Expected if." : "Expected elif.").span.start;
         // A statement header is an or_expr, so an if-expression there is
         // written in parentheses.
-        auto condition = or_expr();
+        condition_reference_bindings_.clear();
+        ExprPtr condition;
+        {
+            FlagScope refs(conditional_reference_declarations_, true);
+            condition = or_expr();
+        }
+        auto condition_bindings = std::move(condition_reference_bindings_);
+        condition_reference_bindings_.clear();
         if (at(TokenKind::KwThen)) {
             throw CompileError(Diagnostic{
                 "IF_EXPRESSION",
@@ -1514,7 +1553,7 @@ StmtPtr Parser::if_stmt() {
         }
         auto statement = std::make_unique<Stmt>();
         statement->span = {start, previous().span.end};
-        statement->data = IfStmt{std::move(condition), std::move(then_body), std::move(else_body)};
+        statement->data = IfStmt{std::move(condition), std::move(then_body), std::move(else_body), std::move(condition_bindings)};
         return statement;
     };
     return parse_branch(TokenKind::KwIf);
@@ -1554,7 +1593,15 @@ StmtPtr Parser::parallel_stmt() {
 }
 
 StmtPtr Parser::while_stmt() {
-    auto start=consume(TokenKind::KwWhile,"Expected while.").span.start;auto cond=or_expr();end_statement("condition");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=WhileStmt{std::move(cond),std::move(body)};return s;
+    auto start=consume(TokenKind::KwWhile,"Expected while.").span.start;
+    condition_reference_bindings_.clear();
+    ExprPtr cond;
+    { FlagScope refs(conditional_reference_declarations_, true); cond=or_expr(); }
+    auto condition_bindings=std::move(condition_reference_bindings_);
+    condition_reference_bindings_.clear();
+    end_statement("condition");auto body=block_until(false);auto s=std::make_unique<Stmt>();
+    s->span={start,previous().span.end};
+    s->data=WhileStmt{std::move(cond),std::move(body),std::move(condition_bindings)};return s;
 }
 bool Parser::at_collection_suffix() const {
     if(!at(TokenKind::LBracket)) return false;
@@ -1817,7 +1864,17 @@ StmtPtr Parser::rebind_stmt() {
 }
 
 StmtPtr Parser::expr_or_assign_stmt() {
-    auto left = expression();
+    const bool standalone_scan = at(TokenKind::Identifier) && peek().text == "scan" &&
+                                 peek(1).kind == TokenKind::LParen;
+    if (standalone_scan) condition_reference_bindings_.clear();
+    ExprPtr left;
+    {
+        FlagScope refs(conditional_reference_declarations_, standalone_scan);
+        left = expression();
+    }
+    auto inline_bindings = standalone_scan
+        ? std::move(condition_reference_bindings_) : std::vector<StmtPtr>{};
+    if (standalone_scan) condition_reference_bindings_.clear();
     const auto start = left->span.start;
     std::string compound_op;
     bool assignment = false;
@@ -1830,6 +1887,8 @@ StmtPtr Parser::expr_or_assign_stmt() {
         compound_op = previous().text.substr(0, 1);
     }
     if (assignment) {
+        if (!inline_bindings.empty())
+            error(previous(), "Inline scan input declarations require a standalone scan statement.");
         auto value = expression();
         const auto end = value->span.end;
         end_statement(compound_op.empty() ? "assignment" : "compound assignment");
@@ -1838,7 +1897,15 @@ StmtPtr Parser::expr_or_assign_stmt() {
     }
     const auto span = left->span;
     end_statement("expression");
-    auto stmt = std::make_unique<Stmt>(); stmt->span = span; stmt->data = ExprStmt{std::move(left)}; return stmt;
+    if (!inline_bindings.empty()) {
+        const auto* call = std::get_if<CallExpr>(&left->data);
+        if (!call || call->callee != "scan")
+            error(previous(), "Inline scan input declarations require a standalone scan statement.");
+    }
+    auto stmt = std::make_unique<Stmt>();
+    stmt->span = span;
+    stmt->data = ExprStmt{std::move(left), std::move(inline_bindings)};
+    return stmt;
 }
 
 std::vector<CallArg> Parser::call_arguments(bool address_values) {
@@ -1851,6 +1918,33 @@ std::vector<CallArg> Parser::call_arguments(bool address_values) {
             std::optional<std::string> label;
             bool writable = false;
             SourceSpan arg_span = peek().span;
+            if (!address_values && conditional_reference_declarations_) {
+                auto end=current_;
+                if (scan_type_lookahead(tokens_,end,0,max_parse_depth) &&
+                    end+2<tokens_.size() &&
+                    tokens_[end].kind==TokenKind::Ampersand &&
+                    tokens_[end+1].kind==TokenKind::Identifier &&
+                    (tokens_[end+2].kind==TokenKind::Comma ||
+                     tokens_[end+2].kind==TokenKind::RParen)) {
+                    auto type=type_name();
+                    consume(TokenKind::Ampersand,"Expected '&'.");
+                    const auto& name=consume(TokenKind::Identifier,"Expected reference variable name.");
+                    auto binding=std::make_unique<Stmt>();
+                    binding->span={type.span.start,name.span.end};
+                    BindingStmt declared;
+                    declared.declared_type=std::move(type);
+                    declared.name=name.text;
+                    declared.is_local=true;
+                    binding->data=std::move(declared);
+                    condition_reference_bindings_.push_back(std::move(binding));
+                    auto ref=std::make_unique<Expr>();
+                    ref->span=name.span;
+                    ref->data=NameExpr{name.text};
+                    args.push_back(CallArg{std::nullopt,true,std::move(ref),
+                                           {arg_span.start,name.span.end}});
+                    continue;
+                }
+            }
             if (!address_values && at(TokenKind::Ampersand) &&
                 peek(1).kind == TokenKind::Identifier &&
                 peek(2).kind == TokenKind::Assign) {
@@ -1994,10 +2088,13 @@ ExprPtr Parser::string_expression(const Token& token) {
             if (item == "zero") {
                 if (format.zero) error(token, "Interpolation format 'zero' cannot be repeated.");
                 format.zero = true;
+            } else if (item == "upper") {
+                if (format.uppercase) error(token, "Interpolation format 'upper' cannot be repeated.");
+                format.uppercase = true;
             } else {
                 const auto equal = item.find('=');
                 if (equal == std::string_view::npos || item.find('=', equal + 1) != std::string_view::npos)
-                    error(token, "Interpolation format options are int=N, frac=N, sig=N, or zero.");
+                    error(token, "Interpolation format options are int=N, frac=N, sig=N, group=N, or zero.");
                 const auto name = trim(item.substr(0, equal));
                 const auto value = item.substr(equal + 1);
                 if (name == "int") {
@@ -2009,6 +2106,15 @@ ExprPtr Parser::string_expression(const Token& token) {
                 } else if (name == "sig") {
                     if (format.significant_digits) error(token, "Interpolation format 'sig' cannot be repeated.");
                     format.significant_digits = parse_count(value, "sig", false);
+                } else if (name == "group") {
+                    if (format.grouping) error(token, "Interpolation format 'group' cannot be repeated.");
+                    format.grouping = parse_count(value, "group", false);
+                } else if (name == "base") {
+                    if (format.radix) error(token, "Interpolation format 'base' cannot be repeated.");
+                    const auto radix = parse_count(value, "base", false);
+                    if (radix < 2 || radix > 36)
+                        error(token, "Interpolation format 'base' must be between 2 and 36.");
+                    format.radix = radix;
                 } else {
                     error(token, "Unknown interpolation format option '" + std::string(name) + "'.");
                 }
@@ -2020,6 +2126,11 @@ ExprPtr Parser::string_expression(const Token& token) {
             error(token, "Interpolation formats 'frac' and 'sig' cannot be used together.");
         if (format.zero && !format.integer_width)
             error(token, "Interpolation format 'zero' requires 'int'.");
+        if (format.radix && (format.integer_width || format.fractional_digits ||
+                             format.significant_digits || format.grouping || format.zero))
+            error(token, "Interpolation format 'base' cannot be mixed with decimal width, precision or grouping.");
+        if (format.uppercase && !format.radix)
+            error(token, "Interpolation format 'upper' requires 'base'.");
         return format;
     };
 
@@ -2058,7 +2169,7 @@ ExprPtr Parser::string_expression(const Token& token) {
             // `{&name}` is an input target: where scan("...") stores what it
             // reads. It is an ordinary storage expression behind the `&`.
             const auto ampersand = expression_text.find('&');
-            const bool scan_target =
+            bool scan_target =
                 ampersand != std::string_view::npos && trim(expression_text.substr(0, ampersand)).empty();
             if (scan_target && colon != std::string_view::npos) {
                 error(token, "An input target {&name} takes no format.");
@@ -2071,9 +2182,49 @@ ExprPtr Parser::string_expression(const Token& token) {
             }
             const auto base = string_content_position(token, nested_start);
             try {
-                Parser nested(Lexer(std::string(expression_text)).scan(), max_errors_);
-                auto nested_expression = nested.inline_expression();
-                relocate_expr(*nested_expression, base);
+                auto tokens = Lexer(std::string(expression_text)).scan();
+                std::size_t cursor = 0;
+                // Lexer adds a logical newline before EOF for fragments without
+                // an explicit terminal newline, including format placeholders.
+                const bool typed_target = !scan_target &&
+                    scan_type_lookahead(tokens, cursor, 0, max_parse_depth) &&
+                    cursor + 2 < tokens.size() &&
+                    tokens[cursor].kind == TokenKind::Ampersand &&
+                    tokens[cursor + 1].kind == TokenKind::Identifier &&
+                    (tokens[cursor + 2].kind == TokenKind::Eof ||
+                     (tokens[cursor + 2].kind == TokenKind::Newline &&
+                      cursor + 3 < tokens.size() &&
+                      tokens[cursor + 3].kind == TokenKind::Eof));
+                ExprPtr nested_expression;
+                if (typed_target) {
+                    if (colon != std::string_view::npos)
+                        error(token, "An input declaration {T &name} takes no output format.");
+                    if (!conditional_reference_declarations_)
+                        error(token, "Inline input declarations are allowed only in scan statements or if/while input conditions.");
+                    Parser nested(std::move(tokens), max_errors_);
+                    auto type = nested.type_name();
+                    nested.consume(TokenKind::Ampersand, "Expected '&' in input declaration.");
+                    const auto name = nested.consume(TokenKind::Identifier, "Expected input binding name.");
+                    relocate_type(type, base);
+                    auto name_span = name.span;
+                    relocate_span(name_span, base);
+                    auto binding = std::make_unique<Stmt>();
+                    binding->span = {type.span.start, name_span.end};
+                    BindingStmt declared;
+                    declared.declared_type = std::move(type);
+                    declared.name = name.text;
+                    declared.is_local = true;
+                    binding->data = std::move(declared);
+                    condition_reference_bindings_.push_back(std::move(binding));
+                    nested_expression = std::make_unique<Expr>();
+                    nested_expression->span = name_span;
+                    nested_expression->data = NameExpr{name.text};
+                    scan_target = true;
+                } else {
+                    Parser nested(std::move(tokens), max_errors_);
+                    nested_expression = nested.inline_expression();
+                    relocate_expr(*nested_expression, base);
+                }
                 if (scan_target) {
                     auto target = std::make_unique<Expr>();
                     target->span = nested_expression->span;
@@ -2255,7 +2406,29 @@ ExprPtr Parser::unary() {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{"&",std::move(operand)}; return e;
     }
-    if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot) || match(TokenKind::Minus)) {
+    if (match(TokenKind::Minus)) {
+        const auto op = previous();
+        ExprPtr operand;
+        {
+            // A leading sign belongs to a range's start. Parentheses clear
+            // this flag, so -(3:0) still negates the generated array.
+            FlagScope no_nested_range(slice_start_marker_stop_, true);
+            operand = unary();
+        }
+        auto e = std::make_unique<Expr>();
+        e->span = SourceSpan{op.span.start, operand->span.end};
+        e->data = UnaryExpr{op.text, std::move(operand)};
+        if (!slice_start_marker_stop_ &&
+            (at(TokenKind::Colon) || at_marker_touching_colon())) {
+            e = range_from(std::move(e), op.span.start);
+            if (match(TokenKind::Caret)) {
+                const auto power_op = previous();
+                e = make_binary(std::move(e), power_op, unary());
+            }
+        }
+        return e;
+    }
+    if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot)) {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{op.text,std::move(operand)}; return e;
     }
@@ -2289,6 +2462,109 @@ ExprPtr Parser::marked_call() {
     }
     mutation_markers_.push_back(marker.span.start.offset);
     e->span.start = marker.span.start;
+    return e;
+}
+
+// In a free expression a bounded colon range materializes an integer
+// array, while an indexing colon keeps the existing direct-slice AST.
+// The internal call is generated only by this parser and is not a public API.
+ExprPtr Parser::range_operand() {
+    ParseDepthGuard depth(unary_depth_, max_parse_depth, peek(), "Range operand");
+    if (match(TokenKind::Minus)) {
+        const auto op = previous();
+        auto operand = range_operand();
+        auto e = std::make_unique<Expr>();
+        e->span = SourceSpan{op.span.start, operand->span.end};
+        e->data = UnaryExpr{op.text, std::move(operand)};
+        return e;
+    }
+    return postfix();
+}
+
+ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
+    bool start_exclusive = false;
+    bool end_exclusive = false;
+    bool ascending_marker = false;
+    bool descending_marker = false;
+    if (begin_value && at_marker_touching_colon()) {
+        start_exclusive = true;
+        if (match(TokenKind::Less)) ascending_marker = true;
+        else {
+            consume(TokenKind::Greater, "Expected range marker.");
+            descending_marker = true;
+        }
+    }
+    const auto colon = consume(TokenKind::Colon, "Expected ':' in bounded range.");
+    if (at(TokenKind::Less) || at(TokenKind::Greater)) {
+        if (peek().span.start.offset != colon.span.end.offset)
+            throw CompileError(Diagnostic{
+                "SLICE_STEP", slice_marker_spacing_message, peek().span});
+        end_exclusive = true;
+        if (match(TokenKind::Less)) ascending_marker = true;
+        else {
+            consume(TokenKind::Greater, "Expected range marker.");
+            descending_marker = true;
+        }
+    }
+    if (ascending_marker && descending_marker)
+        throw CompileError(Diagnostic{
+            "SLICE_STEP", "Range endpoint markers must point in the same direction.",
+            colon.span});
+    const auto missing_endpoint = [&] {
+        return at(TokenKind::Colon) || at(TokenKind::Comma) ||
+               at(TokenKind::Newline) || at(TokenKind::Eof) ||
+               at(TokenKind::RParen) || at(TokenKind::RBracket);
+    };
+    if (missing_endpoint())
+        throw CompileError(Diagnostic{
+            "SLICE_BOUNDS", "A standalone range requires an end value; only an indexed slice may omit it.",
+            colon.span});
+    ExprPtr end_value;
+    {
+        FlagScope no_nested_range(slice_start_marker_stop_, true);
+        end_value = range_operand();
+    }
+    ExprPtr step_value;
+    const bool has_step = match(TokenKind::Colon);
+    if (has_step) {
+        if (missing_endpoint())
+            throw CompileError(Diagnostic{"SLICE_STEP", "Range step is missing.", peek().span});
+        FlagScope no_nested_range(slice_start_marker_stop_, true);
+        step_value = range_operand();
+    }
+    if (at(TokenKind::Colon))
+        throw CompileError(Diagnostic{"SLICE_STEP", "Range takes at most one step.", peek().span});
+    auto synthetic_int = [&](std::uint64_t value) {
+        auto e = std::make_unique<Expr>();
+        e->span = colon.span;
+        e->data = IntegerExpr{value, std::to_string(value), true};
+        return e;
+    };
+    auto synthetic_bool = [&](bool value) {
+        auto e = std::make_unique<Expr>();
+        e->span = colon.span;
+        e->data = BoolExpr{value};
+        return e;
+    };
+    if (!begin_value) begin_value = synthetic_int(0);
+    if (!step_value) step_value = synthetic_int(0);
+    const auto end = has_step ? step_value->span.end : end_value->span.end;
+    std::vector<CallArg> args;
+    auto arg = [&](ExprPtr value) {
+        auto span = value->span;
+        args.push_back(CallArg{std::nullopt, false, std::move(value), span});
+    };
+    arg(std::move(begin_value));
+    arg(std::move(end_value));
+    arg(std::move(step_value));
+    arg(synthetic_bool(start_exclusive));
+    arg(synthetic_bool(end_exclusive));
+    arg(synthetic_bool(has_step));
+    arg(synthetic_bool(ascending_marker));
+    arg(synthetic_bool(descending_marker));
+    auto e = std::make_unique<Expr>();
+    e->span = SourceSpan{begin, end};
+    e->data = CallExpr{"$std.range.generate", std::move(args), {}};
     return e;
 }
 
@@ -2355,7 +2631,10 @@ ExprPtr Parser::postfix() {
             }
 
             if (at(TokenKind::LParen)) {
-                auto args = call_arguments();
+                const auto* receiver_name = std::get_if<NameExpr>(&e->data);
+                const bool print_line = receiver_name && !receiver_name->this_qualifier &&
+                    receiver_name->name == "print" && member.text == "line";
+                auto args = call_arguments(print_line);
                 const auto end = previous().span.end;
                 auto call = std::make_unique<Expr>();
                 call->span = SourceSpan{start, end};
@@ -2393,6 +2672,12 @@ ExprPtr Parser::postfix() {
             indexed->span = SourceSpan{start, end};
             indexed->data = IndexExpr{std::move(e), std::move(items)};
             e = std::move(indexed);
+            continue;
+        }
+        if (!slice_start_marker_stop_ &&
+            (at(TokenKind::Colon) || at_marker_touching_colon())) {
+            const auto begin = e->span.start;
+            e = range_from(std::move(e), begin);
             continue;
         }
         break;
@@ -2535,6 +2820,8 @@ ExprPtr Parser::array_comprehension(SourcePos start) {
 }
 
 ExprPtr Parser::primary() {
+    if (!slice_start_marker_stop_ && at(TokenKind::Colon))
+        return range_from(nullptr, peek().span.start);
     if (match(TokenKind::Integer)) {
         const auto t=previous(); std::uint64_t value{}; const auto* b=t.text.data(); const auto* end=b+t.text.size();
         const auto parsed=std::from_chars(b,end,value);

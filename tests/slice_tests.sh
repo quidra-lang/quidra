@@ -61,6 +61,292 @@ if not found:
 PY
 }
 
+# A materialized indices() result uses the outer axis and nat elements.
+expect indices-dynamic "true" <<'QUI'
+int[] values = [10, 20, 30, 40]
+nat[] expected = [0, 1, 2, 3]
+print(values.indices() == expected)
+QUI
+expect indices-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+nat[] expected = [0, 1, 2]
+print(values.indices() == expected)
+QUI
+expect indices-empty "true" <<'QUI'
+int[] values = []
+nat[] expected = []
+print(values.indices() == expected)
+QUI
+rejects indices-args ARGUMENT_MISMATCH "array.indices() takes no arguments" <<'QUI'
+int[] values = [1, 2]
+print(values.indices(1))
+QUI
+
+# Read-only gathers preserve order, duplicates, outer-axis rows and values.
+expect gather-indices "true" <<'QUI'
+int[] values = [10, 20, 30, 40, 50]
+int[] indices = [3, 1, 3]
+int[] expected = [40, 20, 40]
+print(values[indices] == expected)
+QUI
+expect gather-nat "true" <<'QUI'
+int[] values = [10, 20, 30, 40]
+nat[] indices = [3, 0]
+int[] expected = [40, 10]
+print(values[indices] == expected)
+QUI
+expect gather-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+nat[] indices = [2, 0]
+int[][] expected = [[5, 6], [1, 2]]
+print(values[indices] == expected)
+QUI
+expect mask-array "true" <<'QUI'
+int[] values = [-2, 3, 0, 4]
+bool[] mask = [false, true, false, true]
+int[] expected = [3, 4]
+print(values[mask] == expected)
+QUI
+expect mask-nested "true" <<'QUI'
+int[][] values = [[1, 2], [3, 4], [5, 6]]
+bool[] mask = [true, false, true]
+int[][] expected = [[1, 2], [5, 6]]
+print(values[mask] == expected)
+QUI
+expect mask-empty "true" <<'QUI'
+int[] values = [2, 4]
+bool[] mask = [false, false]
+int[] expected = []
+print(values[mask] == expected)
+QUI
+rejects selection-invalid-kind TYPE_MISMATCH "needs bool[], nat[] or int[]" <<'QUI'
+int[] values = [1, 2]
+real32[] indices = [0.0, 1.0]
+print(values[indices])
+QUI
+# Scalar literal indexing remains typed and has its original behavior.
+expect gather-scalar-literal "true" <<'QUI'
+int[] values = [10, 20, 30]
+print(values[1] == 20)
+QUI
+# An array of literal integer indices is contextual and materialized as int[].
+expect gather-index-literals "true" <<'QUI'
+int[] values = [10, 20, 30]
+int[] expected = [30, 10]
+print(values[[2, 0]] == expected)
+QUI
+rejects gather-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
+int[] values = [1, 2, 3]
+int[] indices = [0, 2]
+values[indices] = [8, 9]
+QUI
+rejects mask-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
+int[] values = [1, 2, 3]
+bool[] mask = [true, false, true]
+values[mask] = [8, 9]
+QUI
+# Elementwise arithmetic and comparisons preserve values and shape.
+expect arithmetic-basic "true" <<'QUI'
+int[] a = [1, 2, 3]
+int[] b = [4, 5, 6]
+int[] plus = [5, 7, 9]
+int[] times = [4, 10, 18]
+int[] squares = [1, 4, 9]
+int[] scalar = [6, 7, 8]
+print(a + b == plus and a * b == times and a ^ 2 == squares and
+      a + 5 == scalar and 5 + a == scalar and a[0] == 1)
+QUI
+expect arithmetic-nested "true" <<'QUI'
+int[][] a = [[1, 2], [3, 4]]
+int[][] b = [[5, 6], [7, 8]]
+int[][] expected = [[6, 8], [10, 12]]
+print(a + b == expected)
+QUI
+expect arithmetic-comparisons "true" <<'QUI'
+int[] a = [-2, 3, 0, 4]
+bool[] positive = [false, true, false, true]
+bool[] nonpositive = [true, false, true, false]
+int[] b = [0, 1, 2, 3]
+bool[] less = [true, false, true, false]
+print((a > 0) == positive and (a <= 0) == nonpositive and (a < b) == less)
+QUI
+rejects arithmetic-static-shape ARRAY_SHAPE "identical lengths" <<'QUI'
+int[2] a = [1, 2]
+int[3] b = [3, 4, 5]
+print(a + b)
+QUI
+# Free-standing ranges allocate arrays, while indexing colons remain
+# direct slices. Both endpoints are inclusive unless explicitly excluded.
+expect free-range-basic "true" <<'QUI'
+int[] a = 0:3
+int[] b = :3
+int[] c = 2:5
+int[] expected0 = [0, 1, 2, 3]
+int[] expected1 = [2, 3, 4, 5]
+print(a == expected0 and b == expected0 and c == expected1)
+QUI
+expect free-range-step "true" <<'QUI'
+int[] a = 0:10:2
+int[] b = 5:0:-2
+int[] c = 3:0
+int[] d = 0:<3
+int[] e = 0<:3
+int[] expected_a = [0, 2, 4, 6, 8, 10]
+int[] expected_b = [5, 3, 1]
+int[] expected_c = [3, 2, 1, 0]
+int[] expected_d = [0, 1, 2]
+int[] expected_e = [1, 2, 3]
+print(a == expected_a and b == expected_b and c == expected_c and
+      d == expected_d and e == expected_e)
+QUI
+expect free-range-nat "true" <<'QUI'
+nat[] values = :3
+nat[] expected = [0, 1, 2, 3]
+print(values == expected)
+QUI
+expect free-range-typed "true" <<'QUI'
+int start = 2
+int stop = 6
+int step = 2
+int[] values = start:stop:step
+int[] expected = [2, 4, 6]
+print(values == expected)
+QUI
+expect free-range-power "true" <<'QUI'
+int[] values = :3 ^ 2
+int[] expected = [0, 1, 4, 9]
+print(values == expected)
+QUI
+expect range-gather "true" <<'QUI'
+int[] values = [10, 20, 30, 40, 50]
+int[] idx = :3
+int[] expected = [10, 20, 30, 40]
+print(values[idx] == expected and values[:3] == expected)
+QUI
+rejects free-range-missing-stop SLICE_BOUNDS "standalone range requires an end" <<'QUI'
+int[] indices = 3:
+QUI
+rejects free-range-opposite-step SLICE_STEP "opposes the bound direction" <<'QUI'
+int[] indices = 0:3:-1
+QUI
+# An extension remains one user function with both call forms, and only
+# its defining/imported library makes its method syntax visible.
+cat > "$TMP/stats.qui" <<'QUI'
+int sum_squares(extend int[] values)
+    int result = 0
+    for int value = values[]
+        result += value * value
+    return result
+
+void scale(extend int[] &values, int factor)
+    for int &value = &values[]
+        value *= factor
+QUI
+expect extension-local "true" <<'QUI'
+int squared(extend int value)
+    return value * value
+
+print(5.squared() == squared(5))
+QUI
+expect extension-imported "true" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+print(values.sum_squares() == 14 and stats.sum_squares(values) == 14)
+QUI
+expect extension-reference "true" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+.values.scale(2)
+int[] expected = [2, 4, 6]
+print(values == expected)
+QUI
+rejects extension-without-import UNKNOWN_MEMBER "sum_squares" <<'QUI'
+int[] values = [1, 2, 3]
+print(values.sum_squares())
+QUI
+rejects extension-writable-without-marker MUTATION_MARKER "writable receiver" <<'QUI'
+import stats = "./stats.qui"
+int[] values = [1, 2, 3]
+values.scale(2)
+QUI
+rejects extension-second-param PARSE_ERROR "first function parameter" <<'QUI'
+int bad(int a, extend int b)
+    return a + b
+QUI
+cat > "$TMP/other.qui" <<'QUI'
+int sum_squares(extend int[] values)
+    return 0
+QUI
+rejects extension-ambiguous EXTENSION_AMBIGUOUS "multiple imported modules" <<'QUI'
+import stats = "./stats.qui"
+import other = "./other.qui"
+int[] values = [1, 2]
+print(values.sum_squares())
+QUI
+cat > "$TMP/conflict.qui" <<'QUI'
+nat[] indices(extend int[] values)
+    return [0]
+QUI
+rejects extension-native-collision EXTENSION_COLLISION "conflicts" <<'QUI'
+import conflict = "./conflict.qui"
+int[] values = [1, 2]
+print(values.indices())
+QUI
+
+# Tensor<boolean> extracts logical row-major values as a new rank-1 tensor.
+expect tensor-boolean-mask "true" <<'QUI'
+tensor<real32> input = tensor.zeros<real32>([2, 2])
+input[0, 0] = real32(-2)
+input[0, 1] = real32(3)
+input[1, 0] = real32(0)
+input[1, 1] = real32(4)
+tensor<bool> mask = input > real32(0)
+tensor<real32> selected = input[mask]
+nat[1] expected_shape = [2]
+print(selected.shape() == expected_shape and
+      selected[0].item() == real32(3) and
+      selected[1].item() == real32(4))
+QUI
+expect tensor-boolean-mask-empty "true" <<'QUI'
+tensor<real32> input = tensor.zeros<real32>([3])
+tensor<bool> mask = input > real32(0)
+tensor<real32> selected = input[mask]
+nat[1] expected_shape = [0]
+print(selected.shape() == expected_shape)
+QUI
+expect tensor-boolean-mask-autograd "true" <<'QUI'
+tensor<real32> input = tensor.ones<real32>([3]).track()
+tensor<real32> sample = tensor.zeros<real32>([3])
+sample[1] = real32(2)
+tensor<bool> mask = sample > real32(0)
+tensor<real32> selected = input[mask]
+// A one-element tracked gather is a valid scalar-loss tensor.
+selected.backward(&input)
+print(input.grad[0].item() == real32(0) and
+      input.grad[1].item() == real32(1) and
+      input.grad[2].item() == real32(0))
+QUI
+# Exact integer ranges retain values beyond int64 when their output is
+# short; the length is limited by memory, not the magnitude of endpoints.
+expect range-exact-large "true" <<'QUI'
+int[] values = 18446744073709551616:18446744073709551618
+int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+print(values == expected)
+QUI
+expect range-exact-large-nat "true" <<'QUI'
+nat[] values = 9223372036854775808:9223372036854775809
+nat[] expected = [9223372036854775808, 9223372036854775809]
+print(values == expected)
+QUI
+# Reusing exact integer bounds must not consume/mutate caller-owned values.
+expect range-exact-borrowed-operand "true" <<'QUI'
+int start = 18446744073709551616
+int last = start + 2
+int[] values = start:last
+int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+print(values == expected and start == 18446744073709551616 and
+      last == 18446744073709551618)
+QUI
 # --- The brute-force oracle ------------------------------------------------
 python3 - "$TMP" <<'PY'
 import pathlib, sys
@@ -68,7 +354,7 @@ tmp = pathlib.Path(sys.argv[1])
 STARTS = ["incl", "asc", "desc", "omit"]
 ENDS = ["incl", "asc", "desc", "omit"]
 
-def oracle(length, sf, s0, ef, e0, k0):
+def oracle(length, sf, s0, ef, e0, k0, strict_step=True):
     """The index set of the slice rules, or 'step' / 'bounds'."""
     sm = {"asc": 1, "desc": -1}.get(sf, 0)
     em = {"asc": 1, "desc": -1}.get(ef, 0)
@@ -83,12 +369,15 @@ def oracle(length, sf, s0, ef, e0, k0):
             return "step"
         d, k = sign, k0
     else:
-        d = d or 1
+        if not d:
+            d = -1 if sf != "omit" and ef != "omit" and s0 > e0 else 1
         k = d
     s_omit, e_omit = sf == "omit", ef == "omit"
     s = (0 if d > 0 else length - 1) if s_omit else s0
     e = (length if d > 0 else -1) if e_omit else e0
     s_excl, e_excl = sm != 0, e_omit or em != 0
+    if strict_step and k0 is not None and not s_omit and not e_omit and (s > e if d > 0 else s < e):
+        return "bounds"
     indices, j = [], 1 if s_excl else 0
     while True:
         i = s + j * k
@@ -251,6 +540,9 @@ for collection in ("bin", "tensor"):
             continue
         if collection == "tensor" and (sf == "desc" or ef == "desc"):
             continue
+        if collection == "tensor":
+            rows = [(n, s, e, k, oracle(n, sf, s, ef, e, 1 if k is None else k, strict_step=False))
+                    for n, s, e, k, _ in rows]
         valid = [row for row in rows if isinstance(row[4], list)]
         if not valid:
             continue
@@ -570,11 +862,11 @@ int stop = int(len(values)) + 3
 print("before" + NL)
 int[] part = values[1:stop]
 QUI
-fails reversed_inclusive INDEX_BOUNDS "slice 4:2 out of bounds for length 6" <<'QUI'
+fails reversed_inclusive INDEX_BOUNDS "slice 4:2:1 out of bounds for length 6" <<'QUI'
 int[] values = [1, 2, 3, 4, 5, 6]
 int stop = 2
 print("before" + NL)
-int[] part = values[4:stop]
+int[] part = values[4:stop:1]
 QUI
 fails excluded_far INDEX_BOUNDS "slice -2<:2 out of bounds for length 6" <<'QUI'
 int[] values = [1, 2, 3, 4, 5, 6]

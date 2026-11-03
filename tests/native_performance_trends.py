@@ -28,26 +28,20 @@ for 0 <= nat index < 200000
     text += "x"
 print(len(text))
 """,
-    "stream_file": """int | error run()
-    file.Handle output = try file.create("trend-output.txt")
+    "stream_file": """void | error write_sample()
+    file.write output = try file.write("trend-output.txt")
     for 0 <= nat index < 50000
-        try .output.write_line("abcdef")
-    try .output.flush()
-    try .output.seek(0)
+        try .output("abcdef{NL}")
+    return
 
+int | error run()
+    try write_sample()
+    file.read reader = try file.read("trend-output.txt")
     int lines = 0
-    while true
-        auto | error next = .output.read_line()
-        match next
-            string line
-                if line != "abcdef"
-                    return error("unexpected file contents")
-                lines += 1
-            none
-                break
-            error problem
-                return problem
-    .output.close()
+    while .reader(string &line)
+        if line != "abcdef"
+            return error("unexpected file contents")
+        lines += 1
     return lines
 
 auto | error result = run()
@@ -57,17 +51,17 @@ match result
     error problem
         print(problem)
 """,
-    "map_delete": """map.Map<int, int> values = map.Map<int, int>()
+    "map_delete": """map<int, int> values
 for 0 <= nat index < 50000
     .values.set(int(index), int(index))
 for 0 <= nat index < 50000 step 2
     .values.remove(int(index))
 print(values.size())
 """,
-    "file_read_whole": """string text = file.read("parse-input.txt")
-print(len(text))
+    "file_read_binary": """bin bytes = file.read_bin("parse-input.txt")
+print(len(bytes) / 8)
 """,
-    "file_split_whole": """string text = file.read("parse-input.txt")
+    "file_split_decoded": """string text = string.from_utf8(file.read_bin("parse-input.txt"))
 string[] rows = text.split(NL)
 int lines = 0
 for auto line = rows[]
@@ -75,42 +69,26 @@ for auto line = rows[]
         lines += 1
 print(lines)
 """,
-    "file_read_stream": """file.Handle reader = file.open("parse-input.txt")
+    "file_read_stream": """file.read reader = file.read("parse-input.txt")
 int lines = 0
-while true
-    auto | error next = .reader.read_line()
-    match next
-        string line
-            lines += 1
-        none
-            break
-        error problem
-            process.exit(3)
-.reader.close()
+while .reader(string &line)
+    lines += 1
 print(lines)
 """,
-    "file_parse_stream": """file.Handle reader = file.open("parse-input.txt")
+    "file_parse_stream": """file.read reader = file.read("parse-input.txt")
 int lines = 0
 int checksum = 0
-while true
-    auto | error next = .reader.read_line()
-    match next
-        string line
-            string[] fields = line.split(" ")
-            int parsed_index = int.parse(fields[0])
-            int value = int.parse(fields[1])
-            if parsed_index != lines
-                process.exit(3)
-            lines += 1
-            checksum = (checksum + value) % 1000000007
-        none
-            break
-        error problem
-            process.exit(3)
-.reader.close()
+while .reader(string &line)
+    string[] fields = line.split(" ")
+    int parsed_index = int.parse(fields[0])
+    int value = int.parse(fields[1])
+    if parsed_index != lines
+        process.exit(3)
+    lines += 1
+    checksum = (checksum + value) % 1000000007
 print("{lines} {checksum}")
 """,
-    "file_parse_whole": """string text = file.read("parse-input.txt")
+    "file_parse_decoded": """string text = string.from_utf8(file.read_bin("parse-input.txt"))
 string[] rows = text.split(NL)
 int lines = 0
 int checksum = 0
@@ -190,7 +168,7 @@ def main():
     args = parser.parse_args()
 
     quidra = os.path.abspath(args.quidra)
-    result = {"kind": "native-representative-trends", "repeats": args.repeats, "workloads": {}}
+    result = {"kind": "native-representative-trends", "file_io_model": "stream-v2", "repeats": args.repeats, "workloads": {}}
 
     with tempfile.TemporaryDirectory(prefix="quidra-native-trends-") as tmp:
         root = pathlib.Path(tmp)
@@ -224,17 +202,17 @@ def main():
                 run_checked([str(binary_path)], cwd=root)
                 samples.append(time.perf_counter() - started)
 
-            if name == "file_read_whole":
+            if name == "file_read_binary":
                 expected = f"{fixture_bytes}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
                         f"{name}: expected byte count {fixture_bytes}, got {output_bytes!r}")
-            elif name in {"file_split_whole", "file_read_stream"}:
+            elif name in {"file_split_decoded", "file_read_stream"}:
                 expected = f"{FILE_PARSE_LINES}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
                         f"{name}: expected line count {FILE_PARSE_LINES}, got {output_bytes!r}")
-            elif name in {"file_parse_stream", "file_parse_whole"}:
+            elif name in {"file_parse_stream", "file_parse_decoded"}:
                 expected = f"{FILE_PARSE_LINES} {fixture_checksum}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
@@ -250,16 +228,16 @@ def main():
             }
 
         stream = result["workloads"]["file_parse_stream"]
-        whole = result["workloads"]["file_parse_whole"]
+        whole = result["workloads"]["file_parse_decoded"]
         if stream["output_sha256"] != whole["output_sha256"]:
             raise RuntimeError(
-                "streaming and whole-file parse paths produced different output")
+                "streaming and decoded binary-file parse paths produced different output")
 
         # Keep the original 12.49 s / ~1.6 GiB report from silently returning.
         # These are intentionally loose regression envelopes, not tuning targets.
         max_parse_seconds = 2.0
         max_parse_rss_bytes = 256 * 1024 * 1024
-        for name in ("file_parse_stream", "file_parse_whole"):
+        for name in ("file_parse_stream", "file_parse_decoded"):
             row = result["workloads"][name]
             if row["run_median_seconds"] > max_parse_seconds:
                 raise RuntimeError(
@@ -270,13 +248,13 @@ def main():
                     f"{name}: peak RSS regression "
                     f"{row['peak_rss_bytes']} > {max_parse_rss_bytes}")
 
-        read_whole = result["workloads"]["file_read_whole"]["run_median_seconds"]
-        split_whole = result["workloads"]["file_split_whole"]["run_median_seconds"]
+        read_whole = result["workloads"]["file_read_binary"]["run_median_seconds"]
+        split_whole = result["workloads"]["file_split_decoded"]["run_median_seconds"]
         read_stream = result["workloads"]["file_read_stream"]["run_median_seconds"]
         result["file_parse_profile"] = {
-            "whole_file_read_seconds": read_whole,
-            "whole_file_split_increment_seconds": max(0.0, split_whole - read_whole),
-            "whole_file_parse_increment_seconds": max(
+            "whole_binary_read_seconds": read_whole,
+            "decoded_split_increment_seconds": max(0.0, split_whole - read_whole),
+            "decoded_parse_increment_seconds": max(
                 0.0, whole["run_median_seconds"] - split_whole),
             "stream_line_traversal_seconds": read_stream,
             "stream_split_parse_increment_seconds": max(

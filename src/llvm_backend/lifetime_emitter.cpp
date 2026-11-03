@@ -63,37 +63,43 @@ void LifetimeEmitter::release_tuple_slot(const Type& type,const std::string& add
     builder_.block(done);
 }
 
-void LifetimeEmitter::cleanup_owned_values() {
-    if(auto* hooks=symbols_.ownership_hooks())hooks->cleanup();
+void LifetimeEmitter::cleanup_owned_values(){cleanup_scope(0);}
+void LifetimeEmitter::cleanup_scope(std::uint64_t scope) {
+    if(auto* hooks=symbols_.ownership_hooks())hooks->cleanup_scope(scope);
     for (const auto& [name, _] : symbols_.references()) {
-        if(symbols_.is_captured_reference_slot(name))continue;
+        if(symbols_.storage_scope(name)!=scope || symbols_.is_captured_reference_slot(name))continue;
         const auto address = names_.value("cleanup.ref");
         builder_.load(address,ptr,symbols_.local(name),Align::none);
-        if(symbols_.node_cleanup()) builder_.store({ptr,"null"},symbols_.reference_slot(name),Align::none);
+        if(symbols_.node_cleanup(scope)) builder_.store({ptr,"null"},symbols_.reference_slot(name),Align::none);
         builder_.call(runtime_abi::memory::managed_unpin,{{ptr,address}});
     }
     for (const auto& [name, type] : symbols_.locals()) {
-        if (symbols_.is_writable_parameter(name) || symbols_.is_borrowed_parameter(name) ||
+        if (symbols_.storage_scope(name)!=scope || symbols_.is_writable_parameter(name) || symbols_.is_borrowed_parameter(name) ||
             symbols_.is_borrowed_local(name) || !owns_managed(type)) continue;
-        if(type.kind==TypeKind::Tuple && symbols_.node_cleanup()) {
+        if(type.kind==TypeKind::Tuple && symbols_.node_cleanup(scope)) {
             release_tuple_slot(type,symbols_.local(name),Align::none);
             continue;
         }
         const auto owned = names_.value("cleanup.value");
         builder_.load(owned,llvm_type(type),symbols_.local(name),Align::none);
-        if(symbols_.node_cleanup()) {
+        if(symbols_.node_cleanup(scope)) {
             const auto empty=type.kind==TypeKind::Tuple?std::string("zeroinitializer"):type.kind==TypeKind::Real?std::string(exact_real_none):
                 is_bare_integer(type)?std::string("0"):std::string("null");
             builder_.store({llvm_type(type),empty},symbols_.local(name),Align::none);
         }
         release_value(type, owned);
     }
-    if(symbols_.node_cleanup())
-        builder_.call(runtime_abi::program::parallel_frame_leave,{{ptr,"%quidra.node.frame"}});
+    if(symbols_.node_cleanup(scope))
+        builder_.call(runtime_abi::program::parallel_frame_leave,{{ptr,symbols_.frame(scope)}});
 }
 
-std::string LifetimeEmitter::node_cleanup_helpers() const {
-    if(!symbols_.node_cleanup()) return {};
+std::string LifetimeEmitter::node_cleanup_helpers()const {
+    std::string result;
+    for(const auto& [scope,plan]:symbols_.cleanup_plans()){(void)plan;result+=node_cleanup_helpers(scope);}
+    return result;
+}
+std::string LifetimeEmitter::node_cleanup_helpers(std::uint64_t scope)const {
+    if(!symbols_.node_cleanup(scope))return {};
     FunctionText text;
     LlvmBuilder out(text);
     const auto emit_leaf=[&](const std::string& symbol,const Type& type,bool pin) {
@@ -112,7 +118,7 @@ std::string LifetimeEmitter::node_cleanup_helpers() const {
         else out.call(runtime_abi::memory::managed_release,{{ptr,"%owned"},{ptr,drop_callback(type)}});
         out.ret_void();out.end_function();
     };
-    for(const auto& slot:symbols_.cleanup_slots()) {
+    for(const auto& slot:symbols_.cleanup_slots(scope)) {
         if(slot.pin || slot.type.kind!=TypeKind::Tuple) {
             emit_leaf(slot.drop_symbol,slot.type,slot.pin);
             continue;
@@ -146,10 +152,10 @@ std::string LifetimeEmitter::node_cleanup_helpers() const {
         }
         out.ret_void();out.end_function();
     }
-    LlvmFunction cleanup(void_type,"@"+symbols_.cleanup_symbol());
+    LlvmFunction cleanup(void_type,"@"+symbols_.cleanup_symbol(scope));
     cleanup.parameter(ptr,"","%frame");out.define(cleanup);out.block("entry");
-    for(std::size_t i=0;i<symbols_.cleanup_slots().size();++i) {
-        const auto& slot=symbols_.cleanup_slots()[i];
+    for(std::size_t i=0;i<symbols_.cleanup_slots(scope).size();++i) {
+        const auto& slot=symbols_.cleanup_slots(scope)[i];
         const auto address="%slot."+std::to_string(i);
         out.getelementptr(address,Inbounds::yes,i8,"%frame",{{i64,slot.offset}});
         out.call(runtime_abi::program::parallel_frame_cleanup,

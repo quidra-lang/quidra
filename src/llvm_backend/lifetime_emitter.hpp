@@ -36,6 +36,7 @@ public:
     void release_tuple_slot(const Type& type,const std::string& address,llvm_text::Align alignment);
 
     void cleanup_owned_values();
+    void cleanup_scope(std::uint64_t scope);
     std::string node_cleanup_helpers() const;
 
     // The handlers of its domain's instructions.
@@ -47,6 +48,7 @@ public:
 
 private:
     std::string drop_callback(const Type& type) const;
+    std::string node_cleanup_helpers(std::uint64_t scope)const;
 
     llvm_text::LlvmBuilder& builder_;
     TemporaryNames& names_;

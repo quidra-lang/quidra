@@ -1,6 +1,7 @@
 #include "quidra/pattern_selection.hpp"
 #include "for_loop_constants.hpp"
 #include "quidra/checker.hpp"
+#include "semantics/binding_entry.hpp"
 
 #include "quidra/abi/error_record.hpp"
 #include "quidra/abi/symbols.hpp"
@@ -215,8 +216,8 @@ std::optional<double> literal_number_value(const Expr& expression) {
 // The value of a constant real expression in the fixed-width real type
 // `type`, each operation rounded in the type as the program computes it:
 // real literals, their negation, and +, -, * and / of such operands;
-// nothing for any other expression, or where an operation's result is not
-// finite (the check of that operation reports it).
+// nothing for any other expression, or a NaN result (the check of that
+// operation reports it). Signed infinity remains a usable constant value.
 std::optional<double> constant_real_value(const Expr& expression, const Type& type) {
     if (const auto* real = std::get_if<RealLiteralExpr>(&expression.data))
         return constant_eval::real_literal_value(real->spelling, type);
@@ -234,7 +235,7 @@ std::optional<double> constant_real_value(const Expr& expression, const Type& ty
         if (!left || !right) return std::nullopt;
         const auto value =
             constant_eval::real_operation_value(binary->op.front(), *left, *right, type);
-        if (!value || !std::isfinite(*value)) return std::nullopt;
+        if (!value || std::isnan(*value)) return std::nullopt;
         return value;
     }
     return std::nullopt;
@@ -544,7 +545,7 @@ void weaken_loop_tensor_facts(
         const auto it = variables.find(name);
         if (it == variables.end() ||
             it->second.kind != TypeKind::Tensor) continue;
-        it->second.length = it->second.tensor_shape_prefix.empty()
+        it->second.length = it->second.tensor_shape_ellipsis || it->second.tensor_shape_prefix.empty()
             ? -1
             : static_cast<long long>(it->second.tensor_shape_prefix.size());
         it->second.tensor_known_shape_prefix.clear();
@@ -682,7 +683,11 @@ std::optional<long long> broadcast_result_extent(
 void apply_broadcast_shape(const Type& left, const Type& right, Type& result) {
     for (std::size_t axis = 0; axis < result.tensor_shape_prefix.size(); ++axis) {
         if (result.tensor_shape_prefix[axis] != 1) continue;
-        const auto extent = broadcast_result_extent(1, tensor_known_extent(right, axis));
+        const auto physical = result.tensor_shape_ellipsis && axis >= *result.tensor_shape_ellipsis && result.length < 0
+            ? std::optional<std::size_t>{}
+            : std::optional<std::size_t>{tensor_pattern_axis(result, axis, result.length)};
+        const auto extent = broadcast_result_extent(1,
+            physical ? tensor_known_extent(right, *physical) : std::nullopt);
         result.tensor_shape_prefix[axis] = extent ? *extent : -1;
     }
     result.tensor_known_shape_prefix.clear();
@@ -2072,11 +2077,20 @@ void Checker::check_slice_item(const IndexPart& item) {
 SliceDirection Checker::slice_item_direction(const IndexPart& item) const {
     const int start_direction = slice_marker_direction(item.start_form);
     const int marked = start_direction != 0 ? start_direction : slice_marker_direction(item.end_form);
+    if (item.step) {
+        if (const auto step = constant_eval::integer(*item.step))
+            return *step < 0 ? SliceDirection::descending : SliceDirection::ascending;
+        if (marked != 0) return marked > 0 ? SliceDirection::ascending : SliceDirection::descending;
+        return SliceDirection::by_step_sign;
+    }
     if (marked != 0) return marked > 0 ? SliceDirection::ascending : SliceDirection::descending;
-    if (!item.step) return SliceDirection::ascending;
-    if (const auto step = constant_eval::integer(*item.step))
-        return *step < 0 ? SliceDirection::descending : SliceDirection::ascending;
-    return SliceDirection::by_step_sign;
+    if (item.start && item.stop) {
+        const auto start = constant_eval::integer(*item.start);
+        const auto end = constant_eval::integer(*item.stop);
+        if (start && end) return *start > *end ? SliceDirection::descending : SliceDirection::ascending;
+        return SliceDirection::by_bounds;
+    }
+    return SliceDirection::ascending;
 }
 
 namespace {
@@ -2936,6 +2950,7 @@ void Checker::finalize_receiver_effects(FunctionType& signature, bool include_fa
 
 void Checker::finalize_reference_effects(FunctionType& signature, bool include_fallthrough) {
     signature.reference_effects = current_reference_effects_;
+    signature.success_reference_initializes = current_true_return_initialized_;
     std::unordered_set<std::string> names;
     for (const auto& [name, _] : current_reference_effects_) names.insert(name);
     for (const auto& [name, _] : current_exit_reference_initialized_) names.insert(name);
@@ -2988,6 +3003,8 @@ void Checker::reset_current_effect_state() {
     current_exit_receiver_initialized_.clear();
     current_exit_reference_initialized_.clear();
     current_effect_exit_summary_seen_ = false;
+    current_true_return_seen_ = false;
+    current_true_return_initialized_.clear();
 }
 
 Type Checker::resolve_result_type(const TypeName& source) {
@@ -3039,11 +3056,11 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         } else if (!is_tensor_numeric(element) && element.kind != TypeKind::Bool) {
             error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type or bool.", source.arguments.front().span);
         }
-        const auto rank = !source.tensor_shape_prefix.empty()
+        const auto rank = source.tensor_shape_ellipsis ? -1 : !source.tensor_shape_prefix.empty()
             ? static_cast<long long>(source.tensor_shape_prefix.size())
             : source.tensor_rank.value_or(-1);
         type = Type::tensor(element, rank, source.tensor_shape_prefix,
-                            source.tensor_known_shape_prefix);
+                            source.tensor_known_shape_prefix, source.tensor_shape_ellipsis);
     } else if (source.name == "func") {
         if (source.arguments.size() != 1) {
             error("GENERIC_ARITY", "func requires exactly one result type.", source.span);
@@ -3457,8 +3474,9 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             }
             const bool standard = standard_library_class(base.class_name);
             const auto standard_map = standard_class::is_map_instance(base.class_name, standard);
-            const auto standard_set = standard_class::is_set_instance(base.class_name, standard);
-            if ((standard_map || standard_set) && node->name.rfind("__", 0) == 0) {
+            const auto standard_distinct = standard_class::is_distinct_instance(base.class_name, standard);
+            if ((standard_map || standard_distinct) && node->name.rfind("__", 0) == 0 &&
+                current_class_ != base.class_name) {
                 error("UNKNOWN_MEMBER", "Standard collection internals are not source-visible.", expression.span);
             }
             const auto* field = find_field(base.class_name, node->name);
@@ -3531,6 +3549,54 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
     if(base.kind==TypeKind::Tuple) error("TUPLE","Tuples have no positional access; destructure the tuple instead.",expression.span);
 
     if (base.kind == TypeKind::Tensor) {
+        bool scalar_index_checked = false;
+        // A tensor<bool> mask selects all matching logical elements and
+        // produces a flat tensor. Reject rank/extent mismatches statically
+        // when known, and always validate the exact shape at runtime.
+        if (node->items.size() == 1 && !node->items.front().slice &&
+            node->items.front().index &&
+            !integer_category(numeric_literal_family(*node->items.front().index))) {
+            const auto& selector = *node->items.front().index;
+            const Type mask = check_expr(selector);
+            if (mask.kind == TypeKind::Tensor) {
+                if (!mask.first || mask.first->kind != TypeKind::Bool) {
+                    error("TYPE_MISMATCH",
+                          "Tensor mask extraction requires tensor<bool>.",
+                          selector.span);
+                    return simple(TypeKind::Invalid);
+                }
+                if (base.length >= 0 && mask.length >= 0 &&
+                    base.length != mask.length)
+                    error("TENSOR_SHAPE",
+                          "A tensor mask must have the same rank as its input.",
+                          selector.span);
+                if (base.length >= 0 && mask.length >= 0 &&
+                    base.length == mask.length) {
+                    for (long long axis = 0; axis < base.length; ++axis) {
+                        const auto input_extent=base.extent(static_cast<std::size_t>(axis)).known();
+                        const auto mask_extent=mask.extent(static_cast<std::size_t>(axis)).known();
+                        if (input_extent && mask_extent &&
+                            *input_extent != *mask_extent) {
+                            error("TENSOR_SHAPE",
+                                  "A tensor mask must have the same shape as its input.",
+                                  selector.span);
+                        }
+                    }
+                }
+                return Type::tensor(*base.first, 1);
+            }
+            // A scalar integer index has already been type-checked by the
+            // speculative mask branch. Re-checking a name or an effectful
+            // expression would distort initialization/effect accounting.
+            if (poisoned(mask)) return mask;
+            if (!is_integer_family_type(mask)) {
+                error("TYPE_MISMATCH",
+                      "Tensor indexing needs an integer or a tensor<bool> mask.",
+                      selector.span);
+                return simple(TypeKind::Invalid);
+            }
+            scalar_index_checked = true;
+        }
         if (node->items.empty()) {
             error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
         }
@@ -3542,7 +3608,8 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         for (const auto& item : node->items) {
             if (!item.slice) {
                 if (!item.index) error("INDEX_SYNTAX", "Tensor index is missing.", item.span);
-                check_index_operand(*item.index);
+                if (!scalar_index_checked)
+                    check_index_operand(*item.index);
                 if (result_rank >= 0) --result_rank;
                 continue;
             }
@@ -3563,8 +3630,15 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                 }
             }
         }
-        auto shape_prefix = base.tensor_shape_prefix;
+        auto shape_prefix = base.tensor_shape_ellipsis ? std::vector<long long>{} : base.tensor_shape_prefix;
         auto known_shape_prefix = base.tensor_known_shape_prefix;
+        if (base.tensor_shape_ellipsis) {
+            const auto leading = *base.tensor_shape_ellipsis;
+            if (known_shape_prefix.size() < leading) known_shape_prefix.resize(leading);
+            for (std::size_t axis = 0; axis < leading; ++axis)
+                if (known_shape_prefix[axis].kind == ShapeExtent::Kind::Unknown)
+                    known_shape_prefix[axis] = base.declared_extent(axis);
+        }
         std::size_t axis = 0;
         for (const auto& item : node->items) {
             if (!item.slice) {
@@ -3625,13 +3699,74 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         check_static_slice_bounds(base, item, expression.span);
         return Type::array(*base.first);
     }
+    bool checked_array_scalar_index = false;
+    if (base.kind == TypeKind::Array && node->items.size() == 1 &&
+        !node->items.front().slice && node->items.front().index) {
+        const auto& selector = *node->items.front().index;
+        // Index literals are contextually int; an all-integer array literal
+        // also needs that context (bare numeric arrays are otherwise
+        // ambiguous). Do not accidentally reject the legacy scalar a[1].
+        Type selector_type;
+        if (const auto* items = std::get_if<ArrayExpr>(&selector.data);
+            items && std::all_of(items->elements.begin(), items->elements.end(),
+                [&](const auto& item) {
+                    return integer_category(numeric_literal_family(*item));
+                })) {
+            const auto index_array = Type::array(simple(TypeKind::Int));
+            selector_type = check_expr(selector, &index_array);
+        } else if (integer_category(numeric_literal_family(selector))) {
+            selector_type = check_index_operand(selector);
+        } else {
+            selector_type = check_expr(selector);
+        }
+        if (selector_type.kind == TypeKind::Array && selector_type.first) {
+            const auto kind = selector_type.first->kind;
+            if (kind != TypeKind::Bool && kind != TypeKind::Nat &&
+                kind != TypeKind::Int) {
+                error("TYPE_MISMATCH",
+                      "Array selection needs bool[], nat[] or int[] indices.",
+                      selector.span);
+            }
+            // Selection reads every index/mask element, not just the
+            // selector's length. Unknown element states retain the existing
+            // runtime initialization checks in array selection lowering.
+            check_element_read(selector, nullptr, selector.span);
+            if (kind == TypeKind::Bool && base.length >= 0 &&
+                selector_type.length >= 0 && base.length != selector_type.length) {
+                error("SHAPE_MISMATCH",
+                      "A boolean mask must have the same outer length as its array.",
+                      expression.span);
+            }
+            if (kind == TypeKind::Nat || kind == TypeKind::Int) {
+                if (const auto* literals = std::get_if<ArrayExpr>(&selector.data))
+                    for (const auto& index : literals->elements)
+                        check_static_index_bounds(base, *index);
+            }
+            // Every selected row is a value copy, including class/tuple and
+            // nested array elements; an uninitialized row is not readable.
+            check_element_read(*node->base, nullptr, expression.span);
+            return Type::array(*base.first);
+        }
+        // A scalar is already checked here; do not check it twice.
+        if (poisoned(selector_type)) return selector_type;
+        if (!is_integer_family_type(selector_type)) {
+            error("TYPE_MISMATCH",
+                  "An index must be an integer or an index/mask array.",
+                  selector.span);
+            return simple(TypeKind::Invalid);
+        }
+        // Preserve the original scalar read flow (including class/tuple
+        // initialization proofs and ordinary index checks below).
+        checked_array_scalar_index = true;
+    }
     if (node->items.size() != 1 || node->items.front().slice ||
         !node->items.front().index) {
         for (const auto& item : node->items)
             if (item.slice) check_slice_item(item);
         error("INDEX_ARITY", "Arrays and strings take one index or one slice.", expression.span);
     }
-    check_index_operand(*node->items.front().index);
+    if (!checked_array_scalar_index)
+        check_index_operand(*node->items.front().index);
     check_static_index_bounds(base, *node->items.front().index);
     if (base.kind == TypeKind::Array) {
         check_element_read(*node->base, node->items.front().index.get(), expression.span);
@@ -3666,6 +3801,51 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
     }
 
     return type;
+}
+
+bool Checker::check_input_template(const Expr& expression,
+                                   const StringTemplateExpr& pattern,
+                                   bool file_reader, bool terminating) {
+    ScanFormat format;
+    format.literals=pattern.literals;
+    if (pattern.expressions.empty())
+        error("ARGUMENT_MISMATCH","An input format requires at least one target.",expression.span);
+    for(std::size_t i=0;i<pattern.expressions.size();++i){
+        const auto* placeholder=std::get_if<UnaryExpr>(&pattern.expressions[i]->data);
+        if(!placeholder || placeholder->op!="scan&")
+            error("ARGUMENT_MISMATCH",
+                  "Input format placeholders are {&target} or {T &name}.",
+                  pattern.expressions[i]->span);
+        if(i>0 && pattern.literals[i].empty())
+            error("ARGUMENT_MISMATCH",
+                  "Two input targets need literal text between them.",
+                  pattern.expressions[i]->span);
+        format.targets.push_back(placeholder->operand.get());
+    }
+    bool any_poison=false;
+    for(const auto* target:format.targets){
+        if(!stable_writable_storage(*target))
+            error("WRITE_CAPABILITY","Input targets require writable storage.",target->span);
+        if(const auto path=writable_storage_path(*target)){
+            if(narrowed_.contains(path->first))
+                error("WRITE_CAPABILITY","Input targets require unnarrowed, unborrowed storage.",target->span);
+        }
+        auto actual=check_address_target(*target);
+        any_poison|=poisoned(actual);
+        if(!poisoned(actual) && !is_numeric(actual) &&
+           actual.kind!=TypeKind::String && actual.kind!=TypeKind::Bool)
+            error("TYPE_MISMATCH","Input target must be string, bool or a numeric scalar.",target->span);
+        format.target_types.push_back(actual);
+        if(!file_reader){
+            if(terminating) mark_storage_initialized(*target);
+            else if(!storage_initialized(*target))
+                error("UNINITIALIZED",
+                    "A scan with a handled error needs already initialized targets; use a scan statement or try scan.",
+                    target->span);
+        }
+    }
+    if(!any_poison) scan_formats_[&expression]=std::move(format);
+    return !any_poison;
 }
 
 Type Checker::check_method_call_expr(const Expr& expression,
@@ -3848,6 +4028,63 @@ Type Checker::check_method_call_expr(const Expr& expression,
                           expression.span);
                     type = simple(TypeKind::Invalid);
                 }
+            } else if (receiver.kind == TypeKind::Class &&
+                       (receiver.class_name == standard_class::file_read ||
+                        receiver.class_name == standard_class::file_write ||
+                        receiver.class_name == standard_class::file_append)) {
+                const bool reader = receiver.class_name == standard_class::file_read;
+                const bool line_output = !reader && node->method == "line";
+                if (node->method != "operator" && !line_output)
+                    error("UNKNOWN_METHOD", reader
+                          ? "file.read supports only the call operator."
+                          : "file.write/file.append support the call operator and .line().", expression.span);
+                const bool formatted_reader=reader && node->args.size()==1 &&
+                    !node->args[0].writable &&
+                    std::holds_alternative<StringTemplateExpr>(node->args[0].value->data);
+                const bool count_valid = line_output ? node->args.size() <= 1 : node->args.size() == 1;
+                if (!node->type_arguments.empty() || !count_valid ||
+                    (!node->args.empty() &&
+                     (node->args[0].name ||
+                      (reader && !node->args[0].writable && !formatted_reader) ||
+                      (!reader && node->args[0].writable))))
+                    error("ARGUMENT_MISMATCH",
+                          reader ? "file.read requires a writable scalar reference or an input format."
+                                 : "file.write/file.append require one scalar value, or .line() with no value.", expression.span);
+                auto string_type = simple(TypeKind::String);
+                if (reader) {
+                    if (formatted_reader) {
+                        const auto& pattern=std::get<StringTemplateExpr>(node->args[0].value->data);
+                        check_input_template(expression,pattern,true,false);
+                    } else {
+                        if (!stable_writable_storage(*node->args[0].value))
+                            error("WRITE_CAPABILITY", "File read requires writable scalar storage.", node->args[0].span);
+                        const auto actual = check_address_target(*node->args[0].value);
+                        if (!poisoned(actual) && actual != string_type &&
+                            actual.kind != TypeKind::Bool && !is_numeric(actual))
+                            error("TYPE_MISMATCH", "File read target must be string, bool or a numeric scalar.", node->args[0].span);
+                    }
+                    type = Type::union_of({simple(TypeKind::Bool), simple(TypeKind::Error)});
+                } else {
+                    if (!node->args.empty()) {
+                        const auto& value = *node->args[0].value;
+                        const auto literal_family = numeric_literal_family(value);
+                        // Use exactly the existing scalar formatting semantics.
+                        const auto literal_type = integer_category(literal_family)
+                            ? simple(TypeKind::Int) : simple(TypeKind::Real64);
+                        const auto actual = single_family_category(literal_family)
+                            ? check_expr(value, &literal_type) : check_expr(value);
+                        if (!poisoned(actual) && actual != string_type &&
+                            actual.kind != TypeKind::Bool && !is_numeric(actual))
+                            error("TYPE_MISMATCH", "File output requires a string, bool or numeric scalar.", node->args[0].span);
+                    }
+                    type = Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
+                }
+                if (const_access_path(*node->receiver))
+                    error("WRITE_CAPABILITY", "File operations require writable receiver storage.", expression.span);
+                if (const auto path = current_receiver_path(*node->receiver))
+                    current_receiver_effect_.writes.insert(*path);
+                if (const auto path = current_reference_parameter_path(*node->receiver))
+                    current_reference_effects_[path->first].writes.insert(path->second);
             } else if (receiver.kind == TypeKind::Class &&
                        receiver.class_name == standard_class::file_handle) {
                 if (!node->type_arguments.empty()) {
@@ -4382,6 +4619,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type=poisoned(a)?simple(TypeKind::Invalid):Type::union_of({simple(TypeKind::Nat),simple(TypeKind::None)});
                     } else if (node->method == "trim") {
                         require_count(0, "string.trim() takes no arguments."); type=string_type;
+                    } else if (node->method == "lower_ascii" || node->method == "upper_ascii") {
+                        require_count(0, "ASCII case conversion takes no arguments."); type = string_type;
                     } else if (node->method == "split") {
                         require_count(1, "string.split requires separator.");
                         auto a=check_plain_argument(0,"separator",string_type);
@@ -4395,6 +4634,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     } else {
                         error("UNKNOWN_MEMBER","Type 'string' has no method '" + node->method + "'.",expression.span);
                     }
+                } else if (receiver.kind == TypeKind::Array &&
+                           node->method == "indices") {
+                    require_count(0, "array.indices() takes no arguments.");
+                    type = Type::array(simple(TypeKind::Nat));
                 } else if (receiver.kind == TypeKind::Array &&
                            (node->method == "append" || node->method == "concat" ||
                             node->method == "join" || node->method == "sorted")) {
@@ -4422,37 +4665,98 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         auto a=check_plain_argument(0,"separator",text_type);
                         type=poisoned(a)?simple(TypeKind::Invalid):text_type;
                     } else {
-                        if(receiver.first->kind==TypeKind::Tuple) {
-                            error("TUPLE","Tuples are not ordered; compare their elements.",expression.span);
-                        } else if (is_complex(*receiver.first)) {
-                            error("TYPE_MISMATCH", "Complex values have no ordering.",
-                                  expression.span);
-                        } else if (!is_tensor_numeric(*receiver.first) &&
-                            !is_bare_integer(*receiver.first) &&
-                            receiver.first->kind != TypeKind::Bool &&
-                            receiver.first->kind != TypeKind::String) {
-                            error("UNKNOWN_MEMBER",
-                                  "sorted is available on fixed-width numeric, bool, and string arrays.",
-                                  expression.span);
-                        }
-                        // sorted(descending = true) sorts in descending
-                        // order; the argument is named only (L4).
+                        // Named key arrays are compared in priority order.
+                        // A tuple supports heterogeneous key element types without
+                        // introducing an implicit conversion or a closure.
+                        const CallArg* by = nullptr;
+                        const CallArg* descending = nullptr;
                         bool valid_arguments = true;
-                        if (node->args.size() > 1 ||
-                            (node->args.size() == 1 &&
-                             (!node->args[0].name || *node->args[0].name != "descending" ||
-                              node->args[0].writable))) {
-                            error("ARGUMENT_MISMATCH",
-                                  "sorted() accepts only the named argument 'descending'.",
-                                  expression.span);
-                            valid_arguments = false;
-                        } else if (node->args.size() == 1) {
-                            const auto flag = check_expr(*node->args[0].value);
-                            if (poisoned(flag)) {
+                        for (const auto& argument : node->args) {
+                            if (!argument.name || argument.writable) {
+                                error("ARGUMENT_MISMATCH",
+                                      "sorted accepts only named 'by' and 'descending' arguments.",
+                                      argument.span);
                                 valid_arguments = false;
-                            } else if (flag.kind != TypeKind::Bool) {
-                                error("TYPE_MISMATCH", "descending must be bool.",
-                                      node->args[0].span);
+                            } else if (*argument.name == "by") {
+                                if (by) {
+                                    error("ARGUMENT_MISMATCH", "Duplicate sorted(by=...).", argument.span);
+                                    valid_arguments = false;
+                                }
+                                by = &argument;
+                            } else if (*argument.name == "descending") {
+                                if (descending) {
+                                    error("ARGUMENT_MISMATCH", "Duplicate sorted(descending=...).", argument.span);
+                                    valid_arguments = false;
+                                }
+                                descending = &argument;
+                            } else {
+                                error("ARGUMENT_MISMATCH", "Unknown sorted argument '" + *argument.name + "'.", argument.span);
+                                valid_arguments = false;
+                            }
+                        }
+                        std::size_t key_count = 0;
+                        if (by) {
+                            const auto keys = check_expr(*by->value);
+                            const auto key_array = [&](const Type& current) {
+                                if (current.kind != TypeKind::Array || !current.first ||
+                                    is_complex(*current.first) ||
+                                    (!is_tensor_numeric(*current.first) &&
+                                     !is_bare_integer(*current.first) &&
+                                     current.first->kind != TypeKind::Bool &&
+                                     current.first->kind != TypeKind::String)) {
+                                    error("TYPE_MISMATCH", "sorted(by=...) requires one-dimensional arrays of ordered numeric, bool or string keys.", by->span);
+                                    valid_arguments = false;
+                                    return;
+                                }
+                                if (receiver.length >= 0 && current.length >= 0 &&
+                                    receiver.length != current.length) {
+                                    error("SORT_KEY_LENGTH", "sorted(by=...) key length must match the source array length.", by->span);
+                                    valid_arguments = false;
+                                }
+                                ++key_count;
+                            };
+                            if (keys.kind == TypeKind::Tuple) {
+                                for (const auto& current : keys.parameters) key_array(current);
+                            } else if (!poisoned(keys)) {
+                                key_array(keys);
+                            } else {
+                                valid_arguments = false;
+                            }
+                            if (key_count == 0) {
+                                error("ARGUMENT_MISMATCH", "sorted(by=...) needs at least one key array.", by->span);
+                                valid_arguments = false;
+                            }
+                        } else if (receiver.first->kind == TypeKind::Tuple) {
+                            error("TUPLE", "Tuples are not ordered; supply sorted(by=...).", expression.span);
+                            valid_arguments = false;
+                        } else if (is_complex(*receiver.first)) {
+                            error("TYPE_MISMATCH", "Complex values have no ordering; supply sorted(by=...).", expression.span);
+                            valid_arguments = false;
+                        } else if (!is_tensor_numeric(*receiver.first) &&
+                                   !is_bare_integer(*receiver.first) &&
+                                   receiver.first->kind != TypeKind::Bool &&
+                                   receiver.first->kind != TypeKind::String) {
+                            error("UNKNOWN_MEMBER", "sorted() requires orderable array elements; supply sorted(by=...) for other element types.", expression.span);
+                            valid_arguments = false;
+                        }
+                        if (descending) {
+                            const auto flag = check_expr(*descending->value);
+                            if (flag.kind == TypeKind::Bool) {
+                                // A scalar bool controls all the keys (or the natural sort).
+                            } else if (by && flag.kind == TypeKind::Tuple &&
+                                       flag.parameters.size() == key_count) {
+                                for (const auto& part : flag.parameters) {
+                                    if (part.kind != TypeKind::Bool) {
+                                        error("TYPE_MISMATCH", "All descending tuple entries must be bool.", descending->span);
+                                        valid_arguments = false;
+                                    }
+                                }
+                            } else if (!poisoned(flag)) {
+                                error("TYPE_MISMATCH", by
+                                      ? "descending must be bool or a bool tuple matching by keys."
+                                      : "descending must be bool.", descending->span);
+                                valid_arguments = false;
+                            } else {
                                 valid_arguments = false;
                             }
                         }
@@ -4462,8 +4766,60 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (node->method != "string" || !printable(receiver)) {
                         error("UNKNOWN_MEMBER","Type '" + type_name(receiver) + "' has no method '" + node->method + "'.",expression.span);
                     }
-                    require_count(0, "value.string() takes no arguments.");
-                    type = simple(TypeKind::String);
+                    if (node->args.empty()) {
+                        type = simple(TypeKind::String);
+                    } else {
+                        if (!is_bare_integer(receiver) && !is_fixed_integer(receiver)) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Only integer values may specify string(base=..., uppercase=...).",
+                                  expression.span);
+                        }
+                        if (node->args.size() > 2) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Integer string conversion accepts base and uppercase.",
+                                  expression.span);
+                        }
+                        bool base_seen = false;
+                        bool uppercase_seen = false;
+                        for (const auto& argument : node->args) {
+                            if (argument.writable || !argument.name) {
+                                error("ARGUMENT_MISMATCH",
+                                      "Integer string formatting arguments must be named.",
+                                      argument.span);
+                            } else if (*argument.name == "base") {
+                                if (base_seen) error("ARGUMENT_MISMATCH", "Duplicate base argument.", argument.span);
+                                base_seen = true;
+                                const auto int_type = simple(TypeKind::Int);
+                                check_expr(*argument.value, &int_type);
+                                const auto* integer = std::get_if<IntegerExpr>(&argument.value->data);
+                                if (!integer || !integer->fits_u64 ||
+                                    integer->value < 2 || integer->value > 36) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "base must be an integer literal between 2 and 36.",
+                                          argument.span);
+                                }
+                            } else if (*argument.name == "uppercase") {
+                                if (uppercase_seen) error("ARGUMENT_MISMATCH", "Duplicate uppercase argument.", argument.span);
+                                uppercase_seen = true;
+                                const auto bool_type = simple(TypeKind::Bool);
+                                check_expr(*argument.value, &bool_type);
+                                if (!std::holds_alternative<BoolExpr>(argument.value->data)) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "uppercase must be a bool literal.",
+                                          argument.span);
+                                }
+                            } else {
+                                error("ARGUMENT_MISMATCH",
+                                      "Unknown integer string formatting argument.",
+                                      argument.span);
+                            }
+                        }
+                        if (!base_seen)
+                            error("ARGUMENT_MISMATCH",
+                                  "Specify base before uppercase in integer string formatting.",
+                                  expression.span);
+                        type = simple(TypeKind::String);
+                    }
                 }
                 }
             } else {
@@ -4661,21 +5017,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         format.literals = {"", ""};
                         format.targets.push_back(argument.value.get());
                     } else if (const auto* text = std::get_if<StringTemplateExpr>(&argument.value->data)) {
-                        format.literals = text->literals;
-                        for (std::size_t i = 0; i < text->expressions.size(); ++i) {
-                            const auto* placeholder = std::get_if<UnaryExpr>(&text->expressions[i]->data);
-                            if (!placeholder || placeholder->op != "scan&") {
-                                error("ARGUMENT_MISMATCH",
-                                      "scan format placeholders are input targets written {&name}.",
-                                      text->expressions[i]->span);
-                            }
-                            if (i > 0 && text->literals[i].empty()) {
-                                error("ARGUMENT_MISMATCH",
-                                      "Two input targets need literal text between them so scan can split the input.",
-                                      text->expressions[i]->span);
-                            }
-                            format.targets.push_back(placeholder->operand.get());
-                        }
+                        const bool valid=check_input_template(expression,*text,false,
+                                                              error_terminating_expr_==&expression);
+                        type=valid
+                            ? Type::union_of({simple(TypeKind::Void),simple(TypeKind::Error)})
+                            : simple(TypeKind::Invalid);
+                        break;
                     } else if (std::holds_alternative<StringExpr>(argument.value->data)) {
                         error("ARGUMENT_MISMATCH",
                               "scan format names no input target; write {&name} where a value is read.",
@@ -4701,9 +5048,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         }
                         auto actual = check_address_target(*target);
                         any_poison |= poisoned(actual);
-                        if (!poisoned(actual) && !is_numeric(actual) && actual.kind != TypeKind::String) {
+                        if (!poisoned(actual) && !is_numeric(actual) &&
+                            actual.kind != TypeKind::String && actual.kind != TypeKind::Bool) {
                             error("TYPE_MISMATCH",
-                                  "scan reads numeric and string targets; this target has type '" +
+                                  "scan reads numeric, bool and string targets; this target has type '" +
                                       type_name(actual) + "'.",
                                   target->span);
                         }
@@ -4722,9 +5070,17 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (!any_poison) scan_formats_[&expression] = std::move(format);
                     break;
                 }
-                case BuiltinCallable::Print: {
-                    if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "print requires one argument.", expression.span);
+                case BuiltinCallable::Print:
+                case BuiltinCallable::PrintLine: {
+                    const bool with_line = builtin == BuiltinCallable::PrintLine;
+                    if (node->args.size() != 1 && !(with_line && node->args.empty())) {
+                        error("ARGUMENT_MISMATCH", with_line
+                              ? "print.line accepts zero or one argument."
+                              : "print requires one argument.", expression.span);
+                    }
+                    if (with_line && node->args.empty()) {
+                        type = Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
+                        break;
                     }
                     auto argument = builtin_arg(0, "value");
                     // print is a success-only consumer. When its argument
@@ -5018,8 +5374,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::FileOpen:
-                case BuiltinCallable::FileCreate:
-                case BuiltinCallable::FileAppend: {
+                case BuiltinCallable::FileCreate: {
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", name + " requires one path string.", expression.span);
                     }
@@ -5034,12 +5389,21 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     break;
                 }
-                case BuiltinCallable::FileRead: {
-                    if (node->args.size() != 1) error("ARGUMENT_MISMATCH", "file.read requires one path.", expression.span);
+                case BuiltinCallable::FileRead:
+                case BuiltinCallable::FileWrite:
+                case BuiltinCallable::FileAppend: {
+                    if (node->args.size() != 1)
+                        error("ARGUMENT_MISMATCH", name + " requires one path.", expression.span);
                     auto string_type = simple(TypeKind::String);
                     auto path = builtin_arg(0, "path", &string_type);
+                    const bool reading = builtin == BuiltinCallable::FileRead;
                     type = poisoned(path) ? simple(TypeKind::Invalid)
-                        : Type::union_of({string_type, simple(TypeKind::Error)});
+                        : Type::union_of({
+                            Type::class_type(reading ? standard_class::file_read :
+                                (builtin == BuiltinCallable::FileAppend ?
+                                    standard_class::file_append : standard_class::file_write)),
+                            simple(TypeKind::Error)});
+                    if (!poisoned(path)) class_expr_initialized_paths_[&expression] = {"$handle"};
                     break;
                 }
                 case BuiltinCallable::FileReadBin: {
@@ -5048,15 +5412,6 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto path = builtin_arg(0, "path", &string_type);
                     type = poisoned(path) ? simple(TypeKind::Invalid)
                         : Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
-                    break;
-                }
-                case BuiltinCallable::FileWrite: {
-                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "file.write requires path and text.", expression.span);
-                    auto string_type = simple(TypeKind::String);
-                    auto path = builtin_arg(0, "path", &string_type);
-                    auto text = builtin_arg(1, "text", &string_type);
-                    type = poisoned(path) || poisoned(text) ? simple(TypeKind::Invalid)
-                        : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::FileWriteBin: {
@@ -5810,7 +6165,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   expression.span);
                         }
                         if (!expected || expected->kind != TypeKind::Tensor ||
-                            expected->tensor_shape_prefix.empty()) {
+                            (expected->tensor_shape_prefix.empty() || expected->tensor_shape_ellipsis)) {
                             error("ARGUMENT_MISMATCH",
                                   "Contextual tensor.zeros()/tensor.ones() requires an exact-rank expected tensor shape.",
                                   expression.span);
@@ -5871,23 +6226,26 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         !expected->tensor_shape_prefix.empty()) {
                         if (const auto* literal =
                                 std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
-                            if (literal->elements.size() !=
-                                expected->tensor_shape_prefix.size()) {
+                            if (expected->tensor_shape_ellipsis
+                                    ? literal->elements.size() < expected->tensor_shape_prefix.size()
+                                    : literal->elements.size() != expected->tensor_shape_prefix.size()) {
                                 error("TYPE_MISMATCH",
                                       "Tensor shape argument contradicts the expected tensor rank.",
                                       node->args[*shape_index].span);
                             } else {
                                 for (std::size_t axis = 0;
-                                     axis < literal->elements.size(); ++axis) {
+                                     axis < expected->tensor_shape_prefix.size(); ++axis) {
+                                    const auto actual_axis = tensor_pattern_axis(*expected, axis,
+                                        static_cast<long long>(literal->elements.size()));
                                     const auto required =
                                         expected->tensor_shape_prefix[axis];
                                     if (required < 0) continue;
                                     const auto extent = constant_eval::integer(
-                                        *literal->elements[axis], &const_integer_values_);
+                                        *literal->elements[actual_axis], &const_integer_values_);
                                     if (extent && *extent != required) {
                                         error("TYPE_MISMATCH",
                                               "Tensor shape argument contradicts the expected tensor shape.",
-                                              literal->elements[axis]->span);
+                                              literal->elements[actual_axis]->span);
                                     }
                                 }
                             }
@@ -5910,6 +6268,74 @@ Type Checker::check_call_expr(const Expr& expression,
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
         const auto& name = node->callee;
+        if (name == "$std.range.generate") {
+            if (node->args.size() != 8 || !node->type_arguments.empty())
+                throw std::logic_error("Malformed compiler-owned range expression.");
+            const auto& start = *node->args[0].value;
+            const auto& stop = *node->args[1].value;
+            const auto& step = *node->args[2].value;
+            const auto flag = [&](std::size_t i) {
+                const auto* value = std::get_if<BoolExpr>(&node->args[i].value->data);
+                if (!value)
+                    throw std::logic_error("Compiler-owned range has a nonconstant flag.");
+                return value->value;
+            };
+            const bool explicit_step = flag(5);
+            const bool marker_asc = flag(6);
+            const bool marker_desc = flag(7);
+            const bool start_literal = integer_category(numeric_literal_family(start));
+            const bool end_literal = integer_category(numeric_literal_family(stop));
+            Type element = simple(TypeKind::Int);
+            bool start_checked = false, end_checked = false;
+            if (expected && expected->kind == TypeKind::Array && expected->first &&
+                expected->first->kind != TypeKind::Auto) {
+                element = *expected->first;
+            } else if (!start_literal) {
+                element = check_expr(start);
+                start_checked = true;
+            } else if (!end_literal) {
+                element = check_expr(stop);
+                end_checked = true;
+            }
+            if (!poisoned(element) && !is_integer_family_type(element))
+                error("TYPE_MISMATCH",
+                      "Range bounds require one integer element type.",
+                      expression.span);
+            if (!start_checked) check_expr(start, &element);
+            if (!end_checked) check_expr(stop, &element);
+            if (explicit_step) check_index_operand(step);
+            const auto integer_constant = [](const Expr& value)
+                -> std::optional<for_constants::Integer> {
+                if (const auto exact = for_constants::integer_literal(value)) return exact;
+                if (const auto bounded = constant_eval::integer(value))
+                    return for_constants::Integer(*bounded);
+                return std::nullopt;
+            };
+            const auto from = integer_constant(start);
+            const auto to = integer_constant(stop);
+            const auto increment = explicit_step ? integer_constant(step)
+                : std::optional<for_constants::Integer>{};
+            if (increment && increment->zero())
+                error("SLICE_STEP", "Range step cannot be zero.", step.span);
+            if (increment && ((marker_asc && for_constants::negative(*increment)) ||
+                              (marker_desc && !for_constants::negative(*increment))))
+                error("SLICE_STEP", "Range step opposes the endpoint markers.", step.span);
+            if (from && to) {
+                const auto order = for_constants::compare(*from, *to);
+                // Markers without an explicit step may describe an empty
+                // exclusive progression, just like direct slices. A written
+                // step must agree with unequal endpoints; equality permits
+                // either sign when no marker fixes it.
+                if (increment && order != 0 &&
+                    for_constants::negative(*increment) != (order > 0))
+                    error("SLICE_STEP", "Range step opposes the bound direction.", expression.span);
+            }
+            type = Type::array(element);
+            call_resolutions_[&expression] = CallResolution{
+                CallKind::Builtin, name, BuiltinCallable::Array, type};
+            return type;
+        }
+
         if(name=="$std.reflect.each") {
             if(!expected || expected->kind!=TypeKind::Traversal)
                 error("TRAVERSAL","A traversal is only a for-header source or a traversal function's return.",expression.span);
@@ -6196,7 +6622,7 @@ Type Checker::check_call_expr(const Expr& expression,
                         const auto converted =
                             Type::tensor(*target, current.length,
                                          current.tensor_shape_prefix,
-                                         current.tensor_known_shape_prefix);
+                                         current.tensor_known_shape_prefix, current.tensor_shape_ellipsis);
                         if (numeric_conversion_policy(*current.first, *target) ==
                             NumericConversionPolicy::ExplicitRangeCheck) {
                             return Type::union_of({converted, error_type});
@@ -6297,7 +6723,7 @@ Type Checker::check_call_expr(const Expr& expression,
         } else if (classes_.contains(name) &&
                    ((name.front() != '$' && !standard_library_class(name)) ||
                     standard_class::is_map_instance(name, standard_library_class(name)) ||
-                    standard_class::is_set_instance(name, standard_library_class(name)))) {
+                    standard_class::is_distinct_instance(name, standard_library_class(name)))) {
             type = check_class_construction(expression, *node, name);
         } else if (classes_.contains(name)) {
             // Other standard-library value types keep their language-provided
@@ -6434,6 +6860,8 @@ FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const Func
             }
         }
     }
+    if(binding_entry_initialization_)binding_entry_initialization_->functions[internal_it->second]=
+        semantics::binding_value_parameter_entry(signature,classes_,method.is_constructor?0:1);
     bind_signature_shape_variables(method);
     current_return_ = signature.result;
     current_class_ = class_decl.name;
@@ -6849,6 +7277,15 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
               expression.span);
         return simple(TypeKind::Invalid);
     }
+    if (std::any_of(types.begin(), types.end(),
+                    [](const Type& type) {
+                        return type.kind == TypeKind::Tensor || type.kind == TypeKind::Array;
+                    })) {
+        error("CHAINED_COMPARISON",
+              "Arrays and tensors cannot be compared in a chain; combine the comparisons explicitly.",
+              expression.span);
+        return simple(TypeKind::Invalid);
+    }
     for (std::size_t i = 0; i < count; ++i) {
         if (!literal[i]) continue;
         const Type* context = nullptr;
@@ -6862,13 +7299,6 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     if (!shape_valid) return simple(TypeKind::Invalid);
     if (std::any_of(types.begin(), types.end(), [](const Type& type) { return poisoned(type); }))
         return simple(TypeKind::Invalid);
-    if (std::any_of(types.begin(), types.end(),
-                    [](const Type& type) { return type.kind == TypeKind::Tensor; })) {
-        error("CHAINED_COMPARISON",
-              "Tensors cannot be compared in a chain; combine the masks explicitly.",
-              expression.span);
-        return simple(TypeKind::Invalid);
-    }
     std::vector<bool> element_read(count);
     bool valid = true;
     for (std::size_t i = 0; i < node.ops.size(); ++i) {
@@ -7419,11 +7849,18 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             // An exact value's canonical text need not be a decimal, so its
             // integer part can be padded only in a decimal format.
             const auto& format = node->formats[index];
-            if (item_type.kind == TypeKind::Real && (format.integer_width || format.zero) &&
+            if (format.radix && !poisoned(item_type) &&
+                !is_bare_integer(item_type) && !is_fixed_integer(item_type))
+                error("TYPE_MISMATCH", "Interpolation base=N requires an integer value.", item->span);
+            if (item_type.kind == TypeKind::Real &&
+                (format.integer_width || format.zero || format.grouping) &&
                 !format.fractional_digits && !format.significant_digits)
                 error("TYPE_MISMATCH",
-                      "Interpolation formats int=N and zero need frac=N or sig=N for a real value.",
+                      "Interpolation formats int=N, zero and group=N need frac=N or sig=N for a real value.",
                       item->span);
+            if (format.grouping && is_complex(item_type))
+                error("TYPE_MISMATCH",
+                      "Interpolation grouping is not defined for complex values.", item->span);
         }
         type = simple(TypeKind::String);
     } else if (const auto* node = std::get_if<NameExpr>(&expression.data)) {
@@ -7652,6 +8089,12 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         Type right;
         const auto scalar_context = [](const Type& other) -> const Type* {
             if (is_numeric(other)) return &other;
+            if (other.kind == TypeKind::Array) {
+                const Type* leaf = &other;
+                while (leaf->kind == TypeKind::Array && leaf->first)
+                    leaf = leaf->first.get();
+                if (is_numeric(*leaf)) return leaf;
+            }
             if (other.kind == TypeKind::Tensor &&
                 other.first && is_numeric(*other.first)) {
                 return other.first.get();
@@ -7663,6 +8106,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             single_family_category(left_family) || complex_category(left_family);
         const bool right_literal =
             single_family_category(right_family) || complex_category(right_family);
+        const Type* array_context = expected && expected->kind == TypeKind::Array &&
+            (node->op == "+" || node->op == "-" || node->op == "*" ||
+             node->op == "/" || node->op == "%" || node->op == "^") ? expected : nullptr;
 
         if (complex_category(joined_family) &&
             operator_policy::participates_in_numeric_literal_family(node->op)) {
@@ -7687,6 +8133,46 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             } else {
                 error("AMBIGUOUS_NUMERIC_LITERAL",
                       "A complex literal requires a complex type context.", expression.span);
+            }
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
+                   std::holds_alternative<ArrayExpr>(node->right->data) &&
+                   expected && expected->kind == TypeKind::Array &&
+                   (node->op == "+" || node->op == "-" || node->op == "*" ||
+                    node->op == "/" || node->op == "%" || node->op == "^")) {
+            left = check_expr(*node->left, expected);
+            right = check_expr(*node->right, expected);
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
+                   std::holds_alternative<ArrayExpr>(node->right->data) &&
+                   (node->op == "<" || node->op == "<=" ||
+                    node->op == ">" || node->op == ">=")) {
+            // A bool-array result provides no numeric operand context.
+            // Pure integer-literal arrays use exact int at every rank;
+            // otherwise a typed operand supplies the literal context.
+            std::function<std::optional<Type>(const Expr&)> integer_array_context;
+            integer_array_context = [&](const Expr& value) -> std::optional<Type> {
+                const auto* array = std::get_if<ArrayExpr>(&value.data);
+                if (!array)
+                    return integer_category(numeric_literal_family(value))
+                        ? std::optional<Type>{simple(TypeKind::Int)} : std::nullopt;
+                std::optional<Type> element;
+                for (const auto& item : array->elements) {
+                    const auto item_type = integer_array_context(*item);
+                    if (!item_type || (element && *element != *item_type)) return std::nullopt;
+                    element = item_type;
+                }
+                return Type::array(element.value_or(simple(TypeKind::Int)));
+            };
+            const auto left_context = integer_array_context(*node->left);
+            const auto right_context = integer_array_context(*node->right);
+            if (left_context && right_context) {
+                left = check_expr(*node->left, &*left_context);
+                right = check_expr(*node->right, &*right_context);
+            } else if (left_context) {
+                right = check_expr(*node->right);
+                left = check_expr(*node->left, &right);
+            } else {
+                left = check_expr(*node->left);
+                right = check_expr(*node->right, &left);
             }
         } else if (left_literal && right_literal) {
             if (integer_category(left_family) != integer_category(right_family)) {
@@ -7718,11 +8204,29 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             left = check_expr(*node->left, &*context.type);
             right = check_expr(*node->right, &*context.type);
         } else if (left_literal) {
-            right = check_expr(*node->right);
+            right = check_expr(*node->right,
+                std::holds_alternative<ArrayExpr>(node->right->data) ? array_context : nullptr);
             left = check_expr(*node->left, scalar_context(right));
         } else if (right_literal) {
-            left = check_expr(*node->left);
+            left = check_expr(*node->left,
+                std::holds_alternative<ArrayExpr>(node->left->data) ? array_context : nullptr);
             right = check_expr(*node->right, scalar_context(left));
+        } else if (std::holds_alternative<ArrayExpr>(node->right->data)) {
+            left = check_expr(*node->left);
+            if (left.kind == TypeKind::Array)
+                right = check_expr(*node->right, &left);
+            else if (is_numeric(left)) {
+                const auto array_context = Type::array(left);
+                right = check_expr(*node->right, &array_context);
+            } else right = check_expr(*node->right);
+        } else if (std::holds_alternative<ArrayExpr>(node->left->data)) {
+            right = check_expr(*node->right);
+            if (right.kind == TypeKind::Array)
+                left = check_expr(*node->left, &right);
+            else if (is_numeric(right)) {
+                const auto array_context = Type::array(right);
+                left = check_expr(*node->left, &array_context);
+            } else left = check_expr(*node->left);
         } else {
             left = check_expr(*node->left);
             right = check_expr(*node->right);
@@ -7774,7 +8278,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 type = Type::tensor(simple(TypeKind::Bool), tensor_type.length,
                                     tensor_type.tensor_shape_prefix,
-                                    tensor_type.tensor_known_shape_prefix);
+                                    tensor_type.tensor_known_shape_prefix, tensor_type.tensor_shape_ellipsis);
             } else {
                 if (!is_tensor_numeric(element)) {
                     error("TYPE_MISMATCH",
@@ -7834,6 +8338,97 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 type = tensor_result;
             }
+        } else if ((left.kind == TypeKind::Array ||
+                    right.kind == TypeKind::Array) &&
+                   node->op != "==" && node->op != "!=") {
+            if (left.kind == TypeKind::Array)
+                check_element_read(*node->left, nullptr, expression.span);
+            if (right.kind == TypeKind::Array)
+                check_element_read(*node->right, nullptr, expression.span);
+            const bool pair = left.kind == TypeKind::Array &&
+                              right.kind == TypeKind::Array;
+            const Type* lhs = &left;
+            const Type* rhs = &right;
+            bool valid = true;
+            if (pair) {
+                // Array/array operands must have identical ranks and shapes;
+                // static lengths are proven at every known nesting level.
+                while (lhs->kind == TypeKind::Array || rhs->kind == TypeKind::Array) {
+                    if (lhs->kind != TypeKind::Array ||
+                        rhs->kind != TypeKind::Array) {
+                        error("ARRAY_SHAPE",
+                              "Elementwise array operations require identical array ranks.",
+                              expression.span);
+                        valid = false;
+                        break;
+                    }
+                    if (lhs->length >= 0 && rhs->length >= 0 &&
+                        lhs->length != rhs->length) {
+                        error("ARRAY_SHAPE",
+                              "Elementwise array operations require identical lengths.",
+                              expression.span);
+                        valid = false;
+                    }
+                    lhs = lhs->first.get();
+                    rhs = rhs->first.get();
+                }
+            } else {
+                while (lhs->kind == TypeKind::Array && lhs->first)
+                    lhs = lhs->first.get();
+                while (rhs->kind == TypeKind::Array && rhs->first)
+                    rhs = rhs->first.get();
+            }
+            const bool relational = node->op == "<" || node->op == "<=" ||
+                                    node->op == ">" || node->op == ">=";
+            const bool arithmetic = node->op == "+" || node->op == "-" ||
+                                    node->op == "*" || node->op == "/" ||
+                                    node->op == "%" || node->op == "^";
+            if (!relational && !arithmetic) {
+                error("TYPE_MISMATCH",
+                      "Array operators are +, -, *, /, %, ^ and the four ordering comparisons.",
+                      expression.span);
+                valid = false;
+            }
+            if (*lhs != *rhs || !is_numeric(*lhs) ||
+                (relational && is_complex(*lhs)) ||
+                (node->op == "%" && !is_integer_family_type(*lhs))) {
+                error("TYPE_MISMATCH",
+                      "Array elementwise operators require identical compatible numeric leaf types.",
+                      expression.span);
+                valid = false;
+            }
+            if (node->op == "^" &&
+                (left.kind != TypeKind::Array || right.kind == TypeKind::Array ||
+                 lhs->kind == TypeKind::Com)) {
+                error("TYPE_MISMATCH",
+                      "Array exponentiation is defined only as array ^ scalar.",
+                      expression.span);
+                valid = false;
+            }
+            if (node->op == "^" && is_integer_family_type(*lhs)) {
+                const auto exponent = constant_eval::integer(*node->right);
+                if (exponent && *exponent < 0) {
+                    error("POWER_DOMAIN", "Integer array exponent must be non-negative.",
+                          node->right->span);
+                    valid = false;
+                }
+            }
+            std::function<Type(const Type&, const Type&)> result_type;
+            result_type = [&](const Type& a, const Type& b) -> Type {
+                if (a.kind == TypeKind::Array || b.kind == TypeKind::Array) {
+                    const auto& arr = a.kind == TypeKind::Array ? a : b;
+                    auto nested = result_type(
+                        a.kind == TypeKind::Array ? *a.first : a,
+                        b.kind == TypeKind::Array ? *b.first : b);
+                    long long extent = arr.length;
+                    if (a.kind == TypeKind::Array && b.kind == TypeKind::Array &&
+                        extent < 0)
+                        extent = b.length;
+                    return Type::array(std::move(nested), extent);
+                }
+                return relational ? simple(TypeKind::Bool) : a;
+            };
+            type = valid ? result_type(left, right) : simple(TypeKind::Invalid);
         } else {
             if (left != right) {
                 // A nat operand with another integer kind names the
@@ -7931,17 +8526,14 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 if (node->op == "^" && is_real(left)) {
                     // Literal operands decide the undefined powers at
-                    // compile time: a zero base with a zero or negative
-                    // exponent, and a negative base with an exponent that is
-                    // not an integer.
+                    // compile time: zero to zero, or a negative base with
+                    // a non-integer exponent. Zero to a negative real power
+                    // is an infinity, as in runtime evaluation.
                     const auto base = literal_number_value(*node->left);
                     const auto exponent = literal_number_value(*node->right);
                     if (base && exponent) {
                         if (*base == 0.0 && *exponent == 0.0)
                             error("POWER_DOMAIN", "0 ^ 0 is undefined.", expression.span);
-                        else if (*base == 0.0 && *exponent < 0.0)
-                            error("POWER_DOMAIN", "0 ^ a negative exponent is undefined.",
-                                  expression.span);
                         else if (*base < 0.0 && std::trunc(*exponent) != *exponent)
                             error("POWER_DOMAIN",
                                   "A negative base requires an integer exponent.",
@@ -7951,20 +8543,20 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (is_fixed_real(left) && (node->op == "+" || node->op == "-" ||
                                             node->op == "*" || node->op == "/")) {
                     // A constant real expression is computed in its type at
-                    // compile time: a result that is not finite is an error
-                    // there, as it would be when the program runs.
+                    // compile time: NaN is an error there, as at runtime.
+                    // Signed infinities from division or overflow are valid.
                     const auto dividend = constant_real_value(*node->left, left);
                     const auto divisor = constant_real_value(*node->right, left);
                     if (dividend && divisor) {
                         const auto value = constant_eval::real_operation_value(
                             node->op.front(), *dividend, *divisor, left);
-                        if (node->op == "/" && *divisor == 0.0) {
+                        if (node->op == "/" && *dividend == 0.0 && *divisor == 0.0) {
                             error("DIVIDE_BY_ZERO",
-                                  "Real division by zero is known at compile time.",
+                                  "Indeterminate real division 0 / 0 is known at compile time.",
                                   node->right->span);
-                        } else if (value && !std::isfinite(*value)) {
+                        } else if (value && std::isnan(*value)) {
                             error("REAL_RANGE",
-                                  "Constant " + type_name(left) + " expression overflows: " +
+                                  "Constant " + type_name(left) + " expression produces NaN: " +
                                       spelled_expression(expression) + ".",
                                   expression.span);
                         }
@@ -8508,8 +9100,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             const auto raw = node.value ? raw_types_.find(node.value.get()) : raw_types_.end();
             shape_plan->rank_unknown =
                 raw == raw_types_.end() || raw->second.kind != TypeKind::Tensor ||
-                raw->second.length !=
-                    static_cast<long long>(node.declared_type.shape_axes.size());
+                raw->second.length < 0 ||
+                (shape_plan->ellipsis
+                    ? raw->second.length < static_cast<long long>(shape_plan->axes.size())
+                    : raw->second.length != static_cast<long long>(shape_plan->axes.size()));
             // A repeat whose extents are both known (`{nat K, K}` over a
             // [2, 3] value) contradicts at compile time.
             if (!shape_plan->rank_unknown) {
@@ -8518,8 +9112,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                     if (current.check != ShapeAxisCheck::Variable) continue;
                     const auto& variable = shape_plan->variables[current.variable_index];
                     if (variable.value) continue;
-                    const auto bound = tensor_known_extent(raw->second, variable.axis);
-                    const auto extent = tensor_known_extent(raw->second, axis);
+                    const auto bound_axis = tensor_pattern_axis(type, variable.axis, raw->second.length);
+                    const auto physical_axis = tensor_pattern_axis(type, axis, raw->second.length);
+                    const auto bound = tensor_known_extent(raw->second, bound_axis);
+                    const auto extent = tensor_known_extent(raw->second, physical_axis);
                     if (bound && extent && *bound != *extent) {
                         error("TENSOR_SHAPE",
                               "Shape variable '" + variable.name + "' is " +
@@ -8584,7 +9180,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             class_initialized_paths_[node.name] = default_initialized_paths(type.class_name);
             const auto& class_info = classes_.at(type.class_name);
             if ((standard_class::is_map_instance(type.class_name, class_info.standard_library) ||
-                 standard_class::is_set_instance(type.class_name, class_info.standard_library)) &&
+                 standard_class::is_distinct_instance(type.class_name, class_info.standard_library)) &&
                 class_info.constructors.size() == 1) {
                 class_initialized_paths_[node.name] = functions_.at(class_info.constructors.front()).return_initialized_fields;
             }
@@ -8766,7 +9362,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
             }
             // A later store into a binding with a brace shape is checked
             // against its declared extents, so its shape variables are kept.
-            if (const auto found = shape_binding_plans_.find(name->name);
+            if (const auto found = shape_binding_plans_.find(reference_root(name->name));
                 found != shape_binding_plans_.end() && variables_.contains(name->name)) {
                 for (auto& variable : found->second->variables) variable.read = true;
             }
@@ -8807,6 +9403,27 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         }
         if (const auto* indexed = std::get_if<IndexExpr>(&node.target_expr()->data)) {
             const auto base_type = check_expr(*indexed->base);
+            if (base_type.kind == TypeKind::Array && indexed->items.size() == 1 &&
+                !indexed->items.front().slice && indexed->items.front().index) {
+                const auto& selector = *indexed->items.front().index;
+                if (std::holds_alternative<ArrayExpr>(selector.data)) {
+                    error("INVALID_ASSIGNMENT",
+                          "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
+                          node.target_expr()->span);
+                    return;
+                }
+                // Scalar numeric literals need the index type supplied by
+                // check_address_target, rather than unconstrained inference.
+                if (!integer_category(numeric_literal_family(selector))) {
+                    const auto selected_type = check_expr(selector);
+                    if (selected_type.kind == TypeKind::Array) {
+                        error("INVALID_ASSIGNMENT",
+                              "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
+                              node.target_expr()->span);
+                        return;
+                    }
+                }
+            }
         }
         if (!node.compound_op.empty()) {
             const auto read_type = check_expr(*node.target_expr());
@@ -8853,7 +9470,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 expr_types_[node.target_expr()] = raw_types_[node.target_expr()] = type;
                 auto expected = type;
                 if (expected.kind == TypeKind::Tensor) {
-                    if (expected.tensor_shape_prefix.empty()) expected.length = -1;
+                    if (expected.tensor_shape_ellipsis || expected.tensor_shape_prefix.empty()) expected.length = -1;
                     expected.tensor_known_shape_prefix.clear();
                 }
                 check_expr(*node.value, &expected);
@@ -9122,11 +9739,33 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
                 }
             }
         }
+        if ((current_return_.kind == TypeKind::Bool ||
+             (current_return_.kind == TypeKind::Union &&
+              case_index(current_return_, simple(TypeKind::Bool)) >= 0)) &&
+            !(std::holds_alternative<BoolExpr>(node.value->data) &&
+              !std::get<BoolExpr>(node.value->data).value) &&
+            raw_types_.at(node.value.get()).kind != TypeKind::Error) {
+            if (!current_true_return_seen_) {
+                for (const auto& name : current_reference_parameters_)
+                    current_true_return_initialized_[name] =
+                        current_reference_effects_[name].initializes;
+                current_true_return_seen_ = true;
+            } else {
+                for (const auto& name : current_reference_parameters_) {
+                    auto& paths = current_true_return_initialized_[name];
+                    const auto& current = current_reference_effects_[name].initializes;
+                    for (auto it = paths.begin(); it != paths.end();)
+                        if (!current.contains(*it)) it = paths.erase(it);
+                        else ++it;
+                }
+            }
+        }
         record_effect_exit();
         return;
 }
 
 void Checker::check_expression_stmt(const Stmt& statement, const ExprStmt& node) {
+        for (const auto& binding : node.inline_bindings) check_stmt(*binding);
         error_terminating_expr_ = node.value.get();
         auto type = check_expr(*node.value);
         error_terminating_expr_ = nullptr;
@@ -9142,7 +9781,66 @@ void Checker::check_expression_stmt(const Stmt& statement, const ExprStmt& node)
         return;
 }
 
+bool Checker::condition_initializes_reference(
+    const Expr& condition, const std::string& binding) const {
+    const auto matches = [&](const std::vector<CallArg>& args,
+                             const FunctionType& signature,
+                             std::size_t first) {
+        std::size_t positional = first;
+        for (const auto& arg : args) {
+            std::size_t index = positional;
+            if (arg.name) {
+                const auto it = std::find_if(
+                    signature.parameters.begin() + static_cast<std::ptrdiff_t>(first),
+                    signature.parameters.end(),
+                    [&](const auto& p) { return p.name == *arg.name; });
+                if (it == signature.parameters.end()) continue;
+                index = static_cast<std::size_t>(it - signature.parameters.begin());
+            } else ++positional;
+            if (index >= signature.parameters.size() || !arg.writable) continue;
+            const auto* name = std::get_if<NameExpr>(&arg.value->data);
+            if (!name || name->name != binding) continue;
+            const auto& parameter = signature.parameters[index];
+            const auto found = signature.success_reference_initializes.find(parameter.name);
+            if (found != signature.success_reference_initializes.end() &&
+                found->second.contains("")) return true;
+        }
+        return false;
+    };
+    if (const auto* method = std::get_if<MethodCallExpr>(&condition.data)) {
+        if (const auto format = scan_formats_.find(&condition); format != scan_formats_.end())
+            for (const auto* target : format->second.targets)
+                if (const auto* name = std::get_if<NameExpr>(&target->data);
+                    name && name->name == binding) return true;
+        if (method->method == "operator" && method->args.size() == 1 &&
+            method->args[0].writable) {
+            const auto* argument = std::get_if<NameExpr>(&method->args[0].value->data);
+            const auto receiver = raw_types_.find(method->receiver.get());
+            if (argument && argument->name == binding &&
+                receiver != raw_types_.end() &&
+                receiver->second.kind == TypeKind::Class &&
+                receiver->second.class_name == standard_class::file_read) return true;
+        }
+        const auto found = method_calls_.find(&condition);
+        if (found != method_calls_.end()) {
+            const auto signature = functions_.find(found->second.internal_name);
+            if (signature != functions_.end())
+                return matches(method->args,signature->second,1);
+        }
+    }
+    if (const auto* call = std::get_if<CallExpr>(&condition.data)) {
+        const auto found = call_resolutions_.find(&condition);
+        if (found != call_resolutions_.end() && found->second.kind == CallKind::Function) {
+            const auto signature = functions_.find(found->second.target);
+            if (signature != functions_.end())
+                return matches(call->args,signature->second,0);
+        }
+    }
+    return false;
+}
+
 void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
+        for (const auto& binding : node.condition_bindings) check_stmt(*binding);
         auto bool_type = simple(TypeKind::Bool);
         check_expr(*node.condition, &bool_type);
         auto variables = variables_;
@@ -9157,6 +9855,18 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto before_method_written = current_receiver_effect_.writes;
         auto before_method_invalidated = current_receiver_effect_.invalidates;
         auto before_reference_effects = current_reference_effects_;
+
+        // Only the success edge may observe new output bindings.
+        for (const auto& binding : node.condition_bindings) {
+            const auto& name = std::get<BindingStmt>(binding->data).name;
+            const bool proven = initialized_.contains(name) ||
+                condition_initializes_reference(*node.condition, name);
+            if (!proven)
+                error("CONDITIONAL_INITIALIZATION",
+                      "The call must definitely initialize '" + name + "' when its condition is true.",
+                      binding->span);
+            initialized_.insert(name);
+        }
 
         check_block(node.then_body);
         auto yes_variables = variables_;
@@ -9182,6 +9892,12 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
+        for (const auto& binding : node.condition_bindings) {
+            const auto& name = std::get<BindingStmt>(binding->data).name;
+            variables_.erase(name);
+            initialized_.erase(name);
+            maybe_initialized_.erase(name);
+        }
         check_block(node.else_body);
         auto no_variables = variables_;
         auto no = initialized_;
@@ -9290,6 +10006,16 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         if (!yes_terminates) continuing.emplace_back(&yes, &yes_maybe);
         if (!no_terminates) continuing.emplace_back(&no, &no_maybe);
         join_maybe_initialized(continuing);
+        for (const auto& binding : node.condition_bindings) {
+            const auto& name = std::get<BindingStmt>(binding->data).name;
+            variables_.erase(name);
+            initialized_.erase(name);
+            maybe_initialized_.erase(name);
+            class_initialized_paths_.erase(name);
+            const_bindings_.erase(name);
+            reference_roots_.erase(name);
+            reference_paths_.erase(name);
+        }
         return;
 }
 
@@ -9334,6 +10060,7 @@ void Checker::check_parallel_stmt(const Stmt&, const ParallelStmt& node) {
 }
 
 void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
+        for (const auto& binding : node.condition_bindings) check_stmt(*binding);
         auto bool_type = simple(TypeKind::Bool);
         check_expr(*node.condition, &bool_type);
         auto variables = variables_;
@@ -9351,6 +10078,17 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         collect_assigned_bindings(node.body, loop_assigned);
         weaken_loop_tensor_facts(variables_, loop_assigned);
         variables = variables_;
+        // The body is reached only through a true condition.
+        for (const auto& binding : node.condition_bindings) {
+            const auto& name = std::get<BindingStmt>(binding->data).name;
+            const bool proven = initialized_.contains(name) ||
+                condition_initializes_reference(*node.condition, name);
+            if (!proven)
+                error("CONDITIONAL_INITIALIZATION",
+                      "The call must definitely initialize '" + name + "' when its condition is true.",
+                      binding->span);
+            initialized_.insert(name);
+        }
         // The body may run after itself: what it may initialize may be
         // initialized at its start (L13).
         note_loop_initializations(node.body);
@@ -9396,6 +10134,16 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
             unknown_reference_targets_.insert(name);
             initialized_.erase(name);
             class_initialized_paths_.erase(name);
+        }
+        for (const auto& binding : node.condition_bindings) {
+            const auto& name = std::get<BindingStmt>(binding->data).name;
+            variables_.erase(name);
+            initialized_.erase(name);
+            maybe_initialized_.erase(name);
+            class_initialized_paths_.erase(name);
+            const_bindings_.erase(name);
+            reference_roots_.erase(name);
+            reference_paths_.erase(name);
         }
         return;
 }
@@ -10161,9 +10909,12 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         if (brace_case) {
             auto shaped = requested_case_type;
             case_plan = &check_brace_shape(match_case.type, shaped, true);
-            case_plan->rank_unknown =
+            case_plan->rank_unknown = !(case_plan->ellipsis && case_plan->axes.empty()) && (
                 case_type.kind != TypeKind::Tensor ||
-                case_type.length != static_cast<long long>(match_case.type.shape_axes.size());
+                case_type.length < 0 ||
+                (case_plan->ellipsis
+                    ? case_type.length < static_cast<long long>(case_plan->axes.size())
+                    : case_type.length != static_cast<long long>(case_plan->axes.size())));
         }
 
         if (match_case.binder) {
@@ -10197,6 +10948,12 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
                     (axis.check == ShapeAxisCheck::Value && !axis.constant)) {
                     equality = true;
                 }
+            }
+            for (std::size_t axis = 0; axis < case_plan->axes.size(); ++axis) {
+                const auto expected = case_plan->axes[axis].constant;
+                if (!expected || case_plan->rank_unknown) continue;
+                const auto physical = tensor_pattern_axis(requested_case_type, axis, case_type.length);
+                if (tensor_known_extent(case_type, physical) != expected) equality = true;
             }
             case_plan->conditional = equality || case_plan->rank_unknown;
             if (!case_plan->conditional) seen.insert(tag);
@@ -10689,6 +11446,7 @@ void Checker::check_library_root(const Program& program) {
 
 CheckedProgram Checker::check(ConcreteProgram concrete) {
     Program program = std::move(concrete.program);
+    binding_entry_initialization_=std::make_shared<semantics::BindingEntryInitializations>();
     auto compiler_extensions = std::move(concrete.compiler_extensions);
     if (!program.imports.empty()) {
         throw std::logic_error("ConcreteProgram contains unresolved imports.");
@@ -11229,6 +11987,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         signature.receiver_effect.writes.clear();
         signature.receiver_effect.invalidates.clear();
         signature.reference_effects.clear();
+        signature.success_reference_initializes.clear();
         signature.no_normal_return = false;
         signature.return_initialized_fields =
             (signature.result.kind == TypeKind::Class || signature.result.kind == TypeKind::Tuple)
@@ -11491,6 +12250,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 }
             }
         }
+        binding_entry_initialization_->functions[function.name]=
+            semantics::binding_value_parameter_entry(signature,classes_,0);
         bind_signature_shape_variables(function);
         current_return_ = signature.result;
         current_class_.clear();
@@ -11665,6 +12426,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         if (truncated) markers.resize(max_errors_);
         throw CompileErrors(std::move(markers), truncated);
     }
+    checked.interface_sources = checked.program.interface_sources;
+    checked.binding_entry_initialization=std::move(binding_entry_initialization_);
     return checked;
 }
 

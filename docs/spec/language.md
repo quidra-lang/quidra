@@ -12,8 +12,7 @@ Every source file also has one compiler-owned direct-execution flag named `main`
 int calculate(int value);
 
 if main
-    print(calculate(10))
-    print(NL)
+    print.line(calculate(10))
 
 int calculate(int value)
     return value * 2
@@ -28,6 +27,15 @@ Numeric built-ins are `int8`, `int16`, `int32`, `int64`, `int`, `nat8`, `nat16`,
 `T | U` is an untagged surface description of a runtime tagged union: exactly one alternative is active. Union types flatten nested alternatives, remove duplicates, and have deterministic canonical representation independent of spelling order. A union with one distinct member is that member. Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.
 
 `none` is the absence alternative of a union. `string | none` can hold text or normal absence; `string | none | error` additionally admits failure. Standalone `none` declarations, function returns typed solely `none`, and `auto x = none` are invalid. `void` is allowed as a function result and as an alternative in a union. Non-continuing control flow is compiler-internal and is neither storable nor source-spellable.
+
+For readability, prefer `auto` when the inferred type is obvious from the initializer on the same line. A constructor naming its class or a tensor factory naming its element type makes that choice clear. For example, given `class Point(real64 x, real64 y)`:
+
+```quidra
+auto point = Point(1.0, 2.0)
+auto image = tensor.zeros<real32>([3, 224, 224])
+```
+
+Otherwise prefer an explicit type, such as `Point point = make_point()`, when understanding a helper's result would require finding its declaration. This is a style recommendation: every otherwise valid `auto` declaration remains accepted without additional warnings or errors. The same readability guidance applies to `const auto` and `auto | error`; their inference and error-handling rules are unchanged.
 
 ## Arrays and shapes
 
@@ -48,8 +56,7 @@ An array's storage and nested elements obey value semantics. Copying a nested ar
 ```quidra
 int[] values = array(100)
 values[0] = 7
-print(values[0])
-print(NL)
+print.line(values[0])
 ```
 
 `auto values = array(100)` is invalid because there is no element value from which to infer the type. Reading an element that no path initializes is a compile-time error (`UNINITIALIZED`, "'values[1]' is read before it is initialized on every path."): a constant index into a local array created without element values (`T[n] values`, `T[] values = array(k)`) whose element no store has reached, any index into one that nothing has written, or an equality over one with such an element. Otherwise reading an element before it has been initialized is a deterministic runtime safety error. The implementation tracks initialization independently from stored bits, using compact per-element state rather than treating zero or null as uninitialized.
@@ -59,6 +66,74 @@ print(NL)
 A fixed declaration such as `int[10] values` allocates its fixed storage immediately with all elements initially uninitialized. Individual elements may be written before the whole array is read. Fixed contiguous dimensions remain eligible for flattened native storage.
 
 `[]` requires enough contextual element-type information. An `auto` binding initialized directly from an array literal infers runtime-sized `T[]`, preserving the normal appendable-array behavior. When `auto` receives an array-valued expression whose static type is already fixed, such as `.shape()` on a tensor whose rank is compiler-known, that fixed dimension is preserved rather than erased. A trailing comma does not add an element. Indexing accepts an index of every integer kind, starts at zero, and checks bounds. Assignment to an element does not append or resize an array. `len(array)` returns the runtime length as `nat`; lengths, counts, shapes, sizes and the index values APIs return are `nat`, so `len(a) - 1` is a checked `nat` subtraction that fails on an empty array, while the signed `int(len(a)) - 1` is `-1`. Write `int(len(a)) - int(len(b))` for a signed difference of lengths.
+
+### Array selection, elementwise operators and ranges
+
+The six arithmetic operators `+`, `-`, `*`, `/`, `%` and `^` apply
+elementwise to ordinary numeric arrays. Array-array arithmetic requires
+identical shape at every nested axis, including ragged dimensions. Array-scalar
+arithmetic applies the scalar to each leaf; array-array broadcasting and
+implicit element casts do not occur. Exponentiation is `array ^ scalar`
+only. All operations produce independent array values and preserve fixed
+lengths where statically known. Errors in individual operations, such as
+integer overflow or divide by zero, use the scalar numeric contract.
+
+The four ordering comparisons `<`, `<=`, `>` and `>=` also work
+elementwise on ordered numeric arrays and return a same-shaped `bool` array.
+Array `==` and `!=` remain whole-array comparisons, not mask producers;
+array comparison chains are not permitted.
+
+```quidra
+int[] values = [-2, 3, 0, 4]
+bool[] positive = values > 0
+int[] selected = values[positive]   // [3, 4]
+int[] squared = values ^ 2         // [4, 9, 0, 16]
+int[] indices = [3, 1, 3]
+int[] gathered = values[indices]   // [4, 3, 4]
+nat[] locations = values.indices()  // [0, 1, 2, 3]
+```
+
+A `bool[]` mask must match the input array's outer length; it selects complete
+outer-axis elements and preserves their order. A `nat[]` or `int[]`
+index array gathers outer-axis elements in its specified order, including
+repeated positions. The result is a new independent array, and invalid index
+values are errors. Multi-element mask/index selection is read-only in this
+version: use individual indexed assignments for writes. The `.indices()`
+method always creates a `nat[]` for the outermost dimension, including an
+empty result for an empty array.
+
+A bounded colon range can also appear as an independent expression: it
+materializes a normal integer array, never a lazy iterator. Both endpoints
+are inclusive by default, and the same exclusion markers and step form
+used by slices are available. An omitted start is zero. An omitted end is
+only meaningful when indexing an actual array, not in an independent range.
+
+```quidra
+int[] a = 0:3       // [0, 1, 2, 3]
+int[] b = :3        // [0, 1, 2, 3]
+int[] c = 0:<3      // [0, 1, 2]
+int[] d = 5:0:-2    // [5, 3, 1]
+int[] e = 3:0       // [3, 2, 1, 0]
+```
+
+`int[] invalid = 3:` is rejected at compile time because a standalone range must have an end.
+
+Without directional exclusion markers, an omitted step follows the endpoint
+order; equal endpoints allow either nonzero explicit step. Directional markers
+take precedence, as in slices. A marker pointing away from the endpoint produces
+an empty array when no step is supplied. An explicit step must agree with both
+the markers and the order of unequal endpoints. Zero steps are always errors.
+Direction and length arithmetic use exact integers, including steps beyond
+machine integer limits; element and allocation limits are still checked.
+
+Signed endpoints and steps need no parentheses (`-3:0`, `0:-3`, `3:0:-1`).
+Parenthesize compound endpoint expressions, for example `start:(stop + 1)`.
+Arithmetic following the range applies to the generated array: `(:9 ^ 2)`
+produces the squares from zero through nine.
+
+A colon within brackets, such as `values[:3]`, remains a direct slice and
+does not first construct an index array. The stand-alone range must fit its
+integer element type and the runtime allocation limit.
 
 ### Slices
 
@@ -75,12 +150,15 @@ Each side of a slice is inclusive, exclusive, or omitted. A side without a marke
 
 Anywhere else, `<` and `>` are comparisons: `a[x < y]` is an index, `a[f(x < 3):]` and `a[(x < 3):5]` compare inside the call or the parentheses, and `a[s < :e]` and `a[s: <e]` are errors, because the marker is separated from its colon. `a[s<: e]` is a valid exclusive start (only the marker has to touch the colon), `<=` and `>=` are never markers, and no marker belongs to the second colon (the step). A marker needs its value: `a[s:<]`, `a[<:e]` are errors.
 
-The direction comes from the markers (`<` ascending, `>` descending), else from the step's sign, else the slice ascends. Two markers that point different ways (`a[s<:>e]`) and a marker against the step's sign (`a[0:<5:-1]`) are `SLICE_STEP` errors, at compile time for a constant step and at run time otherwise, and so is a step of 0. The default step is `1` ascending and `-1` descending, so a marker alone makes a descending slice: `a[len(a)>:0]` steps by -1 and reverses the whole array.
+The direction follows an explicit step's sign, then any marker (`<` ascending, `>` descending). With neither, two explicit endpoints choose ascending when start <= end and descending when start > end; if either endpoint is omitted, the default is ascending. The comparison uses the evaluated values, so dynamic endpoints can change direction. Two markers that point different ways (`a[s<:>e]`) and a marker against the step's sign (`a[0:<5:-1]`) are `SLICE_STEP` errors, at compile time for a constant step and at run time otherwise, and so is a step of 0. The default step is `1` ascending and `-1` descending, so a marker alone makes a descending slice: `a[len(a)>:0]` steps by -1 and reverses the whole array.
 
 The start anchors the progression `s`, `s + step`, `s + 2·step`, ...: an exclusive start drops `s` itself, so `a[0<:6:2]` selects 2, 4, 6 while `a[1:6:2]` selects 1, 3, 5. The progression continues while it has not passed the end (an inclusive end is still a bound when the step skips it), and stops before an exclusive end. These are the rules of `for` range headers, and the forms map onto them:
 
 | Slice | Selected positions | As a range |
 | --- | --- | --- |
+| `a[1:4]` | 1, 2, 3, 4 | `1 <= i <= 4` |
+| `a[4:1]` | 4, 3, 2, 1 | `4 >= i >= 1` |
+| `a[4:0]` | 4, 3, 2, 1, 0 | `4 >= i` |
 | `a[0:<N]` | 0, 1, ..., N - 1 | `0 <= i < N` |
 | `a[0:<N:2]` | 0, 2, 4, ... below N | `0 <= i < N` step 2 |
 | `a[N>:0]` | N - 1, ..., 1, 0 | `N > i >= 0` |
@@ -89,7 +167,11 @@ The start anchors the progression `s`, `s + step`, `s + 2·step`, ...: an exclus
 | `a[10>:0:-2]` | 8, 6, 4, 2, 0 | `10 > i >= 0` step -2 |
 | `a[0<:5]` | 1, 2, 3, 4, 5 | `0 < i <= 5` |
 
+When direction must stay fixed, write `a[start:end:1]` or `a[start:end:-1]`. If two explicit endpoints oppose that step's sign, the slice fails with `INDEX_BOUNDS`; it never reverses automatically or silently returns an empty slice, even when a side is exclusive. The same constant/runtime checking rules apply.
+
 An omitted start is the first element in the slice's direction (index 0 ascending, the last index descending), included; an omitted end runs through the last element in that direction. So `a[:]` is the whole array, `a[s:]` runs to the end and is empty when `s` is the length, and `a[::-1]` reverses (an empty array gives an empty slice). The omitted descending start is an inclusive anchor, unlike the exclusive start `len(a)>:`: both reverse with step -1, but over five elements `a[::-2]` selects 4, 2, 0 and `a[5>::-2]` selects 3, 1.
+
+Omitted slice endpoints denote the sequence's beginning or end in the selected direction. They do not use the zero default of a `for` range's omitted endpoint: `a[4:]` runs to the sequence's end, whereas `for 4 >= int i` runs to zero.
 
 Slices are checked strictly, with no clamping. For a value of length `len`:
 
@@ -97,11 +179,12 @@ Slices are checked strictly, with no clamping. For a value of length `len`:
 2. an excluded endpoint lies in `[-1, len]`, at most one position outside: `a[-1<:2]` is `a[0:2]`, and `a[2:>-1]` is `a[2:0:-1]`;
 3. an inclusive end is a valid position, or `len` when the slice is empty;
 4. so is an inclusive start;
-5. the start may pass the end in the slice's direction only when a side is exclusive, and the slice is then empty, as a range whose start is past its end runs zero times; a slice inclusive on both sides is never empty.
+5. without an explicit step, the start may pass an explicitly marked direction's end only when a side is exclusive, and the slice is then empty; an explicit step with two explicit endpoints rejects reversed endpoints. A slice inclusive on both sides is never empty.
 
 | Form | Bounds | Empty when |
 | --- | --- | --- |
-| `a[s:e]` (ascending) | `0 <= s <= e < len` | never |
+| `a[s:e]`, `s <= e` | `0 <= s <= e < len` | never |
+| `a[s:e]`, `s > e` | `len > s > e >= 0` | never |
 | `a[s:<e]` | `0 <= s <= len`, `-1 <= e <= len` | `s >= e` |
 | `a[s<:e]` | `-1 <= s <= len`; `0 <= e < len`, or `e = len` when empty | `s + step > e` |
 | `a[s<:<e]` | `-1 <= s <= len`, `-1 <= e <= len` | `s + step >= e` |
@@ -110,15 +193,14 @@ Slices are checked strictly, with no clamping. For a value of length `len`:
 | `a[s>:e]` | `-1 <= s <= len`; `0 <= e < len`, or `e = len` when empty | `s + step < e` |
 | `a[s>:>e]` | `-1 <= s <= len`, `-1 <= e <= len` | `s + step <= e` |
 
-Over ten elements `a[5:<3]` and `a[3>:5]` are empty, while `a[5:3]`, `a[3:5:-1]` and `a[12:<3]` fail. A slice outside these bounds fails with `INDEX_BOUNDS`, which shows the slice as written with its operands' values (`slice 2:<7 out of bounds for length 5`), at compile time when the operands are constant and the length is known (a fixed array), at run time otherwise. Reading a slice reads the selected elements, so each must be initialized.
+Over ten elements `a[5:3]` selects 5, 4, 3, while `a[5:<3]` and `a[3>:5]` are empty. `a[5:3:1]`, `a[5:<3:1]`, `a[3:5:-1]` and `a[12:<3]` fail. A slice outside these bounds fails with `INDEX_BOUNDS`, which shows the slice as written with its operands' values (`slice 2:<7 out of bounds for length 5`), at compile time when the operands are constant and the length is known (a fixed array), at run time otherwise. Reading a slice reads the selected elements, so each must be initialized.
 
 ```quidra
 int[] values = [10, 20, 30, 40, 50]
 int[] middle = values[1:3]
 int[] reversed = values[len(values)>:0]
 int[] evens = values[0:<len(values):2]
-print(middle[0] + reversed[0] + evens[2])
-print(NL)
+print.line(middle[0] + reversed[0] + evens[2])
 // output: 120
 ```
 
@@ -170,8 +252,7 @@ if true
     x = 1
 else
     x = 2
-print(x)
-print(NL)
+print.line(x)
 ```
 
 A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. A fixed array's storage exists immediately, while initialization is tracked per element. A class-typed declaration such as `Point point` declares only an uninitialized binding: no usable instance exists until whole-value initialization or assignment. Before that, member reads, member writes, method calls and instance borrowing are prohibited. Successful explicit generation executes the class generation body and member initialization expressions; copying an existing initialized instance does not repeat them. Standard-library value types that user code cannot construct, such as file handles and random generators, stay uninitialized until the library supplies a value. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value.
@@ -185,8 +266,7 @@ int choose(bool ready)
         x = 1
     return x
 
-print(choose(true))
-print(NL)
+print.line(choose(true))
 ```
 
 The cost is one hidden flag per binding that has such a read, set where the binding is initialized, and a branch at each such read; a program whose reads are all initialized on every path has neither. A read through a reference uses the state of the binding the reference designates; when the target is not known after a join, a read that is not initialized on every path stays a compile-time error ("may be uninitialized through a reference whose target is not known"). A binding that a call may write without initializing it on every path, through a `&` argument or a receiver, is not tracked by a flag either, so a read of it that is not initialized on every path also stays a compile-time error ("may be uninitialized").
@@ -209,10 +289,8 @@ For other user names, a declaration cannot shadow a name that is already visible
 int add(int a, int b = 1)
     return a + b
 
-print(add(41))
-print(NL)
-print(add(a = 40, b = 2))
-print(NL)
+print.line(add(41))
+print.line(add(a = 40, b = 2))
 ```
 
 Function boundaries use explicit types. Named arguments use the declared parameter name followed by `=`. Positional arguments precede named arguments. Unknown names, duplicate supply, missing required arguments, and positional arguments following named arguments are errors. Ordinary function overloading is not supported: a function name has one ordinary definition, so argument-count variants and return-type-only variants are errors. Optional call forms belong in default parameters. The only repeated-name exception is a generic specialization family described below.
@@ -225,6 +303,25 @@ A `void` function can fall through or execute bare `return`. A non-void result m
 
 When a function or method returns a class value, the checker records the field paths that are definitely initialized on every normal return. Multiple returns contribute the intersection of those paths, including nested paths such as `data.ys`. Callers receive that summary, so a factory whose returned `Point` has only `x` assigned makes `x` readable while `y` remains statically uninitialized. A constructor is summarized the same way: the fields it definitely initializes on every completion are the fields a caller may read. These summaries are solved interprocedurally to a fixed point, so declaration order does not change the result.
 
+### Callable classes
+
+A class may define a single method named `operator` to make its instances
+callable. This follows ordinary method and mutation authority rules, not a
+separate overload namespace. `value(args)` calls a read-only operator and
+`.value(args)` calls a mutating operator. The method is declared
+`Result operator(args)` or `Result .operator(args)`, never `operator()`
+as a method name. The ordinary no-overloading rule still applies.
+
+```quidra
+class Counter(int value)
+    int .operator()
+        value += 1
+        return value
+
+Counter counter = Counter(0)
+print(.counter())
+```
+
 ## Evaluation order, execution order and numeric determinism
 
 ```quidra
@@ -234,9 +331,8 @@ int note(string label, int value)
 
 int[] values = [0, 0, 0]
 values[note("index ", 1)] = note("value", 5)
-print(NL)
-print(values[1])
-print(NL)
+print.line()
+print.line(values[1])
 ```
 
 Source evaluation order is left to right everywhere. A call evaluates its arguments in source order, named arguments included, then the defaults of omitted parameters in parameter order; a method call evaluates its receiver before its arguments. Binary operands, the parts of a concatenation, the elements of an array literal, the segments of an interpolation and the operands of an index list are evaluated left to right. A class generation call evaluates its arguments and omitted header defaults, initializes header members, then runs direct statements/member initializers in source order. The program above prints `index value` and then `5`.
@@ -247,11 +343,48 @@ Execution order is free while the observable behavior holds: the implementation 
 
 Numeric determinism is a third, separate concept. Evaluation order fixes which operations a program performs and in what order their effects are observed; a determinism policy, such as a package's choice between deterministic and faster nondeterministic kernels, fixes how a numeric operation computes its result. Changing such a policy is an explicit state change made by the program, never a side effect of evaluation order.
 
+## Extension methods
+
+A top-level function may mark its first parameter with `extend` to permit
+both the ordinary function call and a static method call. The definition and
+the implementation remain one function; there is no dynamic dispatch, implicit
+receiver mutation, trait object or access to private class members.
+
+```quidra
+int squared(extend int value)
+    return value * value
+
+int result = 5.squared()  // squared(5)
+```
+
+An imported, public extension function is available as a method only while
+that library is imported. An ordinary `import` does not re-export extensions;
+`public import` explicitly re-exports an imported namespace. Where multiple
+visible extensions match the same call or a built-in/class method conflicts,
+the compiler reports ambiguity instead of silently preferring a candidate.
+
+A writable extension receiver must be marked at the method call site. Its
+ordinary function form continues to use the explicit `&` argument.
+
+```quidra
+void scale(extend int[] &values, int factor)
+    for int &value = &values[]
+        value *= factor
+
+int[] values = [1, 2, 3]
+.values.scale(2)    // scale(&values, 2)
+```
+
+`extend` is permitted only on the first parameter, never on class methods
+or an external C declaration. Extension receivers do not have defaults,
+are evaluated once and use normal value, const, reference, evaluation-order
+and error propagation rules.
+
 ## Text and dynamic array operations
 
-`string` is immutable UTF-8 text. Repetition is explicit as `string.repeat(value, n)`; `value` must contain exactly one Unicode code point and `n` is a `nat`. `len(text)` counts Unicode code points rather than UTF-8 bytes and returns a `nat`. `text[index]` returns a one-code-point `string`, using the same code-point indexing model and deterministic bounds failure as other indexed values. `text.find(needle)` returns the code-point index as `nat`, or `none`; a slice `text[start:<end]` takes the code points from `start` up to `end`, with every slice form of arrays over code points (see "Slices"): `text[len(text)>:0]` reverses the text, and a start past the excluded end gives `""`. `trim()` removes Unicode whitespace at both ends. `split(separator)` preserves empty fields and requires a nonempty separator. `contains`, `starts_with`, and `ends_with` perform exact text matching. `text.utf8()` explicitly returns the UTF-8 encoding as `bin`; `string.from_utf8(data) -> string | error` performs the inverse only for byte-aligned `bin` containing valid UTF-8 without NUL, and reports representation failure as `error`; `text.codepoints()` explicitly returns Unicode scalar values as `int[]`. These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a `char` type.
+`string` is immutable UTF-8 text. Repetition is explicit as `string.repeat(value, n)`; `value` must contain exactly one Unicode code point and `n` is a `nat`. `len(text)` counts Unicode code points rather than UTF-8 bytes and returns a `nat`. `text[index]` returns a one-code-point `string`, using the same code-point indexing model and deterministic bounds failure as other indexed values. `text.find(needle)` returns the code-point index as `nat`, or `none`; a slice `text[start:<end]` takes the code points from `start` up to `end`, with every slice form of arrays over code points (see "Slices"): `text[len(text)>:0]` reverses the text, and a start past the excluded end gives `""`. `trim()` removes Unicode whitespace at both ends. `lower_ascii()` changes ASCII A-Z to a-z and `upper_ascii()` changes ASCII a-z to A-Z while retaining all other UTF-8 characters unchanged; these are non-mutating string operations, not Unicode case folding. `split(separator)` preserves empty fields and requires a nonempty separator. `contains`, `starts_with`, and `ends_with` perform exact text matching. `text.utf8()` explicitly returns the UTF-8 encoding as `bin`; `string.from_utf8(data) -> string | error` performs the inverse only for byte-aligned `bin` containing valid UTF-8 without NUL, and reports representation failure as `error`; `text.codepoints()` explicitly returns Unicode scalar values as `int[]`. These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a `char` type.
 
-Runtime-sized `T[]` arrays support `append(value) -> T[]` and `concat(other) -> T[]`. Fixed-width numeric, `bool`, and `string` arrays of either fixed or runtime size support `sorted() -> T[]`; sorting is non-mutating and returns an independent runtime-sized value. Real sorting places values in numeric order, preserves equal-value order and orders `-0.0` before `0.0` (no real value is NaN). `sorted(descending = true)` sorts in the reverse of that order (`0.0` before `-0.0`, strings in descending code-point order), and is stable too: equal elements keep their relative order, so the result is not a reversed ascending sort. `descending` is a `bool`, named only, and may be a run-time value; `sorted(descending = false)` is `sorted()`. String sorting uses deterministic Unicode-code-point-compatible UTF-8 lexical order. Any string array additionally supports `join(separator) -> string`, which constructs the result in one operation. Repeated `text = text + piece` is linear overall rather than quadratic: `string` is an immutable value, so when the assignment target is the sole owner of its storage the implementation may append into that storage with geometric growth, and neither the reuse nor the spare capacity is observable. `append`, `concat`, and `sorted` return new array values. They do not resize the receiver's backing storage in place, so an existing safe address such as `&values[i]` is never invalidated by the operation itself. A later implementation may use capacity, moves, or copy-on-write internally only when that optimization is unobservable.
+Runtime-sized `T[]` arrays support `append(value) -> T[]` and `concat(other) -> T[]`. Fixed-width numeric, `bool`, and `string` arrays of either fixed or runtime size support `sorted() -> T[]`; sorting is non-mutating and returns an independent runtime-sized value. Real sorting places values in numeric order, preserves equal-value order and orders `-0.0` before `0.0` (no real value is NaN). `sorted(descending = true)` sorts in the reverse of that order (`0.0` before `-0.0`, strings in descending code-point order), and is stable too: equal elements keep their relative order, so the result is not a reversed ascending sort. Without `by`, `descending` is a named `bool` and may be a run-time value; `sorted(descending = false)` is `sorted()`. A `sorted(by = keys)` call orders its receiver by a key array of the same length, including receiver values without their own ordering. `by` may be a tuple of ordered numeric, bool or string key arrays (heterogeneous key types are supported), with the leftmost key taking priority. `descending` may be one bool applied to every key, or a tuple of bool flags matching the number of keys. For example, `names.sorted(by = (scores, names), descending = (true, false))` ranks by highest score, breaking ties by name ascending. Sorting is stable: when all keys compare equal, the original order is preserved. Fixed-length mismatches are rejected by the compiler; other length mismatches fail at run time before sorting. These methods never change the source or key arrays. String sorting uses deterministic Unicode-code-point-compatible UTF-8 lexical order. Any string array additionally supports `join(separator) -> string`, which constructs the result in one operation. Repeated `text = text + piece` is linear overall rather than quadratic: `string` is an immutable value, so when the assignment target is the sole owner of its storage the implementation may append into that storage with geometric growth, and neither the reuse nor the spare capacity is observable. `append`, `concat`, and `sorted` return new array values. They do not resize the receiver's backing storage in place, so an existing safe address such as `&values[i]` is never invalidated by the operation itself. A later implementation may use capacity, moves, or copy-on-write internally only when that optimization is unobservable.
 
 Loops support `break` and `continue`. In writable iteration, changes to the current element are committed before either advancing with `continue` or leaving with `break`.
 
@@ -260,14 +393,11 @@ Conditional chains use `elif`:
 ```quidra
 int score = 85
 if score >= 90
-    print("A")
-    print(NL)
+    print.line("A")
 elif score >= 80
-    print("B")
-    print(NL)
+    print.line("B")
 else
-    print("C")
-    print(NL)
+    print.line("C")
 ```
 
 ## Modules
@@ -359,7 +489,7 @@ tensor<T> normalize<T: floating>(tensor<T> value)
 
 The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integers, `int` and `nat`; `floating` accepts `real16`, `real16b`, `real32` and `real64`; `numeric` accepts integer, floating, exact `real`, and every complex type; `ordered` accepts integer, floating, and exact `real`, excluding complex values; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
 
-A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape: the same argument count, parameter names, reference/const forms, and default-argument positions. Generic members also keep the same generic type pattern and relationships among their type parameters. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
+A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape: the same argument count, parameter names, reference/const forms, extension-receiver markers, and default-argument positions. Generic members also keep the same generic type pattern and relationships among their type parameters, except that array, tensor, and constrained scalar parameter patterns may coexist when their domains are statically disjoint. A scalar type parameter constrained by `numeric`, `ordered`, `integer`, or `floating` cannot match an array or tensor; `equatable` and unconstrained parameters provide no such exclusion. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
 
 ```quidra
 T1 combine<T1: numeric, T2: integer>(T1 left, T2 right)
@@ -369,7 +499,7 @@ T1 combine<T1: floating, T2: integer>(T1 left, T2 right)
     return left
 ```
 
-A concrete member normally instantiates that generic type pattern. A narrow exception permits a different concrete signature only when known primitive argument types and supported built-in constraints prove that every generic member excludes that signature. For example, an `int` argument cannot match a `floating` type parameter. A mismatch involving a structural or nominal type, shape, reference/const form, value, or unknown type is not a primitive-disjoint proof. The exception does not change the family's argument count, parameter names, default positions, mutation marker, visibility, or ordinary shape checks; it does not introduce implicit conversion or return-type-only overloading. Generic members still share one type-variable pattern, and a concrete signature that is not proved excluded from every generic member remains an error.
+A concrete member normally instantiates that generic type pattern. A narrow exception permits a different concrete signature only when known primitive argument types and supported built-in constraints prove that every generic member excludes that signature. For example, an `int` argument cannot match a `floating` type parameter. A mismatch involving a structural or nominal type, shape, reference/const form, value, or unknown type is not a primitive-disjoint proof. The exception does not change the family's argument count, parameter names, default positions, mutation marker, visibility, or ordinary shape checks; it does not introduce implicit conversion or return-type-only overloading. Within each container domain, generic members still share one type-variable pattern, and a concrete signature that is not proved excluded from every generic member remains an error.
 
 A concrete exact match is preferred to generic members. Between generic matches, a uniquely narrower supported constraint wins, such as `floating` over `numeric`. Domains such as `ordered` and `equatable` that overlap without a unique specificity relation are rejected as ambiguous; the compiler never chooses an arbitrary member. Changing the type-variable relationship between generic members, such as pairing `(T, T)` in one declaration with `(T, U)` in another, is an ordinary overload rather than specialization and is rejected.
 
@@ -403,11 +533,9 @@ Token token = Token.End
 
 match token
     Token.Number(value)
-        print(value)
-        print(NL)
+        print.line(value)
     Token.Name(name)
-        print(name)
-        print(NL)
+        print.line(name)
     Token.Plus
         void
     Token.End
@@ -440,7 +568,7 @@ Ordinary header parameters declare members initialized from the supplied argumen
 
 `T(...)` runs this ordered initialization. Arguments follow ordinary positional, named and default rules. The header has one parameter list; express alternate call forms with defaults or free factory functions. Generic parameters belong to the class header or an ordinary function/method, so a generic factory may construct a non-generic class without changing its type identity.
 
-A typed declaration without an initializer, such as `Point pending`, leaves the binding uninitialized and creates no usable instance. It permits subsequent whole-value assignment, such as `pending = Point(3.0, 4.0)`, but no member access, method call or instance borrowing before initialization. `Point point(3.0, 4.0)` is declaration syntax equivalent to `Point point = Point(3.0, 4.0)`, with the same argument evaluation, mutation-marker and error contracts. Failed generation cannot initialize the destination with an unfinished instance. Standard `map.Map` and `set.Set` bare bindings retain their initialized empty-storage contract.
+A typed declaration without an initializer, such as `Point pending`, leaves the binding uninitialized and creates no usable instance. It permits subsequent whole-value assignment, such as `pending = Point(3.0, 4.0)`, but no member access, method call or instance borrowing before initialization. `Point point(3.0, 4.0)` is declaration syntax equivalent to `Point point = Point(3.0, 4.0)`, with the same argument evaluation, mutation-marker and error contracts. Failed generation cannot initialize the destination with an unfinished instance. Standard `map` and `distinct` bare bindings retain their initialized empty-storage contract.
 
 ```quidra
 Point pending
@@ -455,7 +583,7 @@ The whole instance cannot escape while initialization is in progress, including 
 
 ```quidra
 class Document document(local string path) | error
-    string text = try file.read(path)
+    file.read stream = try file.read(path)
 
 Document | error result = Document("notes.txt")
 ```
@@ -518,14 +646,10 @@ int x = 1
 int &alias = &x
 int other = 1
 
-print(&x)             // current raw address of x storage
-print(NL)
-print(&alias)         // the same address
-print(NL)
-print(&x == &alias)   // true
-print(NL)
-print(&x == &other)   // false
-print(NL)
+print.line(&x)             // current raw address of x storage
+print.line(&alias)         // the same address
+print.line(&x == &alias)   // true
+print.line(&x == &other)   // false
 ```
 
 For managed values the address still means the address of the language-level storage being addressed. In particular, `&text` for a `string text` observes the binding/storage slot, not the separate UTF-8 payload pointer used internally or at an FFI borrow boundary.
@@ -546,8 +670,7 @@ int value = 5
 const int view = value
 
 value = 7
-print(view) // 5
-print(NL)
+print.line(view) // 5
 ```
 
 `view` keeps the value `value` had when it was bound. `view = 8`, `&view = &other` and `int &writer = &view` are compile-time errors: a const value is never written, and no writable path to it can be formed. It also has its own identity, as any copy does: `&view == &value` is false.
@@ -568,8 +691,7 @@ Taking a scalar address does not read the stored value, so uninitialized scalar 
 int value
 int &alias = &value
 alias = 7
-print(value)
-print(NL)
+print.line(value)
 ```
 
 Reading `alias` before the write would be an uninitialized-read error. A `const T` value reads its source when it is formed, so that source must be initialized. Temporary values such as `&5` or `&Point(1.0, 2.0)` are not valid address targets.
@@ -598,13 +720,12 @@ int value = 4
 Holder first = Holder(&value)
 Holder second = first
 .second.add(3)
-print(first.read()) // 7: both holders refer to value
-print(NL)
+print.line(first.read()) // 7: both holders refer to value
 ```
 
 Reference fields have no `const` qualifier. An uninitialized reference field starts unbound; its direct initialization may explicitly bind it with `&`. Only the declaring class binds or rebinds them, with the direct form `&total = &source` in initialization or a method. Access elsewhere still denotes the target: `holder.total` reads or writes it and `&holder.total` observes its address, subject to field privacy. `&holder.total = &source`, and a longer place such as `&self.inner.total = &source`, cannot rebind it; call a method of the declaring class. Binding in a constructor initializes the new holder and needs no mutation marker. Rebinding in a method writes the existing holder, so that method is declared and called with `.`. Writes through a reference field change shared state, and require `.` too unless an explicit `&` argument exposes that target. A `const` holder grants no write or rebinding authority through its reference fields. `cli` fields hold command-line values and cannot be references.
 
-A stored target must have stable storage: a whole variable, a by-value parameter's storage, or a field path consisting only of class fields beneath such a root. A reference parameter may be stored only if all its callers supply such a target; that requirement propagates through calls. Array elements, tuple elements, union payloads, map or set entries, temporaries and unresolved targets are `REFERENCE_TARGET`. Ordinary local references and non-storing reference parameters keep their existing substorage rules. A stored target must be bound and initialized when it is stored, and it must remain initialized when subsequently replaced: a replacement that could leave the target partly uninitialized is rejected.
+A stored target must have stable storage: a whole variable, a by-value parameter's storage, or a field path consisting only of class fields beneath such a root. A reference parameter may be stored only if all its callers supply such a target; that requirement propagates through calls. Array elements, tuple elements, union payloads, map or distinct entries, temporaries and unresolved targets are `REFERENCE_TARGET`. Ordinary local references and non-storing reference parameters keep their existing substorage rules. A stored target must be bound and initialized when it is stored, and it must remain initialized when subsequently replaced: a replacement that could leave the target partly uninitialized is rejected.
 
 Copying a holder copies its reference fields and keeps the same targets alive. Ordinary value fields remain independent. Copying or growing a container of holders does not retarget those references. A stored reference to a whole variable sees later replacements of that variable; a reference to a field keeps the captured field storage if a containing value is replaced. It then refers to detached storage, rather than to the new field. Refer to the whole variable, or update its fields in place, when the reference must follow the current value. A reference may escape its original call; the implementation preserves the necessary storage until the last reference releases it.
 
@@ -632,8 +753,7 @@ Reference parameters use the same model and remain explicit at both declaration 
 
 ```quidra
 void inspect(const int value)
-    print(value)
-    print(NL)
+    print.line(value)
 
 void initialize(int &value)
     value = 7
@@ -641,8 +761,7 @@ void initialize(int &value)
 int data = 1
 inspect(data)
 initialize(&data)
-print(data)
-print(NL)
+print.line(data)
 ```
 
 A `const` parameter takes a value, `inspect(data)`, and a reference parameter takes `&storage`, `initialize(&data)`; writing `&` for a const parameter is `WRITE_CAPABILITY` ("Const parameters take values; remove '&' from '&data'."). The checker infers read-before-write requirements for writable parameters. A write-only writable parameter can initialize previously uninitialized storage; a const parameter's argument is a read, so its storage must be initialized. Reference markers cannot be omitted or supplied to ordinary parameters. Reference contracts preserve exact types, including fixed array shapes and class identity.
@@ -658,10 +777,8 @@ int[] values = [1, 2, 3]
 int &first = &values[0]
 values = [4, 5]
 
-print(first)      // 1
-print(NL)
-print(values[0])  // 4
-print(NL)
+print.line(first)      // 1
+print.line(values[0])  // 4
 ```
 
 The implementation keeps the old backing storage alive as long as such a reference needs it. `print(&first)` may observe the current machine address of that pinned substorage, but the numeric-looking text is diagnostic only and is not guaranteed to remain the same across separate executions, builds, platforms, or unrelated storage relocations allowed before an address becomes observable.
@@ -686,8 +803,7 @@ class Counter()
 
 Counter counter = Counter()
 .counter.increment()
-print(counter.read())
-print(NL)
+print.line(counter.read())
 ```
 
 The marker is written before a function's or method's name (`void .update()`), before an extern's name (`extern void .set(...)`). At a call it is one `.` before the whole postfix chain: `.update()`, `.counter.increment()`, `.nn.mode.fast()`, `.self.inner.bump()`. It covers the calls of that chain, the call itself and the calls in its receiver positions, not the calls nested in its arguments, which carry their own. A marked call is not a postfix: `(.gen.batch()).size()` parenthesizes it before a further member. The readings:
@@ -707,7 +823,7 @@ Existing state is the receiver's fields, the shared state reachable from the rec
 
 The compiler derives what each function changes from its body and the summaries of what it calls. A function whose body may change existing state that no `&` parameter exposes must be declared `.`; otherwise `MUTATION_MARKER` names the cause (`'increment' may change existing state (field 'value'); declare it as '.increment'.`). The rule is transitive: a function that calls a `.` function is itself `.` unless the changed state is exposed with `&` (`void bump(Counter &c)` calling `.c.increment()` is not `.`) or is its own fresh value (a local it created). A declaration may carry the marker without changing anything, as a promise its callers rely on. Calling a `.` callee without the marker is `MUTATION_MARKER` with the corrected spelling, and so is a marker on a chain that reaches no `.` callee. An extern's marker is its declaration, which the compiler trusts: `extern void .set(...)` changes runtime state, and an extern without it changes only its `&` parameters.
 
-The standard library follows the rule. `map.Map`'s `set` and `remove`, `set.Set`'s `add` and `remove`, `random.Generator`'s `int`, `real64` and `bool`, every `file.Handle` operation (`read`, `read_line`, `read_bin`, `write`, `write_line`, `flush`, `seek`, `close`), `clear_grad` on tensors and `autograd.Target` are called with the marker (`.counts.set("a", 1)`, `.rng.int(1, 6)`, `.handle.write_line(text)`). Queries such as `get`, `has`, `keys`, `values` and `size` are not, nor are `track()`, `retrack()` and `untrack()`, which return a new value.
+The standard library follows the rule. `map`'s `set` and `remove`, `distinct`'s `add` and `remove`, `random.Generator`'s `int`, `real64` and `bool`, the `file.read`/`file.write` call operators and file writer/appender `.line()` methods, `clear_grad` on tensors and `autograd.Target` are called with the marker (`.counts.set("a", 1)`, `.rng.int(1, 6)`, `.reader(&line)`, `.writer(text)`). Queries such as `get`, `has`, `keys`, `values` and `size` are not, nor are `track()`, `retrack()` and `untrack()`, which return a new value.
 
 Class generation that changes state it does not create is called `.T(...)` or `.module.T(...)`. Its header has no definition marker: the compiler infers the requirement from the ordered initialization body. Passing the changed target with `&` needs no marker (`Widget(&registry)`). A bare class binding declaration `T x` executes no generation body and has no usable instance until whole-value initialization. A member initialization expression participates in that body and may call marked operations; ordinary parameter defaults cannot change existing state.
 
@@ -722,14 +838,12 @@ Comparisons chain: `a OP1 b OP2 c` means `a OP1 b and b OP2 c`, so `0 <= i < len
 ```quidra
 int64 x = 5
 if 0 <= x < 10
-    print("in range")
-    print(NL)
+    print.line("in range")
 ```
 
 ```quidra
 for 2 <= nat i < 10 step 2
-    print(i)
-    print(NL)
+    print.line(i)
 
 int[] values = [1, 2, 3]
 for auto &value = &values[]
@@ -776,8 +890,7 @@ available for Cartesian iteration.
 ```quidra
 int score = 85
 string grade = if score >= 90 then "A" elif score >= 80 then "B" else "C"
-print(grade)
-print(NL)
+print.line(grade)
 ```
 
 `else if` is not a synonym for `elif` in an if-expression; it is an error with the hint to write `elif`. There is no `?:` operator.
@@ -804,11 +917,9 @@ int | error doubled(bool valid)
 
 match doubled(true)
     int value
-        print(value)
-        print(NL)
+        print.line(value)
     error problem
-        print(problem)
-        print(NL)
+        print.line(problem)
 ```
 
 A fallible union is preserved only when the source explicitly requests that failure channel, for example with an explicit `T | error` type or the dedicated `auto | error` inference form. Bare `auto result = operation()` infers the complete non-`error` success side and makes the initialization site fail fast on `error`; `auto | error result = operation()` retains the inferred success alternatives plus `error`. `none` is not removed: `auto` applied to `T | none | error` produces `T | none`.
@@ -823,14 +934,14 @@ to `real64` without explicit handling.
 
 An expression statement discards its value. An error is not a value to
 discard: when the statement's expression can be `error`, the same fail-fast
-handling applies, so `file.write(path, text)` or `scan(&n)` written as a
+handling applies, so `file.remove(path)` or `scan(&n)` written as a
 statement terminates the program on failure. This also applies to an
 expression whose type is exactly `error`, such as a bare `error("invalid input")`
 guard or an error-valued name: its own code and message are reported.
 (A standalone expression
 typed into an interactive session is displayed rather than discarded; see
 [Interactive evaluation](#interactive-evaluation).) Binding the result, as in
-`void | error saved = file.write(path, text)`, keeps the error for explicit
+`void | error removed = file.remove(path)`, keeps the error for explicit
 handling.
 
 An `error` has a code, the details its code defines, and an optional cause;
@@ -861,7 +972,7 @@ be assigned. A detail is read through `match`, as the cause is:
 ```quidra
 bool | error has_config(string path)
     match file.read(path)
-        string
+        file.read reader
             return true
         error problem
             match problem.reason
@@ -902,7 +1013,7 @@ Cases must cover every alternative exactly once; missing, duplicate, and impossi
 
 Strings support `{expression}` interpolation, concatenation with `+`, content equality, literal newlines, and literal tab characters. Backslash has no escape semantics: `\n`, `\t`, `\r`, `\b`, `\f`, `\v`, `\a`, `\xNN`, and Unicode-style backslash sequences are ordinary source characters. A backslash is written as itself. Because `"` still delimits a string, a quote character inside string data is written through the `DQ` built-in value rather than by escaping it.
 
-Numeric interpolation supports a compact format after `:`: `int=N` sets the minimum integer-part width, `frac=N` fixes fractional digits, `sig=N` fixes significant digits, and `zero` changes `int` padding from spaces to zeros. Examples are `"{value:int=5}"`, `"{value:int=4,frac=2,zero}"`, and `"{value:sig=4}"`. `frac` and `sig` are mutually exclusive because they define competing rounding rules, and `zero` requires `int`. `int` and `sig` accept literal values 1..1000; `frac` accepts 0..1000. A formatted interpolation must be numeric. Ordinary `{value}` interpolation keeps canonical scalar formatting. For an exact `real`, `frac` and `sig` give its correctly rounded digits, ties to even as for fixed-width reals, which Core certifies by refinement (`EXACT_UNPROVEN` when it cannot); `int` and `zero` need `frac` or `sig` there, because the canonical text of an exact value need not be a decimal.
+Numeric interpolation supports a compact format after `:`: `int=N` sets the minimum integer-part width, `frac=N` fixes fractional digits, `sig=N` fixes significant digits, `group=N` inserts ASCII commas every N digits from the right of the integer part, and `zero` changes `int` padding from spaces to zeros. Examples are `"{value:int=5}"`, `"{value:int=4,frac=2,zero}"`, `"{value:sig=4}"`, and `"{value:group=3}"` (123456789 becomes `123,456,789`). `frac` and `sig` are mutually exclusive because they define competing rounding rules, and `zero` requires `int`. `int`, `sig`, and `group` accept literal values 1..1000; `frac` accepts 0..1000. Grouping is applied after rounding and integer padding; it affects the leading decimal integer portion, after any sign, but not the fraction or exponent. A formatted interpolation must be numeric. Ordinary `{value}` interpolation keeps canonical scalar formatting. For an exact `real`, `frac` and `sig` give its correctly rounded digits, ties to even as for fixed-width reals, which Core certifies by refinement (`EXACT_UNPROVEN` when it cannot); `int`, `zero`, and `group` need `frac` or `sig` there, because the canonical text of an exact value need not be a decimal. Complex values do not support `group`.
 
 The immutable built-in `string` values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` denote LF, HT, CR, `"`, BS, FF, VT, and BEL respectively. They are ordinary expressions, so both `"A{HT}B"` and `string separator = HT` use the same value. All eight names are two-letter uppercase abbreviations, and they are the only built-in values spelled entirely in capitals: the capitals mark a symbol the language provides for a character that cannot be written directly, so a reader never has to ask whether `HT` is a user binding. `true`, `none`, `print` and every other built-in keep their ordinary spelling. Lowercase spellings such as `nl`, `ht`, and `bs` are ordinary identifiers, not aliases for these built-ins; they work only when the program defines them. Literal `{{` and `}}` continue to represent braces in an interpolated string. NUL remains forbidden in source strings.
 
@@ -910,17 +1021,39 @@ Numeric arithmetic requires matching operand types. An already-typed numeric val
 
 Fixed-width integers additionally support `AND`, `OR`, `XOR`, unary `NOT`, `<<`, and `>>`. The uppercase words are deliberately distinct from bool-only `and`, `or`, and `not`; `&` remains storage access and `|` remains union syntax. Bitwise operations do not apply to `bool`, floating-point values, `int`, `nat`, `real`, `bin`, tensor, or tensor values. Signed fixed-width integers have a defined two's-complement bit representation. `<<` operates on the N-bit representation and discards shifted-out bits without turning the operation into checked arithmetic; signed `>>` is arithmetic with sign extension and unsigned `>>` is logical with zero fill. Shift counts outside `[0, width)` are rejected statically when proven and otherwise fail deterministically at runtime.
 
-Explicit numeric casts use the destination type directly: `int8(value)`, `nat32(value)`, or `real32(value)`. A range-checked cast whose runtime value may not fit has source-visible type `converted-type | error`. For scalars the success type is the destination scalar type; for arrays and tensors it is the entire converted container, never a container of per-element unions. Container conversion is atomic: one out-of-range leaf makes the whole conversion `error`. Bare `auto` infers the success type and fails fast on the error, `auto | error` preserves the union, a success-only destination also applies contextual fail-fast, `try` propagates the error, and `match` may handle an explicitly preserved result locally. Integer narrowing never wraps or clamps. Integer-to-real and real-to-real casts are explicit practical conversions and may use the destination IEEE-754 rounding. Generic real-to-integer casts are forbidden because they hide a rounding choice; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` instead.
+Explicit numeric casts use the destination type directly: `int8(value)`, `nat32(value)`, or `real32(value)`. A range-checked cast whose runtime value may not fit has source-visible type `converted-type | error`. For scalars the success type is the destination scalar type; for arrays and tensors it is the entire converted container, never a container of per-element unions. Container conversion is atomic: one out-of-range leaf makes the whole conversion `error`. Bare `auto` infers the success type and fails fast on the error, `auto | error` preserves the union, a success-only destination also applies contextual fail-fast, `try` propagates the error, and `match` may handle an explicitly preserved result locally. Integer narrowing never wraps or clamps. Integer-to-real and real-to-real casts are explicit practical conversions and may use the destination IEEE-754 rounding. Real-to-integer casts accept only mathematically integral values in the destination range; an invalid conversion produces `T | error` (including `NOT_INTEGRAL` for fractional values). Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` when rounding is intended.
 
 Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.string()` for their standard textual form. Parsing is interpretation of text and is distinct from casting. Mathematical functions live in the first-party `math` package namespace after an explicit `import math`: `math.abs` accepts numeric values, `math.sqrt` accepts floating-point values, and `math.min`/`math.max` require two values of the same numeric type. There are no Core bare spellings of these names, so `abs`, `sqrt`, `min`, and `max` remain ordinary identifiers.
 
-`print(value)` writes a scalar without adding a newline. Use `print(NL)` or include `NL` through interpolation when a line break is intended. `print` and `flush()` return `void | error`: an output failure such as a closed pipe is reported as `error`, and because the usual spelling is a statement, that error fails fast. Core has no console `write` builtin and no `io` namespace; `write` remains an ordinary user or package identifier.
+`print(value)` writes a scalar without adding a newline. Prefer `print.line(value)` for a terminated line or `print.line()` for an empty line; `NL` interpolation remains available for embedded line breaks. `print` and `flush()` return `void | error`: an output failure such as a closed pipe is reported as `error`, and because the usual spelling is a statement, that error fails fast. Core has no console `write` builtin and no `io` namespace; `write` remains an ordinary user or package identifier.
 
-`scan(...)` is the one input operation. It reads one line of standard input, without the trailing LF, and stores what it reads into the targets named by its format; its result is `void | error`. `scan(&n)` reads a single value and is the short form of `scan("{&n}")`. A format is a string literal whose placeholders `{&target}` name writable storage of numeric or `string` type; every other character of the format must appear in the input at that position. Each target takes the input up to the next literal text of the format, or to the end of the line for the last target, and that text is converted with the same rules as `T.parse`; a `string` target takes the text as it is. So `scan("{&n} {&m}")` reads two numbers separated by one space, `scan("{&name},{&age}")` reads a name up to the comma and then an age, and `scan(&line)` into a `string` takes the whole line. Two placeholders need literal text between them, and input left over after the format is an error, as are end of input, invalid UTF-8 or embedded NUL, and text that does not parse as the target's type. A target is definitely initialized after a `scan` statement or a `try scan(...)`, because the error cannot continue past either; when the result is bound instead, as in `void | error read = scan(&line)`, the targets must already be initialized, and on failure they keep their values. Runtime `string` values are always valid UTF-8 text and cannot contain embedded NUL; raw binary data belongs in `bin`.
+`scan(...)` is the one input operation. It reads one line of standard input, without the trailing LF, and stores what it reads into the targets named by its format; its result is `void | error`. `scan(&n)` reads a single value and is the short form of `scan("{&n}")`. `scan(...)` reads one complete line, with `void | error` for success or failure.
+`scan(&n)` is shorthand for `scan("{&n}")`. In an input format, `{&n}`
+writes an existing target and `{T &n}` declares a new typed target. `T`
+may be `string`, `bool`, or a numeric scalar. An inline declaration is
+allowed in a standalone, fail-fast `scan` statement, where the new binding
+is initialized and visible in the containing scope after success. Input
+placeholders are not ordinary output interpolation: each one consumes the
+text before the next literal separator, and every written separator must
+match exactly. For example, `scan("{&n} {int &m}")` reads two numbers
+separated by exactly one space. The `bool` format accepts only `true`
+or `false`. A string target retains its field exactly; numeric fields
+use `T.parse` semantics including range checks. Adjacent placeholders
+without literal separators and trailing unmatched text are errors.
 
-Integer division or remainder whose divisor is statically known to be zero is a compile-time error, and so is a fixed-width real division of a constant by a constant zero. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, index and slice bounds failures of arrays, strings, bin and tensors (`INDEX_BOUNDS`, which names the index and the length: `index 5 out of bounds for length 5`, at the index operand), invalid allocation sizes, zero range steps, and exceeding the native call-depth safety limit (`CALL_DEPTH_LIMIT`: `maximum recursion depth exceeded (limit 4096)`) are deterministic runtime errors with exit status 101. Range-checked numeric casts, including whole-array and whole-tensor conversions, instead produce their source-visible `error` alternative when any converted value is outside the destination range, with a message that names what was converted, the destination type and the reason (`numeric conversion out of range: value cannot be represented as int8`); status 101 occurs only if that error reaches a contextual fail-fast consumption site. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. No `real32` or `real64` value, scalar or tensor element, is NaN or an infinity: an operation whose result would be one stops the program (`REAL_OVERFLOW`: `real64 multiplication overflow`, `tensor<real32> addition overflow`; a division by zero, `0.0 / 0.0` included, is `DIVISION_BY_ZERO`: `real32 division by zero`), and a constant real expression that overflows, or divides by a constant zero, is a compile-time error. A tensor operation tests every element it computes: on the CPU the first failing element in logical order stops the program at the operation; on a GPU the test stays on the device and fails at the next synchronization point, like the other device-resident checks, naming the operation and the statement that queued it. A gradient that a backward pass delivers is tested the same way (`tensor<real32> gradient overflow`), and so is a real tensor a package function writes (`NONFINITE_RESULT`), unless the package declares that its kernels test what they write.
+**Input format updates are atomic:** all fields and the complete line
+must validate before any destination changes. If conversion, a literal
+separator, or the final remainder is invalid, all targets retain their
+previous values. With a retained `void | error` result, every existing
+target must therefore already be initialized; the inline declaration
+form is reserved for fail-fast statements and successful condition branches.
+EOF on standard input is `INPUT_END` (an `error`), while a file reader
+uses `false` for EOF. Runtime strings always contain valid UTF-8 and
+no embedded NUL; use `bin` for arbitrary bytes.
 
-An exact `real` prints exactly: a finite decimal when it has one (`0.5`, `4.0`), otherwise an exact fraction (`1/3`), and a symbolic value in its canonical text, with `√` for square roots, the symbols its providers give their constants and operations (`π`, `e`, `sin(1)`), juxtaposed coefficients (`2√3`, `3π`, `π/2`, `√2/2`) and other roots as powers (`2^(1/3)`). `print`, interpolation, REPL display and `.string()` share that text. `real.parse` reads decimals and fractions (`1/3`, `-2/5`), not symbolic text.
+Integer division or remainder whose divisor is statically known to be zero is a compile-time error, and so is a real constant expression that produces NaN, including `0.0 / 0.0`. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, index and slice bounds failures of arrays, strings, bin and tensors (`INDEX_BOUNDS`, which names the index and the length: `index 5 out of bounds for length 5`, at the index operand), invalid allocation sizes, zero range steps, and exceeding the native call-depth safety limit (`CALL_DEPTH_LIMIT`: `maximum recursion depth exceeded (limit 4096)`) are deterministic runtime errors with exit status 101. Range-checked numeric casts, including whole-array and whole-tensor conversions, instead produce their source-visible `error` alternative when any converted value is outside the destination range, with a message that names what was converted, the destination type and the reason (`numeric conversion out of range: value cannot be represented as int8`); status 101 occurs only if that error reaches a contextual fail-fast consumption site. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Signed infinities are valid real values, but NaN is never observable. Real overflow, nonzero real division by zero, and zero to a negative real power may produce infinity. An indeterminate operation stops the program (`NONFINITE_RESULT`: `real64 multiplication produced NaN`, `tensor<real32> subtraction produced NaN`; zero divided by zero is `DIVISION_BY_ZERO`: `real32 division by zero`). Constant expressions enforce the same rules at compile time; finite out-of-range literals and range-checked casts still fail. A tensor operation tests every element it computes: on the CPU the first failing element in logical order stops the program at the operation; on a GPU the test stays on the device and fails at the next synchronization point, like the other device-resident checks, naming the operation and the statement that queued it. A delivered gradient and a real tensor a package function writes are likewise validated against NaN (`NONFINITE_RESULT`); infinity is allowed. A package may waive Core's output scan only by declaring that it validates NaN itself or preserves NaN-free inputs, including infinite inputs.
+
+An exact `real` prints exactly: a finite decimal when it has one (`0.5`, `4.0`), otherwise an exact fraction (`1/3`), and a symbolic value in its canonical text, with `√` for square roots, the symbols its providers give their constants and operations (`π`, `e`, `sin(1)`), juxtaposed coefficients (`2√3`, `3π`, `π/2`, `√2/2`) and other roots as powers (`2^(1/3)`). `print`, interpolation, REPL display and `.string()` share that text. `real.parse` reads decimals, fractions (`1/3`, `-2/5`) and signed infinity (`inf`, `-inf`, `∞`, `-∞`), not symbolic text. Exact infinities print as `∞` and `-∞`; fixed-width infinities print as `inf` and `-inf`.
 
 Float text uses the shortest decimal representation that round-trips to the same binary floating-point value. If that shortest representation would look integral, at least one fractional digit is retained, so `0.6` stays `0.6`, `1.0 / 3.0` is `0.3333333333333333`, and `4.0` remains `4.0`. The same canonical form is used by `print`, interpolation, REPL display, and `.string()`. Fractional literals continue to require a leading zero; `.5` is invalid and `0.5` is the canonical form.
 
@@ -938,7 +1071,7 @@ A rejected compile-time submission does not become part of the session. EOF exit
 
 `tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static; Quidra does not have a tensor type with an unknown element type. Without a shape pattern, rank and known extents are compiler-inferred flow facts obtained from construction, tensor arithmetic (by its broadcasting rule), reshape/index operations, control flow, and ordinary checked function contracts.
 
-An optional brace group is an **exact-rank shape pattern**:
+An optional brace group constrains tensor rank and axis sizes. Without `...`, it is an **exact-rank shape pattern**:
 
 ```quidra
 tensor<real32> any_rank
@@ -948,7 +1081,7 @@ tensor<real32>{3, 224, 224} chw_224
 tensor<real32>{_, _, _} any_rank_three
 ```
 
-The number of shape entries is the required rank. Each extent is a `nat` value, a shape variable or `_`. A constant expression is folded by the compiler; a runtime expression is evaluated once and captured. `_` requires the axis to exist and leaves its extent unrestricted. Thus `tensor<real32>{3, _, _}` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. The angle group names the mandatory element type; braces name the shape. Empty slots and trailing commas are invalid.
+Without an ellipsis, the number of shape entries is the required rank. Each extent is a `nat` value, a shape variable or `_`. A constant expression is folded by the compiler; a runtime expression is evaluated once and captured. `_` requires the axis to exist and leaves its extent unrestricted. Thus `tensor<real32>{3, _, _}` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. The angle group names the mandatory element type; braces name the shape. Empty slots and trailing commas are invalid.
 
 Known rank or extent conflicts are rejected statically. A tensor expected type may supply the numeric element type when an explicit shape argument is present, so `tensor<real32> x = tensor.zeros([2, 3])` is valid and avoids repeating `real32`. Without either an explicit tensor type argument or an expected tensor element type, as in `auto x = tensor.zeros([2, 3])`, the element type is ambiguous and the call is rejected. If a source tensor's relevant rank or extent is not statically known, assignment or parameter passing to a constrained destination performs the corresponding runtime constraint check instead of silently assuming the shape. Declared captured constraints remain fixed for that binding across reassignment, while inferred flow facts may weaken after reassignment or control-flow joins. APIs that produce runtime data may additionally validate an expected pattern through their normal result model. Shape constraints and inferred rank/shape facts do not change TensorStorage or the LLVM ABI.
 
@@ -962,6 +1095,19 @@ tensor<real32>{1, _, _} o = tensor.ones<real32>([1, 224, 224])
 ```
 
 The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. When the expected tensor type supplies the element type and every exact extent, `tensor.zeros()` and `tensor.ones()` may use that context to allocate; an unconstrained rank or `_` extent still requires an explicit shape argument. Initialization is tracked independently from shape knowledge and numeric contents; reading an uninitialized element is a deterministic safety failure.
+
+A shape may contain one `...`, standing for zero or more axes. `_` always stands for exactly one axis. Constraints before `...` align from the start; those after it align from the end, without overlap. The minimum rank is the number of explicitly written axes. A statically known rank or extent mismatch is a compile-time error; otherwise the constraint is checked at runtime before an axis is read.
+
+| Shape | Meaning |
+| --- | --- |
+| `{...}` | Any rank, including rank zero; equivalent to `tensor<T>` (prefer the latter) |
+| `{N, ...}` | First axis is N |
+| `{_, N, ...}` | Second axis is N |
+| `{..., N}` | Last axis is N |
+| `{N, ..., M}` | First axis is N and last is M; rank is at least two |
+| `{N, M}` | Exactly two axes, N and M |
+
+The same rules apply to bindings, parameters, results and match cases. Each shape permits at most one ellipsis. Shape variables retain their existing declaration and reference syntax: `tensor<real32>{..., nat C} x = value` binds C to the last axis, while `{nat N, ..., N}` requires equal first and last axes. A later assignment may have a different rank if the captured head and tail constraints still hold. An omitted shape in `tensor.zeros()` or `tensor.ones()` needs an exact-rank context; an ellipsis cannot supply the missing axes.
 
 ### Shapes in braces and shape variables
 
@@ -1045,6 +1191,19 @@ Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. `^` is also a Core b
 
 Tensor `==`, `!=`, `<`, `<=`, `>`, and `>=` are elementwise and return a same-shaped `tensor<bool>` mask. Tensor-to-tensor comparison requires identical element type, rank, and extents; it never performs tensor-to-tensor broadcasting. A scalar of the tensor's exact element type is the one comparison-broadcast exception and is compared with every element. `!=` is the elementwise logical negation of `==`. Whole-tensor questions are explicit: `mask.all()` requires every mask element to be true and `mask.any()` requires at least one; empty masks use the logical identities `true` for `.all()` and `false` for `.any()`. `tensor<bool>` supports ordinary tensor storage, indexing, slicing, copying, and explicit device transfer, but numeric tensor arithmetic and numeric kernels reject it unless an API explicitly accepts masks. Results remain on the tensor's device.
 
+Boolean tensor masking with `values[mask]` accepts a `tensor<bool>` that
+has exactly the input's shape, including all axes. The result is a new
+rank-one tensor containing the true-selected elements in logical row-major
+order, with an empty rank-one tensor if no position is true. It keeps the
+source's CPU/GPU placement and supports backward propagation through its
+gather graph, accumulating gradients at the selected positions. Output
+length is dynamic; when the mask is stored on a GPU, the implementation
+transfers the mask to the host once to determine the selected indices, then
+performs the gather on the source's original device. This host synchronization
+is currently part of the operation's performance profile and may be
+optimized without changing source semantics. Tensor integer-array indexing
+and masked assignment are separate features and are not implied by this form.
+
 Explicit numeric casts use the destination scalar type as the operation: `real64(value)`, `real32(value)`, `int8(value)`, and so on. Applied to a tensor, the cast preserves rank, shape constraints, known extents, and value semantics while converting every initialized numeric element. A cast between floating tensor element types (`real16`, `real16b`, `real32`, `real64`) preserves tracking. Its forward uses the ordinary numeric conversion, with exact widening and range-checked, nearest-even narrowing; its backward converts the incoming gradient to the source element type with the same conversion rule. Gradient contributions accumulate in each source destination’s own type. Casting a tracked tensor to an integer, bool, or complex type is rejected; call `.untrack()` explicitly when the graph is intentionally cut. A scalar conversion whose runtime value may be outside the destination range has source-visible type `T | error`: bare `auto` infers the non-error destination type and fails fast on error, `auto | error` preserves the union, a success-only destination applies the ordinary contextual fail-fast rule, `try` propagates the error, and `match` handles an explicitly preserved result locally. Integer widening whose complete source range fits the destination is infallible. Integer-to-real and in-range real-to-real conversion may use destination IEEE-754 rounding. Real-to-integer casts accept a mathematically integral value and then check the destination range; they return `T | error` for a fractional or out-of-range value. The conversion preserves the stored IEEE value exactly while checking integrality, so it never rounds a fraction. Container-specific cast methods are not part of the surface language.
 
 ## Implementation scope
@@ -1054,7 +1213,7 @@ The native core supports fixed-width numeric types, explicit numeric conversion,
 
 ## Standard namespaces and imports
 
-Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `cli`, `file`, `environment`, `test`, `time`, `gpu`, `autograd`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`. `math` is intentionally absent: it is an installed package namespace, not a Core standard namespace.
+Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `cli`, `file`, `environment`, `test`, `time`, `gpu`, `autograd`, `reflect`, `random`, `process`, `map`, `distinct`, `json`, `http`, `tensor`. `math` is intentionally absent: it is an installed package namespace, not a Core standard namespace.
 
 A source-file import always uses a quoted path:
 
@@ -1100,12 +1259,9 @@ cli args
     int count = option(default = 1)
     bool verbose = flag()
 
-print(args.source)
-print(NL)
-print(args.count)
-print(NL)
-print(args.verbose)
-print(NL)
+print.line(args.source)
+print.line(args.count)
+print.line(args.verbose)
 ```
 
 `argument()` declares a required positional value. `argument(default = value)` declares a trailing optional positional value; optional positional fields must come after every required positional field so omission is unambiguous. `option(default = value)` declares a named `--field value` option whose type is inferred from the field declaration and checked against its default. `flag()` declares a boolean `--field` flag. Field names are the command-line names, so they are not repeated as string literals. CLI scalar values support `string`, `bool`, and every `nat*`, `int*`, and `real*` kind; `flag()` is `bool` only. Exact numeric CLI text is parsed directly into `nat`/`int`/`real` without an intermediate fixed-width integer or IEEE real64. Missing required values, invalid typed values, non-UTF-8 text values, duplicate or unknown arguments, and misplaced arguments terminate with CLI status 2.
@@ -1121,30 +1277,103 @@ quidra run app.qui -- input.png --count 5 --verbose
 
 ### file
 
-`file` provides simple whole-file and filesystem operations:
+The `file` namespace provides three distinct nominal stream types, `file.read`,
+`file.write` and `file.append`. Each type has a same-named factory function:
+`file.read(path)` returns `file.read | error`, `file.write(path)`
+creates or truncates a file and returns `file.write | error`, and
+`file.append(path)` opens a file for appending, creating it if needed, and
+returns `file.append | error`. These three types are not interchangeable;
+in particular, a `file.append` value is not assignable to `file.write`.
+
+The qualified type and function have separate syntactic roles. A stream may be
+declared and initialized directly (`file.read f(path)`), by an initializer
+(`file.read f = file.read(path)`), or after a definite-init declaration
+(`file.read f` followed by `f = file.read(path)`). The direct form
+performs the same fallible factory call and fails fast when the destination
+requires a success value. In a `T | error` destination, the error is preserved
+instead. An uninitialized stream cannot be used before assignment.
 
 ```quidra
-auto | error text = file.read("input.txt")          // string | error
-auto | error raw = file.read_bin("input.bin")        // bin | error
-auto | error saved = file.write("out.txt", "x")      // void | error
-auto | error present = file.exists("out.txt")        // bool | error
-auto | error directory = file.is_directory("out.txt") // bool | error
+file.read f("input.txt")
+while .f(string &line)
+    print.line("{line}")
+
+file.read numbers("numbers.txt")
+while .numbers(int &value)
+    print.line("{value}")
+
+file.read pairs("pairs.txt")
+int first = 0
+while .pairs("{&first} {int &second}")
+    print.line("{first} + {second} = {first + second}")
+
+file.write output
+output = file.write("output.txt")
+.output("Hello{NL}")
+.output(42)
+.output("{NL}")
+.output(true)
+
+file.append log
+log = file.append("output.txt")
+.log("{NL}Appended")
 ```
 
-`file.is_directory(path)` returns `false` for a missing path and `error` for other filesystem failures. It also exports `remove`, `copy`, `move`, and `mkdir`, each returning `void | error`. `file.list(path)` returns `string[] | error`: on success it contains the direct child paths of the directory, non-recursively, sorted lexicographically so enumeration order is deterministic. Returned paths preserve the directory prefix supplied by the caller. I/O failure is typed data rather than an implicit process abort. `read` and `write` are text-oriented whole-file operations. `read` accepts only valid UTF-8 without embedded NUL and returns `error` for invalid text. `read_bin(path) -> bin | error` and `write_bin(path, bin) -> void | error` are binary whole-file operations. File input produces a byte-aligned `bin`; file output requires `len(value) % 8 == 0` and otherwise fails deterministically. Arbitrary byte values, including NUL and invalid UTF-8, are preserved exactly. `file.list` converts host paths to UTF-8 and returns `error` if a path cannot be represented as Quidra text. A failed operation's error names the operation and keeps its cause: `cannot read "data.csv": permission denied` (code `FILE_READ`, details `path` and `reason`); the reasons are listed in `diagnostics.md`. Text and binary I/O are separate so arbitrary bytes never enter `string` storage implicitly.
+File stream instances support the mutable call operator, written
+`.stream(...)`. The `file.read` operator takes a writable `T &value` where `T` is
+`string`, `bool`, or a numeric scalar. It always consumes one complete
+UTF-8 line without the terminating LF and returns `bool | error`:
+`true` for a successfully decoded value, `false` only for EOF, and
+`error` for I/O or conversion failure. For `string`, the entire line
+is returned unchanged; for numeric types, the complete line is parsed
+with the corresponding `T.parse` rules, including range checks; for
+`bool`, only `true` and `false` are accepted. A final line lacking
+LF is returned, and an empty line is valid for `string` but fails
+conversion to a numeric type or `bool`. A line such as `10 20` is
+not two integer reads: it is a conversion error for `int`.
+Alternatively, `.stream("{&first} {int &second}")` uses precisely
+the same complete-line input format and atomic update algorithm as `scan`.
+The separator is literal, the first target must be initialized before
+the call when failure or EOF can continue, and the new `second` binding
+is available only in the successful `if` / `while` body. On EOF the
+format is not evaluated and none of its targets change. Invalid fields
+or unmatched delimiters return `error`, never `false`. Neither a
+single-target nor a formatted read modifies an output on EOF or error.
+`file.write` and `file.append`
+operators accept a `string`, `bool`, or numeric scalar and return
+`void | error`. Numeric and boolean values are rendered using their
+standard `.string()` representation (such as `42`, `2.5`, or
+`true`), then written as UTF-8 text. Only in this writer call context,
+an otherwise untyped integer-family literal receives `int` and a
+real-family literal receives `real64`; these are local formatting
+contexts, not general-purpose numeric literal defaults. The writer uses normal string interpolation, including numeric
+format options and control-character expressions, exactly like `print`.
+It does not add spaces, separators, or newlines: `.output(10)`
+followed by `.output(20)` writes `1020` unless a delimiter is supplied. The two writing
+modes share their call contract but remain separate types. Text validates UTF-8 and
+rejects embedded NUL as ordinary Quidra strings do. Streams close
+deterministically at the end of their owned lifetime. Copies preserve
+the opened resource identity and maintain independent logical positions.
 
-For incremental ownership of an open file, `file.open(path) -> file.Handle | error` returns an opaque resource handle:
+As with other fallible expressions, a stream error fails fast when consumed
+in a success-only condition, assignment or expression statement. In
+`while .f(string &line)` or `while .f(int &number)`, EOF ends
+normally; I/O or parsing error does not masquerade as EOF. An inline `T &name` introduces fresh writable storage in a boolean
+`if` / `while` call condition. The binding is visible only on the
+true branch / in the loop body, and is initialized only if every true-result
+path is proven to write it. The reader operator also provides this guarantee for every typed
+placeholder of a formatted read; a user-defined boolean function may
+prove the same contract.
 
-```quidra
-string | error read_open_file(string path)
-    file.Handle handle = try file.open(path)
-    string text = try .handle.read()
-    return text
-```
-
-`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current logical position. `read_line() -> string | none | error` reads one UTF-8 line without the terminating LF, advances past that LF when present, and returns `none` at end of file; a preceding CR in CRLF input remains part of the returned text. `file.create(path)` truncates or creates a file and returns a writable handle at position zero; `file.append(path)` creates the file if needed and returns a writable handle positioned at the current end. Writable handles add `write(text) -> void | error`, `write_line(text) -> void | error`, and `flush() -> void | error`. `seek(position) -> void | error` moves a live handle's logical position to an existing byte offset, given as a `nat`; it never creates a sparse gap. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and `error` propagation; no `defer` or manual cleanup is required, and release timing does not depend on GC.
-
-`file.Handle` follows Quidra value semantics. Copying a live handle preserves the identity of the file that was originally opened and creates an independent logical position at the same byte offset. The runtime may share that opened native resource internally, but each value owns its own position and close state, so reading, writing, seeking, or closing one copy does not retarget another copy. Concurrent external-file effects are serialized at the shared resource, while logical positions remain per value. Replacing or renaming the original pathname after opening cannot make a later handle copy refer to a different file. A closed handle copies as closed, and `close()` releases that value's ownership immediately. `file.open` remains read-only; `file.create` and `file.append` are the explicit writable forms. Whole-file `file.write` / `file.write_bin` remain available when streaming is unnecessary.
+The `file` namespace also provides `exists`, `is_directory`, `remove`,
+`copy`, `move`, `mkdir`, `list`, and byte-oriented whole-file
+`read_bin` / `write_bin`. The binary functions preserve raw byte-aligned
+`bin` data; arbitrary bytes never become `string` implicitly.
+`file.list(path)` is nonrecursive, deterministic and lexicographically
+sorted. Operational failures return typed errors. Bare `file` as a type,
+`file.Reader`, `file.Writer`, `file.Handle`, `file.open()`,
+`read_line()`, `next()`, `lines()`, `.f[]`, whole-text
+`file.read(path)` and two-argument `file.write(path, text)` are removed.
 
 ### environment
 
@@ -1165,8 +1394,7 @@ time.Instant start = time.now()
 time.Duration pause = time.seconds(0.01)
 time.sleep(pause)
 time.Duration elapsed = time.since(start)
-print(elapsed.seconds())
-print(NL)
+print.line(elapsed.seconds())
 ```
 
 `time.now()` returns a monotonic `time.Instant`. By default, `time.now()` and `time.since(start)` only sample that clock and do not synchronize GPU work. Both accept the optional named `sync = bool` argument, whose default is `false`. `time.now(sync = true)` waits for outstanding Quidra GPU work before taking the start sample, so earlier GPU work is excluded from the interval. `time.since(start, sync = true)` waits for outstanding Quidra GPU work before taking the end sample, so completion of asynchronous GPU work submitted during the interval is included. `time.seconds(value)` constructs a duration from any finite integer or real kind, including a negative value. It explicitly converts the value internally to `real64`, using the ordinary range and certified-rounding checks; failure terminates with the ordinary numeric-conversion reason. Complex values are rejected because complex-to-scalar conversion is forbidden; `time.sleep(duration)` requires a nonnegative duration and otherwise terminates as a runtime-safety failure with status 101. `Duration.seconds()` exposes the duration as `real64` when numeric computation is explicitly desired. Standard-library time values cannot be constructed through their class names, and their internal representation is not source-visible.
@@ -1190,52 +1418,62 @@ bool b = .rng.bool()
 
 ```quidra
 process.Result result = process.run("git", ["status", "--short"])
-print(result.started)
-print(NL)
-print(result.status)
-print(NL)
-print(result.output)
-print(NL)
-print(result.error)
-print(NL)
+print.line(result.started)
+print.line(result.status)
+print.line(result.output)
+print.line(result.error)
 ```
 
 No shell is inserted between the program and its arguments. `process.shell(command)` is the explicit alternative when shell syntax such as pipelines, redirections, or shell expansion is required. It invokes `/bin/sh -c` on POSIX systems and `cmd.exe /S /C` on Windows, returning the same `process.Result`. The command is interpreted by that shell, so untrusted values should be passed as structured arguments to `process.run` rather than concatenated into a shell command. Quidra string interpolation is processed first; literal braces in a shell command are therefore written as `{{` and `}}`. `Result.started` is false when the executable or shell could not be launched; in that case `status` is -1 and `error` describes the launch failure. If the process starts, `status` is its exit code, or `128 + signal` when it terminates by signal on POSIX systems. `output` and `error` capture stdout and stderr independently. They are text fields, so captured streams must be valid UTF-8 and contain no embedded NUL; arbitrary binary child output is not silently coerced into a `string` and causes a deterministic runtime text failure. This separates launch failure from an ordinary nonzero child exit without treating child exit codes as Quidra runtime failures. `process.Result` is compiler-provided and cannot be directly constructed. `process.exit(status)` terminates the current Quidra program with the supplied `int` status. It is deliberately namespaced so adding process functionality does not consume another bare user identifier.
 
 ### map
 
-`map.Map<K, V>` is an explicit generic value container. Construction uses ordinary generic class syntax:
+`map<K, V>` is an explicit generic value container. A bare declaration creates an empty map without a constructor call:
 
 ```quidra
-map.Map<string, int> counts = map.Map<string, int>()
+map<string, int> counts
 .counts.set("apple", 2)
 .counts.set("banana", 1)
 .counts.set("apple", 3)
 
-print(counts.has("apple"))
-print(NL)
+print.line(counts.has("apple"))
 auto value = counts.get("apple")
 string[] keys = counts.keys()
 ```
 
-`set(key, value)` inserts or replaces without changing an existing key's position. `remove(key)` removes the key and returns whether it was present; reinserting a removed key places it at the end of insertion order. `get(key)` returns `V | none`; `has(key)` returns `bool`; `size()` returns `nat`; `keys()` and `values()` return value arrays in stable insertion order. Keys are restricted to integer types (fixed-width, `int` and `nat`), `bool`, and `string`. IEEE floating-point keys are intentionally excluded because NaN would make equality and hashing ambiguous; `real` keys are excluded because symbolic equality may require bounded proof. The native implementation uses deterministic open addressing for average O(1) `has`, `get`, and `set` lookup while retaining separate insertion-order arrays for `keys()` and `values()`. Hash buckets and capacity are implementation details and are not observable language semantics.
+`increment(key, by = 1)` is available when a Map's value type is an integer or natural type. It adds to an existing value or inserts `by` when the key is absent; it is invoked as `.counts.increment(key)` or `.counts.increment(key, by = amount)`. The operation preserves insertion order and the existing type's checked arithmetic. It does not exist on Maps with non-integer values and is not an atomic concurrent increment.
 
-### set
+`set(key, value)` inserts or replaces without changing an existing key's position. `remove(key)` removes the key and returns whether it was present; reinserting a removed key places it at the end of insertion order. `get(key)` returns `V | none`; `has(key)` returns `bool`; `size()` returns `nat`; `keys()` and `values()` return value arrays in stable insertion order. Keys are restricted to integer types (fixed-width, `int` and `nat`), `bool`, `string`, and recursively nested tuples of these types. IEEE floating-point keys are intentionally excluded because NaN would make equality and hashing ambiguous; `real` keys are excluded because symbolic equality may require bounded proof. The native implementation uses deterministic open addressing for average O(1) `has`, `get`, and `set` lookup while retaining separate insertion-order arrays for `keys()` and `values()`. Hash buckets and capacity are implementation details and are not observable language semantics. The explicit `map<K, V>()` constructor is also available. The legacy `map.Map<K, V>` spelling is rejected; `map<K, V>` is the public map type.
 
-`set.Set<T>` is the corresponding unique-value container:
+### Output lines
+
+`print(value)` outputs without an implicit line terminator; `print.line(value)`
+outputs the same value followed by one `NL` (LF), and `print.line()` outputs
+only `NL`. No flushing is implicit. Both print forms return `void | error` and
+perform fail-fast output error handling when used as statements. The newline
+is part of one output operation for error checking and REPL replay suppression.
+`print.line` has the same printable types and contextual `T | error` consumption
+as `print`. On writable `file.write` and `file.append` streams,
+`.stream.line(value)` uses the same scalar conversion as `.stream(value)` and
+then writes one LF; `.stream.line()` writes one LF. Its return type is
+`void | error`; the leading mutation marker remains mandatory, and existing
+write/append positions and contents are preserved. `file.read` has no `.line`.
+`NL` interpolation and `print(NL)` remain valid and unchanged.
+
+### distinct
+
+`distinct<T>` is the corresponding unique-value container. A bare declaration creates an empty set:
 
 ```quidra
-set.Set<string> tags = set.Set<string>()
+distinct<string> tags
 .tags.add("compiler")
 .tags.add("ai")
 .tags.add("compiler")
-print(tags.size())
-print(NL)
-print(tags.has("ai"))
-print(NL)
+print.line(tags.size())
+print.line(tags.has("ai"))
 ```
 
-`add(value)` preserves the first insertion position. `remove(value)` removes the value and returns whether it was present; adding it again places it at the end of insertion order. `has(value)` tests membership, `size()` returns the number of unique values as `nat`, and `values()` returns insertion order. Elements use the same key-domain restriction as `map.Map`. The implementation uses the same deterministic open-addressing index, giving average O(1) membership and insertion while preserving stable insertion order. Map/set internals are compiler-generated and are not source-visible. Assignment follows ordinary independent value semantics rather than sharing mutable container identity.
+`add(value)` preserves the first insertion position. `remove(value)` removes the value and returns whether it was present; adding it again places it at the end of insertion order. `has(value)` tests membership, `size()` returns the number of unique values as `nat`, and `values()` returns insertion order. `union(other)`, `intersection(other)`, `difference(other)`, and `symmetric_difference(other)` return independent sets without changing either input. Results retain the left operand's insertion order, followed by newly admitted right-side values in the right operand's insertion order for union and symmetric difference. Elements use the same key-domain restriction as `map`. The implementation uses the same deterministic open-addressing index, giving average O(1) membership and insertion while preserving stable insertion order. Map/distinct internals are compiler-generated and are not source-visible. Assignment follows ordinary independent value semantics rather than sharing mutable container identity. The explicit `distinct<T>()` constructor is also available. The old `set<T>` and `set.Set<T>` spellings are no longer supported; `set` is no longer reserved, so a user-defined `set(...)` function may coexist with `distinct<T>` and the map method `.counts.set(...)`.
 
 
 ### json
@@ -1248,11 +1486,11 @@ The value methods are:
 - `size() -> nat | error`: array length or object member count; other kinds return `error`.
 - `get(key) -> json.Value | none | error`: object lookup. Missing keys are `none`; calling it on a non-object returns `error`.
 - `at(index) -> json.Value | none | error`: array lookup with a `nat` index. Out-of-range is `none`; calling it on a non-array returns `error`.
-- `text() -> string | error`, `integer() -> int | error`, `number() -> real64 | error`, and `boolean() -> bool | error`: explicit typed extraction.
+- `text() -> string | error`, `integer() -> int | error`, `number() -> real64 | error`, `real() -> real | error`, and `boolean() -> bool | error`: explicit typed extraction.
 - `encode() -> string`: compact JSON serialization preserving object insertion order and the original JSON number spelling.
 - `equal(other) -> bool`: recursive structural equality. Object member order does not affect equality. JSON numbers compare by parsed numeric value.
 
-JSON `null` is not Quidra `none`. A present JSON null is a `json.Value` with kind `"null"`; `none` is reserved for missing lookup results. Duplicate object keys are rejected during parsing rather than silently overwritten. Parsing rejects malformed numbers, malformed escapes, unmatched surrogate escapes, trailing content, and nesting deeper than 256 levels. Integer extraction accepts JSON numbers written in integer syntax and representable by Quidra `int`; exponent or fractional spellings use `number()`.
+JSON `null` is not Quidra `none`. A present JSON null is a `json.Value` with kind `"null"`; `none` is reserved for missing lookup results. Duplicate object keys are rejected during parsing rather than silently overwritten. Parsing rejects malformed numbers, malformed escapes, unmatched surrogate escapes, trailing content, and nesting deeper than 256 levels. Integer extraction accepts JSON numbers written in integer syntax as arbitrary-precision `int`. For exponent or fractional spellings, use `number()` for a range-checked `real64` interpretation or `real()` for the exact numeric value.
 
 Ordinary source-level `==` is intentionally not defined for `json.Value`; use `equal` so JSON comparison semantics remain explicit.
 
@@ -1280,16 +1518,24 @@ Core owns the language, tensor storage/layout, device execution substrate, basic
 
 Mathematical semantics belong to the first-party `math` package. After `import math`, use `math.abs(value)`, `math.sqrt(value)`, `math.exp(value)`, `math.log(value)`, `math.sum(value)`, `math.mean(value)`, `math.sum_last(value)`, `math.max_last(value)`, and `math.min_last(value)`; general linear algebra likewise belongs to Math through APIs such as `math.dot(a, b)` and `math.matmul(a, b)`. Math owns those semantics, autograd, native/backend implementations, and compiler optimization policy. Core must not regain dedicated mathematical callables, numerical autograd op identities, numerical kernels, or domain-specific compiler lowering.
 
-### Neural-network and media packages
+### First-party domain packages
 
-Neural-network, image, and video semantics are not Core standard namespaces.
-They are ordinary packages built on the tensor/device/autograd/native-extension
-substrate. The first-party dependency layers are: Layer 1 Core, Layer 2 Math,
-Layer 3 NN / Vision / Video, and Layer 4 DNN. Layer numbers constrain dependency
+Collections, text processing, binary encoding, neural-network, image, and video
+semantics beyond the Core foundations are provided by explicit packages, not
+Core standard namespaces. These packages use the ordinary package and, where
+needed, native-extension mechanisms. The first-party dependency layers are:
+Layer 1 Core; Layer 2 Math / Collections / Text / Encoding; Layer 3 NN / Vision /
+Video; and Layer 4 DNN. Layer numbers constrain dependency
 direction; they do not imply that every higher-layer package depends on every
 lower-layer package. DNN currently depends on Core, Math, and NN, not on Vision
 or Video.
 
+- `import collections` provides reusable priority queues and frequency counting,
+  complementing the built-in `map<K, V>` and `distinct<T>` containers.
+- `import text` provides text operations such as ASCII case conversion,
+  tokenization, CSV parsing, and URL query decoding.
+- `import encoding` provides binary-to-text transformations such as Base64;
+  it is separate from the Core `bin` and `string` representations.
 - `import nn` owns architecture-independent neural-network mechanisms such as
   parameters/state, reusable layers, losses, optimizers, schedulers, training
   semantics, NN-native kernels, and NN-owned compiler rewrites.
@@ -1324,8 +1570,7 @@ int apply(func<int>(int) operation, int value)
     return operation(value)
 
 func<int>(int) operation = twice
-print(apply(operation, 21))
-print(NL)
+print.line(apply(operation, 21))
 ```
 
 A function declaration becomes a value only when an explicit `func<...>(...)` context supplies the complete signature. `auto operation = twice` is rejected rather than inferring an implicit function type. Conversion requires an exact result/parameter match and currently represents only by-value parameters; a function with a reference parameter cannot be converted to an `func` value. `extern` C declarations are not function values, and methods are not implicitly converted into bound closures. Function-value calls use positional by-value arguments only.
@@ -1384,7 +1629,7 @@ first; arrays use increasing indices; tuples use increasing positions.
 Reference fields, compiler fields beginning with `$`, and standard-library
 classes are leaves. A standard-library leaf of type T is still visited. The
 origin of a class, rather than its name, determines this rule. A union,
-map/set or recursive value structure that may contain T is `TRAVERSAL`, because
+map/distinct or recursive value structure that may contain T is `TRAVERSAL`, because
 it has no finite supported visit plan. An unrelated structure yields no visits.
 
 Private fields are included. A user walk may enter its own module's private
@@ -1444,8 +1689,7 @@ int second
 parallel
     first = 20
     second = 22
-print(first + second)
-print(NL)
+print.line(first + second)
 ```
 
 Unordered nodes may not make overlapping writes or read storage another node
@@ -1496,8 +1740,7 @@ int[5] a
 parallel for x < 5
     a[x] = x
 for int value = a[]
-    print(value)
-    print(NL)
+    print.line(value)
 ```
 
 Unlike an ordinary untyped range header, which uses an existing binding,
@@ -1594,7 +1837,7 @@ Quidra has one numeric tensor value type: `tensor<T>`. Floating tensors are
 untracked by default. `.track()` starts a dynamic computation graph,
 `.untrack()` disconnects the value from its graph, and `.retrack()` cuts the
 previous graph and starts a new tracked root. Tracking is runtime metadata and
-does not change the source type or its optional exact-rank shape contract.
+does not change the source type or its optional shape contract.
 
 Tracked and untracked tensors may participate in the same operation. If any
 operand is tracked, the result is tracked; untracked operands are constants for
@@ -1681,11 +1924,10 @@ A deliberately narrow C ABI boundary is available for functions with scalar/`voi
 
 ```quidra
 extern int64 c_abs(int64 value) = "llabs"
-print(c_abs(-42))
-print(NL)
+print.line(c_abs(-42))
 ```
 
-The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `real32`, `real64`, and `bool`; the arbitrary-precision `int` and `nat` are rejected (`FFI_TYPE`), so a C `int64_t` is spelled `int64`. Scalar and bool parameters are also by value. Capture-free Quidra function values may cross as explicit C callback pointers when the `func` signature uses only `int32`, `nat32`, `int64`, `nat64`, `real32`, and `real64` value parameters and the same scalar set or `void` as its result. The narrower callback scalar set deliberately excludes 8/16-bit integers and `bool` so callback ABI extension rules cannot become platform-dependent hidden behavior. A callback is only a code pointer: it has no capture environment or bound receiver and therefore no hidden allocation or captured-object lifetime. Managed buffers cross the boundary only through explicit call-scoped borrows: `const string name` is a read-only UTF-8 span, `const bin name` is a read-only byte span, and `bin &name` is a mutable byte span. A `const` borrow is a value parameter like any other `const` parameter: the call passes a value, `c_text(name)` or `c_text(prefix + name)`, and the compiler lends C the storage of a variable, field or array element directly and holds any other value for the duration of the call. `bin &name` is passed as `&storage`. Mutable `string &` is forbidden so foreign code cannot violate Quidra's UTF-8 invariant. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null data pointer followed by a `nat64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, only the payload after Quidra's private length header is exposed, and only when its bit length is byte-aligned. The adjacent length is the payload byte count, so foreign code cannot resize the Quidra value or access its ownership metadata. No encoding conversion is performed and the foreign contract does not depend on NUL termination. A `const` borrow may not be mutated; a mutable `bin &` borrow may mutate only bytes inside the supplied length. Neither form may retain the pointer after the call. Quidra `bin` has independent value storage, so ordinary value copies remain independent even when one copy is later passed mutably to C. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. LLVM marks borrowed pointers `nocapture nonnull`; read-only `string`/`bin` borrows additionally carry `readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. Managed buffers by value without `const`, scalar references, default arguments, generics, managed-value results, other array forms, tensor values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. A `real32` or `real64` result is a value C code made, so it is tested where it enters: a NaN or an infinity stops the program at the call with `NONFINITE_RESULT` (`extern 'f' produced a non-finite real64 value`), since no Quidra real value is ever non-finite. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code. Foreign object, archive, shared-library, or import-library files are linked only when explicitly named with repeatable `--link FILE` options on `quidra build`, `quidra run`, or `quidra debug`; each path must name an existing regular file. There is no implicit package linker script, library search, or build-time network access.
+The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `real32`, `real64`, and `bool`; the arbitrary-precision `int` and `nat` are rejected (`FFI_TYPE`), so a C `int64_t` is spelled `int64`. Scalar and bool parameters are also by value. Capture-free Quidra function values may cross as explicit C callback pointers when the `func` signature uses only `int32`, `nat32`, `int64`, `nat64`, `real32`, and `real64` value parameters and the same scalar set or `void` as its result. The narrower callback scalar set deliberately excludes 8/16-bit integers and `bool` so callback ABI extension rules cannot become platform-dependent hidden behavior. A callback is only a code pointer: it has no capture environment or bound receiver and therefore no hidden allocation or captured-object lifetime. Managed buffers cross the boundary only through explicit call-scoped borrows: `const string name` is a read-only UTF-8 span, `const bin name` is a read-only byte span, and `bin &name` is a mutable byte span. A `const` borrow is a value parameter like any other `const` parameter: the call passes a value, `c_text(name)` or `c_text(prefix + name)`, and the compiler lends C the storage of a variable, field or array element directly and holds any other value for the duration of the call. `bin &name` is passed as `&storage`. Mutable `string &` is forbidden so foreign code cannot violate Quidra's UTF-8 invariant. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null data pointer followed by a `nat64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, only the payload after Quidra's private length header is exposed, and only when its bit length is byte-aligned. The adjacent length is the payload byte count, so foreign code cannot resize the Quidra value or access its ownership metadata. No encoding conversion is performed and the foreign contract does not depend on NUL termination. A `const` borrow may not be mutated; a mutable `bin &` borrow may mutate only bytes inside the supplied length. Neither form may retain the pointer after the call. Quidra `bin` has independent value storage, so ordinary value copies remain independent even when one copy is later passed mutably to C. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. LLVM marks borrowed pointers `nocapture nonnull`; read-only `string`/`bin` borrows additionally carry `readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. Managed buffers by value without `const`, scalar references, default arguments, generics, managed-value results, other array forms, tensor values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. A `real32` or `real64` result is a value C code made, so it is tested where it enters: NaN stops the program at the call with `NONFINITE_RESULT` (`extern 'f' produced a NaN real64 value`); signed infinities cross unchanged. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code. Foreign object, archive, shared-library, or import-library files are linked only when explicitly named with repeatable `--link FILE` options on `quidra build`, `quidra run`, or `quidra debug`; each path must name an existing regular file. There is no implicit package linker script, library search, or build-time network access.
 
 ### C ABI export
 
@@ -1695,14 +1937,13 @@ The declaration is top-level only and binds a Quidra function name to an explici
 export "C" int32 add2(int32 a, int32 b)
     return a + b
 
-print(add2(2, 3))
-print(NL)
+print.line(add2(2, 3))
 // output: 5
 ```
 
 The prefix applies only to a top-level, non-generic free function, written before its prototype or definition; methods, constructors, generic functions and declarations inside blocks cannot be exported (`FFI_EXPORT`; a generic function is exported through a concrete wrapper). When the function has a prototype, the prototype and the definition both carry the prefix. The ABI string is `"C"`. `export` is contextual: it begins a declaration only at top level and when a string literal follows it, and remains an ordinary identifier everywhere else. An exported function is an ordinary Quidra function too: Quidra code calls it, and it can be a function value.
 
-Exported values cross the boundary by value and only as fixed-width scalars with a defined C mapping: parameters are `int8`, `int16`, `int32`, `int64`, `nat8`, `nat16`, `nat32`, `nat64`, `real32` or `real64`, which C sees as `int8_t`..`int64_t`, `uint8_t`..`uint64_t`, `float` and `double`, and the result is one of them or `void`. The arbitrary-precision `int` and `nat` have no fixed C representation and are rejected (write `int64` or `nat64`), as are `real`, `bool`, `string`, `bin`, arrays, tensors, classes, enums, unions (`error` and `none` included) and `func` values (`FFI_TYPE`). Parameters may be `const` values; reference parameters and default arguments are rejected (`FFI_REFERENCE`, `FFI_DEFAULT`). A `real32` or `real64` argument from C must be finite: the entry point tests it before the function runs, and a NaN or an infinity stops the program with `NUMERIC_CONVERSION` (`numeric conversion failed: non-finite value cannot be represented as real64`) at the function's declaration.
+Exported values cross the boundary by value and only as fixed-width scalars with a defined C mapping: parameters are `int8`, `int16`, `int32`, `int64`, `nat8`, `nat16`, `nat32`, `nat64`, `real32` or `real64`, which C sees as `int8_t`..`int64_t`, `uint8_t`..`uint64_t`, `float` and `double`, and the result is one of them or `void`. The arbitrary-precision `int` and `nat` have no fixed C representation and are rejected (write `int64` or `nat64`), as are `real`, `bool`, `string`, `bin`, arrays, tensors, classes, enums, unions (`error` and `none` included) and `func` values (`FFI_TYPE`). Parameters may be `const` values; reference parameters and default arguments are rejected (`FFI_REFERENCE`, `FFI_DEFAULT`). A `real32` or `real64` argument from C may be infinite but not NaN: the entry point checks before the function runs, and NaN stops the program with `NUMERIC_CONVERSION` (`numeric conversion failed: non-finite value cannot be represented as real64`) at the function's declaration.
 
 The C symbol is the function's declared name, without the module namespace of an imported module, so exports are unique per compilation. It may not be a C keyword or a reserved C identifier (`_X...`, `__...`; `FFI_SYMBOL`), a name the compiler and runtime own (`main`, `n_*`, `quidra_*`, `__quidra_*` and the runtime prelude's C library functions), a symbol another module exports, or a symbol an `extern` declaration binds (`FFI_SYMBOL_CONFLICT`). Clashes with other C library names are not checked. The REPL cannot export functions.
 
@@ -1758,7 +1999,7 @@ Collection headers accept the same patterns: `for (int count, real64 score) = pa
 
 Tuple equality compares corresponding elements and stops at the first difference. Every element must support bool-valued equality. Printable tuples contain printable scalar values or nested tuples. Strings inside their text are quoted, including strings reached through a union alternative: `(10, "a, b")`. Quotes use `{DQ}`, braces are doubled, and named controls use `{NL}`, `{HT}`, `{CR}`, `{BS}`, `{FF}`, `{VT}` and `{BL}`. Backslashes and non-ASCII characters remain themselves. Printing a string alone keeps its ordinary unquoted behavior. Tuple formatting suffixes are rejected.
 
-Maps and sets accept tuple keys composed recursively of integer, natural, bool and string values. Hashing combines the existing element hashes in order with `h = (h * 1000003 + child_hash) % 2147483647`, without building tuple text.
+`map` keys and `distinct` elements accept recursively nested tuples composed of integer, natural, bool and string values. Hashing combines the existing element hashes in order with `h = (h * 1000003 + child_hash) % 2147483647`, without building tuple text.
 
 A tuple pattern in `match` selects one exact tuple alternative of a union. Typed leaves select; `auto` and `_` take their types from that alternative. Ambiguous and impossible patterns are errors. Bindings are local to the case, may be `const`, and never use references. `(int count, string name)` is a pattern; `(int, string) pair` is a whole-type case. A parenthesized group that scans as a type and is followed by a name, array suffix, `|`, or the line end is a type case, including `(int, real64)[3] values`. Enum payloads are still bound whole with `Variant(name)`.
 

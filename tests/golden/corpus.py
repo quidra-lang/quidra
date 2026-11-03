@@ -632,9 +632,9 @@ def census(args) -> None:
                 label = parts[1]
                 if label not in order:
                     order.append(label)
-                counts = alternatives[label][component]
-                counts[0] += int(parts[2])
-                counts[1] += int(parts[3])
+                alt_counts = alternatives[label][component]
+                alt_counts[0] += int(parts[2])
+                alt_counts[1] += int(parts[3])
             elif parts[0] == "sig":
                 key = (parts[1], " ".join(parts[2:-2]))
                 signatures[key][0] += int(parts[-2])

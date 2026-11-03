@@ -84,13 +84,32 @@ TXT
 )
 [[ "$(cat "$TMP/arithmetic.out")" == "$expected_arithmetic" ]]
 
+# Comparing com16 components must not require the Windows/MSVC compiler-rt
+# binary16-to-binary32 helper (__extendhfsf2). Signed zeros compare equal.
+cat > "$TMP/com16-equality.qui" <<'QUI'
+com16 a = 1.0 + 2.0i
+com16 same = 1.0 + 2.0i
+com16 different = 1.0 - 2.0i
+com16 negative_zero = -0.0 + 0.0i
+com16 positive_zero = 0.0 + 0.0i
+print("{a == same} {a != different} {negative_zero == positive_zero}")
+print(NL)
+QUI
+[[ "$("$QUIDRA" run "$TMP/com16-equality.qui")" == "true true true" ]]
+
 # Failures name the complex type.
 cat > "$TMP/overflow.qui" <<'QUI'
 com32 big = 3.0e38 + 0.0i
 com32 two = 2.0 + 0.0i
 print(big * two)
 QUI
-fails overflow REAL_OVERFLOW 'com32 multiplication overflow' '3:7'
+[[ "$("$QUIDRA" run "$TMP/overflow.qui")" == "inf+0.0i" ]]
+cat > "$TMP/nan.qui" <<'QUI'
+com32 large = 3.0e38 + 0.0i
+com32 infinite = large + large
+print(infinite - infinite)
+QUI
+fails nan NONFINITE_RESULT 'com32 subtraction produced NaN' '3:7'
 cat > "$TMP/divide.qui" <<'QUI'
 com64 one = 1.0 + 1.0i
 com64 zero = 0.0 + 0.0i
@@ -216,8 +235,15 @@ QUI
 cat > "$TMP/tensor_overflow.qui" <<'QUI'
 tensor<com32> big = tensor.ones<com32>([2]) * (3.0e38 + 0.0i)
 tensor<com32> twice = big + big
+print(twice[0].item())
 QUI
-fails tensor_overflow REAL_OVERFLOW 'tensor<com32> addition overflow' '2:23'
+[[ "$("$QUIDRA" run "$TMP/tensor_overflow.qui")" == "inf+0.0i" ]]
+cat > "$TMP/tensor_nan.qui" <<'QUI'
+tensor<com32> big = tensor.ones<com32>([2]) * (3.0e38 + 0.0i)
+tensor<com32> infinite = big + big
+tensor<com32> invalid = infinite - infinite
+QUI
+fails tensor_nan NONFINITE_RESULT 'tensor<com32> subtraction produced NaN' '3:25'
 
 # Compile-time errors.
 cat > "$TMP/ordering.qui" <<'QUI'
@@ -245,7 +271,7 @@ cat > "$TMP/sorted.qui" <<'QUI'
 com64[] values = [1.0i, 2.0i]
 com64[] ordered = values.sorted()
 QUI
-rejects sorted TYPE_MISMATCH 'Complex values have no ordering.'
+rejects sorted TYPE_MISMATCH 'Complex values have no ordering; supply sorted(by=...).'
 cat > "$TMP/integer_form.qui" <<'QUI'
 com64 z = 2i
 QUI

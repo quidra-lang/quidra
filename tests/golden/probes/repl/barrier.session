@@ -1,4 +1,8 @@
-auto | error saved = file.write("probe-effect.txt", "A")
+void write_effect()
+    file.write writer = file.write("probe-effect.txt")
+    .writer("A")
+
+write_effect()
 int(1) + 2
 :reset
 int(1) + 2

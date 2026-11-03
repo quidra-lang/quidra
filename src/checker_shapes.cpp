@@ -31,7 +31,7 @@ bool poisoned(const Type& type) { return type.kind == TypeKind::Invalid; }
 
 // Independent literal and wildcard axes are already represented by their codes.
 void clear_redundant_shape_key(Type& type) {
-    if (type.tensor_shape_prefix.empty()) return;
+    if (type.tensor_shape_prefix.empty()) { type.tensor_shape_key.clear(); return; }
     std::string key = "<";
     for (std::size_t axis = 0; axis < type.tensor_shape_prefix.size(); ++axis) {
         const auto extent = type.tensor_shape_prefix[axis];
@@ -269,6 +269,7 @@ Type Checker::check_shape_axis_expression(const Expr& expression) {
 ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool has_value) {
     auto& plan = shape_plans_[&source];
     plan = ShapePlan{};
+    plan.ellipsis = source.tensor_shape_ellipsis;
     const auto& axes = source.shape_axes;
     plan.axes.resize(axes.size());
 
@@ -644,7 +645,7 @@ void Checker::check_signature_shape(const FunctionDecl& source, FunctionType& ty
                                         checked.tensor_shape_prefix.begin(),
                                         checked.tensor_shape_prefix.end());
         unit.parts.push_back({&syntax, parameter, offset, axes.size(),
-            parameter == 0 ? std::string{} : source.parameters.at(parameter - 1).name});
+            parameter == 0 ? std::string{} : source.parameters.at(parameter - 1).name, syntax.tensor_shape_ellipsis});
     };
     append(source.return_type, type.result, 0);
     for (std::size_t p = 0; p < source.parameters.size(); ++p)
@@ -689,6 +690,13 @@ void Checker::check_signature_shape(const FunctionDecl& source, FunctionType& ty
     }
     signature_shape_unit_ = previous_unit;
     signature_parameter_keys_ = previous_parameters;
+    auto& plan = shape_plans_.at(aggregate.get());
+    for (const auto& part : unit.parts) {
+        if (!part.parameter || !source.parameters.at(part.parameter - 1).writable) continue;
+        for (auto& variable : plan.variables)
+            if (!variable.value && variable.axis >= part.offset && variable.axis < part.offset + part.size)
+                variable.read = true;
+    }
     // The aggregate's expression maps retain source AST identity. Per-type
     // keys are divided only at top-level commas, keeping common numbering.
     std::vector<std::string> keys;
@@ -758,7 +766,7 @@ void Checker::check_function_type_shape(const TypeName& source, Type& type) {
         fact.tensor_shape_prefix.insert(fact.tensor_shape_prefix.end(), current.tensor_shape_prefix.begin(),
                                        current.tensor_shape_prefix.end());
         parts.push_back({&current, offset, axes.size()});
-        unit.parts.push_back({&syntax, parameter, offset, axes.size(), {}});
+        unit.parts.push_back({&syntax, parameter, offset, axes.size(), {}, syntax.tensor_shape_ellipsis});
     };
     append(source.arguments.front(), *type.first, 0);
     for (std::size_t p = 0; p < source.function_parameters.size(); ++p)

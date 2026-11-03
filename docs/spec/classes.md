@@ -25,8 +25,8 @@ An empty class uses `class Empty()`.
 A bare class declaration such as `Point p` declares an uninitialized binding
 without creating a usable instance. Initialize or assign the whole binding with
 `Point(...)` before any member read, member write, method call or instance borrow.
-Copying an initialized instance does not rerun generation. Standard map and set
-bindings retain their empty-storage initialization contract.
+Copying an initialized instance does not rerun generation. Standard `map<K, V>` and `distinct<T>` bindings retain their empty-storage
+initialization contract.
 
 A normal declaration directly in the class body adds a member. A `local`
 declaration keeps a temporary in the initialization block. Declarations inside
@@ -45,7 +45,10 @@ or local declaration. Another instance's members use an explicit receiver.
 
 ```quidra
 class Document document(local string path) | error
-    string text = try file.read(path)
+    file.read stream = try file.read(path)
+    string text = ""
+    while .stream(string &line)
+        text += "{line}{NL}"
 Document | error result = Document("notes.txt")
 ```
 

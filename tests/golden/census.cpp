@@ -127,6 +127,8 @@ void count_module(const ir::Module& module, Counts& counts, Signatures& signatur
                                          std::is_same_v<T, ir::TensorCompare>) {
                         key = n.op + "|" + element_name(n.left_type, n.right_type) + "|" +
                               tensor_side(n.left_type) + tensor_side(n.right_type);
+                        if constexpr (std::is_same_v<T, ir::TensorBinary>) key += "|broadcast-proven=" + bit(n.broadcast_proven);
+                        else key += "|shape-proven=" + bit(n.shape_proven);
                     } else if constexpr (std::is_same_v<T, ir::ArrayGet>) {
                         key = array_access_key(types, n.array, n.element_type,
                                                n.initialization_proven, n.bounds_proven,
@@ -418,7 +420,7 @@ void ir_keys(const ir::Module& module, CensusKeys& keys) {
                 std::visit([&](const auto& n) {
                     using T = std::decay_t<decltype(n)>;
                     if constexpr (std::is_same_v<T, ir::SourceLocation>) {
-                        here = position(n.source_file, n.line, n.column);
+                        here = position(n.source_file, n.position.line, n.position.column);
                     } else if constexpr (std::is_same_v<T, ir::Call> ||
                                          std::is_same_v<T, ir::IndirectCall>) {
                         calls.push_back(at);

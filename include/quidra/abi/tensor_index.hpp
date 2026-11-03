@@ -23,6 +23,9 @@ inline constexpr int kind_field = 0;
 inline constexpr int first_part_field = 1;
 inline constexpr long long index = 0;
 inline constexpr long long slice = 1;
+// A tensor<bool> selector is lowered as a single mask selection, not as
+// an integer index. The LLVM emitter dispatches it to the mask runtime.
+inline constexpr long long mask = 64;
 inline constexpr long long missing = std::numeric_limits<long long>::min();
 inline constexpr long long marked_slice = 2;
 inline constexpr long long explicit_step = 32;

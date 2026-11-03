@@ -148,6 +148,10 @@ enum class ReporterTurn {
 ReporterTurn take_reporter();
 // The current report is written and flushed.
 void reporter_flushed();
+// Optional observation flush before immediate termination. The location layer
+// remains independent of the runtime-counter implementation.
+using FailureFlushHandler = void (*)() noexcept;
+void set_failure_flush_handler(FailureFlushHandler handler);
 // Flushes every stream and ends the process at once with the failure status.
 [[noreturn]] void immediate_failure_exit();
 

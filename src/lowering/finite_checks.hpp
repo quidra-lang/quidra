@@ -40,7 +40,7 @@ inline void emit_checked_binary(ir::FunctionBuilder& builder, ir::Binary binary)
     const auto cause = finite_cause(binary.op, binary.operand_type);
     ir::CheckedReal checked;
     if (cause) {
-        checked = ir::CheckedReal{binary.out,  binary.result_type, binary.line, binary.column,
+        checked = ir::CheckedReal{binary.out,  binary.result_type, binary.position,
                                   *cause,      binary.left,        binary.right};
     }
     builder.emit(std::move(binary));

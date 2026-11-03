@@ -24,6 +24,9 @@ public:
     // copies, owned temporaries, releases
     ValueId copy_value(ValueId v,const Type& t);
     bool expression_owns_result(const Expr& expression) const;
+    // A borrowed indexed value must survive code in later index operands,
+    // including writes that replace its storage or mutate its elements.
+    bool index_base_needs_snapshot(const IndexExpr& index) const;
     void release_temporary(const Expr& expression, ValueId value);
     void enter_tuple_move(std::string subject){moving_tuples_.push_back(std::move(subject));}
     void leave_tuple_move(){moving_tuples_.pop_back();}

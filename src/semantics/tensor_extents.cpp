@@ -1,5 +1,6 @@
 #include "semantics/tensor_extents.hpp"
 #include "semantics/effect_summary.hpp"
+#include "ir/facts/tensor.hpp"
 
 #include "constant_integer_eval.hpp"
 #include "quidra/member_function_names.hpp"
@@ -8,6 +9,7 @@
 #include <map>
 #include <set>
 #include <limits>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -17,18 +19,54 @@
 
 namespace quidra::semantics {
 namespace {
+using ir::facts::TensorShapeOp;
+using ir::facts::TensorShapeTransfer;
+using ir::facts::transfer_tensor_shape;
 
 struct CallableShape {
     const TypeName* type{};
     std::map<std::string, ShapeExtent> scalars;
 };
 
+struct TensorContract {
+    std::vector<std::optional<ShapeExtent>> extents;
+    std::optional<std::size_t> ellipsis;
+};
+
+bool pattern_rank_matches(long long rank, std::size_t axes,
+                          std::optional<std::size_t> ellipsis) {
+    if (rank < 0) return false;
+    return ellipsis ? rank >= static_cast<long long>(axes)
+                    : rank == static_cast<long long>(axes);
+}
+
+std::optional<std::size_t> pattern_axis(std::size_t axis, std::size_t axes,
+                                      std::optional<std::size_t> ellipsis,
+                                      long long rank) {
+    if (rank >= 0 && !pattern_rank_matches(rank, axes, ellipsis)) return std::nullopt;
+    if (!ellipsis || axis < *ellipsis) return axis;
+    if (rank < 0) return std::nullopt;
+    return static_cast<std::size_t>(rank) - (axes - axis);
+}
+
+ShapeExtent pattern_extent(const Type& value, std::size_t axis, std::size_t axes,
+                           std::optional<std::size_t> ellipsis) {
+    const auto actual = pattern_axis(axis, axes, ellipsis, value.length);
+    return actual ? tensor_extent(value, *actual) : ShapeExtent{};
+}
+
+void set_pattern_extent(Type& value, std::size_t axis, std::size_t axes,
+                        std::optional<std::size_t> ellipsis, ShapeExtent extent) {
+    if (const auto actual = pattern_axis(axis, axes, ellipsis, value.length))
+        value.set_extent(*actual, std::move(extent));
+}
+
 struct Environment {
     std::map<std::string, Type> tensors;
     std::map<std::string, ShapeExtent> scalars;
     std::unordered_set<std::string> references;
-    std::map<std::string, std::vector<std::optional<ShapeExtent>>> contracts;
-    std::vector<std::optional<ShapeExtent>> result_contract;
+    std::map<std::string, TensorContract> contracts;
+    TensorContract result_contract;
     std::map<std::string, std::vector<std::optional<ShapeExtent>>> array_contracts;
     std::map<std::string, CallableShape> callable_shapes;
 };
@@ -391,7 +429,8 @@ private:
             for (const auto& variable : plan.variables)
                 if (!variable.value && variable.axis >= part.offset && variable.axis < part.offset + part.size)
                     environment.scalars[variable.name] = p < arguments.size()
-                        ? tensor_extent(arguments[p], variable.axis - part.offset) : ShapeExtent{};
+                        ? pattern_extent(arguments[p], variable.axis - part.offset,
+                                         part.size, part.ellipsis) : ShapeExtent{};
         }
         for (const auto& variable : plan.variables)
             if (variable.value && !plan.axes[variable.axis].after_initializer)
@@ -410,15 +449,17 @@ private:
                 parameter < arguments.size() ? arguments[parameter] : Type::simple(TypeKind::Invalid);
             if (part.parameter != 0) {
                 const bool rank_proven = value.kind == TypeKind::Tensor &&
-                    value.length == static_cast<long long>(part.size);
+                    pattern_rank_matches(value.length, part.size, part.ellipsis);
                 complete = complete && rank_proven;
                 if (parameter < parameters.size()) parameters[parameter].rank = rank_proven;
                 if (value.kind == TypeKind::Tensor && value.length >= 0 &&
-                    value.length != static_cast<long long>(part.size))
+                    !rank_proven)
                     throw CompileError({"TENSOR_SHAPE", "Tensor argument rank does not match the signature.", expression.span});
             } else {
-                result.length = static_cast<long long>(part.size);
-                result.tensor_known_shape_prefix.resize(part.size);
+                if (!part.ellipsis) {
+                    result.length = static_cast<long long>(part.size);
+                    result.tensor_known_shape_prefix.resize(part.size);
+                }
             }
             for (std::size_t axis = 0; axis < part.size; ++axis) {
                 const auto& constraint = plan.axes[part.offset + axis];
@@ -428,14 +469,15 @@ private:
                 else if (constraint.check == ShapeAxisCheck::Value)
                     expected = signature_scalar(*constraint.value, environment);
                 if (part.parameter == 0) {
-                    if (expected.kind != ShapeExtent::Kind::Unknown) result.tensor_known_shape_prefix[axis] = expected;
+                    if (expected.kind != ShapeExtent::Kind::Unknown)
+                        set_pattern_extent(result, axis, part.size, part.ellipsis, expected);
                     continue;
                 }
                 if (constraint.check == ShapeAxisCheck::None) {
                     if (parameter < parameters.size()) parameters[parameter].axes.push_back(true);
                     continue;
                 }
-                const auto actual = tensor_extent(value, axis);
+                const auto actual = pattern_extent(value, axis, part.size, part.ellipsis);
                 if (expected.known() && actual.known() && expected.value != actual.value)
                     throw CompileError({"TENSOR_SHAPE", "Tensor argument extent does not match the signature.", expression.span});
                 const bool equal = same_extent(expected, actual);
@@ -464,43 +506,14 @@ private:
             call_signature(expression, *declaration, found->second, arguments, scalar_arguments, result);
         if (result.kind != TypeKind::Tensor || found->second.result_extents.empty())
             return seed(result, &expression);
-        const auto& origins = found->second.result_extents;
-        const auto declared_result = result;
-        result.length = static_cast<long long>(origins.size());
-        result.tensor_known_shape_prefix.clear();
-        const auto input = [&](std::size_t parameter, std::size_t axis) {
-            if (axis == std::numeric_limits<std::size_t>::max())
-                return parameter < scalar_arguments.size() ? scalar_arguments[parameter] : ShapeExtent{};
-            return parameter < arguments.size() ? tensor_extent(arguments[parameter], axis) : ShapeExtent{};
-        };
-        for (std::size_t axis = 0; axis < origins.size(); ++axis) {
-            const auto& origin = origins[axis];
-            ShapeExtent extent;
-            if (origin.kind == ExtentOrigin::Kind::Known) extent = origin.value;
-            else if (origin.kind == ExtentOrigin::Kind::ParameterAxis)
-                extent = input(origin.parameter, origin.axis);
-            else if (origin.kind == ExtentOrigin::Kind::ParameterValue)
-                extent = input(origin.parameter, std::numeric_limits<std::size_t>::max());
-            else if (origin.kind == ExtentOrigin::Kind::Broadcast) {
-                extent = 1;
-                for (const auto& [parameter, input_axis] : origin.axes)
-                    extent = broadcast_extent(extent, input(parameter, input_axis));
-                if (origin.local) extent = broadcast_extent(extent, fresh(&expression, axis));
-            }
-            else if (origin.kind == ExtentOrigin::Kind::Expr) {
-                extent = substitute_extent(origin.expression, [&](std::int64_t id) {
-                    const auto found = origin.expression_axes.find(id);
-                    return found == origin.expression_axes.end() ? fresh(&expression, axis)
-                        : input(found->second.first, found->second.second);
-                });
-            }
-            if (const auto declared = tensor_extent(declared_result, axis);
-                declared.kind != ShapeExtent::Kind::Unknown) extent = declared;
-            if (const auto known = tensor_known_extent(original(expression), axis)) extent = *known;
-            if (extent.kind == ShapeExtent::Kind::Unknown) extent = fresh(&expression, axis);
-            result.tensor_known_shape_prefix.push_back(std::move(extent));
-        }
-        return result;
+        TensorShapeTransfer transfer;
+        transfer.operation = TensorShapeOp::CallOrigins;
+        transfer.result = result; transfer.inputs = arguments;
+        transfer.scalar_inputs = scalar_arguments;
+        transfer.result_origins = found->second.result_extents;
+        transfer.known_result = original(expression);
+        transfer.fresh = [&](std::size_t axis) { return fresh(&expression, axis); };
+        return transfer_tensor_shape(transfer);
     }
 
     static std::vector<ShapeExtent> ordered_scalars(
@@ -527,7 +540,8 @@ private:
             for (const auto& variable : plan.variables)
                 if (!variable.value && variable.axis >= part.offset && variable.axis < part.offset + part.size)
                     environment.scalars[variable.name] =
-                        tensor_extent(environment.tensors.at(input.name), variable.axis - part.offset);
+                        pattern_extent(environment.tensors.at(input.name), variable.axis - part.offset,
+                                       part.size, part.ellipsis);
         }
         for (const auto& variable : plan.variables) {
             if (variable.value && !plan.axes[variable.axis].after_initializer)
@@ -551,20 +565,24 @@ private:
                     captured[axis] = environment.scalars.at(constraint.variable);
             }
             if (part.parameter == 0) {
-                environment.result_contract = std::move(captured);
+                environment.result_contract = {std::move(captured), part.ellipsis};
                 continue;
             }
             const auto& input = signature.parameters.at(part.parameter - 1 + parameter_offset);
-            environment.contracts[input.name] = captured;
+            environment.contracts[input.name] = {captured, part.ellipsis};
             auto& tensor = environment.tensors.at(input.name);
-            tensor.length = static_cast<long long>(part.size);
-            tensor.tensor_known_shape_prefix.resize(part.size);
+            if (!part.ellipsis) {
+                tensor.length = static_cast<long long>(part.size);
+                tensor.tensor_known_shape_prefix.resize(part.size);
+            }
             for (std::size_t axis = 0; axis < part.size; ++axis) {
                 const auto& constraint = plan.axes[part.offset + axis];
                 if (constraint.check == ShapeAxisCheck::Variable)
-                    tensor.tensor_known_shape_prefix[axis] = environment.scalars.at(constraint.variable);
+                    set_pattern_extent(tensor, axis, part.size, part.ellipsis,
+                                       environment.scalars.at(constraint.variable));
                 else if (constraint.check == ShapeAxisCheck::Value)
-                    tensor.tensor_known_shape_prefix[axis] = scalar(*constraint.value, environment);
+                    set_pattern_extent(tensor, axis, part.size, part.ellipsis,
+                                       scalar(*constraint.value, environment));
             }
         }
     }
@@ -580,24 +598,18 @@ private:
             const auto left = expression_type(*binary->left, environment);
             const auto right = expression_type(*binary->right, environment);
             if (result.kind == TypeKind::Tensor) {
-                const auto& tensor = left.kind == TypeKind::Tensor ? left : right;
-                result.length = tensor.length;
-                result.tensor_known_shape_prefix = tensor.tensor_known_shape_prefix;
-                if (left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                    binary->op != "==" && binary->op != "!=" && binary->op != "<" &&
-                    binary->op != "<=" && binary->op != ">" && binary->op != ">=") {
-                    result.tensor_known_shape_prefix.clear();
-                    for (long long axis = 0; axis < result.length; ++axis)
-                        result.tensor_known_shape_prefix.push_back(broadcast_extent(
-                            tensor_extent(left, static_cast<std::size_t>(axis)),
-                            tensor_extent(right, static_cast<std::size_t>(axis))));
-                }
+                TensorShapeTransfer transfer;
+                const auto comparison = binary->op == "==" || binary->op == "!=" || binary->op == "<" ||
+                    binary->op == "<=" || binary->op == ">" || binary->op == ">=";
+                transfer.operation = comparison ? TensorShapeOp::Preserve : TensorShapeOp::Broadcast;
+                transfer.result = result; transfer.inputs = {left, right};
+                result = transfer_tensor_shape(transfer);
             }
         } else if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
             const auto value = expression_type(*unary->operand, environment);
             if (result.kind == TypeKind::Tensor) {
-                result.length = value.length;
-                result.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
+                TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {value};
+                result = transfer_tensor_shape(transfer);
             }
         } else if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
             std::vector<Type> arguments;
@@ -633,18 +645,19 @@ private:
             else if (result.kind == TypeKind::Tensor) {
                 if (resolution != checked_.call_resolutions.end() && resolution->second.kind == CallKind::NumericCast &&
                     !arguments.empty() && arguments.front().kind == TypeKind::Tensor) {
-                    result.length = arguments.front().length;
-                    result.tensor_known_shape_prefix = arguments.front().tensor_known_shape_prefix;
+                    TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {arguments.front()};
+                    result = transfer_tensor_shape(transfer);
                 } else if (resolution != checked_.call_resolutions.end() && resolution->second.builtin &&
                            (*resolution->second.builtin == BuiltinCallable::TensorCreate ||
                             *resolution->second.builtin == BuiltinCallable::TensorZeros ||
                             *resolution->second.builtin == BuiltinCallable::TensorOnes)) {
                     for (const auto& argument : call->args) {
                         if (const auto* shape = std::get_if<ArrayExpr>(&argument.value->data)) {
-                            result.length = static_cast<long long>(shape->elements.size());
-                            result.tensor_known_shape_prefix.clear();
+                            TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::ExplicitShape;
+                            transfer.result = result; transfer.explicit_shape.emplace();
                             for (const auto& extent : shape->elements)
-                                result.tensor_known_shape_prefix.push_back(captured_scalar(*extent, environment));
+                                transfer.explicit_shape->push_back(captured_scalar(*extent, environment));
+                            result = transfer_tensor_shape(transfer);
                             break;
                         }
                     }
@@ -676,23 +689,22 @@ private:
                     const auto index = method->method == "reshape" ? 0U : 1U;
                     if (index < method->args.size()) {
                         if (const auto* shape = std::get_if<ArrayExpr>(&method->args[index].value->data)) {
-                            result.length = static_cast<long long>(shape->elements.size());
-                            result.tensor_known_shape_prefix.clear();
+                            TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::ExplicitShape;
+                            transfer.result = result; transfer.explicit_shape.emplace();
                             for (const auto& extent : shape->elements)
-                                result.tensor_known_shape_prefix.push_back(captured_scalar(*extent, environment));
+                                transfer.explicit_shape->push_back(captured_scalar(*extent, environment));
+                            result = transfer_tensor_shape(transfer);
                         }
                     }
                 } else {
-                    result.length = receiver.length;
-                    result.tensor_known_shape_prefix = receiver.tensor_known_shape_prefix;
+                    TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {receiver};
                     if (method->method == "transpose" && method->args.size() == 2) {
+                        transfer.operation = TensorShapeOp::Transpose;
                         const auto a = constant_eval::integer(*method->args[0].value);
                         const auto b = constant_eval::integer(*method->args[1].value);
-                        if (a && b && *a >= 0 && *b >= 0 && *a < result.length && *b < result.length)
-                            std::swap(result.tensor_known_shape_prefix[static_cast<std::size_t>(*a)],
-                                      result.tensor_known_shape_prefix[static_cast<std::size_t>(*b)]);
-                        else result.tensor_known_shape_prefix.clear();
+                        if (a && b) transfer.axes = std::pair{*a, *b};
                     }
+                    result = transfer_tensor_shape(transfer);
                 }
             }
             for (std::size_t index = 0; index < method->args.size(); ++index)
@@ -701,21 +713,13 @@ private:
         } else if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             const auto base = expression_type(*index->base, environment);
             if (base.kind == TypeKind::Tensor && result.kind == TypeKind::Tensor && base.length >= 0) {
-                result.tensor_known_shape_prefix.clear();
-                std::size_t output_axis = 0;
-                for (std::size_t axis = 0; axis < static_cast<std::size_t>(base.length); ++axis) {
-                    if (axis < index->items.size() && !index->items[axis].slice) continue;
-                    auto extent = tensor_extent(base, axis);
-                    if (axis < index->items.size()) {
-                        const auto& item = index->items[axis];
-                        if (item.start || item.stop || item.step) {
-                            extent = tensor_extent(original(expression), output_axis);
-                            if (extent.kind == ShapeExtent::Kind::Unknown) extent = fresh(&expression, output_axis);
-                        }
-                    }
-                    result.tensor_known_shape_prefix.push_back(extent);
-                    ++output_axis;
-                }
+                TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::Index;
+                transfer.result = result; transfer.inputs = {base}; transfer.known_result = original(expression);
+                transfer.fresh = [&](std::size_t axis) { return fresh(&expression, axis); };
+                for (const auto& item : index->items)
+                    transfer.indices.push_back({!item.slice ? TensorShapeTransfer::IndexAxis::Drop :
+                        (item.start || item.stop || item.step) ? TensorShapeTransfer::IndexAxis::Slice : TensorShapeTransfer::IndexAxis::Preserve});
+                result = transfer_tensor_shape(transfer);
             }
             for (const auto& item : index->items) {
                 if (item.index) expression_type(*item.index, environment);
@@ -781,22 +785,9 @@ private:
 
     Type join_types(const void* site, const std::string& name, Type base, const std::vector<Type>& states,
                     bool header = false) {
-        if (base.kind != TypeKind::Tensor || states.empty()) return base;
-        base.length = states.front().length;
-        for (const auto& state : states)
-            if (state.kind != TypeKind::Tensor || state.length != base.length) base.length = -1;
-        base.tensor_known_shape_prefix.clear();
-        for (long long axis = 0; axis < base.length; ++axis) {
-            auto extent = tensor_extent(states.front(), static_cast<std::size_t>(axis));
-            bool equal = extent.kind != ShapeExtent::Kind::Unknown;
-            for (const auto& state : states) {
-                const auto current = tensor_extent(state, static_cast<std::size_t>(axis));
-                equal = equal && same_extent(extent, current) && (!header || !from_loop(current));
-            }
-            if (!equal) extent = merge_symbol(site, name, static_cast<std::size_t>(axis));
-            base.tensor_known_shape_prefix.push_back(std::move(extent));
-        }
-        return base;
+        return ir::facts::merge_tensor_shapes(std::move(base), states,
+            [&](std::size_t axis) { return merge_symbol(site, name, axis); },
+            [&](const ShapeExtent& extent) { return !header || !from_loop(extent); });
     }
 
     Environment join(const void* site, const Environment& before, const std::vector<Environment>& states,
@@ -868,7 +859,8 @@ private:
     }
 
     void prove_contract(const Expr& expression, const Type& value,
-                        const std::vector<std::optional<ShapeExtent>>& captured) {
+                        const std::vector<std::optional<ShapeExtent>>& captured,
+                        std::optional<std::size_t> ellipsis = std::nullopt) {
         if (captured.empty()) return;
         if (value.kind == TypeKind::Array) {
             auto& proof = checked_.proven_shape_constraints[&expression];
@@ -885,11 +877,11 @@ private:
         if (value.kind != TypeKind::Tensor) return;
         auto& proof = checked_.proven_shape_constraints[&expression];
         proof.axes.clear();
-        proof.rank = value.length == static_cast<long long>(captured.size());
+        proof.rank = pattern_rank_matches(value.length, captured.size(), ellipsis);
         if (value.length >= 0 && !proof.rank)
             throw CompileError({"TENSOR_SHAPE", "Tensor rank does not match its declared shape.", expression.span});
         for (std::size_t axis = 0; axis < captured.size(); ++axis) {
-            const auto actual = tensor_extent(value, axis);
+            const auto actual = pattern_extent(value, axis, captured.size(), ellipsis);
             if (captured[axis] && captured[axis]->known() && actual.known() &&
                 captured[axis]->value != actual.value)
                 throw CompileError({"TENSOR_SHAPE", "Tensor extent does not match its declared shape.", expression.span});
@@ -919,8 +911,10 @@ private:
                 auto array_captured = capture_array_contract(binding->declared_type, environment);
                 auto type = original_bindings_.contains(statement.get())
                     ? original_bindings_.at(statement.get()) : Type::simple(TypeKind::Invalid);
+                std::optional<Type> initializer_type;
                 if (binding->value) {
                     const auto value = expression_type(*binding->value, environment);
+                    initializer_type = value;
                     if (type.kind == TypeKind::Tensor && value.kind == TypeKind::Tensor) {
                         type.length = value.length;
                         type.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
@@ -935,11 +929,13 @@ private:
                     environment.tensors[binding->name] = seed(type, statement.get());
                     if (plan != checked_.shape_plans.end()) {
                         auto& value = environment.tensors[binding->name];
-                        value.length = static_cast<long long>(plan->second.axes.size());
+                        if (!plan->second.ellipsis)
+                            value.length = static_cast<long long>(plan->second.axes.size());
                         value = seed(value, statement.get());
                         for (const auto& variable : plan->second.variables) {
                             if (variable.value) continue;
-                            const auto extent = tensor_extent(value, variable.axis);
+                            const auto extent = pattern_extent(value, variable.axis,
+                                plan->second.axes.size(), plan->second.ellipsis);
                             environment.scalars[variable.name] = extent;
                             // The declaring axis also captures the initial value;
                             // null would incorrectly prove later stores unconstrained.
@@ -958,10 +954,15 @@ private:
                             if (constraint.check == ShapeAxisCheck::Variable && environment.scalars.contains(constraint.variable))
                                 captured[axis] = environment.scalars.at(constraint.variable);
                         }
-                        if (binding->value) prove_contract(*binding->value, type, captured);
+                        // The declared binding shape is established only after
+                        // its check; it cannot prove the initializer's axes.
+                        if (initializer_type)
+                            prove_contract(*binding->value, *initializer_type, captured, plan->second.ellipsis);
                         for (std::size_t axis = 0; axis < captured.size(); ++axis)
-                            if (captured[axis]) value.tensor_known_shape_prefix[axis] = *captured[axis];
-                        environment.contracts[binding->name] = captured;
+                            if (captured[axis])
+                                set_pattern_extent(value, axis, captured.size(), plan->second.ellipsis,
+                                                   *captured[axis]);
+                        environment.contracts[binding->name] = {captured, plan->second.ellipsis};
                     }
                     auto& recorded = checked_.binding_types[statement.get()];
                     recorded.length = environment.tensors[binding->name].length;
@@ -974,11 +975,9 @@ private:
                     const auto right = value;
                     value = previous;
                     if (right.kind == TypeKind::Tensor) {
-                        value.tensor_known_shape_prefix.clear();
-                        for (long long axis = 0; axis < value.length; ++axis)
-                            value.tensor_known_shape_prefix.push_back(broadcast_extent(
-                                tensor_extent(previous, static_cast<std::size_t>(axis)),
-                                tensor_extent(right, static_cast<std::size_t>(axis))));
+                        TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::Broadcast;
+                        transfer.result = value; transfer.inputs = {previous, right};
+                        value = transfer_tensor_shape(transfer);
                     }
                 }
                 if (const auto* name = std::get_if<NameExpr>(&assignment->target->data); name && !name->this_qualifier) {
@@ -989,11 +988,15 @@ private:
                         target.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
                         if (const auto contract = environment.contracts.find(name->name);
                             contract != environment.contracts.end()) {
-                            prove_contract(*assignment->value, value, contract->second);
-                            target.length = static_cast<long long>(contract->second.size());
+                            const auto& captured = contract->second.extents;
+                            prove_contract(*assignment->value, value, captured, contract->second.ellipsis);
+                            if (!contract->second.ellipsis)
+                                target.length = static_cast<long long>(captured.size());
                             target = seed(target, statement.get());
-                            for (std::size_t axis = 0; axis < contract->second.size(); ++axis)
-                                if (contract->second[axis]) target.tensor_known_shape_prefix[axis] = *contract->second[axis];
+                            for (std::size_t axis = 0; axis < captured.size(); ++axis)
+                                if (captured[axis])
+                                    set_pattern_extent(target, axis, captured.size(), contract->second.ellipsis,
+                                                       *captured[axis]);
                         }
                     }
                     else if (value.kind == TypeKind::Array) {
@@ -1016,7 +1019,8 @@ private:
             } else if (const auto* returned = std::get_if<ReturnStmt>(&statement->data)) {
                 if (returned->value) {
                     const auto value = expression_type(*returned->value, environment);
-                    prove_contract(*returned->value, value, environment.result_contract);
+                    prove_contract(*returned->value, value, environment.result_contract.extents,
+                                   environment.result_contract.ellipsis);
                     returns_[statement.get()] = value;
                 }
                 return false;
@@ -1041,18 +1045,23 @@ private:
                 std::vector<Environment> continuing;
                 for (const auto& arm : match->cases) {
                     auto branch = environment;
-                    if (arm.binder) {
-                        auto type = value;
-                        if (const auto found = checked_.case_types.find(&arm); found != checked_.case_types.end())
-                            type = found->second;
-                        if (type.kind == TypeKind::Tensor) {
-                            if (value.kind == TypeKind::Tensor) type.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
-                            type = seed(type, &arm);
-                            branch.tensors[*arm.binder] = type;
-                            if (const auto plan = checked_.shape_plans.find(&arm.type); plan != checked_.shape_plans.end())
-                                for (const auto& variable : plan->second.variables)
-                                    branch.scalars[variable.name] = tensor_extent(type, variable.axis);
+                    auto type = value;
+                    if (const auto found = checked_.case_types.find(&arm); found != checked_.case_types.end())
+                        type = found->second;
+                    if (type.kind == TypeKind::Tensor) {
+                        const auto plan = checked_.shape_plans.find(&arm.type);
+                        if (value.kind == TypeKind::Tensor) {
+                            type.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
+                            if (plan != checked_.shape_plans.end() && plan->second.ellipsis &&
+                                pattern_rank_matches(value.length, plan->second.axes.size(), plan->second.ellipsis))
+                                type.length = value.length;
                         }
+                        type = seed(type, &arm);
+                        if (arm.binder) branch.tensors[*arm.binder] = type;
+                        if (plan != checked_.shape_plans.end())
+                            for (const auto& variable : plan->second.variables)
+                                branch.scalars[variable.name] = pattern_extent(type, variable.axis,
+                                    plan->second.axes.size(), plan->second.ellipsis);
                     }
                     if (block(arm.body, branch)) continuing.push_back(std::move(branch));
                 }
@@ -1133,7 +1142,7 @@ private:
             if (!parameter.type.dimension_expressions.empty())
                 environment.array_contracts[parameter.name] = capture_array_contract(parameter.type, environment);
         if (signature->second.result.kind == TypeKind::Array)
-            environment.result_contract = capture_array_contract(declaration.return_type, environment);
+            environment.result_contract.extents = capture_array_contract(declaration.return_type, environment);
         for (const auto& parameter : declaration.parameters)
             capture_callable_shape(parameter.name, parameter.type, environment);
         block(declaration.body, environment);

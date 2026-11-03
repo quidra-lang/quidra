@@ -25,6 +25,8 @@ private:
     // its own item.
     bool slice_start_marker_stop_{};
     bool collection_header_source_{};
+    bool conditional_reference_declarations_{};
+    std::vector<StmtPtr> condition_reference_bindings_{};
     bool at_collection_suffix() const;
     std::vector<Diagnostic> diagnostics_;
     std::size_t max_errors_{20};
@@ -117,6 +119,8 @@ private:
     ExprPtr marked_call();
     ExprPtr postfix();
     ExprPtr primary();
+    ExprPtr range_from(ExprPtr begin_value, SourcePos begin);
+    ExprPtr range_operand();
     ExprPtr array_comprehension(SourcePos start);
     ExprPtr make_binary(ExprPtr left, const Token& op, ExprPtr right);
     bool at_marker_touching_colon() const;

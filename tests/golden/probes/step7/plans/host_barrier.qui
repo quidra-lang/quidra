@@ -1,0 +1,7 @@
+// A scalar read is an observable host boundary between two tensor graphs.
+tensor<real32> first = tensor.ones<real32>([2]) + tensor.ones<real32>([2])
+real32 scalar = first[0].item()
+tensor<real32> second = first * first
+if scalar > 1.0
+    second = second + first
+print("{scalar} {second[1].item()}{NL}")

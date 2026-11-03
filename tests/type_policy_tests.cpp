@@ -71,6 +71,45 @@ int main() {
     require(runtime_storage_bytes(tensor_first3) == runtime_storage_bytes(tensor_plain),
             "tensor shape patterns must not change runtime ABI size");
 
+    const auto tensor_head3 = Type::tensor(t(TypeKind::Real32), -1, {3}, {}, 1);
+    const auto tensor_tail4 = Type::tensor(t(TypeKind::Real32), -1, {4}, {}, 0);
+    const auto tensor_3_tail4 = Type::tensor(t(TypeKind::Real32), -1, {3, 4}, {}, 1);
+    const auto tensor_bare_ellipsis = Type::tensor(t(TypeKind::Real32), -1, {}, {}, 0);
+    require(type_name(tensor_head3) == "tensor<real32>{3, ...}" &&
+                type_name(tensor_tail4) == "tensor<real32>{..., 4}" &&
+                type_name(tensor_3_tail4) == "tensor<real32>{3, ..., 4}",
+            "ellipsis type names retain the head/tail boundary");
+    require(tensor_bare_ellipsis == tensor_plain &&
+                type_name(tensor_bare_ellipsis) == "tensor<real32>",
+            "bare ellipsis is an unconstrained tensor type");
+    require(tensor_head3 != Type::tensor(t(TypeKind::Real32), -1, {3}, {}, 0),
+            "head and tail constraints have distinct type identity");
+    require(tensor_known_extent(tensor_head3, 0) == 3 &&
+                !tensor_known_extent(tensor_tail4, 0),
+            "a trailing extent never becomes an unknown-rank leading fact");
+    auto tensor_rank3_tail4 = tensor_tail4;
+    tensor_rank3_tail4.length = 3;
+    require(tensor_known_extent(tensor_rank3_tail4, 2) == 4 &&
+                !tensor_known_extent(tensor_rank3_tail4, 0),
+            "a known rank locates trailing constraints at the final axis");
+    require(assignable(inferred_3x4, tensor_head3) &&
+                assignable(inferred_3x4, tensor_tail4) &&
+                assignable(inferred_3x4, tensor_3_tail4),
+            "ellipsis may consume zero axes or a dynamic middle");
+    const auto inferred_3x5x4 = Type::tensor(t(TypeKind::Real32), 3, {}, {3, 5, 4});
+    require(assignable(inferred_3x5x4, tensor_3_tail4),
+            "ellipsis matches trailing extents after intervening axes");
+    require(!assignable(Type::tensor(t(TypeKind::Real32), 1, {}, {3}), tensor_3_tail4),
+            "explicit head and tail axes impose a minimum rank");
+    require(!assignable(Type::tensor(t(TypeKind::Real32), 3, {}, {3, 4, 5}), tensor_tail4),
+            "a known trailing mismatch is rejected");
+    require(!assignable(Type::tensor(t(TypeKind::Real32), -1, {5}, {}, 0), tensor_tail4),
+            "unknown-rank trailing constraints can still contradict each other");
+    require(!assignable(tensor_3_tail4, tensor_first3),
+            "an exact target cannot have fewer axes than the source minimum rank");
+    require(!assignable(tensor_tail4, tensor_first3),
+            "an exact target rank locates a source trailing mismatch");
+
     const auto tensor_or_error = Type::union_of({tensor_plain, t(TypeKind::Error)});
     const auto constrained_or_error =
         Type::union_of({tensor_first3, t(TypeKind::Error)});

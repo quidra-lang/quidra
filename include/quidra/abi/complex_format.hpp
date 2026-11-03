@@ -15,9 +15,9 @@ inline constexpr bool half_element=std::is_same_v<T,Real16>||std::is_same_v<T,Re
 // binary32 or binary64 product passes through a volatile, so a compiler
 // that contracts across statements cannot fuse it into a sum); * is
 // (ac - bd) + (ad + bc)i and / Smith's algorithm, as generated code computes
-// complex scalars (llvm_backend/complex_arithmetic.hpp). A quotient with an
-// intermediate value that is not finite is NaN, so the finite test of the
-// result sees the overflow a division by an infinity would hide.
+// complex scalars (llvm_backend/complex_arithmetic.hpp). A quotient with a NaN
+// intermediate is rejected even when a later operation would hide it.
+// Infinite intermediates follow the extended-real arithmetic policy.
 template <typename P>
 struct ComplexElement {
     P re{};
@@ -92,7 +92,7 @@ ComplexElement<P> operator/(ComplexElement<P> x, ComplexElement<P> y) {
     const auto magnitude = [](P v) { return v < P{} ? P(-v) : v; };
     bool finite = true;
     const auto tested = [&](P v) {
-        finite = finite && part_is_finite(v);
+        finite = finite && !std::isnan(static_cast<double>(v));
         return v;
     };
     P t{}, re_n{}, im_n{};

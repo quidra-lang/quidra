@@ -16,6 +16,8 @@ namespace quidra {
 
 namespace semantics {
 class EffectSummaries;
+struct InterfaceSources;
+struct BindingEntryInitializations;
 }
 
 struct FunctionParameterType {
@@ -59,6 +61,7 @@ struct FunctionType {
     bool no_normal_return{};
     StorageEffect receiver_effect;
     std::unordered_map<std::string, StorageEffect> reference_effects;
+    std::unordered_map<std::string, std::unordered_set<std::string>> success_reference_initializes;
     std::unordered_set<std::string> return_initialized_fields;
     std::vector<ExtentOrigin> result_extents{};
 };
@@ -189,6 +192,9 @@ struct ShapeAxisPlan {
 struct ShapePlan {
     std::vector<ShapeAxisPlan> axes;
     std::vector<ShapeVariable> variables;
+    // Explicit axes before this boundary align with the head; the rest
+    // align with the tail. The omitted middle contains zero or more axes.
+    std::optional<std::size_t> ellipsis{};
     // The axes whose expression is evaluated after the initializer (a
     // `nat N = EXPR` or an unnamed expression over the shape's own
     // variables), in dependency order, left to right among independent ones.
@@ -209,6 +215,7 @@ struct SignatureShapePart {
     std::size_t offset{};
     std::size_t size{};
     std::string subject;
+    std::optional<std::size_t> ellipsis{};
 };
 
 struct SignatureShapeUnit {
@@ -309,6 +316,8 @@ struct CheckedProgram {
     std::unordered_map<const Expr*, std::string> runtime_bound_checks;
     std::unordered_map<const Expr*,std::vector<std::vector<std::size_t>>> stored_target_initialization_checks;
     std::unordered_map<const Expr*,std::unordered_set<std::string>> reference_invalidations;
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
+    std::shared_ptr<const semantics::BindingEntryInitializations> binding_entry_initialization{};
 };
 
 // What a compilation produces: an executable (quidra build, run, a direct
@@ -326,6 +335,7 @@ public:
 
 private:
     std::unordered_map<std::string, FunctionType> functions_;
+    std::shared_ptr<semantics::BindingEntryInitializations> binding_entry_initialization_;
     std::unordered_map<std::string, ClassTypeInfo> classes_;
     std::unordered_set<std::string> class_names_;
     std::unordered_map<std::string, Type> enum_types_;
@@ -427,6 +437,8 @@ private:
     std::unordered_map<std::string, std::unordered_set<std::string>>
         current_exit_reference_initialized_;
     bool current_effect_exit_summary_seen_{};
+    bool current_true_return_seen_{};
+    std::unordered_map<std::string, std::unordered_set<std::string>> current_true_return_initialized_;
     std::unordered_set<const FunctionDecl*> invalid_functions_;
     std::vector<Diagnostic> diagnostics_;
     bool suppress_diagnostics_{};
@@ -618,6 +630,8 @@ private:
     Type check_array_comprehension(const Expr& expression, const ArrayComprehensionExpr& node,
                                    const Type* expected);
     Type check_index_expr(const Expr& expression, const IndexExpr& node);
+    bool check_input_template(const Expr& expression, const StringTemplateExpr& pattern,
+                              bool file_reader, bool terminating);
     Type check_method_call_expr(const Expr& expression, const MethodCallExpr& node,
                                 const Type* expected = nullptr);
     Type check_call_expr(const Expr& expression, const CallExpr& node, const Type* expected);
@@ -687,6 +701,7 @@ private:
     void check_loop_control_stmt(const Stmt& stmt, const LoopControlStmt& node);
     void check_return_stmt(const Stmt& stmt, const ReturnStmt& node);
     void check_expression_stmt(const Stmt& stmt, const ExprStmt& node);
+    bool condition_initializes_reference(const Expr& condition, const std::string& binding) const;
     void check_if_stmt(const Stmt& stmt, const IfStmt& node);
     void check_parallel_stmt(const Stmt& stmt, const ParallelStmt& node);
     void check_while_stmt(const Stmt& stmt, const WhileStmt& node);

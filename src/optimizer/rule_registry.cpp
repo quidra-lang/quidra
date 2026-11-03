@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <map>
 #include <stdexcept>
+#include <set>
 
 namespace quidra::optimizer {
 
@@ -301,6 +302,8 @@ ExtensionTables index_extension_tables(const Module& module) {
             if (names.empty()) continue;
             FusionPattern pattern;
             pattern.reference = identity + ":" + table;
+            pattern.ordered_priority = extension.schema_revision == 2;
+            if (pattern.ordered_priority && fields.contains("priority")) pattern.priority = std::stoll(fields.at("priority"));
             for (const auto& name : names)
                 pattern.operations.push_back(identity + ":" + name);
             if (const auto replacement = fields.find("replacement");
@@ -320,6 +323,10 @@ ExtensionTables index_extension_tables(const Module& module) {
         std::sort(
             patterns.begin(), patterns.end(),
             [](const FusionPattern& left, const FusionPattern& right) {
+                if (left.ordered_priority || right.ordered_priority) {
+                    if (left.priority != right.priority) return left.priority > right.priority;
+                    return left.reference < right.reference;
+                }
                 if (left.operations.size() != right.operations.size())
                     return left.operations.size() > right.operations.size();
                 return left.reference < right.reference;
@@ -328,12 +335,13 @@ ExtensionTables index_extension_tables(const Module& module) {
     return ExtensionTables{std::move(extension_tables), std::move(extension_fusions)};
 }
 
-std::vector<ConditionalRule> parse_conditional_rules(const Module& module) {
+std::vector<ConditionalRule> parse_conditional_rules(const std::vector<RuleRegistry::TableSnapshot>& tables) {
     std::vector<ConditionalRule> conditional_rules;
-    for (const auto& extension : module.compiler_extensions) {
-        if (extension.phase != "tensor-region") continue;
-        const auto identity = extension.package + "." + extension.name;
-        for (const auto& [table, fields] : extension.tables) {
+    for (const auto& snapshot : tables) {
+        const auto& identity = snapshot.extension;
+        const auto& table = snapshot.name;
+        const auto& fields = snapshot.raw;
+        {
             std::optional<RuleStage> stage;
             if (table.starts_with("specialization."))
                 stage = RuleStage::Specialization;
@@ -350,6 +358,9 @@ std::vector<ConditionalRule> parse_conditional_rules(const Module& module) {
 
             ConditionalRule rule;
             rule.stage = *stage;
+            rule.runtime_dispatch = snapshot.schema_revision == 2;
+            if (rule.runtime_dispatch && fields.contains("priority")) rule.priority = std::stoll(fields.at("priority"));
+            if (rule.runtime_dispatch) rule.constraints.backend = field_value(fields, "backend");
             rule.reference = identity + ":" + table;
             rule.extension = identity;
             rule.operation = identity + ":" + *source;
@@ -371,7 +382,11 @@ std::vector<ConditionalRule> parse_conditional_rules(const Module& module) {
                     continue;
                 }
             }
-            if (const auto shape = field_value(fields, "shape")) {
+            if (rule.runtime_dispatch && snapshot.normalized && snapshot.normalized->fields.contains("shape")) {
+                rule.constraints.shape_present = true;
+                for (const auto extent : std::get<std::vector<std::int64_t>>(snapshot.normalized->fields.at("shape")))
+                    rule.constraints.shape.push_back(extent);
+            } else if (const auto shape = field_value(fields, "shape")) {
                 rule.constraints.shape = parse_shape(*shape);
                 if (rule.constraints.shape.empty() && !shape->empty()) continue;
             }
@@ -421,7 +436,10 @@ std::vector<ConditionalRule> parse_conditional_rules(const Module& module) {
     std::sort(
         conditional_rules.begin(), conditional_rules.end(),
         [](const ConditionalRule& left, const ConditionalRule& right) {
-            if (left.stage != right.stage) return left.stage < right.stage;
+            if (left.runtime_dispatch != right.runtime_dispatch) return !left.runtime_dispatch;
+            if (left.runtime_dispatch) {
+                if (left.priority != right.priority) return left.priority > right.priority;
+            } else if (left.stage != right.stage) return left.stage < right.stage;
             return left.reference < right.reference;
         });
     return conditional_rules;
@@ -429,14 +447,68 @@ std::vector<ConditionalRule> parse_conditional_rules(const Module& module) {
 
 } // namespace
 
-RuleRegistry RuleRegistry::build(const Module& module) {
+RuleRegistry RuleRegistry::build(const Module& module, DeclarationBindingMode mode) {
     auto bindings = bind_operations(module);
+    auto declarations = bind_declarations(module, mode);
+    std::vector<BindingDifference> differences;
+    if (mode == DeclarationBindingMode::Verify) {
+        std::set<std::string> operations;
+        for (const auto& [operation, functions] : bindings.operation_functions) { (void)functions; operations.insert(operation); }
+        for (const auto& [operation, bound] : declarations.operations) { (void)bound; operations.insert(operation); }
+        for (const auto& operation : operations) {
+            if (const auto found = declarations.operations.find(operation); found != declarations.operations.end() &&
+                found->second.contract.fields.contains("function")) continue; // Full descriptors are always exact.
+            const auto legacy = bindings.operation_functions.find(operation);
+            const auto exact = declarations.operations.find(operation);
+            const auto old_functions = legacy == bindings.operation_functions.end() ? std::vector<std::string>{} : legacy->second;
+            const auto exact_functions = exact == declarations.operations.end() ? std::vector<std::string>{} : exact->second.functions;
+            if (old_functions != exact_functions) differences.push_back({operation, old_functions, exact_functions});
+        }
+    }
+    if (mode == DeclarationBindingMode::On) {
+        bindings.call_extensions.clear(); bindings.call_operations.clear(); bindings.operation_functions.clear();
+        bindings.operation_traits.clear(); bindings.execution_policy_setters.clear();
+    }
+    std::set<std::string> full_extensions;
+    for (const auto& extension : module.compiler_extensions)
+        if (extension.schema_revision == 2) full_extensions.insert(extension.package + '.' + extension.name);
+    for (const auto& [reference, operation] : declarations.operations) {
+        if (mode != DeclarationBindingMode::On && !full_extensions.contains(operation.extension)) continue;
+        std::string traits;
+        const auto& value = operation.contract.fields.at("traits");
+        if (const auto* list = std::get_if<std::vector<std::string>>(&value)) {
+            for (const auto& trait : *list) { if (!traits.empty()) traits += ','; traits += trait; }
+        } else traits = std::get<std::string>(value);
+        bindings.operation_traits[reference] = traits;
+        bindings.operation_functions[reference] = operation.functions;
+        for (const auto& function : operation.functions) {
+            bindings.call_extensions[function].push_back(operation.extension);
+            bindings.call_operations[function].push_back(reference);
+        }
+    }
+    for (const auto& setter : declarations.setters) {
+        if (mode == DeclarationBindingMode::On || full_extensions.contains(setter.extension))
+            bindings.execution_policy_setters[setter.function].push_back({setter.extension, setter.policy});
+    }
+    for (auto* map : {&bindings.call_extensions, &bindings.call_operations, &bindings.operation_functions})
+        for (auto& [name, values] : *map) { (void)name; std::sort(values.begin(), values.end()); values.erase(std::unique(values.begin(), values.end()), values.end()); }
+    std::vector<TableSnapshot> tables;
+    for (const auto& extension : module.compiler_extensions) {
+        if (extension.phase != "tensor-region" && extension.schema_revision != 2) continue;
+        const auto identity = extension.package + '.' + extension.name;
+        for (const auto& [name, raw] : extension.tables) {
+            TableSnapshot snapshot{identity, name, extension.schema_revision, raw, {}};
+            if (extension.model) snapshot.normalized = extension.model->tables.at(name);
+            tables.push_back(std::move(snapshot));
+        }
+    }
     auto extension_tables = index_extension_tables(module);
-    return RuleRegistry(module, std::move(bindings), std::move(extension_tables));
+    return RuleRegistry(std::move(bindings), std::move(extension_tables),
+                        std::move(declarations), std::move(tables), std::move(differences));
 }
 
 const std::vector<ConditionalRule>& RuleRegistry::conditional_rules() const {
-    if (!conditional_rules_) conditional_rules_ = parse_conditional_rules(*module_);
+    if (!conditional_rules_) conditional_rules_ = parse_conditional_rules(tables_);
     return *conditional_rules_;
 }
 

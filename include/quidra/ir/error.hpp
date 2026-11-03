@@ -12,6 +12,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 #include "quidra/types.hpp"
@@ -43,8 +44,7 @@ struct ErrorMake {
     std::string code;
     std::vector<ErrorDetailOperand> details;
     std::optional<ValueId> cause;
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
 };
 
 // The message of an error (e.message, e.string(), an interpolated error): a
@@ -75,16 +75,15 @@ struct ErrorHop {
     Type container_type;
     std::string name;
     std::uint32_t kind{};
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
     ValueId callee{};
 };
 
-template <> struct InstructionTraits<ErrorMake> : InDomain<Domain::error> {};
-template <> struct InstructionTraits<ErrorHop> : InDomain<Domain::error> {};
-template <> struct InstructionTraits<ErrorMessage> : InDomain<Domain::error> {};
-template <> struct InstructionTraits<ErrorCode> : InDomain<Domain::error> {};
-template <> struct InstructionTraits<ErrorCause> : InDomain<Domain::error> {};
-template <> struct InstructionTraits<ErrorDetail> : InDomain<Domain::error> {};
+template <> struct InstructionTraits<ErrorMake> : WithOperands<Domain::error, ErrorMake> {};
+template <> struct InstructionTraits<ErrorHop> : WithOperands<Domain::error, ErrorHop> {};
+template <> struct InstructionTraits<ErrorMessage> : WithOperands<Domain::error, ErrorMessage> {};
+template <> struct InstructionTraits<ErrorCode> : WithOperands<Domain::error, ErrorCode> {};
+template <> struct InstructionTraits<ErrorCause> : WithOperands<Domain::error, ErrorCause> {};
+template <> struct InstructionTraits<ErrorDetail> : WithOperands<Domain::error, ErrorDetail> {};
 
 } // namespace quidra::ir

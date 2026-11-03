@@ -25,9 +25,11 @@ struct Type {
     std::vector<Type> cases;
     std::vector<Type> parameters;
     // Arrays use length as their static length. Tensor values use it
-    // for compiler-known rank; a source shape pattern fixes rank exactly.
+    // for compiler-known rank; a source shape without ellipsis fixes it exactly.
     long long length{-1};
     std::vector<long long> tensor_shape_prefix;
+    // Boundary between explicit leading and trailing axes around `...`.
+    std::optional<std::size_t> tensor_shape_ellipsis{};
     std::vector<ShapeExtent> tensor_known_shape_prefix;
     // The identity of a declared brace shape whose axes relate (L17): its
     // constraints with shape variables numbered by first occurrence
@@ -68,22 +70,39 @@ struct Type {
 
     static Type tensor(Type element, long long rank = -1,
                        std::vector<long long> shape_prefix = {},
-                       std::vector<ShapeExtent> known_shape_prefix = {}) {
+                       std::vector<ShapeExtent> known_shape_prefix = {},
+                       std::optional<std::size_t> shape_ellipsis = {}) {
         auto type = simple(TypeKind::Tensor);
         type.first = std::make_shared<Type>(std::move(element));
         type.length = rank;
         type.tensor_shape_prefix = std::move(shape_prefix);
+        // `{...}` has the same source type as an unconstrained tensor.
+        if (!type.tensor_shape_prefix.empty()) type.tensor_shape_ellipsis = shape_ellipsis;
         type.tensor_known_shape_prefix = std::move(known_shape_prefix);
         return type;
+    }
+
+    ShapeExtent declared_extent(std::size_t axis) const {
+        std::optional<std::size_t> explicit_axis;
+        if (!tensor_shape_ellipsis || axis < *tensor_shape_ellipsis) {
+            if (axis < tensor_shape_prefix.size()) explicit_axis = axis;
+        } else if (length >= static_cast<long long>(tensor_shape_prefix.size()) &&
+                   axis < static_cast<std::size_t>(length)) {
+            const auto trailing = tensor_shape_prefix.size() - *tensor_shape_ellipsis;
+            const auto trailing_start = static_cast<std::size_t>(length) - trailing;
+            if (axis >= trailing_start)
+                explicit_axis = *tensor_shape_ellipsis + axis - trailing_start;
+        }
+        if (explicit_axis && tensor_shape_prefix[*explicit_axis] >= 0)
+            return tensor_shape_prefix[*explicit_axis];
+        return {};
     }
 
     ShapeExtent extent(std::size_t axis) const {
         if (axis < tensor_known_shape_prefix.size() &&
             tensor_known_shape_prefix[axis].kind != ShapeExtent::Kind::Unknown)
             return tensor_known_shape_prefix[axis];
-        if (axis < tensor_shape_prefix.size() && tensor_shape_prefix[axis] >= 0)
-            return tensor_shape_prefix[axis];
-        return {};
+        return declared_extent(axis);
     }
 
     void set_extent(std::size_t axis, ShapeExtent fact) {
@@ -120,6 +139,8 @@ struct Type {
         if (kind == TypeKind::Tensor) {
             // Inferred rank/shape facts are flow facts. Only an explicit source
             // shape pattern participates in static type identity.
+            if ((!tensor_shape_prefix.empty() || !other.tensor_shape_prefix.empty()) &&
+                tensor_shape_ellipsis != other.tensor_shape_ellipsis) return false;
             if (!tensor_shape_key.empty() || !other.tensor_shape_key.empty()) {
                 return tensor_shape_key == other.tensor_shape_key &&
                        tensor_shape_prefix == other.tensor_shape_prefix;
@@ -169,10 +190,18 @@ inline std::string type_name(const Type& type) {
             std::string result = "tensor<" + type_name(*type.first) + ">";
             if (!type.tensor_shape_prefix.empty()) {
                 result += "{";
-                for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
-                    if (i) result += ", ";
+                bool first_axis = true;
+                for (std::size_t i = 0; i <= type.tensor_shape_prefix.size(); ++i) {
+                    if (type.tensor_shape_ellipsis == i) {
+                        if (!first_axis) result += ", ";
+                        result += "...";
+                        first_axis = false;
+                    }
+                    if (i == type.tensor_shape_prefix.size()) break;
+                    if (!first_axis) result += ", ";
                     result += type.tensor_shape_prefix[i] < 0
                         ? "_" : std::to_string(type.tensor_shape_prefix[i]);
+                    first_axis = false;
                 }
                 result += "}";
             }
@@ -649,10 +678,13 @@ inline std::optional<long long> tensor_known_extent(const Type& type, std::size_
     if (axis < type.tensor_known_shape_prefix.size()) {
         if (const auto known = type.tensor_known_shape_prefix[axis].known()) return known;
     }
-    if (axis < type.tensor_shape_prefix.size() && type.tensor_shape_prefix[axis] >= 0) {
-        return type.tensor_shape_prefix[axis];
-    }
-    return std::nullopt;
+    return type.declared_extent(axis).known();
+}
+
+// An explicit pattern axis's position in a tensor of the given rank.
+inline std::size_t tensor_pattern_axis(const Type& type, std::size_t axis, long long rank) {
+    if (!type.tensor_shape_ellipsis || axis < *type.tensor_shape_ellipsis) return axis;
+    return static_cast<std::size_t>(rank) - (type.tensor_shape_prefix.size() - axis);
 }
 
 inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
@@ -660,11 +692,32 @@ inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
     const auto required_rank = static_cast<long long>(to.tensor_shape_prefix.size());
     // Unknown rank/extent is not a contradiction: constrained bindings and calls
     // validate it at runtime. Known conflicts are still rejected immediately.
-    if (from.length >= 0 && from.length != required_rank) return false;
+    if (from.length >= 0 && (to.tensor_shape_ellipsis ? from.length < required_rank
+                                                    : from.length != required_rank)) return false;
+    if (!to.tensor_shape_ellipsis && from.tensor_shape_ellipsis &&
+        required_rank < static_cast<long long>(from.tensor_shape_prefix.size())) return false;
+    auto source = from;
+    // If an exact target rank is required, its successful runtime check also
+    // fixes where a source's trailing constraints would have to lie.
+    if (source.length < 0 && !to.tensor_shape_ellipsis) source.length = required_rank;
     for (std::size_t axis = 0; axis < to.tensor_shape_prefix.size(); ++axis) {
         const auto required = to.tensor_shape_prefix[axis];
         if (required < 0) continue;
-        const auto extent = tensor_known_extent(from, axis);
+        std::optional<long long> extent;
+        if (!to.tensor_shape_ellipsis || axis < *to.tensor_shape_ellipsis || source.length >= 0) {
+            const auto physical_axis = to.tensor_shape_ellipsis && source.length >= 0
+                ? tensor_pattern_axis(to, axis, source.length) : axis;
+            extent = tensor_known_extent(source, physical_axis);
+        } else if (from.tensor_shape_ellipsis) {
+            // Unknown-rank trailing constraints can still contradict each other.
+            const auto from_trailing = from.tensor_shape_prefix.size() - *from.tensor_shape_ellipsis;
+            const auto from_end = to.tensor_shape_prefix.size() - axis;
+            if (from_end <= from_trailing) {
+                const auto explicit_axis = from.tensor_shape_prefix.size() - from_end;
+                if (from.tensor_shape_prefix[explicit_axis] >= 0)
+                    extent = from.tensor_shape_prefix[explicit_axis];
+            }
+        }
         if (extent && *extent != required) return false;
     }
     return true;
@@ -729,7 +782,8 @@ inline bool assignable(const Type& from, const Type& to) {
 inline bool is_foreign_tensor_array(const Type& type) {
     return type.kind == TypeKind::Array && type.length < 0 && type.first &&
            type.first->kind == TypeKind::Tensor && type.first->first &&
-           type.first->length < 0 && type.first->tensor_shape_key.empty();
+           type.first->length < 0 && type.first->tensor_shape_prefix.empty() &&
+           type.first->tensor_shape_key.empty();
 }
 
 } // namespace quidra

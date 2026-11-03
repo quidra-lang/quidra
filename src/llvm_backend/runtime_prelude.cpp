@@ -143,6 +143,7 @@ constexpr PreludeItem prelude_items[]{
     declare(runtime_abi::slice::plan),
     declare(runtime_abi::slice::assignment_check),
     declare(runtime_abi::text::trim),
+    declare(runtime_abi::text::ascii_case),
     declare(runtime_abi::text::split),
     declare(runtime_abi::text::split_iter_begin),
     declare(runtime_abi::text::split_iter_begin_move),
@@ -408,6 +409,7 @@ declare void @free(ptr)
     declare(runtime_abi::array::grow_move),
     declare(runtime_abi::array::sorted),
     declare(runtime_abi::array::sorted_desc),
+    declare(runtime_abi::array::sort_indices),
     declare(runtime_abi::numeric::cast_element),
     declare(runtime_abi::numeric::cast_element_fits),
     declare(runtime_abi::tensor::create),
@@ -420,6 +422,7 @@ declare void @free(ptr)
     declare(runtime_abi::tensor::drop),
     declare(runtime_abi::tensor::reshape),
     declare(runtime_abi::tensor::gather),
+    declare(runtime_abi::tensor::mask_select),
     declare(runtime_abi::tensor::scatter),
     declare(runtime_abi::tensor::transpose),
     declare(runtime_abi::tensor::contiguous),
@@ -444,7 +447,9 @@ declare void @free(ptr)
     declare(runtime_abi::tensor::extent_check),
     declare(runtime_abi::tensor::unary),
     declare(runtime_abi::tensor::binary),
+    declare(runtime_abi::tensor::binary_proven),
     declare(runtime_abi::tensor::compare),
+    declare(runtime_abi::tensor::compare_proven),
     declare(runtime_abi::tensor::bool_reduce),
     declare(runtime_abi::tensor::index),
     declare(runtime_abi::tensor::set),
@@ -453,6 +458,8 @@ declare void @free(ptr)
     declare(runtime_abi::numeric::format_unsigned),
     declare(runtime_abi::numeric::format_number),
     declare(runtime_abi::numeric::format_number32),
+    declare(runtime_abi::numeric::group_digits),
+    declare(runtime_abi::numeric::radix_text),
     verbatim(R"LLVM(declare ptr @memcpy(ptr, ptr, i64)
 declare ptr @memmove(ptr, ptr, i64)
 declare ptr @memset(ptr, i32, i64)

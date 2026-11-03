@@ -8,11 +8,17 @@
 #include "quidra/types.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <set>
 #include <vector>
 
+namespace quidra::semantics { struct InterfaceSources; }
+
 namespace quidra::ir {
+namespace analysis { struct ModuleSummaries; struct BindingOriginSnapshots; }
+namespace facts { struct FactSources; }
+class StepRegionAnnotations;
 
 struct ClassLayout {
     std::string name;
@@ -44,6 +50,16 @@ struct Module {
     std::vector<Function> functions;
     std::vector<CompilerExtensionRegistration> compiler_extensions;
     std::vector<UserSource> user_sources;
+    // Immutable owned copies of checked effects and exact lowering provenance.
+    // Operational checker/AST maps are not retained or rendered by ir::dump.
+    std::shared_ptr<const analysis::ModuleSummaries> summaries{};
+    std::shared_ptr<const facts::FactSources> fact_sources{};
+    std::vector<DeclarationIdentity> declaration_catalog{};
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
+    // Original typed lowering origins, bound to exact final body fields.
+    std::shared_ptr<const analysis::BindingOriginSnapshots> binding_origins{};
+    // Owned annotation receipts; consumers validate against current inputs.
+    std::shared_ptr<const StepRegionAnnotations> step_regions{};
 };
 
 std::string dump(const Module& module);

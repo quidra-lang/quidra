@@ -67,6 +67,7 @@ public:
     void emit(const ir::StringSlice& n,const ir::Instruction& ins);
     void emit(const ir::StringSliceStepped& n,const ir::Instruction& ins);
     void emit(const ir::StringTrim& n,const ir::Instruction& ins);
+    void emit(const ir::StringAsciiCase& n,const ir::Instruction& ins);
     void emit(const ir::StringSplit& n,const ir::Instruction& ins);
     void emit(const ir::StringSplitIterBegin& n,const ir::Instruction& ins);
     void emit(const ir::StringSplitIterNext& n,const ir::Instruction& ins);

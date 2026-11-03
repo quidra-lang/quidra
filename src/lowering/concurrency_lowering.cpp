@@ -49,10 +49,13 @@ void ConcurrencyLowering::lower_parallel(const Stmt& statement,const ParallelStm
                 if(found==checked_.shape_plans.end())throw std::logic_error("parallel brace shape lacks checked plan");
                 const auto& shape_plan=found->second;
                 ShapeConstraintLowering::BraceShape shape;
+                shape.extents.ellipsis = shape_plan.ellipsis;
                 shape.extents.resize(shape_plan.axes.size());
                 shape.variables.resize(shape_plan.variables.size());
                 for(std::size_t axis=0;axis<shape_plan.axes.size();++axis) {
-                    if(shape_plan.axes[axis].check==ShapeAxisCheck::None)continue;
+                    const bool reads_extent = std::any_of(shape_plan.variables.begin(), shape_plan.variables.end(),
+                        [&](const auto& variable) { return variable.axis == axis && variable.read; });
+                    if(shape_plan.axes[axis].check==ShapeAxisCheck::None && !reads_extent)continue;
                     const auto extent=builder_.hidden("parallel.extent");
                     parent.scope_.local_type(extent)=Type::simple(TypeKind::Int64);
                     builder_.emit(DeclareLocal{extent,Type::simple(TypeKind::Int64),{},0,0});
@@ -80,8 +83,8 @@ void ConcurrencyLowering::lower_parallel(const Stmt& statement,const ParallelStm
     }
     ParallelBlock instruction;
     instruction.out=builder_.fresh();instruction.table_name=owner+"."+table;
-    instruction.line=static_cast<std::uint32_t>(statement.span.start.line);
-    instruction.column=static_cast<std::uint32_t>(statement.span.start.column);
+    instruction.position.line=static_cast<std::uint32_t>(statement.span.start.line);
+    instruction.position.column=static_cast<std::uint32_t>(statement.span.start.column);
     bool any_fallible=false;
     for(std::size_t index=0;index<block.body.size();++index) {
         const auto& source=*block.body[index];
@@ -104,7 +107,7 @@ void ConcurrencyLowering::lower_parallel(const Stmt& statement,const ParallelStm
         // Until managed result-graph transfer is established, fallible
         // results are made on the joining thread. No foreign registry is read.
         node.worker_safe=!fallible && index<plan->worker_safe.size() && plan->worker_safe[index];
-        node.predecessors=plan->predecessors[index];node.line=function.source_line;node.column=function.source_column;
+        node.predecessors=plan->predecessors[index];node.position.line=function.source_line;node.position.column=function.source_column;
         struct Capture {std::string source,storage;Type type;bool reference;const Stmt* binding;};
         std::vector<Capture> captures;
         const auto add=[&](std::string source_name,std::string storage,Type type,bool reference,const Stmt* binding){

@@ -22,7 +22,14 @@
 namespace quidra::lowering {
 
 // The hidden Int locals holding the extents of each axis.
-using CapturedExtents = std::vector<std::optional<std::string>>;
+struct CapturedExtents : std::vector<std::optional<std::string>> {
+    using Values = std::vector<std::optional<std::string>>;
+    using Values::Values;
+    CapturedExtents() = default;
+    CapturedExtents(Values values) : Values(std::move(values)) {}
+    std::optional<std::size_t> ellipsis{};
+    void clear() { Values::clear(); ellipsis.reset(); }
+};
 
 class ShapeConstraintState {
 public:

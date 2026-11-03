@@ -296,18 +296,12 @@ QUI
 mkdir -p "$TMP/files/existing-directory"
 printf 'text' > "$TMP/files/plain.txt"
 prints file-causes "$(printf '%s\n' \
-    "cannot read \"$TMP/files/missing.txt\": file not found" \
-    "cannot read \"$TMP/files/existing-directory\": path is a directory" \
+    "cannot open \"$TMP/files/missing.txt\": file not found" \
+    "cannot open \"$TMP/files/existing-directory\": path is a directory" \
     "cannot create directory \"$TMP/files/existing-directory\": path already exists" \
     "cannot open for appending \"$TMP/files/existing-directory\": path is a directory" \
     "cannot copy \"$TMP/files/missing.txt\" to \"$TMP/files/copy.txt\": file not found" \
-    "cannot read the file handle: handle is closed" \
-    "cannot write the file handle: handle is not writable" \
-    "cannot seek in the file handle: I/O failure" \
-    "cannot read \"\": file not found")" <<QUI
-file.Handle try_open(string path)
-    file.Handle handle = file.open(path)
-    return handle
+    "cannot open \"\": file not found")" <<QUI
 
 void show(void | error result)
     match result
@@ -317,48 +311,34 @@ void show(void | error result)
             print(problem)
             print(NL)
 match file.read("$TMP/files/missing.txt")
-    string text
-        print(text)
+    file.read stream
+        print("opened")
     error problem
         print(problem)
         print(NL)
 match file.read("$TMP/files/existing-directory")
-    string text
-        print(text)
+    file.read stream
+        print("opened")
     error problem
         print(problem)
         print(NL)
 show(file.mkdir("$TMP/files/existing-directory"))
 match file.append("$TMP/files/existing-directory")
-    file.Handle handle
+    file.append writer
         print("opened" + NL)
     error problem
         print(problem)
         print(NL)
 show(file.copy("$TMP/files/missing.txt", "$TMP/files/copy.txt"))
-file.Handle reader = try_open("$TMP/files/plain.txt")
-file.Handle closed = reader
-.closed.close()
-match .closed.read()
-    string text
-        print(text)
-    error problem
-        print(problem)
-        print(NL)
-show(.reader.write("x"))
-show(.reader.seek(100))
 match file.read("")
-    string text
-        print(text)
+    file.read stream
+        print("opened")
     error problem
         print(problem)
         print(NL)
 QUI
-details file-details "{\"code\": \"FILE_READ\", \"details\": {\"path\": \"$TMP/files/missing.txt\", \"reason\": \"NOT_FOUND\"}}" <<QUI
-string text = file.read("$TMP/files/missing.txt")
-QUI
-details file-open-details "{\"code\": \"FILE_OPEN\", \"details\": {\"path\": \"$TMP/files/missing.txt\", \"mode\": \"READ\", \"reason\": \"NOT_FOUND\"}}" <<QUI
-file.Handle handle = file.open("$TMP/files/missing.txt")
+details file-details "{\"code\": \"FILE_OPEN\", \"details\": {\"path\": \"$TMP/files/missing.txt\", \"mode\": \"READ\", \"reason\": \"NOT_FOUND\"}}" <<QUI
+file.read reader = file.read("$TMP/files/missing.txt")
 QUI
 
 # --- The parts of an error: code, message, cause and the details by name;
@@ -468,7 +448,7 @@ QUI
 prints file-equality "$(printf 'true\nfalse')" <<QUI
 error | none read_error(string path)
     match file.read(path)
-        string text
+        file.read stream
             return none
         error problem
             return problem

@@ -1,5 +1,7 @@
 #include "platform/file_identity.hpp"
 
+#include <limits>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -9,6 +11,20 @@
 namespace quidra::platform {
 
 #ifdef _WIN32
+
+namespace {
+// Windows FILETIME counts 100ns ticks from 1601. Scaling that absolute
+// epoch directly into signed nanoseconds overflows in the present day.
+// Convert to Unix-relative ticks first, and clamp out-of-range dates.
+std::int64_t filetime_unix_ns(const LARGE_INTEGER& timestamp) noexcept {
+    constexpr std::int64_t unix_epoch_ticks = 116444736000000000LL;
+    if (timestamp.QuadPart <= unix_epoch_ticks) return 0;
+    const auto unix_ticks = timestamp.QuadPart - unix_epoch_ticks;
+    constexpr auto limit = std::numeric_limits<std::int64_t>::max();
+    if (unix_ticks > limit / 100) return limit;
+    return unix_ticks * 100;
+}
+} // namespace
 
 std::optional<FileIdentity> file_identity(const std::filesystem::path& path) {
     const HANDLE handle = CreateFileW(
@@ -37,8 +53,8 @@ std::optional<FileIdentity> file_identity(const std::filesystem::path& path) {
     identity.file = low;
     identity.file_high = high;
     identity.size = static_cast<std::uint64_t>(size.QuadPart);
-    identity.modified_ns = basic.LastWriteTime.QuadPart * 100;
-    identity.changed_ns = basic.ChangeTime.QuadPart * 100;
+    identity.modified_ns = filetime_unix_ns(basic.LastWriteTime);
+    identity.changed_ns = filetime_unix_ns(basic.ChangeTime);
     return identity;
 }
 

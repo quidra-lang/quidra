@@ -351,7 +351,7 @@ print(total)
 check_scaling(
     "map removal and compaction",
     """int n = {n}
-map.Map<int, int> values = map.Map<int, int>()
+map<int, int> values
 for 0 <= int i < n
     .values.set(i, i)
 for 0 <= int i < n step 2

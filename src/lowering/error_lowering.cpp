@@ -26,8 +26,8 @@ ValueId ErrorLowering::lower_constructor(const Expr& e, const CallExpr& n) {
         else if (*argument.name == "cause") cause = argument.value.get();
         else if (*argument.name == "code") make.code = std::get<StringExpr>(argument.value->data).value;
     }
-    make.line = static_cast<std::uint32_t>(e.span.start.line);
-    make.column = static_cast<std::uint32_t>(e.span.start.column);
+    make.position.line = static_cast<std::uint32_t>(e.span.start.line);
+    make.position.column = static_cast<std::uint32_t>(e.span.start.column);
     ValueId text = 0;
     if (const auto* literal = std::get_if<StringExpr>(&message->data)) {
         make.details.push_back(ErrorDetailOperand{std::nullopt, literal->value, false});
@@ -175,7 +175,7 @@ ValueId ErrorLowering::hop(ValueId container, const Type& container_type,
     }
     const auto out = builder_.fresh();
     builder_.emit(ErrorHop{out, container, container_type, call.name,
-                           static_cast<std::uint32_t>(kind), call.line, call.column, callee});
+                           static_cast<std::uint32_t>(kind), {call.line, call.column}, callee});
     return out;
 }
 

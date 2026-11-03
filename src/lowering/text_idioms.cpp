@@ -221,6 +221,8 @@ bool TextIdioms::lower_split_parse_pair(
         split_parse_call(*right_binding, split_binding->name, 1);
     if (!left_parse || !right_parse) return false;
 
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, split_statement)});
     builder_.emit(locator_.locate(split_statement.span, builder_.function()));
 
     const auto fields_local =
@@ -384,6 +386,8 @@ bool TextIdioms::lower_string_build_append_quad(
         scope_.bind_source_local(builder_,array_binding->name, array_type);
     const auto line_local =
         scope_.bind_source_local(builder_,line_binding->name, line_type);
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, array_statement)});
     builder_.emit(locator_.locate(array_statement.span, builder_.function()));
     builder_.emit(DeclareLocal{
         fields_local, array_type, array_binding->name,
@@ -485,12 +489,16 @@ bool TextIdioms::lower_string_array_join_pair(
     for (const auto& element : array->elements)
         if (!string_build_element_supported(*element)) return false;
 
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, array_statement)});
     builder_.emit(locator_.locate(array_statement.span, builder_.function()));
     std::vector<StringBuildPart> parts;
     parts.reserve(array->elements.size());
     for (const auto& element : array->elements)
         parts.push_back(lower_string_build_element(*element));
 
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, join_statement)});
     builder_.emit(locator_.locate(join_statement.span, builder_.function()));
     auto separator = lowerer_.lower(*join->args[0].value);
     auto built = builder_.fresh();
@@ -568,6 +576,8 @@ bool TextIdioms::lower_bound_string_split_for_pair(
         type_of(checked_, *split->receiver).kind != TypeKind::String)
         return false;
 
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, binding_statement)});
     builder_.emit(locator_.locate(binding_statement.span, builder_.function()));
 
     auto text = lowerer_.lower(*split->receiver);
@@ -855,8 +865,8 @@ bool TextIdioms::lower_utf8_array_match(const MatchStmt& match) {
     auto error_value = builder_.fresh();
     builder_.emit(
         StringFromUtf8ArrayDirect{text, ok, error_value, array,
-                                  static_cast<std::uint32_t>(match.value->span.start.line),
-                                  static_cast<std::uint32_t>(match.value->span.start.column)});
+                                  {static_cast<std::uint32_t>(match.value->span.start.line),
+                                  static_cast<std::uint32_t>(match.value->span.start.column)}});
 
     const auto value_label = builder_.label("utf8.array.value");
     const auto error_label = builder_.label("utf8.array.error");
@@ -949,8 +959,8 @@ bool TextIdioms::lower_numeric_parse_match(const MatchStmt& match) {
     auto error_value = builder_.fresh();
     builder_.emit(ParseNumberDirect{
         parsed, ok, error_value, text, *target,
-        static_cast<std::uint32_t>(match.value->span.start.line),
-        static_cast<std::uint32_t>(match.value->span.start.column)});
+        {static_cast<std::uint32_t>(match.value->span.start.line),
+        static_cast<std::uint32_t>(match.value->span.start.column)}});
     lifetime_.release_temporary(*call->args[0].value, text);
 
     const auto value_label = builder_.label("parse.match.value");

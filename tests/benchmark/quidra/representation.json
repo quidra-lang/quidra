@@ -13,13 +13,13 @@
     "direct_character_access": "yes: text[index] returns a one-code-point string and .codepoints() returns the scalar sequence"
   },
   "file_io": {
-    "writer": "file.create(path) -> file.Handle, then Handle.write(text) per line, Handle.flush(), Handle.close()",
-    "reader": "file.open(path) -> file.Handle, then Handle.read_line() -> string | none | error until none",
-    "incremental": "true - the handle API writes and reads incrementally; the runtime's handle buffering is not user-configurable, so the frozen 65536-byte buffer size cannot be requested and the language's own buffering is what is measured (recorded here as required by micro.md section 4.12(c))"
+    "writer": "file.write writer(path) creates a file.write stream; .writer(text) writes each line and the stream closes at the end of the write_round function",
+    "reader": "file.read reader(path) creates a file.read stream; while .reader(string &line) yields one line (bool | error) until EOF",
+    "incremental": "true - the file.write and file.read operators perform incremental I/O; the runtime buffering is not configurable, so the frozen 65536-byte buffer size cannot be requested and language-provided buffering is measured (per micro.md section 4.12(c))"
   },
   "collections": {
-    "map": "map.Map<int, int> - the standard insertion-ordered open-addressing map; default construction, get(k) -> int | none, set, has, remove, keys(), values()",
-    "set": "set.Set<int> - the standard insertion-ordered set; default construction",
+    "map": "map<int, int> - the standard insertion-ordered open-addressing map; empty bare declaration, get(k) -> int | none, set, has, remove, keys(), values()",
+    "set": "distinct<int> - the standard insertion-ordered unique-value collection; a bare declaration creates an empty collection",
     "growable_array": "int[] with values = values.append(value)",
     "allocator": "the language's ordinary managed value storage; no allocator choice exists"
   },
@@ -34,7 +34,7 @@
     "repo/docs/spec/language.md#Text and dynamic array operations",
     "repo/docs/spec/language.md#file",
     "repo/docs/spec/language.md#map",
-    "repo/docs/spec/language.md#set",
+    "repo/docs/spec/language.md#distinct",
     "repo/docs/spec/language.md#time",
     "repo/docs/spec/language.md#Native execution cost model",
     "repo/docs/spec/numeric-and-bin.md#Built-in scalar types",

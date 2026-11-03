@@ -19,7 +19,7 @@ void ControlFlowEmitter::emit(const ir::Exit& n,const ir::Instruction&){
 }
 
 void ControlFlowEmitter::emit(const ir::FailError& n,const ir::Instruction&){
-    builder_.call(runtime_abi::failure::fail_error,{{ptr,symbols_.value(n.error)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::failure::fail_error,{{ptr,symbols_.value(n.error)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     builder_.unreachable();
 }
 

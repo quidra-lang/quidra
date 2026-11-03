@@ -13,6 +13,7 @@
 #include "ieee_decimal.hpp"
 #include "quidra/types.hpp"
 
+#include <limits>
 #include <optional>
 #include <string_view>
 
@@ -39,8 +40,12 @@ inline std::optional<ieee_decimal::Format> ieee_format(const Type& type) {
 // `spelling` is not decimal text.
 inline std::optional<double> real_literal_value(std::string_view spelling, const Type& type) {
     const auto format = ieee_format(type);
+    if (!format) return std::nullopt;
+    if (spelling == "inf" || spelling == "+inf")
+        return std::numeric_limits<double>::infinity();
+    if (spelling == "-inf") return -std::numeric_limits<double>::infinity();
     ieee_decimal::Decimal decimal;
-    if (!format || !ieee_decimal::parse(spelling, decimal)) return std::nullopt;
+    if (!ieee_decimal::parse(spelling, decimal)) return std::nullopt;
     const auto rounded = ieee_decimal::round(decimal, *format);
     if (rounded.overflow) return std::nullopt;
     return ieee_decimal::binary64_value(rounded, *format);

@@ -232,6 +232,10 @@ bool tensor_unified_relocate(TensorStorage& storage) {
         } catch (...) {
             return false;
         }
+        if (bytes != 0) {
+            quidra::counters::add(quidra::counters::Id::HostTensorAllocations);
+            quidra::counters::add(quidra::counters::Id::HostTensorAllocationBytes, bytes);
+        }
         std::memcpy(fresh.data(), block->host, bytes);
         storage.data = std::move(fresh);
     } else {

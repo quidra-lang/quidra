@@ -31,7 +31,16 @@ PrivateDirectory refused(std::string reason) {
 }
 
 std::string quoted(const fs::path& path) {
+#ifdef _WIN32
+    // Windows filesystem paths are UTF-16. A locale-dependent conversion
+    // with path.string() can throw before a refused cache path is reported.
+    // Diagnostics use UTF-8, including for a Unicode path which names a file
+    // rather than a directory.
+    const auto utf8 = path.u8string();
+    return "'" + std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size()) + "'";
+#else
     return "'" + path.string() + "'";
+#endif
 }
 
 // A name for a temporary sibling of `path` that no other writer picks.

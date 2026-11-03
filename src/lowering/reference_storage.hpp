@@ -1,12 +1,14 @@
 #pragma once
 
 #include "ir/function_builder.hpp"
+#include "quidra/ir/visit.hpp"
 #include "lowering/ownership_expansion.hpp"
 #include "semantics/effect_summary.hpp"
 
 #include <algorithm>
 #include <map>
 #include <set>
+#include <functional>
 
 namespace quidra::lowering {
 
@@ -34,7 +36,8 @@ inline bool contains_reference_fields(const ir::Module& module,const Type& type)
 // Address provenance is materialized only for bindings, stores and calls
 // that require a root. Reads retain the ordinary address-only representation.
 inline void place_reference_storage(ir::Module& module, const CheckedProgram& checked,
-                                    ir::LoweringOptions options) {
+                                    ir::LoweringOptions options,
+    const std::function<void(const std::string&,const std::vector<std::vector<std::size_t>>&,const std::set<std::string>&)>& observe={}) {
     if (!checked.effects) return;
     const auto token_type = Type::simple(TypeKind::Int64);
     const bool reference_fields = std::any_of(module.classes.begin(),module.classes.end(),[](const auto& layout){return !layout.reference_fields.empty();});
@@ -68,15 +71,23 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
                 if (const auto* address=std::get_if<ir::AddressLocal>(&instruction)) names.insert(address->name);
         struct Box { std::string local; Type type; ir::ValueId object{}, serial{}; };
         std::map<std::string,Box> boxes;
-        ir::ValueId next=1;
+        std::uint64_t next=function.next_value;
         std::map<ir::ValueId,const ir::Instruction*> definitions;
-        for (const auto& block : function.blocks) for (const auto& instruction : block.instructions)
+        struct Definitions final : ir::OperandVisitor {
+            explicit Definitions(std::map<ir::ValueId,const ir::Instruction*>& values) : values(values) {}
+            void definition(ir::ValueId value) override { values.emplace(value,instruction); }
+            std::map<ir::ValueId,const ir::Instruction*>& values;
+            const ir::Instruction* instruction{};
+        } definition_visitor(definitions);
+        for (const auto& block : function.blocks) for (const auto& instruction : block.instructions) {
+            definition_visitor.instruction=&instruction;
+            ir::visit_operands(instruction,definition_visitor);
             std::visit([&](const auto& node) {
-                if constexpr (requires{node.out;}) {next=std::max(next,node.out+1);definitions.emplace(node.out,&instruction);}
                 if constexpr (requires{node.source_name;node.name;node.type;})
                     if (names.contains(node.source_name) || names.contains(node.name))
                         boxes.try_emplace(node.name,Box{"$box."+node.name,node.type});
             },instruction);
+        }
         std::map<ir::ValueId,Type> value_types;
         for(const auto& [value,definition]:definitions)std::visit([&](const auto& n) {
             if constexpr(requires{n.type;})value_types.emplace(value,n.type);
@@ -185,9 +196,14 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
             builder.emit(ir::DeclareLocal{"$root."+name,token_type,{},0,0});
             builder.emit(ir::StoreLocal{"$root."+name,zero,token_type});
         }
-        for(const auto& instruction:entry.blocks.front().instructions)std::visit([&](const auto& n){if constexpr(requires{n.out;})next=std::max(next,n.out+1);},instruction);
+        builder.finish();
+        next=entry.next_value;
         const auto root=[&](ir::ValueId value){const auto found=roots.find(value);return found==roots.end()?zero:found->second;};
+        std::vector<std::vector<std::size_t>> boundary_maps;
         for(auto& block:function.blocks) {
+            boundary_maps.emplace_back(block.instructions.size()+1,0);
+            auto& boundary_map=boundary_maps.back();
+            std::size_t old_index=0;
             ir::Function rewritten;rewritten.blocks.push_back(ir::Block{block.label,{}});
             ir::FunctionBuilder out(rewritten,next,0,0);out.enter(rewritten.blocks.front());
             ir::SourceLocation site;
@@ -200,9 +216,13 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
             };
             const auto check_store=[&](ir::ValueId value,const Type& type,ir::ValueId destination,std::string path) {
                 if(destination!=zero && contains_reference_fields(module,type))
-                    out.emit(ir::StoredTargetsCheck{value,type,destination,std::move(path),site.line,site.column});
+                    out.emit(ir::StoredTargetsCheck{value,type,destination,std::move(path),site.position});
             };
             for(const auto& instruction:block.instructions) {
+                struct BoundaryCapture {
+                    std::vector<std::size_t>& map;std::size_t index;const ir::FunctionBuilder& out;
+                    ~BoundaryCapture()noexcept{map[index+1]=out.block()->instructions.size();}
+                } capture{boundary_map,old_index++,out};
                 if(const auto* location=std::get_if<ir::SourceLocation>(&instruction))site=*location;
                 if(std::holds_alternative<ir::Return>(instruction) || std::holds_alternative<ir::ReturnVoid>(instruction)) {
                     for(auto box=boxes.rbegin();box!=boxes.rend();++box) {
@@ -213,7 +233,7 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
                 }
                 if(const auto* bind=std::get_if<ir::BindFieldReference>(&instruction)) {
                     const auto holder=root(bind->object),target=root(bind->address);
-                    if(holder!=zero && target!=zero)out.emit(ir::SelfReferenceCheck{holder,target,path(bind->object)+"."+field_name(bind->object,bind->index),path(bind->address),site.line,site.column});
+                    if(holder!=zero && target!=zero)out.emit(ir::SelfReferenceCheck{holder,target,path(bind->object)+"."+field_name(bind->object,bind->index),path(bind->address),site.position});
                     auto stored=*bind;stored.root=target;out.emit(stored);continue;
                 }
                 if(const auto* call=std::get_if<ir::Call>(&instruction);call && signatures.contains(call->callee)) {
@@ -262,11 +282,19 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
                     }
                 },instruction);
             }
+            out.finish();
+            next=rewritten.next_value;
             block.instructions=std::move(rewritten.blocks.front().instructions);
-            for(const auto& instruction:block.instructions)std::visit([&](const auto& n){if constexpr(requires{n.out;})next=std::max(next,n.out+1);},instruction);
         }
         auto& instructions=function.blocks.front().instructions;
         instructions.insert(instructions.begin(),entry.blocks.front().instructions.begin(),entry.blocks.front().instructions.end());
+        function.next_value=next;
+        if(observe) {
+            for(auto& boundary:boundary_maps.front())boundary+=entry.blocks.front().instructions.size();
+            std::set<std::string> removed;
+            for(const auto& [name,box]:boxes){(void)box;removed.insert(name);}
+            observe(function.name,boundary_maps,removed);
+        }
     }
 }
 

@@ -1,12 +1,9 @@
-// Textual value uses (textual_uses.hpp).
+// Typed value uses (textual_uses.hpp keeps the existing helper names).
 #include "optimizer/textual_uses.hpp"
 
-#include "ir/instruction_text.hpp"
+#include "quidra/ir/visit.hpp"
 
-#include <algorithm>
-#include <cstdint>
 #include <limits>
-#include <string>
 
 namespace quidra::optimizer {
 
@@ -15,22 +12,16 @@ using ir::Function;
 using ir::Instruction;
 using ir::Release;
 using ir::ValueId;
-using ir::instruction_text;
 
 bool instruction_mentions_value(const Instruction& instruction, ValueId value) {
-    const auto rendered = instruction_text(instruction);
-    const auto token = "%" + std::to_string(value);
-    std::size_t position = 0;
-    while ((position = rendered.find(token, position)) !=
-           std::string::npos) {
-        const auto end = position + token.size();
-        if (end == rendered.size() ||
-            rendered[end] < '0' || rendered[end] > '9') {
-            return true;
-        }
-        position = end;
-    }
-    return false;
+    struct FindUse final : ir::OperandVisitor {
+        explicit FindUse(ValueId sought) : sought(sought) {}
+        void use(ValueId value) override { found = found || value == sought; }
+        ValueId sought;
+        bool found{};
+    } visitor(value);
+    ir::visit_operands(instruction, visitor);
+    return visitor.found;
 }
 
 bool has_later_or_cross_block_use(const Function& function, const Instruction* current,
@@ -80,40 +71,9 @@ bool has_later_or_cross_block_use(const Function& function, const Instruction* c
 }
 
 std::optional<ValueId> next_rewrite_value(const Function& function) {
-    std::uint64_t maximum = 0;
-    for (const auto& block : function.blocks) {
-        for (const auto& instruction : block.instructions) {
-            const auto rendered = instruction_text(instruction);
-            std::size_t position = 0;
-            while ((position = rendered.find('%', position)) !=
-                   std::string::npos) {
-                std::size_t cursor = position + 1;
-                if (cursor >= rendered.size() ||
-                    rendered[cursor] < '0' ||
-                    rendered[cursor] > '9') {
-                    position = cursor;
-                    continue;
-                }
-                std::uint64_t parsed = 0;
-                while (cursor < rendered.size() &&
-                       rendered[cursor] >= '0' &&
-                       rendered[cursor] <= '9') {
-                    parsed =
-                        parsed * 10 +
-                        static_cast<std::uint64_t>(
-                            rendered[cursor] - '0');
-                    ++cursor;
-                }
-                maximum = std::max(maximum, parsed);
-                position = cursor;
-            }
-        }
-    }
-    if (maximum >=
-        std::numeric_limits<ValueId>::max()) {
+    if (function.next_value == 0 || function.next_value > std::numeric_limits<ValueId>::max())
         return std::nullopt;
-    }
-    return static_cast<ValueId>(maximum + 1);
+    return static_cast<ValueId>(function.next_value);
 }
 
 } // namespace quidra::optimizer

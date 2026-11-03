@@ -48,11 +48,18 @@ print(result.started)
 print(NL)
 print(result.status == 0)
 print(NL)
-auto | error loaded = file.read(output_path)
-match loaded
-    string value
-        print(value == "shell-ok")
-        print(NL)
+auto | error opened = file.read(output_path)
+match opened
+    file.read reader
+        string value = ""
+        bool | error loaded = .reader(&value)
+        match loaded
+            bool ok
+                print(ok and value == "shell-ok")
+                print(NL)
+            error problem
+                print(false)
+                print(NL)
     error problem
         print(false)
         print(NL)

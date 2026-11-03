@@ -6,6 +6,7 @@
 #include "ir/function_builder.hpp"
 #include "lowering/ir_names.hpp"
 #include "lowering/local_scope.hpp"
+#include "semantics/storage_path.hpp"
 #include <functional>
 #include <string>
 #include <unordered_set>
@@ -51,10 +52,15 @@ private:
         ValueId object,const Type& type,const Type& target,
         ValueId prefix,bool prefix_empty,const std::string& destination,
         std::unordered_set<std::string>& active);
+    struct CollectionCapture {
+        std::vector<std::vector<semantics::PathStep>> paths;
+        bool complete{true};
+    };
     void collect_reflected_values(
         ValueId object,const Type& type,const Type& target,
         const std::string& destination,
-        std::unordered_set<std::string>& active);
+        std::unordered_set<std::string>& active,CollectionCapture* capture=nullptr,
+        std::vector<semantics::PathStep> path={});
 
     Lowerer& lowerer_;
     const CheckedProgram& checked_;

@@ -108,7 +108,7 @@ inline ir::Module descriptor_tables_the_frontend_refuses() {
     user.result = Type::simple(TypeKind::Int64);
     user.blocks.push_back(Block{"entry", {}});
     auto& entry = user.blocks.back().instructions;
-    entry.push_back(TensorCreate{1, 90, std::nullopt, float32_tensor(), 1, 0, 0});
+    entry.push_back(TensorCreate{1, 90, std::nullopt, float32_tensor(), 1, {0, 0}});
     entry.push_back(call(2, "alias.first", {1}));
     entry.push_back(call(3, "alias.second", {2}));
     entry.push_back(ConstantInt{4, "0", Type::simple(TypeKind::Int64)});
@@ -190,11 +190,11 @@ inline ir::Module chain_rejections_no_source_program_reaches() {
     spread.result = float32_tensor();
     spread.blocks.push_back(
         Block{"entry",
-              {TensorBinary{3, "+", 1, 2, float32_tensor(), float32_tensor(), float32_tensor(), 0, 0},
+              {TensorBinary{3, "+", 1, 2, float32_tensor(), float32_tensor(), float32_tensor(), {0, 0}},
                Jump{"later"}}});
     spread.blocks.push_back(
         Block{"later",
-              {TensorBinary{4, "*", 3, 3, float32_tensor(), float32_tensor(), float32_tensor(), 0, 0},
+              {TensorBinary{4, "*", 3, 3, float32_tensor(), float32_tensor(), float32_tensor(), {0, 0}},
                Return{4, float32_tensor()}}});
     module.functions.push_back(std::move(spread));
     return module;
@@ -233,11 +233,11 @@ inline ir::Module conditional_rejections_no_source_program_reaches() {
     user.result = int_type;
     // The owned temporary is never released.
     user.blocks.push_back(Block{"unreleased",
-                                {TensorCreate{2, 1, std::nullopt, float32_tensor(), 1, 0, 0},
+                                {TensorCreate{2, 1, std::nullopt, float32_tensor(), 1, {0, 0}},
                                  call(3, "alias.first", {2}), Jump{"elsewhere"}}});
     // The owned temporary is released in the next block.
     user.blocks.push_back(Block{"elsewhere",
-                                {TensorCreate{12, 11, std::nullopt, float32_tensor(), 1, 0, 0},
+                                {TensorCreate{12, 11, std::nullopt, float32_tensor(), 1, {0, 0}},
                                  call(13, "alias.first", {12}), Jump{"release"}}});
     user.blocks.push_back(Block{"release", {Release{12, float32_tensor()}, Jump{"arity"}}});
     // alias.first takes one argument.
@@ -245,10 +245,10 @@ inline ir::Module conditional_rejections_no_source_program_reaches() {
     // The owned temporary is used again after the call, in its block and
     // in the next one: the call is not its last use.
     user.blocks.push_back(Block{"used_later",
-                                {TensorCreate{32, 31, std::nullopt, float32_tensor(), 1, 0, 0},
+                                {TensorCreate{32, 31, std::nullopt, float32_tensor(), 1, {0, 0}},
                                  call(33, "alias.first", {32}),
                                  Print{32, float32_tensor(), 34, int_type},
-                                 TensorCreate{42, 41, std::nullopt, float32_tensor(), 1, 0, 0},
+                                 TensorCreate{42, 41, std::nullopt, float32_tensor(), 1, {0, 0}},
                                  call(43, "alias.first", {42}), Jump{"used_elsewhere"}}});
     user.blocks.push_back(Block{"used_elsewhere",
                                 {Print{42, float32_tensor(), 44, int_type},
@@ -263,7 +263,7 @@ inline ir::Module conditional_rejections_no_source_program_reaches() {
     // value after the largest number in the function, which does not exist.
     numbered.blocks.push_back(Block{
         "entry",
-        {TensorCreate{2, 1, std::nullopt, float32_tensor(), 1, 0, 0}, call(3, "alias.second", {2}),
+        {TensorCreate{2, 1, std::nullopt, float32_tensor(), 1, {0, 0}}, call(3, "alias.second", {2}),
          Release{2, float32_tensor()},
          ConstantInt{std::numeric_limits<ValueId>::max(), "0", int_type},
          Return{std::numeric_limits<ValueId>::max(), int_type}}});

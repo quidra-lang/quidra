@@ -3,8 +3,7 @@ void replace(int[] &values, int count = 3)
 
 int[] data = []
 replace(&values = &data)
-print(data[2])
-print(NL)
+print.line(data[2])
 
 int choose(bool condition, int fallback = 20)
     int answer
@@ -14,5 +13,4 @@ int choose(bool condition, int fallback = 20)
         answer = fallback
     return answer
 
-print(choose(false))
-print(NL)
+print.line(choose(false))

@@ -9,6 +9,7 @@
 #include "lowering/ir_names.hpp"
 #include "lowering/local_scope.hpp"
 #include "lowering/check_elision_facts.hpp"
+#include "lowering/shape_constraint_state.hpp"
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -29,12 +30,12 @@ public:
           scope_(scope), proof_(checked, force_checks) {}
 
     // declared extents and their checks
-    std::vector<std::optional<std::string>> capture_extents(
+    CapturedExtents capture_extents(
         const std::vector<std::shared_ptr<Expr>>& expressions,
         std::string_view prefix);
     void emit_shaped_constraint(
         ValueId value, TypeKind kind,
-        const std::vector<std::optional<std::string>>& captured,
+        const CapturedExtents& captured,
         SourceSpan span, const Expr* expression = nullptr);
     void emit_array_constraints(
         ValueId array, const Type& array_type,
@@ -48,7 +49,7 @@ public:
     // Int locals that hold the extent the axis must have, per shape variable
     // the one that holds its value.
     struct BraceShape {
-        std::vector<std::optional<std::string>> extents;
+        CapturedExtents extents;
         std::vector<std::optional<std::string>> variables;
     };
     // Before the initializer: the expressions over no variable of the shape,
@@ -64,7 +65,7 @@ public:
     void finish_brace_shape(const ShapePlan& plan, BraceShape& shape,
                             std::optional<ValueId> value, TypeKind kind,
                             const std::string& subject, SourceSpan span, const Expr* expression = nullptr);
-    std::vector<std::vector<std::optional<std::string>>> capture_signature_shape(
+    std::vector<CapturedExtents> capture_signature_shape(
         const SignatureShapeUnit& unit, const ShapePlan& plan,
         const std::vector<ValueId>& parameters, SourceSpan span,
         const std::vector<ProvenShapeConstraints>* proofs = nullptr);
@@ -89,6 +90,8 @@ private:
     // array constraint goes deeper than `axis`
     std::unordered_set<std::string> prebound_variables_;
     ValueId extent_value(const Expr& expression);
+    ValueId shape_axis(ValueId dimensions, std::size_t axis, std::size_t explicit_rank,
+                       std::optional<std::size_t> ellipsis, SourceSpan span);
     std::vector<std::optional<ValueId>> load_captured_extents(
         const std::vector<std::optional<std::string>>& captured);
     bool deeper_array_constraint(

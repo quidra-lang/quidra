@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# No visible NaN or infinity: a fixed-width real operation whose result is not
-# finite stops the program (REAL_OVERFLOW, or DIVISION_BY_ZERO for a zero
-# divisor) at the operation; the first failing operation of an expression is
-# the one reported, with or without the merging of its checks; constant
-# expressions fail at compile time; parsing rejects non-finite text; finite
-# results are unchanged.
+# Signed infinity is valid, but NaN never becomes observable. The first
+# indeterminate operation reports NONFINITE_RESULT (DIVISION_BY_ZERO for
+# zero/zero), with or without merged checks. Constant expressions enforce
+# the same policy. Finite results and parsing range checks are unchanged.
 set -euo pipefail
 set -x
 QUIDRA="$1"
@@ -46,37 +44,37 @@ QUI
 
 # Each operation and type, at the operation's own location.
 cat > "$TMP/multiply.qui" <<'QUI'
-real64 big = 1.0e308
+real64 big = inf
 print("before")
-print(big * 10.0)
+print(big * 0.0)
 print("after")
 QUI
-fails multiply 101 REAL_OVERFLOW 'real64 multiplication overflow' '3:7'
+fails multiply 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:7'
 [[ "$(cat "$TMP/multiply.out")" == "before" ]]
 
 cat > "$TMP/add32.qui" <<'QUI'
-real32 big = real32(3.0e38)
-real32 sum = big + big
+real32 big = inf
+real32 sum = big + -big
 print(sum)
 QUI
-fails add32 101 REAL_OVERFLOW 'real32 addition overflow' '2:14'
+fails add32 101 NONFINITE_RESULT 'real32 addition produced NaN' '2:14'
 
 cat > "$TMP/subtract.qui" <<'QUI'
-real64 big = 1.0e308
-real64 low = -big - big
+real64 big = inf
+real64 low = big - big
 print(low)
 QUI
-fails subtract 101 REAL_OVERFLOW 'real64 subtraction overflow' '2:14'
+fails subtract 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:14'
 
 cat > "$TMP/divide_overflow.qui" <<'QUI'
-real64 big = 1.0e308
-real64 small = 1.0e-10
+real64 big = inf
+real64 small = inf
 print(big / small)
 QUI
-fails divide_overflow 101 REAL_OVERFLOW 'real64 division overflow' '3:7'
+fails divide_overflow 101 NONFINITE_RESULT 'real64 division produced NaN' '3:7'
 
 cat > "$TMP/divide_zero.qui" <<'QUI'
-real32 one = 1.0
+real32 one = 0.0
 real32 zero = 0.0
 print(one / zero)
 QUI
@@ -94,39 +92,38 @@ real64 ten = 10.0
 real64 exponent = 400.0
 print(ten ^ exponent)
 QUI
-fails power 101 REAL_OVERFLOW 'real64 power overflow' '3:7'
+[[ "$("$QUIDRA" run "$TMP/power.qui")" == "inf" ]]
 
 cat > "$TMP/compound.qui" <<'QUI'
-real64 value = 1.0e300
-value *= 1.0e10
+real64 value = inf
+value *= 0.0
 print(value)
 QUI
-fails compound 101 REAL_OVERFLOW 'real64 multiplication overflow' '2:1'
+fails compound 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:1'
 
-# Two overflowing operands in one expression: the earlier one is reported,
-# at its own location; a finite operand whose consumer overflows reports the
-# consumer.
+# Two indeterminate operands: the earlier operation is reported at its own
+# location. Valid infinite operands whose consumer makes NaN report the consumer.
 cat > "$TMP/first.qui" <<'QUI'
-real64 big = 1.0e308
-real64 r = big * 2.0 - big * 3.0
+real64 big = inf
+real64 r = big * 0.0 - big * 0.0
 print(r)
 QUI
-fails first 101 REAL_OVERFLOW 'real64 multiplication overflow' '2:12'
+fails first 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:12'
 
 cat > "$TMP/second.qui" <<'QUI'
-real64 big = 1.0e308
+real64 big = inf
 real64 one = 1.0
-real64 r = one * 2.0 - big * 3.0
+real64 r = one * 2.0 - big * 0.0
 print(r)
 QUI
-fails second 101 REAL_OVERFLOW 'real64 multiplication overflow' '3:24'
+fails second 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:24'
 
 cat > "$TMP/consumer.qui" <<'QUI'
-real64 big = 1.0e308
-real64 r = big * 1.5 + big * 1.5
+real64 big = inf
+real64 r = big * 1.5 - big * 1.5
 print(r)
 QUI
-fails consumer 101 REAL_OVERFLOW 'real64 addition overflow' '2:12'
+fails consumer 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:12'
 
 # The checks of one expression merge into one hot-path test; the loop with
 # one checked addition and a fixed-width counter keeps a flag and tests it
@@ -136,7 +133,7 @@ real64 sum(real64 a, real64 b, real64 c)
     return a * b + c
 
 real64 total(real64 step)
-    real64 s = 0.0
+    real64 s = -inf
     for 0 <= nat8 i < 4
         s = s + step
     return s
@@ -145,42 +142,53 @@ print(sum(1.0, 2.0, 3.0))
 print(NL)
 print(total(0.5))
 print(NL)
-print(total(1.0e308))
+print(total(inf))
 print(NL)
 QUI
 "$QUIDRA" ir "$TMP/merged.qui" >"$TMP/merged.ir"
 grep -q 'finite.check %[0-9]* (+ %[0-9]*, %[0-9]*) covers %[0-9]* (\* %[0-9]*, %[0-9]*)' "$TMP/merged.ir"
 grep -q 'finite.flag \$finite.flag.[0-9]*, %[0-9]* (+ ' "$TMP/merged.ir"
 grep -q 'finite.flag.check \$finite.flag.[0-9]* (+)' "$TMP/merged.ir"
-fails merged 101 REAL_OVERFLOW 'real64 addition overflow' '7:13'
-[[ "$(cat "$TMP/merged.out")" == "$(printf '5.0\n2.0')" ]]
+fails merged 101 NONFINITE_RESULT 'real64 addition produced NaN' '7:13'
+[[ "$(cat "$TMP/merged.out")" == "$(printf '5.0\n-inf')" ]]
 
 # The machine report names the type and the operation.
 QUIDRA_ERROR_FORMAT=json "$QUIDRA" run "$TMP/multiply.qui" >"$TMP/json.out" 2>"$TMP/json.err" || true
-grep -q '"code": "REAL_OVERFLOW"' "$TMP/json.err"
+grep -q '"code": "NONFINITE_RESULT"' "$TMP/json.err"
 grep -q '"details": {"type": "real64", "operation": "multiplication"}' "$TMP/json.err"
 QUIDRA_ERROR_FORMAT=json "$QUIDRA" run "$TMP/divide_zero.qui" >"$TMP/json.out" 2>"$TMP/json.err" || true
 grep -q '"code": "DIVISION_BY_ZERO"' "$TMP/json.err"
 grep -q '"details": {"type": "real32"}' "$TMP/json.err"
 
-# Constant expressions are computed in their type at compile time.
-cat > "$TMP/constant.qui" <<'QUI'
+# Constant overflow/division obey the same infinity policy as runtime values.
+cat > "$TMP/constant_infinity.qui" <<'QUI'
 real64 a = 1.0e308 * 10.0
 real32 b = 3.0e38 + 3.0e38
 real64 c = 1.0 / 0.0
 real64 d = 1.0e308 * 2.5 / 10.0
 real64 fine = 1.0e300 * 10.0
+print("{a} {b} {c} {d} {fine}")
+QUI
+[[ "$("$QUIDRA" run "$TMP/constant_infinity.qui")" == "inf inf inf inf 1.0e+301" ]]
+
+# A constant NaN, including one hidden by a later power to zero, is rejected.
+cat > "$TMP/constant.qui" <<'QUI'
+real64 a = (1.0 / 0.0) - (1.0 / 0.0)
+real32 b = (1.0 / 0.0) * 0.0
+real64 c = 0.0 / 0.0
+real64 d = ((1.0 / 0.0) - (1.0 / 0.0)) ^ 0.0
+real64 fine = 1.0e300 * 10.0
 QUI
 rc=0
 "$QUIDRA" check "$TMP/constant.qui" >"$TMP/constant.out" 2>&1 || rc=$?
 [[ "$rc" -ne 0 ]]
-grep -q '1:12: error\[REAL_RANGE\] Constant real64 expression overflows: 1.0e308 \* 10.0.' "$TMP/constant.out"
-grep -q '2:12: error\[REAL_RANGE\] Constant real32 expression overflows: 3.0e38 + 3.0e38.' "$TMP/constant.out"
-grep -q '3:18: error\[DIVIDE_BY_ZERO\] Real division by zero is known at compile time.' "$TMP/constant.out"
-grep -q '4:12: error\[REAL_RANGE\] Constant real64 expression overflows: 1.0e308 \* 2.5.' "$TMP/constant.out"
+grep -q '1:.*error\[REAL_RANGE\] Constant real64 expression produces NaN:' "$TMP/constant.out"
+grep -q '2:.*error\[REAL_RANGE\] Constant real32 expression produces NaN:' "$TMP/constant.out"
+grep -q '3:.*error\[DIVIDE_BY_ZERO\] Indeterminate real division 0 / 0 is known at compile time.' "$TMP/constant.out"
+grep -q '4:.*error\[REAL_RANGE\] Constant real64 expression produces NaN:' "$TMP/constant.out"
 [[ "$(grep -c 'error\[' "$TMP/constant.out")" -eq 4 ]]
 
-# Parsing never makes a non-finite value.
+# Parsing accepts signed infinity but rejects NaN and finite range overflow.
 cat > "$TMP/parse.qui" <<'QUI'
 string[] texts = ["nan", "inf", "-inf", "1.0e999", "-1.0e999", "1.5"]
 for auto text = texts[]
@@ -192,7 +200,7 @@ for auto text = texts[]
             print("error")
     print(NL)
 QUI
-[[ "$("$QUIDRA" run "$TMP/parse.qui")" == "$(printf 'error\nerror\nerror\nerror\nerror\n1.5')" ]]
+[[ "$("$QUIDRA" run "$TMP/parse.qui")" == "$(printf 'error\ninf\n-inf\nerror\nerror\n1.5')" ]]
 
 
 # Tensors: every element of a real tensor operation is tested; on the CPU the
@@ -202,17 +210,29 @@ tensor<real32> big = tensor.ones<real32>([3]) * real32(3.0e38)
 print(big[1].item())
 print(NL)
 tensor<real32> twice = big + big
-print("after")
+print(twice[1].item())
 QUI
-fails tensor_overflow 101 REAL_OVERFLOW 'tensor<real32> addition overflow' '4:24'
-[[ "$(cat "$TMP/tensor_overflow.out")" == "3.0e+38" ]]
+[[ "$("$QUIDRA" run "$TMP/tensor_overflow.qui")" == "$(printf '3.0e+38\ninf')" ]]
+cat > "$TMP/tensor_nan.qui" <<'QUI'
+tensor<real32> infinity = tensor.ones<real32>([3]) * real32(inf)
+print("before")
+tensor<real32> invalid = infinity - infinity
+QUI
+fails tensor_nan 101 NONFINITE_RESULT 'tensor<real32> subtraction produced NaN' '3:26'
+[[ "$(cat "$TMP/tensor_nan.out")" == "before" ]]
 
 cat > "$TMP/tensor_divide.qui" <<'QUI'
 tensor<real64> ones = tensor.ones<real64>([2, 2])
 tensor<real64> zeros = ones - ones
 tensor<real64> quotient = ones / zeros
+print(quotient[0, 0].item())
 QUI
-fails tensor_divide 101 DIVISION_BY_ZERO 'tensor<real64> division by zero' '3:27'
+[[ "$("$QUIDRA" run "$TMP/tensor_divide.qui")" == "inf" ]]
+cat > "$TMP/tensor_zero_zero.qui" <<'QUI'
+tensor<real64> zeros = tensor.zeros<real64>([2, 2])
+tensor<real64> quotient = zeros / zeros
+QUI
+fails tensor_zero_zero 101 DIVISION_BY_ZERO 'tensor<real64> division by zero' '2:27'
 
 cat > "$TMP/tensor_power.qui" <<'QUI'
 tensor<real32> zeros = tensor.zeros<real32>([2])
@@ -243,10 +263,9 @@ tensor<real32> z = tensor.ones<real32>([1]) / w
 print("{z.untrack()[0].item() > real32(1.0e19)}")
 print(NL)
 z.backward(&w)
-print("after")
+print(w.grad[0].item())
 QUI
-fails gradient 101 REAL_OVERFLOW 'tensor<real32> gradient overflow' '5:1'
-[[ "$(cat "$TMP/gradient.out")" == "true" ]]
+[[ "$("$QUIDRA" run "$TMP/gradient.qui")" == "$(printf 'true\n-inf')" ]]
 
 # The results of finite tensor arithmetic are unchanged.
 cat > "$TMP/tensor_finite.qui" <<'QUI'
@@ -292,14 +311,14 @@ cat > "$TMP/packages/finite_pkg/native/bridge.cpp" <<'CPP'
 #include <limits>
 
 namespace {
-// Writes `value` into every element; the third element becomes +infinity
+// Writes `value` into every element; the third element becomes NaN
 // when `value` is negative, a value the package computed internally.
 int fill(void* output, float value) {
     auto* data = static_cast<float*>(qcore_tensor_cpu_data(output));
     if (!data) return 1;
     const auto count = qcore_tensor_element_count(output);
     for (unsigned long long i = 0; i < count; ++i) data[i] = value < 0.0F && i == 2
-        ? std::numeric_limits<float>::infinity() : value;
+        ? std::numeric_limits<float>::quiet_NaN() : value;
     return 0;
 }
 } // namespace
@@ -327,6 +346,12 @@ print("{a[2].item()} {b[2].item()} {c[2].item()}")
 print(NL)
 QUI
 [[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_ok.qui")" == "1.5 2.5 1.0" ]]
+cat > "$TMP/package_infinity.qui" <<'QUI'
+import finite_pkg
+tensor<real32> a = finite_pkg.fill(3, real32(inf))
+print(a[2].item())
+QUI
+[[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_infinity.qui")" == "inf" ]]
 cat > "$TMP/package_fallback.qui" <<'QUI'
 import finite_pkg
 print("before")
@@ -339,7 +364,7 @@ QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_fallback.qui" \
 [[ "$rc" -eq 101 ]]
 [[ "$(cat "$TMP/package_fallback.out")" == "before" ]]
 grep -q 'Quidra runtime error\[NONFINITE_RESULT\] at .*package_fallback.qui:3:1$' "$TMP/package_fallback.err"
-grep -q '| package operation .*fill_native produced a non-finite real32 value$' "$TMP/package_fallback.err"
+grep -q '| package operation .*fill_native produced a NaN real32 value$' "$TMP/package_fallback.err"
 cat > "$TMP/package_checked.qui" <<'QUI'
 import finite_pkg
 tensor<real32> a = finite_pkg.fill_checked(3, 1)
@@ -349,14 +374,14 @@ QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_checked.qui" \
     >"$TMP/package_checked.out" 2>"$TMP/package_checked.err" || rc=$?
 [[ "$rc" -eq 101 ]]
 grep -q 'Quidra runtime error\[NONFINITE_RESULT\] at .*package_checked.qui:2:1$' "$TMP/package_checked.err"
-grep -q '| package operation finite_pkg.fill_checked produced a non-finite real32 value$' "$TMP/package_checked.err"
+grep -q '| package operation finite_pkg.fill_checked produced a NaN real32 value$' "$TMP/package_checked.err"
 
 # Metal: the failure of a real kernel is deferred to the next synchronization
 # point and names the operation and the statement that queued it.
 if "$QUIDRA" gpu 2>/dev/null | grep -Fq "backend: Metal"; then
     cat > "$TMP/metal_overflow.qui" <<'QUI'
-tensor<real32> big = tensor.ones<real32>([4], gpu = 0) * real32(3.0e38)
-tensor<real32> twice = big * big
+tensor<real32> big = tensor.ones<real32>([4], gpu = 0) * real32(inf)
+tensor<real32> twice = big - big
 print("queued")
 print(NL)
 print(twice.cpu()[0].item())
@@ -365,7 +390,7 @@ QUI
     "$QUIDRA" run "$TMP/metal_overflow.qui" >"$TMP/metal_overflow.out" 2>"$TMP/metal_overflow.err" || rc=$?
     [[ "$rc" -eq 101 ]]
     [[ "$(cat "$TMP/metal_overflow.out")" == "queued" ]]
-    grep -Fq "tensor<real32> multiplication overflow (deferred GPU check from $TMP/metal_overflow.qui:2:" "$TMP/metal_overflow.err"
+    grep -Fq "tensor<real32> subtraction produced NaN (deferred GPU check from $TMP/metal_overflow.qui:2:" "$TMP/metal_overflow.err"
     cat > "$TMP/metal_finite.qui" <<'QUI'
 tensor<real32> ones = tensor.ones<real32>([4], gpu = 0)
 tensor<real32> twos = ones + ones

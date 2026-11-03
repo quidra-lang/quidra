@@ -10,8 +10,6 @@ int | error doubled(bool valid)
 auto | error r = doubled(true)
 match r
     int
-        print(r)
-        print(NL)
+        print.line(r)
     error
-        print(r)
-        print(NL)
+        print.line(r)

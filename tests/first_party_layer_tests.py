@@ -9,6 +9,9 @@ import sys
 
 LAYERS = {
     "math": 2,
+    "collections": 2,
+    "text": 2,
+    "encoding": 2,
     "nn": 3,
     "vision": 3,
     "video": 3,

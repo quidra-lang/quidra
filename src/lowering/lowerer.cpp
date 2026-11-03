@@ -64,6 +64,10 @@ Lowerer::Lowerer(
       collection_idioms_(*this, checked_, builder_, scope_, facts_),
       functions_(*this, checked_, module_, builder_, scope_, facts_,
           enclosing_class_, replay_, shapes_, borrows_, conversions_,
-          shape_constraints_, calls_) {}
+          shape_constraints_, calls_) {
+    scope_.binding_observer([this](const auto& storage,const auto& source) {
+        if(builder_.function())binding_origins_.local(*builder_.function(),storage,source);
+    });
+}
 
 } // namespace quidra::lowering

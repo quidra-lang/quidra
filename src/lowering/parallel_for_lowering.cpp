@@ -16,11 +16,11 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
     std::vector<LifetimeLowering::LoopSource> sources;
     ParallelBlock instruction;
     instruction.out=builder_.fresh();instruction.table_name=builder_.function()->name+"."+builder_.hidden("parallel.for.table");
-    instruction.line=static_cast<std::uint32_t>(loop.parallel_span.start.line);
-    instruction.column=static_cast<std::uint32_t>(loop.parallel_span.start.column);
+    instruction.position.line=static_cast<std::uint32_t>(loop.parallel_span.start.line);
+    instruction.position.column=static_cast<std::uint32_t>(loop.parallel_span.start.column);
     instruction.iterations.emplace();
     ParallelNode node;node.fallible=false;node.worker_safe=plan.worker_arithmetic;
-    node.line=instruction.line;node.column=instruction.column;
+    node.position.line=instruction.position.line;node.position.column=instruction.position.column;
     const auto capture=[&](std::string source,std::string storage,Type type,bool reference=false) {
         if(std::any_of(captures.begin(),captures.end(),[&](const auto& item){return item.storage==storage;}))return;
         captures.push_back({std::move(source),std::move(storage),std::move(type),reference});
@@ -39,11 +39,11 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
     const auto convert=[&](ValueId value,const Type& from,const Type& to,bool proven=false) {
         if(from==to)return value;
         auto out=builder_.fresh();builder_.emit(NumericConvert{out,value,from,to,false,
-            instruction.line,instruction.column,proven});return out;
+            instruction.position,proven});return out;
     };
     const auto binary=[&](std::string operation,ValueId a,ValueId b,const Type& operand,const Type& result) {
         auto value=builder_.fresh();builder_.emit(Binary{value,std::move(operation),a,b,operand,result,
-            instruction.line,instruction.column});
+            instruction.position.line,instruction.position.column});
         if(owns_managed(result))return load(hold(value,result,false,"parallel.for.calculation"),result);
         return value;
     };
@@ -65,7 +65,7 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
         auto step=loop.range->step?operand(*loop.range->step):constant(loop.range->descending?-1:1);
         const auto step_origin=loop.range->step?loop.range->step->span.start:loop.parallel_span.start;
         builder_.emit(ForStepCheck{step,loop.range->descending,
-            static_cast<std::uint32_t>(step_origin.line),static_cast<std::uint32_t>(step_origin.column)});
+            {static_cast<std::uint32_t>(step_origin.line),static_cast<std::uint32_t>(step_origin.column)}});
         step_slot=hold(step,integer,true,"parallel.for.step");
         auto first=loop.range->start_inclusive?start:binary("+",start,step,integer,integer);
         first_slot=hold(first,integer,true,"parallel.for.first");
@@ -125,14 +125,14 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
         auto count=snapshot(*loop.iterable,loop.name);
         std::vector<ValueId> lengths;
         for(const auto& extra:loop.collections)lengths.push_back(snapshot(*extra.iterable,extra.name));
-        for(const auto length:lengths)builder_.emit(ExtentEqualCheck{length,count,instruction.line,instruction.column,true});
+        for(const auto length:lengths)builder_.emit(ExtentEqualCheck{length,count,instruction.position,true});
         instruction.iterations->count=count;
     }
     // Empty ranges and collections finish after their common header checks;
     // they do not detach or validate output storage that no iteration writes.
     const auto dispatch=builder_.label("parallel.for.dispatch"),joined=builder_.label("parallel.for.joined");
     auto nonzero=builder_.fresh();builder_.emit(Binary{nonzero,"!=",instruction.iterations->count,
-        builder_.const_int(0),raw,boolean,instruction.line,instruction.column});
+        builder_.const_int(0),raw,boolean,instruction.position.line,instruction.position.column});
     builder_.emit(Branch{nonzero,dispatch,joined});builder_.enter(builder_.add_block(dispatch));
     for(const auto& name:plan.captures) {
         const auto storage=before.local_names.at(name);const auto type=before.locals.at(storage);
@@ -164,7 +164,7 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
     child.module_.classes=parent.module_.classes;child.module_.compiler_extensions=parent.module_.compiler_extensions;
     child.module_.user_sources=parent.module_.user_sources;child.enclosing_class_=parent.enclosing_class_;
     Function function;function.name="$par.for."+instruction.table_name;function.result=Type::simple(TypeKind::Void);
-    function.source_file=builder_.function()->source_file;function.source_line=instruction.line;function.source_column=instruction.column;
+    function.source_file=builder_.function()->source_file;function.source_line=instruction.position.line;function.source_column=instruction.position.column;
     function.parallel_node=ParallelNodeMetadata{function.name+".entry",{},false};node.function=function.name;
     for(std::size_t i=0;i<captures.size();++i) {
         const auto& cap=captures[i];function.parameters.push_back({cap.storage,cap.type,true,true,false});
@@ -188,8 +188,8 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
     }
     auto ordinal=child.builder_.fresh();child.builder_.emit(LoadLocal{ordinal,ordinal_name,word});
     const auto child_load=[&](const std::string& slot,const Type& type) {auto value=child.builder_.fresh();child.builder_.emit(LoadLocal{value,slot,type});return value;};
-    const auto child_convert=[&](ValueId value,const Type& from,const Type& to,bool proven=false) {if(from==to)return value;auto result=child.builder_.fresh();child.builder_.emit(NumericConvert{result,value,from,to,false,instruction.line,instruction.column,proven});return result;};
-    const auto child_binary=[&](std::string operation,ValueId a,ValueId b,const Type& type,bool proven=false) {auto result=child.builder_.fresh();child.builder_.emit(Binary{result,std::move(operation),a,b,type,type,instruction.line,instruction.column,proven});return result;};
+    const auto child_convert=[&](ValueId value,const Type& from,const Type& to,bool proven=false) {if(from==to)return value;auto result=child.builder_.fresh();child.builder_.emit(NumericConvert{result,value,from,to,false,instruction.position,proven});return result;};
+    const auto child_binary=[&](std::string operation,ValueId a,ValueId b,const Type& type,bool proven=false) {auto result=child.builder_.fresh();child.builder_.emit(Binary{result,std::move(operation),a,b,type,type,instruction.position.line,instruction.position.column,proven});return result;};
     if(loop.range && !loop.discards()) {
         const auto item=type_of(checked_,*loop.iterable);
         const auto visible=child.scope_.bind_source_local(child.builder_,loop.name,item);
@@ -209,7 +209,7 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
         const auto index=child_convert(ordinal,word,raw,true);
         for(const auto& collection:collections)if(collection.name!="_") {
             const auto item=*collection.type.first;const auto visible=child.scope_.bind_source_local(child.builder_,collection.name,item);
-            auto element=child.builder_.fresh();child.builder_.emit(ArrayGet{element,child_load(collection.source,collection.type),index,item,instruction.line,instruction.column,true,true});
+            auto element=child.builder_.fresh();child.builder_.emit(ArrayGet{element,child_load(collection.source,collection.type),index,item,instruction.position,true,true});
             // Managed scalar copies stay on the owner unless every element
             // has the inline representation proved before scheduling.
             element=child.lifetime_.copy_value(element,item);

@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 #include "quidra/types.hpp"
@@ -19,20 +20,19 @@ namespace quidra::ir {
 
 struct CallArgument { ValueId value; std::optional<ValueId> writable_address; };
 struct FunctionRef { ValueId out; std::string function; Type type; };
-struct IndirectCall { ValueId out; ValueId callee; std::vector<ValueId> args; std::vector<Type> parameter_types; Type result; std::uint32_t line{}; std::uint32_t column{}; };
+struct IndirectCall { ValueId out; ValueId callee; std::vector<ValueId> args; std::vector<Type> parameter_types; Type result; SourcePosition position{}; };
 struct Call {
     ValueId out;
     std::string callee;
     std::vector<CallArgument> args;
     Type result;
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
     bool no_normal_return{};
     bool shape_forwarder{};
 };
 
-template <> struct InstructionTraits<FunctionRef> : InDomain<Domain::call> {};
-template <> struct InstructionTraits<IndirectCall> : InDomain<Domain::call> {};
-template <> struct InstructionTraits<Call> : InDomain<Domain::call> {};
+template <> struct InstructionTraits<FunctionRef> : WithOperands<Domain::call, FunctionRef> {};
+template <> struct InstructionTraits<IndirectCall> : WithOperands<Domain::call, IndirectCall> {};
+template <> struct InstructionTraits<Call> : WithOperands<Domain::call, Call> {};
 
 } // namespace quidra::ir

@@ -684,6 +684,9 @@ void collect_drop_types(const ir::Module& module, std::map<std::string,Type>& ty
                                   std::is_same_v<T,ir::ArraySorted>) {
                         collect_drop_type(current.array_type, types, layouts);
                     }
+                    if constexpr (std::is_same_v<T,ir::ArraySortIndices>) {
+                        collect_drop_type(Type::array(Type::simple(TypeKind::Int64)), types, layouts);
+                    }
                     if constexpr (std::is_same_v<T,ir::TimeNow>) {
                         collect_drop_type(Type::class_type(standard_class::time_instant), types, layouts);
                     }
@@ -1069,7 +1072,12 @@ void begin_slice_plan(LlvmBuilder& b, const Type& array, std::string_view array_
     b.load("%first", i64, "%first.slot", Align::none);
     b.icmp("%descending", IntPredicate::eq, i32, "%direction",
            static_cast<int>(SliceDirection::descending));
-    b.select("%unit.step", "%descending", {i64, -1}, {i64, 1});
+    b.icmp("%by.bounds", IntPredicate::eq, i32, "%direction",
+           static_cast<int>(SliceDirection::by_bounds));
+    b.icmp("%bounds.descending", IntPredicate::sgt, i64, "%start", "%end");
+    b.binary("%inferred.descending", BinaryOp::and_, i1, "%by.bounds", "%bounds.descending");
+    b.binary("%resolved.descending", BinaryOp::or_, i1, "%descending", "%inferred.descending");
+    b.select("%unit.step", "%resolved.descending", {i64, -1}, {i64, 1});
     b.icmp("%stepped", IntPredicate::ne, i32, "%has.step", 0);
     b.select("%k", "%stepped", {i64, "%step"}, {i64, "%unit.step"});
 }

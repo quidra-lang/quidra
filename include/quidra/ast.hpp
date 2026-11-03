@@ -2,7 +2,9 @@
 #include "quidra/shape_extent.hpp"
 #include "quidra/diagnostic.hpp"
 #include "quidra/compiler_extension.hpp"
+#include "quidra/declaration_identity.hpp"
 #include "quidra/slice_form.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <map>
@@ -14,6 +16,7 @@
 #include <vector>
 
 namespace quidra {
+namespace semantics { struct InterfaceSources; }
 
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
@@ -47,11 +50,14 @@ struct TypeName {
     // evaluated once when the binding is created and then captured.
     std::vector<std::shared_ptr<Expr>> dimension_expressions;
     SourceSpan span{};
-    // tensor_shape_prefix stores a source-visible exact shape pattern for
-    // tensor values. Nonnegative entries are fixed extents and -1 is
+    // tensor_shape_prefix stores the explicit axes of a source shape pattern
+    // for tensor values. Nonnegative entries are fixed extents and -1 is
     // the '_' wildcard. tensor_rank and tensor_known_shape_prefix also carry
     // compiler-internal flow refinements.
     std::vector<long long> tensor_shape_prefix;
+    // The boundary between explicit leading and trailing axes when `...`
+    // accepts any number of intervening axes. No placeholder axis is stored.
+    std::optional<std::size_t> tensor_shape_ellipsis{};
     // Null means '_' for the corresponding axis. Non-null expressions are
     // evaluated once when a binding is created.
     std::vector<std::shared_ptr<Expr>> tensor_shape_expressions;
@@ -87,8 +93,14 @@ struct InterpolationFormat {
     std::optional<std::uint32_t> integer_width;
     std::optional<std::uint32_t> fractional_digits;
     std::optional<std::uint32_t> significant_digits;
+    std::optional<std::uint32_t> grouping;
+    std::optional<std::uint32_t> radix{};
+    bool uppercase{};
     bool zero{};
-    bool active() const { return integer_width || fractional_digits || significant_digits || zero; }
+    bool active() const {
+        return integer_width || fractional_digits || significant_digits || grouping ||
+               radix || uppercase || zero;
+    }
 };
 struct StringTemplateExpr {
     std::vector<std::string> literals;
@@ -250,8 +262,9 @@ struct AssignStmt { ExprPtr target; ExprPtr value; std::string compound_op; std:
 struct RebindStmt { std::string name; ExprPtr target; ExprPtr place; };
 struct ReturnStmt { ExprPtr value; };
 struct LoopControlStmt { bool is_continue{}; };
-struct ExprStmt { ExprPtr value; };
-struct IfStmt { ExprPtr condition; std::vector<StmtPtr> then_body; std::vector<StmtPtr> else_body; };
+struct ExprStmt { ExprPtr value; std::vector<StmtPtr> inline_bindings{}; };
+struct IfStmt { ExprPtr condition; std::vector<StmtPtr> then_body; std::vector<StmtPtr> else_body;
+    std::vector<StmtPtr> condition_bindings; };
 struct MainGuardStmt {
     std::vector<StmtPtr> body;
     bool active{true};
@@ -261,7 +274,8 @@ struct MainGuardStmt {
     std::string module_namespace{};
 };
 struct ParallelStmt { std::vector<StmtPtr> body; };
-struct WhileStmt { ExprPtr condition; std::vector<StmtPtr> body; };
+struct WhileStmt { ExprPtr condition; std::vector<StmtPtr> body;
+    std::vector<StmtPtr> condition_bindings; };
 // A range's start lives in ForStmt::iterable, so header visitors share the
 // same first operand as collection loops. The end and step are explicit
 // operands, never a synthetic call to the legacy range builtin.
@@ -319,7 +333,7 @@ struct Stmt {
     SourceSpan span{};
 };
 
-struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; };
+struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; bool is_extension{}; };
 // The `export "ABI"` prefix of a function declaration: the function is also
 // callable from C. `symbol` is the C symbol, the name as declared, which the
 // frontend records before it qualifies the name with the module namespace.
@@ -361,6 +375,7 @@ struct FunctionDecl {
     // `extern void .set(...)`. The function may change
     // existing state that its `&` parameters do not expose.
     bool mutation_marker{};
+    std::optional<DeclarationIdentity> declaration{};
 };
 
 struct FieldDecl {
@@ -448,6 +463,8 @@ struct Program {
     // The source offset of every mutation marker the parser accepted, on a
     // definition or a call, in source order (the formatter keeps them).
     std::vector<std::size_t> mutation_markers;
+    std::vector<DeclarationIdentity> declaration_catalog{};
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
 };
 
 struct ResolvedProgram {

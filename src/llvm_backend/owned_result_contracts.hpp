@@ -80,6 +80,8 @@ inline std::optional<NodeResultContract> node_result_contract(const ir::Instruct
             return result_contract(Type::array(*n.array_type.first),ResultOwner::owned,{},true);
         else if constexpr(std::is_same_v<N,ir::ArrayGrowMove> || std::is_same_v<N,ir::ArraySorted>)
             return result_contract(n.array_type,ResultOwner::owned,{},true);
+        else if constexpr(std::is_same_v<N,ir::ArraySortIndices>)
+            return result_contract(Type::array(Type::simple(TypeKind::Int64)),ResultOwner::owned,{},true);
         else if constexpr(std::is_same_v<N,ir::NumericConvert>)
             return result_contract(n.target_type,ResultOwner::owned,{},node_owns_value(n.source_type)||node_owns_value(n.target_type));
         else if constexpr(std::is_same_v<N,ir::Call> || std::is_same_v<N,ir::IndirectCall>)

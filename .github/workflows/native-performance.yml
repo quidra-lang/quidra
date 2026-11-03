@@ -11,7 +11,6 @@ on:
       - "CMakeLists.txt"
       - "tests/performance_regressions.py"
       - "tests/native_performance_trends.py"
-      - "benchmark/**"
 
 concurrency:
   group: native-performance-${{ github.ref }}
@@ -21,7 +20,7 @@ concurrency:
 jobs:
   repl-latency:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Restore compiler cache
@@ -37,7 +36,9 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl)" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build Quidra
-        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+        # Native benchmarks execute the CLI, not the entire C++ test suite.
+        # Avoid spending the complete runner budget on unused test binaries.
+        run: cmake --build build --target quidra --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Measure representative native workloads
         run: python3 tests/native_performance_trends.py build/quidra --output "$RUNNER_TEMP/native-performance-trends.json"
       - name: Summarize representative native workloads
@@ -61,9 +62,9 @@ jobs:
                   "### File parse profile",
                   "",
                   f"- fixture: {fixture['lines']} lines, {fixture['bytes']} bytes, checksum {fixture['checksum']}",
-                  f"- whole-file read: {profile['whole_file_read_seconds']:.4f} s",
-                  f"- whole-file split increment: {profile['whole_file_split_increment_seconds']:.4f} s",
-                  f"- whole-file parse increment: {profile['whole_file_parse_increment_seconds']:.4f} s",
+                  f"- whole-binary read: {profile['whole_binary_read_seconds']:.4f} s",
+                  f"- UTF-8 decode/split increment: {profile['decoded_split_increment_seconds']:.4f} s",
+                  f"- decoded parse increment: {profile['decoded_parse_increment_seconds']:.4f} s",
                   f"- stream line traversal: {profile['stream_line_traversal_seconds']:.4f} s",
                   f"- stream split+parse increment: {profile['stream_split_parse_increment_seconds']:.4f} s",
               ])

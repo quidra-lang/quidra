@@ -1,10 +1,9 @@
 #pragma once
 
 // PassManager: runs the pipeline (pipeline.hpp) on a module. It builds the
-// rule registry and the function index once, before the first pass: they
-// read the extensions, the function list and each function's name, result
-// and source file, which no pass changes. A fixpoint group restarts by a
-// recursive call, one level per restart.
+// rule registry and function index before the first pass and refreshes them
+// after rewrites. A fixpoint group restarts iteratively when a pass changes
+// the module. Generated dispatch functions are visible to following passes.
 
 #include "quidra/ir/module.hpp"
 #include "quidra/optimizer.hpp"

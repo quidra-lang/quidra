@@ -32,7 +32,7 @@ ValueId CallLowering::make_class_with_defaults(const std::string& class_name, bo
     const auto& info=checked_.classes.at(class_name);
     if (initialize_standard &&
         (standard_class::is_map_instance(class_name, info.standard_library) ||
-         standard_class::is_set_instance(class_name, info.standard_library)) &&
+         standard_class::is_distinct_instance(class_name, info.standard_library)) &&
         info.constructors.size() == 1) {
         const auto& initializer = info.constructors.front();
         auto out = builder_.fresh();
@@ -308,7 +308,7 @@ ValueId CallLowering::lower_user_method_call(const Expr& e, const MethodCallExpr
     lowered.args[0]=CallArgument{receiver,std::nullopt};
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, internal, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
@@ -325,6 +325,8 @@ ValueId CallLowering::lower_call(const Expr& e, const CallExpr& n) {
     }
     const auto& resolution=resolution_it->second;
 
+    if (n.callee == "$std.range.generate")
+        return lower_bounded_range(e, n);
     if(resolution.kind==CallKind::FunctionValue) return lower_function_value_call(e,n,resolution);
     if(const auto method=checked_.method_calls.find(&e);method!=checked_.method_calls.end()){
         return lower_enclosing_method_call(e,n,resolution);
@@ -336,6 +338,194 @@ ValueId CallLowering::lower_call(const Expr& e, const CallExpr& n) {
         throw std::logic_error("Unsupported resolved call kind.");
     }
     return lower_function_call(e,n,resolution);
+}
+
+// A standalone colon range materializes its own array; ordinary bracket
+// slicing never uses this path. No language-visible range function exists.
+ValueId CallLowering::lower_bounded_range(const Expr& e, const CallExpr& n) {
+    const auto flag = [&](std::size_t i) {
+        return std::get<BoolExpr>(n.args[i].value->data).value;
+    };
+    const bool start_exclusive = flag(3);
+    const bool end_exclusive = flag(4);
+    const bool explicit_step = flag(5);
+    const bool ascending_marker = flag(6);
+    const bool descending_marker = flag(7);
+    // Range bounds may use arbitrary-precision int/nat. The materialized
+    // element type controls only checked storage conversions, never the
+    // precision of iteration and endpoint comparisons.
+    const auto integer = Type::simple(TypeKind::Int);
+    const auto boolean = Type::simple(TypeKind::Bool);
+    const auto array_type = checked_.raw_types.at(&e);
+    const auto element_type = *array_type.first;
+    const SourcePosition site{
+        static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)};
+    // Exact integers are managed values. Preserve every endpoint in a
+    // hidden owned local and return only a borrowed read, just as integer
+    // for-header lowering does. This avoids stealing a caller's storage
+    // and keeps the end bound live throughout the loop.
+    const auto hold = [&](ValueId value, bool borrowed) {
+        const auto slot = builder_.hidden("range.operand");
+        scope_.local_type(slot) = integer;
+        if (borrowed) value = lifetime_.copy_value(value, integer);
+        builder_.emit(StoreLocal{slot, value, integer});
+        auto out = builder_.fresh();
+        builder_.emit(LoadLocal{out, slot, integer});
+        return out;
+    };
+    const auto bound = [&](const Expr& source) {
+        auto value = lowerer_.lower(source);
+        const auto from = type_of(checked_, source);
+        if (from == integer)
+            return hold(value, !lifetime_.expression_owns_result(source));
+        auto converted = builder_.fresh();
+        builder_.emit(NumericConvert{
+            converted, value, from, integer, true, site});
+        lifetime_.release_temporary(source, value);
+        return hold(converted, false);
+    };
+    auto start = bound(*n.args[0].value);
+    auto stop = bound(*n.args[1].value);
+    auto descending = builder_.fresh();
+    builder_.emit(Binary{descending, ">", start, stop, integer, boolean});
+    ValueId direction = descending;
+    if (ascending_marker) direction = builder_.const_bool(false);
+    if (descending_marker) direction = builder_.const_bool(true);
+    auto plus_one = builder_.fresh();
+    auto minus_one = builder_.fresh();
+    builder_.emit(ConstantExact{plus_one, "1", integer});
+    builder_.emit(ConstantExact{minus_one, "-1", integer});
+    plus_one = hold(plus_one, false);
+    minus_one = hold(minus_one, false);
+    const auto step_slot = builder_.hidden("range.step");
+    scope_.local_type(step_slot) = integer;
+    if (explicit_step) {
+        auto value = bound(*n.args[2].value);
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(value, integer), integer});
+    } else {
+        const auto asc = builder_.label("range.step.asc");
+        const auto desc = builder_.label("range.step.desc");
+        const auto merge = builder_.label("range.step.merge");
+        builder_.emit(Branch{direction, desc, asc});
+        builder_.enter(builder_.add_block(desc));
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(minus_one, integer), integer});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(asc));
+        builder_.emit(StoreLocal{step_slot, lifetime_.copy_value(plus_one, integer), integer});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(merge));
+    }
+    auto step = builder_.fresh();
+    builder_.emit(LoadLocal{step, step_slot, integer});
+    if (explicit_step) {
+        if (!ascending_marker && !descending_marker) {
+            auto zero = builder_.fresh();
+            builder_.emit(ConstantExact{zero, "0", integer});
+            direction = builder_.fresh();
+            builder_.emit(Binary{direction, "<", step, zero, integer, boolean});
+        }
+        // Equal bounds permit either step sign. A reversed marker with no
+        // explicit step describes an empty exclusive range, as in slicing.
+        auto unequal = builder_.fresh();
+        auto directions_differ = builder_.fresh();
+        auto opposed = builder_.fresh();
+        builder_.emit(Binary{unequal, "!=", start, stop, integer, boolean});
+        builder_.emit(Binary{directions_differ, "!=", descending, direction, boolean, boolean});
+        builder_.emit(Binary{opposed, "and", unequal, directions_differ, boolean, boolean});
+        const auto invalid = builder_.label("range.direction.invalid");
+        const auto valid = builder_.label("range.direction.valid");
+        builder_.emit(Branch{opposed, invalid, valid});
+        builder_.enter(builder_.add_block(invalid));
+        const auto problem = builder_.fresh();
+        builder_.emit(ErrorMake{problem, 0, "SLICE_STEP",
+            {ErrorDetailOperand{std::nullopt,
+                "Range step opposes the bound direction.", false}},
+            std::nullopt, site});
+        builder_.emit(FailError{problem, site});
+        builder_.enter(builder_.add_block(valid));
+    }
+    {
+        // ForStepCheck consumes the exact-int word, including boxed steps.
+        // Validate against the chosen marker direction; equal descending
+        // endpoints must not be mistaken for an ascending progression.
+        const auto asc = builder_.label("range.check.asc");
+        const auto desc = builder_.label("range.check.desc");
+        const auto merge = builder_.label("range.check.end");
+        builder_.emit(Branch{direction, desc, asc});
+        builder_.enter(builder_.add_block(desc));
+        builder_.emit(ForStepCheck{step, true, site});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(asc));
+        builder_.emit(ForStepCheck{step, false, site});
+        builder_.emit(Jump{merge});
+        builder_.enter(builder_.add_block(merge));
+    }
+    if (start_exclusive) {
+        auto first = builder_.fresh();
+        builder_.emit(Binary{first, "+", start, step, integer, integer,
+                             site.line, site.column});
+        start = hold(first, false);
+    }
+    const auto output_slot = builder_.hidden("range.output");
+    const auto index_slot = builder_.hidden("range.index");
+    scope_.local_type(output_slot) = array_type;
+    scope_.local_type(index_slot) = integer;
+    builder_.emit(DeclareLocal{output_slot, array_type, "", 0, 0});
+    auto empty = builder_.fresh();
+    builder_.emit(ArrayMake{empty, {}, array_type});
+    builder_.emit(StoreLocal{output_slot, empty, array_type});
+    builder_.emit(StoreLocal{index_slot, lifetime_.copy_value(start, integer), integer});
+    const auto cond = builder_.label("range.cond");
+    const auto asc = builder_.label("range.cond.asc");
+    const auto desc = builder_.label("range.cond.desc");
+    const auto body = builder_.label("range.body");
+    const auto done = builder_.label("range.done");
+    builder_.emit(Jump{cond});
+    builder_.enter(builder_.add_block(cond));
+    builder_.emit(Branch{direction, desc, asc});
+    builder_.enter(builder_.add_block(asc));
+    auto ascending_index = builder_.fresh(), more_ascending = builder_.fresh();
+    builder_.emit(LoadLocal{ascending_index, index_slot, integer});
+    builder_.emit(Binary{
+        more_ascending, end_exclusive ? "<" : "<=",
+        ascending_index, stop, integer, boolean});
+    builder_.emit(Branch{more_ascending, body, done});
+    builder_.enter(builder_.add_block(desc));
+    auto descending_index = builder_.fresh(), more_descending = builder_.fresh();
+    builder_.emit(LoadLocal{descending_index, index_slot, integer});
+    builder_.emit(Binary{
+        more_descending, end_exclusive ? ">" : ">=",
+        descending_index, stop, integer, boolean});
+    builder_.emit(Branch{more_descending, body, done});
+    builder_.enter(builder_.add_block(body));
+    auto index = builder_.fresh();
+    builder_.emit(LoadLocal{index, index_slot, integer});
+    auto value = index;
+    if (element_type != integer) {
+        value = builder_.fresh();
+        builder_.emit(NumericConvert{
+            value, index, integer, element_type, true, site});
+    } else {
+        // ArraySet consumes the stored value. Keep the iteration local's
+        // exact integer alive independently until the next step replaces it.
+        value = lifetime_.copy_value(index, integer);
+    }
+    auto current = builder_.fresh(), length = builder_.fresh(), grown = builder_.fresh();
+    builder_.emit(LoadLocal{current, output_slot, array_type});
+    builder_.emit(ArrayLength{length, current});
+    builder_.emit(ArrayGrowMove{grown, current, array_type});
+    builder_.emit(StoreLocal{output_slot, grown, array_type, false, true});
+    builder_.emit(ArraySet{grown, length, value, element_type, site, true, true});
+    auto next = builder_.fresh();
+    builder_.emit(Binary{next, "+", index, step, integer, integer,
+                         site.line, site.column});
+    builder_.emit(StoreLocal{index_slot, next, integer});
+    builder_.emit(Jump{cond});
+    builder_.enter(builder_.add_block(done));
+    auto result = builder_.fresh();
+    builder_.emit(LoadLocal{result, output_slot, array_type, true});
+    return result;
 }
 
 ValueId CallLowering::lower_function_value_call(
@@ -361,8 +551,8 @@ ValueId CallLowering::lower_function_value_call(
     const auto out=(result.kind==TypeKind::Void||result.kind==TypeKind::Never)?0:builder_.fresh();
     builder_.emit(IndirectCall{
         out,callee,std::move(args),callable_type.parameters,result,
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
@@ -373,7 +563,7 @@ ValueId CallLowering::lower_enclosing_method_call(
     lowered.args[0]=CallArgument{load_receiver(builder_,enclosing_class_),std::nullopt};
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, resolution.target, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
@@ -397,8 +587,8 @@ ValueId CallLowering::lower_constructor_call(
             auto value=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
             builder_.emit(BinConvert{
                 out,value,type_of(checked_,*n.args[0].value),Type::simple(TypeKind::Bin),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             lifetime_.release_temporary(*n.args[0].value,value);
             return out;
         }
@@ -441,7 +631,7 @@ ValueId CallLowering::lower_function_call(
     auto lowered=lower_call_arguments(n.args,sig,0,resolution.target);
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, resolution.target, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)

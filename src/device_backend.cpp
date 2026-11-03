@@ -10,6 +10,14 @@
 #include "quidra/abi/runtime_failure.hpp"
 #include "quidra/abi/tensor_codes.hpp"
 #include "runtime_counters.hpp"
+#include "runtime_location.hpp"
+#include "runtime/device_observation.hpp"
+#include "device/native_capability_source.hpp"
+#include "device/encoder_attribution.hpp"
+#include "device/capture_gate.hpp"
+#include "runtime/metal_timeline.hpp"
+#include "runtime/metal_capture.hpp"
+#include "platform/os_version.hpp"
 #include "quidra/project.hpp"
 #include "unified_storage.hpp"
 
@@ -54,6 +62,83 @@
 
 namespace quidra::device {
 namespace {
+std::atomic<bool> capability_metadata_requested{false};
+// Buffered capture status must outlive ordinary exit callbacks and runtime
+// finalizers. One reachable controller owner is retained for the process;
+// terminal stop releases its native references. Disabled calls do no setup.
+std::atomic<profile::metal::Capture*> metal_capture_created{nullptr};
+std::atomic<bool> metal_capture_setup_attempted{false};
+std::atomic<bool> metal_capture_setup_finished{false};
+std::atomic<std::shared_ptr<profile::metal::Capture>*> metal_capture_owner{nullptr};
+std::atomic<bool> metal_capture_closed{false},metal_capture_immediate_close{false};
+std::atomic<detail::CaptureGate*> metal_capture_gate_created{nullptr};
+detail::CaptureGate& metal_capture_setup_gate() {
+    // A requested capture can reach Metal from an older exit callback. Its
+    // synchronization/closed state must outlive TU/local-static destructors.
+    static auto* gate=[] {
+        auto* value=new detail::CaptureGate(metal_capture_closed);
+        metal_capture_gate_created.store(value,std::memory_order_release); return value;
+    }();
+    return *gate;
+}
+[[maybe_unused]] profile::metal::Capture* metal_capture_controller() noexcept {
+    if(!profile::capture_requested() || metal_capture_closed.load(std::memory_order_acquire)) return nullptr;
+    if(auto* existing=metal_capture_created.load(std::memory_order_acquire)) return existing;
+    if(metal_capture_setup_finished.load(std::memory_order_acquire)) return nullptr;
+    const auto* config=profile::capture_configuration();
+    if(!config) return nullptr;
+    try {
+        metal_capture_setup_gate().prepare([&] {
+            if(metal_capture_created.load(std::memory_order_acquire) ||
+               metal_capture_setup_attempted.load(std::memory_order_relaxed)) return profile::metal::Creation{};
+            metal_capture_setup_attempted.store(true,std::memory_order_release);
+            return profile::metal::make_capture({true,config->requested_step,config->output_path,config->excluded_paths});
+        },[&](profile::metal::Creation result) {
+            if(result.status.state==profile::metal::State::Off) return;
+            if(!result.capture) { profile::note_capture(result.status); }
+            else {
+                auto* owner=new std::shared_ptr<profile::metal::Capture>(std::move(result.capture));
+                metal_capture_owner.store(owner,std::memory_order_release);
+                metal_capture_created.store(owner->get(),std::memory_order_release);
+            }
+            metal_capture_setup_finished.store(true,std::memory_order_release);
+        },[&](profile::metal::Creation result) {
+            // No command entry was admitted: release the prepared candidate,
+            // retaining its actual path-query/status observations if possible.
+            if(result.capture) {
+                result.capture->stop(metal_capture_immediate_close.load(std::memory_order_relaxed)
+                    ? profile::metal::Reason::ImmediateFailure : profile::metal::Reason::NormalExit,{},true);
+                profile::note_capture(result.capture->snapshot(true));
+            } else if(result.status.state!=profile::metal::State::Off) profile::note_capture(result.status);
+            metal_capture_setup_finished.store(true,std::memory_order_release);
+        });
+        if(metal_capture_closed.load(std::memory_order_acquire)) return nullptr;
+        return metal_capture_created.load(std::memory_order_acquire);
+    } catch (...) {
+        metal_capture_setup_attempted.store(true,std::memory_order_release);
+        profile::metal::Status status; status.state=profile::metal::State::Unavailable;
+        status.requested_step=config->requested_step;
+        status.gaps[static_cast<std::size_t>(profile::metal::Gap::StorageFailed)]=1;
+        status.metadata_drops=1; status.snapshot_complete=false; profile::note_capture(status);
+        metal_capture_setup_finished.store(true,std::memory_order_release);
+        return nullptr;
+    }
+}
+[[maybe_unused]] profile::metal::CommandToken metal_capture_command(
+        profile::metal::Capture* capture,const profile::metal::CommandInput& input) noexcept {
+    if(!capture || metal_capture_closed.load(std::memory_order_acquire)) return {};
+    auto* gate=metal_capture_gate_created.load(std::memory_order_acquire);
+    if(!gate) return {};
+    try { return gate->command([&] { return capture->before_command(input); }); }
+    catch (...) { return {}; }
+}
+[[maybe_unused]] void note_metal_capture(profile::metal::Capture* capture,bool nonblocking=false) noexcept {
+    if(capture) profile::note_capture(capture->snapshot(nonblocking));
+}
+void note_observed_devices(const std::vector<Info>&) noexcept;
+[[maybe_unused]] bool observe_metadata() noexcept {
+    return observation::enabled() || capability_metadata_requested.load(std::memory_order_relaxed);
+}
 
 #ifdef __APPLE__
 // `covered` receives the serial whose completion the synchronization waited
@@ -548,7 +633,7 @@ bool cuda_take_device_block(int backend_index,std::size_t bytes,
     std::fflush(stdout);
     std::fprintf(stderr,"Quidra runtime error[%.*s]: operation owner unknown: GPU cache cleanup after allocation failure could not be proved\n",
         static_cast<int>(code.size()),code.data());
-    std::fflush(stderr);std::_Exit(abi::failure_exit_status);
+    std::fflush(stderr);runtime::immediate_failure_exit();
 }
 
 void cuda_return_device_block(int backend_index,std::size_t bytes,
@@ -1231,6 +1316,12 @@ struct ModuleImpl {
 };
 
 std::vector<Info> enumerate_devices() {
+    profile::Range profile_init("core","device enumeration");
+    const bool observing=observation::enabled();
+    if(observing) timeline::note_point(timeline::Point::DeviceInitBegin);
+    struct InitEnd { bool active; ~InitEnd() {
+        if(active) timeline::note_point(timeline::Point::DeviceInitEnd);
+    } } init_end{observing};
     std::vector<Info> result;
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
     if (const auto configured = platform::environment_value("QUIDRA_TEST_FAKE_GPU_COUNT")) {
@@ -1262,6 +1353,9 @@ std::vector<Info> enumerate_devices() {
             info.name = std::string([[dev name] UTF8String]);
             info.driver = "macOS Metal driver";
             info.runtime = "Metal";
+            if(observe_metadata()) {
+                if(@available(macOS 10.13,*)) info.observation_identity=[dev registryID];
+            }
             result.push_back(std::move(info));
         }
         [metal_devices release];
@@ -1330,7 +1424,8 @@ struct WarmupState {
     std::condition_variable wake;
     std::vector<WarmupFunction> functions;
     std::vector<int> devices;
-    std::deque<std::pair<WarmupFunction, int>> queue;
+    struct Pending { WarmupFunction function; int device; std::uint32_t identity; };
+    std::deque<Pending> queue;
     bool started{};
     bool stopping{};
     std::thread worker;
@@ -1347,12 +1442,14 @@ void run_warmups() {
     for (;;) {
         state.wake.wait(lock, [&] { return state.stopping || !state.queue.empty(); });
         if (state.stopping) return;
-        const auto [function, device] = state.queue.front();
+        const auto [function, device, identity] = state.queue.front();
         state.queue.pop_front();
         lock.unlock();
         // Package code outside any Quidra statement: a failure in it ends
         // the process at once (exit_failed_program).
         running_package_callback = true;
+        observation::Scope observed(observation::Kind::Warmup,device,"package warmup",
+                                     counters::WaitReason::Sync,identity);
         try {
 #ifdef __APPLE__
             @autoreleasepool {
@@ -1364,6 +1461,7 @@ void run_warmups() {
         } catch (...) {
         }
         check_package_hold_returned("a package warm-up function returned");
+        observed.finish();
         running_package_callback = false;
         counters::add(counters::Id::PackageWarmups); // qcount
         lock.lock();
@@ -1371,6 +1469,7 @@ void run_warmups() {
 }
 
 void stop_warmups() {
+    timeline::note_point(timeline::Point::ExitBegin);
     // The warm-up thread may wait for a device stream that the exiting
     // thread still holds for a package encode (a runtime failure that exits
     // directly, in the statement whose extern call left the hold open), and
@@ -1394,7 +1493,10 @@ void stop_warmups() {
 // Caller holds state.mutex.
 void queue_warmup_locked(WarmupState& state, WarmupFunction function, int device) {
     if (state.stopping) return;
-    state.queue.emplace_back(function, device);
+    std::uint32_t identity{};
+    if(observation::enabled()) identity=static_cast<std::uint32_t>(
+        std::find(state.functions.begin(),state.functions.end(),function)-state.functions.begin());
+    state.queue.push_back({function,device,identity});
     if (!state.started) {
         state.started = true;
         state.worker = std::thread(run_warmups);
@@ -1619,7 +1721,7 @@ bool raw_validation_synchronize(Buffer* status,std::uint64_t& covered,
         auto& api=cuda();
         CudaApi::CUcontext context=nullptr;
         if(!api.current(status->backend_index,context,error)) return false;
-        if(!api.ctx_synchronize||api.ctx_synchronize()!=0){
+        if(!api.ctx_synchronize||observation::wait(status->global_index,counters::WaitReason::Status,"cuda validation sync",[&]{return api.ctx_synchronize();})!=0){
             error="failed to synchronize NVIDIA GPU";
             return false;
         }
@@ -1638,7 +1740,7 @@ bool raw_validation_synchronize(Buffer* status,std::uint64_t& covered,
         auto& api=hip();
         if(!api.device_synchronize||!api.set_device||
            api.set_device(status->backend_index)!=0||
-           api.device_synchronize()!=0){
+           observation::wait(status->global_index,counters::WaitReason::Status,"hip validation sync",[&]{return api.device_synchronize();})!=0){
             error="failed to synchronize AMD GPU";
             return false;
         }
@@ -2079,6 +2181,7 @@ struct DeferredValidationExitGuard {
         (void)owned_native_fences();
     }
     ~DeferredValidationExitGuard() {
+        timeline::note_point(timeline::Point::ExitBegin);
         // A package encode hold the exiting thread still has would refuse
         // the synchronizations below.
         check_package_hold_returned("the program exited");
@@ -2188,6 +2291,10 @@ bool has_deferred_validations(int global_index) {
 
 const std::vector<Info>& devices() {
     static const std::vector<Info> value = enumerate_devices();
+    if(observation::enabled()) {
+        static std::once_flag observed;
+        std::call_once(observed,[&]{note_observed_devices(value);});
+    }
     return value;
 }
 
@@ -2217,6 +2324,7 @@ bool synchronize(int index, std::string& error) {
 // checks stay pending for the next synchronization point (wait_idle(), which
 // serves package waits and must not take another operation's failure).
 bool synchronize_device(int index, bool consume_checks, std::string& error) {
+    profile::Range observed("core","gpu synchronize",index,profile::ProfileEvent::Kind::Sync);
     const auto* info = find(index);
     if (!info) {
         error = "gpu(" + std::to_string(index) + ") is not available";
@@ -2277,13 +2385,13 @@ bool synchronize_device(int index, bool consume_checks, std::string& error) {
             if(api.event_create(&marker,disable_timing)==0&&marker){
                 const auto record_status=api.event_record(marker,nullptr);
                 const auto wait_status=
-                    record_status==0 ? api.event_synchronize(marker) : record_status;
+                    record_status==0 ? observation::wait(index,counters::WaitReason::Sync,"native sync marker",[&]{return api.event_synchronize(marker);}) : record_status;
                 (void)api.event_destroy(marker);
                 if(wait_status==0) synchronized=true;
             }
         }
         if(!synchronized){
-            if (!api.ctx_synchronize || api.ctx_synchronize() != 0) {
+            if (!api.ctx_synchronize || observation::wait(index,counters::WaitReason::Sync,"cuda context sync",[&]{return api.ctx_synchronize();}) != 0) {
                 error = "failed to synchronize NVIDIA GPU";
                 if(runtime_parallel::detail::current_deferred_node) fail_unattributed_native(error);
                 return false;
@@ -2319,13 +2427,13 @@ bool synchronize_device(int index, bool consume_checks, std::string& error) {
             if(api.event_create(&marker)==0&&marker){
                 const auto record_status=api.event_record(marker,nullptr);
                 const auto wait_status=
-                    record_status==0 ? api.event_synchronize(marker) : record_status;
+                    record_status==0 ? observation::wait(index,counters::WaitReason::Sync,"native sync marker",[&]{return api.event_synchronize(marker);}) : record_status;
                 (void)api.event_destroy(marker);
                 if(wait_status==0) synchronized=true;
             }
         }
         if(!synchronized){
-            if (!api.device_synchronize || api.device_synchronize() != 0) {
+            if (!api.device_synchronize || observation::wait(index,counters::WaitReason::Sync,"hip device sync",[&]{return api.device_synchronize();}) != 0) {
                 error = "failed to synchronize AMD GPU";
                 if(runtime_parallel::detail::current_deferred_node) fail_unattributed_native(error);
                 return false;
@@ -2477,6 +2585,7 @@ Buffer* allocate(int index, std::size_t bytes, std::string& error) {
 
 Buffer* allocate_buffer(int index, std::size_t bytes, bool require_idle,
                         std::string& error) {
+    profile::Range observed("core","gpu allocation",index,profile::ProfileEvent::Kind::Alloc);
     (void)require_idle; // Metal only
     const auto* info = find(index);
     if (!info) {
@@ -2571,6 +2680,7 @@ Buffer* allocate_buffer(int index, std::size_t bytes, bool require_idle,
 
 void release(Buffer* raw) {
     if (!raw) return;
+    profile::Range observed("core","gpu release",raw->global_index,profile::ProfileEvent::Kind::Free);
     std::unique_ptr<Buffer> buffer(raw);
     if(buffer->validation_page!=no_validation_page){
         abandon_validation_view(*buffer);
@@ -2994,7 +3104,10 @@ Module* load_hip_source(int index, const std::string& source, std::string& error
         }
     };
     const char* options[] = {"--std=c++14"};
-    const int compile_status = api.rtc_compile_program(program, 1, options);
+    const int compile_status = [&] {
+        observation::Scope observed(observation::Kind::Compile,index,"hip runtime compile");
+        return api.rtc_compile_program(program,1,options);
+    }();
     if (compile_status != 0) {
         error = "HIP runtime compilation failed";
         if (api.rtc_get_log_size && api.rtc_get_log) {
@@ -3056,6 +3169,7 @@ void release(Module* raw) {
 bool launch(Module* module, const char* kernel,
             LaunchDimensions grid, LaunchDimensions block,
             void** arguments, std::string& error) {
+    profile::Range observed("core",kernel ? kernel : "gpu launch",module ? module->global_index : -1,profile::ProfileEvent::Kind::Dispatch);
     if (!module || !kernel || !*kernel) {
         error = "invalid GPU kernel launch";
         return false;
@@ -3143,5 +3257,6 @@ bool launch(Module* module, const char* kernel,
 #include "device_compute.inc"
 #include "device_autograd_compute.inc"
 #include "device_unified.inc"
+#include "device/observation.inc"
 
 } // namespace quidra::device

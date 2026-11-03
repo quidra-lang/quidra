@@ -20,12 +20,12 @@ void BinEmitter::emit(const ir::BinLength& n,const ir::Instruction&){
 
 void BinEmitter::emit(const ir::BinGet& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::Bin));
-    builder_.call(symbols_.value(n.out),runtime_abi::bin::index,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.index)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::bin::index,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.index)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,Type::simple(TypeKind::Bin),symbols_.value(n.out));
 }
 
 void BinEmitter::emit(const ir::BinSet& n,const ir::Instruction&){
-    builder_.call(runtime_abi::bin::set,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.index)},{ptr,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::bin::set,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.index)},{ptr,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void BinEmitter::emit(const ir::BinSlicePlanned& n,const ir::Instruction&){
@@ -39,13 +39,13 @@ void BinEmitter::emit(const ir::BinSlicePlanned& n,const ir::Instruction&){
         {ptr,bin},{i64,start},{i32,static_cast<int>(n.bounds.start_form)},
         {i64,end},{i32,static_cast<int>(n.bounds.end_form)},
         {i32,static_cast<int>(n.bounds.direction)},
-        {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,Type::simple(TypeKind::Bin),symbols_.value(n.out));
 }
 
 void BinEmitter::emit(const ir::BinSlice& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::Bin));
-    builder_.call(symbols_.value(n.out),runtime_abi::bin::slice,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.start)},{i64,symbols_.value(n.end)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::bin::slice,{{ptr,symbols_.value(n.bin)},{i64,symbols_.value(n.start)},{i64,symbols_.value(n.end)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,Type::simple(TypeKind::Bin),symbols_.value(n.out));
 }
 

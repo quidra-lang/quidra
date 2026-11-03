@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 #include "quidra/types.hpp"
@@ -20,19 +21,19 @@ struct RealLoopCount {
     ValueId out, start, end, step;
     Type type;
     bool descending{}, start_inclusive{true}, end_inclusive{};
-    std::uint32_t line{}, column{};
+    SourcePosition position{};
 };
 struct RealLoopValue { ValueId out, multiplier, start, step; Type type; ValueId native_fma{}; };
 
 struct ExactLoopPlan {
     ValueId out, start, end, step;
     bool descending{}, start_inclusive{true}, end_inclusive{};
-    std::uint32_t line{}, column{};
+    SourcePosition position{};
 };
 struct ExactFromScaled { ValueId out, numerator, denominator; };
 struct ExactLoopValue { ValueId out, multiplier, start, step; };
 struct ExactScaledCompare { ValueId out, numerator, denominator; std::int64_t constant_n{}, constant_d{1}; std::string op; };
-struct ExactScaledConvert { ValueId out, numerator, denominator; Type target; std::uint32_t line{}, column{}; Type result_type{Type::simple(TypeKind::Invalid)}; };
+struct ExactScaledConvert { ValueId out, numerator, denominator; Type target; SourcePosition position{}; Type result_type{Type::simple(TypeKind::Invalid)}; };
 
 struct ExactAtom {
     ValueId out;
@@ -64,8 +65,7 @@ struct ExactRound {
     ValueId value;
     Type type;
     std::string slot;
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
 };
 // The value a contextual constant's slot holds.
 struct ExactConstant {
@@ -81,8 +81,7 @@ struct Unary {
     std::string op;
     ValueId operand;
     Type type;
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
     bool inline_proven{};
 };
 struct Binary {
@@ -92,8 +91,7 @@ struct Binary {
     ValueId right;
     Type operand_type;
     Type result_type;
-    std::uint32_t line{};
-    std::uint32_t column{};
+    SourcePosition position{};
     bool overflow_proven{};
     bool inline_proven{};
 
@@ -104,8 +102,8 @@ struct Binary {
            bool proven_no_overflow = false,
            bool proven_inline = false)
         : out(out_value), op(operation), left(left_value), right(right_value),
-          operand_type(operand), result_type(result), line(source_line),
-          column(source_column), overflow_proven(proven_no_overflow),
+          operand_type(operand), result_type(result), position{source_line, source_column},
+          overflow_proven(proven_no_overflow),
           inline_proven(proven_inline) {}
 };
 
@@ -127,21 +125,21 @@ struct ComplexPart {
     Type type;
 };
 
-template <> struct InstructionTraits<RealLoopCount> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<RealLoopValue> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactLoopPlan> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactFromScaled> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactLoopValue> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactScaledCompare> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactScaledConvert> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactAtom> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactUnary> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactOp> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactRound> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ExactConstant> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<Unary> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<Binary> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ComplexMake> : InDomain<Domain::numeric> {};
-template <> struct InstructionTraits<ComplexPart> : InDomain<Domain::numeric> {};
+template <> struct InstructionTraits<RealLoopCount> : WithOperands<Domain::numeric, RealLoopCount> {};
+template <> struct InstructionTraits<RealLoopValue> : WithOperands<Domain::numeric, RealLoopValue> {};
+template <> struct InstructionTraits<ExactLoopPlan> : WithOperands<Domain::numeric, ExactLoopPlan> {};
+template <> struct InstructionTraits<ExactFromScaled> : WithOperands<Domain::numeric, ExactFromScaled> {};
+template <> struct InstructionTraits<ExactLoopValue> : WithOperands<Domain::numeric, ExactLoopValue> {};
+template <> struct InstructionTraits<ExactScaledCompare> : WithOperands<Domain::numeric, ExactScaledCompare> {};
+template <> struct InstructionTraits<ExactScaledConvert> : WithOperands<Domain::numeric, ExactScaledConvert> {};
+template <> struct InstructionTraits<ExactAtom> : WithOperands<Domain::numeric, ExactAtom> {};
+template <> struct InstructionTraits<ExactUnary> : WithOperands<Domain::numeric, ExactUnary> {};
+template <> struct InstructionTraits<ExactOp> : WithOperands<Domain::numeric, ExactOp> {};
+template <> struct InstructionTraits<ExactRound> : WithOperands<Domain::numeric, ExactRound> {};
+template <> struct InstructionTraits<ExactConstant> : WithOperands<Domain::numeric, ExactConstant> {};
+template <> struct InstructionTraits<Unary> : WithOperands<Domain::numeric, Unary> {};
+template <> struct InstructionTraits<Binary> : WithOperands<Domain::numeric, Binary> {};
+template <> struct InstructionTraits<ComplexMake> : WithOperands<Domain::numeric, ComplexMake> {};
+template <> struct InstructionTraits<ComplexPart> : WithOperands<Domain::numeric, ComplexPart> {};
 
 } // namespace quidra::ir

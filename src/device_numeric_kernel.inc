@@ -120,6 +120,7 @@ template<class R> __device__ void q_store(void* output,U64 i,QPair<R> value,int 
     q_store_part(output,offset,double(value.re),part);
     if(q_complex(dtype))q_store_part(output,offset+1,double(value.im),part);
 }
+template<class R> __device__ bool q_valid(QPair<R> v){return !__builtin_isnan(v.re)&&!__builtin_isnan(v.im);}
 template<class R> __device__ bool q_finite(QPair<R> value){return __builtin_isfinite(value.re)&&__builtin_isfinite(value.im);}
 template<class R> __device__ QPair<R> q_binary(QPair<R> a,QPair<R> b,int dtype,int operation,U32* status){
     int part=q_part(dtype);QPair<R> result{0,0};
@@ -140,7 +141,7 @@ template<class R> __device__ QPair<R> q_binary(QPair<R> a,QPair<R> b,int dtype,i
                 r=q_round(R(b.re/b.im),part);t=q_round(R(q_round(R(b.re*r),part)+b.im),part);
                 re=q_round(R(q_round(R(a.re*r),part)+a.im),part);im=q_round(R(q_round(R(a.im*r),part)-a.re),part);
             }
-            valid=__builtin_isfinite(r)&&__builtin_isfinite(t)&&__builtin_isfinite(re)&&__builtin_isfinite(im);
+            valid=!__builtin_isnan(r)&&!__builtin_isnan(t)&&!__builtin_isnan(re)&&!__builtin_isnan(im);
             result={q_round(R(re/t),part),q_round(R(im/t),part)};
             if(!valid)q_status(status,16u);
         }
@@ -149,12 +150,11 @@ template<class R> __device__ QPair<R> q_binary(QPair<R> a,QPair<R> b,int dtype,i
     else if(operation==quidra::abi::tensor_binary_opcode::power&&!q_complex(dtype)){
         extern __device__ float powf(float,float);
         if(a.re==0&&b.re==0)q_status(status,1u);
-        else if(a.re==0&&b.re<0)q_status(status,2u);
-        else if(a.re<0&&__builtin_trunc(b.re)!=b.re)q_status(status,4u);
+                else if(a.re<0&&__builtin_trunc(b.re)!=b.re)q_status(status,4u);
         result={q_round(R(powf(float(a.re),float(b.re))),part),0};
     }
 #endif
-    if(!q_finite(result))q_status(status,operation==quidra::abi::tensor_binary_opcode::divide&&b.re==0&&b.im==0?8u:16u);
+    if(!q_valid(result))q_status(status,operation==quidra::abi::tensor_binary_opcode::divide&&b.re==0&&b.im==0?8u:16u);
     return result;
 }
 template<class R> __device__ void q_run(void* output,void* output_other,const void* left,const void* right,const void* gradient,
@@ -200,7 +200,7 @@ extern "C" __global__ void q_kernel(void* output,void* output_other,const void* 
     int source_dtype,int target_dtype,U32* status){
     U64 i=q_index();if(i>=count)return;
     if(mode==2){
-        auto value=q_read<double>(left,i,source_dtype);int part=q_part(target_dtype);
+        auto value=q_read<double>(left,i,source_dtype);const auto original=value;int part=q_part(target_dtype);
         if(source_dtype>=QCORE_DTYPE_INT64&&source_dtype<=QCORE_DTYPE_UINT64){
             U64 raw=q_integer(left,i,source_dtype);bool negative=source_dtype<=QCORE_DTYPE_INT32&&I64(raw)<0;
             if(q_half(part)){U64 magnitude=negative?U64(0)-raw:raw;value.re=q_read_half(q_integer_half(magnitude,negative,part),part);}
@@ -209,6 +209,7 @@ extern "C" __global__ void q_kernel(void* output,void* output_other,const void* 
         if(!q_complex(target_dtype)&&q_complex(source_dtype)){q_status(status,1u);return;}
         if(target_dtype>=QCORE_DTYPE_INT64&&target_dtype<=QCORE_DTYPE_UINT64){
             const double v=value.re;int width=q_width(target_dtype)*8;
+            if(!__builtin_isfinite(v)){q_status(status,1u);return;}
             bool signed_target=target_dtype<=QCORE_DTYPE_INT32;
             U64 bits=q_double_bits(v),fraction=bits&0xfffffffffffffull;
             int exponent=int((bits>>52)&2047u)-1023;
@@ -226,10 +227,12 @@ extern "C" __global__ void q_kernel(void* output,void* output_other,const void* 
             return;
         }
         q_store(output,i,value,target_dtype);
-        if(!q_finite(q_read<double>(output,i,target_dtype)))q_status(status,1u);
+        const auto rounded=q_read<double>(output,i,target_dtype);
+        if(!q_valid(original) || (__builtin_isfinite(original.re)&&!__builtin_isfinite(rounded.re)) ||
+           (__builtin_isfinite(original.im)&&!__builtin_isfinite(rounded.im)))q_status(status,1u);
         return;
     }
-    if(mode==7){if(!q_finite(q_read<double>(left,i,dtype)))q_status(status,1u);return;}
+    if(mode==7){if(!q_valid(q_read<double>(left,i,dtype)))q_status(status,1u);return;}
     if(mode==8){q_store(output,i,QPair<double>{1,0},dtype);return;}
     if(mode==9){int width=q_width(dtype);auto* out=static_cast<unsigned char*>(output)+i*width;
         auto* in=static_cast<const unsigned char*>(left)+positions[i]*width;for(int k=0;k<width;++k)out[k]=in[k];return;}

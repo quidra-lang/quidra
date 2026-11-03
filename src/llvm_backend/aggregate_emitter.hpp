@@ -60,6 +60,7 @@ public:
     void emit(const ir::ArrayCanAppendMove& n,const ir::Instruction& ins);
     void emit(const ir::ArrayGrowMove& n,const ir::Instruction& ins);
     void emit(const ir::ArraySorted& n,const ir::Instruction& ins);
+    void emit(const ir::ArraySortIndices& n,const ir::Instruction& ins);
     void emit(const ir::ArrayInitializationComplete& n,const ir::Instruction& ins);
     void emit(const ir::ArrayGet& n,const ir::Instruction& ins);
     void emit(const ir::ArraySet& n,const ir::Instruction& ins);

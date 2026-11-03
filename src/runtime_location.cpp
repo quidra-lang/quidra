@@ -978,7 +978,16 @@ ReporterTurn take_reporter() {
 
 void reporter_flushed() { reporter_state.store(2, std::memory_order_release); }
 
+namespace {
+std::atomic<FailureFlushHandler> failure_flush_handler{nullptr};
+}
+
+void set_failure_flush_handler(FailureFlushHandler handler) {
+    failure_flush_handler.store(handler, std::memory_order_release);
+}
+
 void immediate_failure_exit() {
+    if (const auto flush = failure_flush_handler.load(std::memory_order_acquire)) flush();
     std::fflush(nullptr);
     std::_Exit(abi::failure_exit_status);
 }

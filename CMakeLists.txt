@@ -125,15 +125,48 @@ set(QUIDRA_CORE_SOURCES
     src/lexer.cpp
     src/parser.cpp
     src/class_initialization.cpp
+    src/semantics/binding_entry.cpp
     src/checker.cpp
     src/parallel_for_check.cpp
     src/traversal_plan.cpp
     src/checker_shapes.cpp
     src/ir/analysis/call_graph.cpp
+    src/ir/analysis/cfg.cpp
+    src/ir/analysis/dominators.cpp
+    src/ir/analysis/def_use.cpp
+    src/ir/analysis/local_ssa.cpp
+    src/ir/analysis/alias.cpp
+    src/ir/analysis/liveness.cpp
+    src/ir/analysis/analysis_cache.cpp
+    src/ir/analysis/summary_facts.cpp
+    src/ir/analysis/tensor_facts.cpp
+    src/ir/analysis/loops.cpp
+    src/ir/analysis/loop_invariants.cpp
+    src/ir/analysis/object_provenance.cpp
+    src/ir/analysis/binding_proof.cpp
+    src/ir/analysis/object_bindings.cpp
+    src/ir/analysis/step_regions.cpp
+    src/ir/analysis/step_region_annotations.cpp
+    src/ir/summaries.cpp
+    src/ir/fact_sources.cpp
+    src/ir/clone_contracts.cpp
+    src/ir/binding_origins.cpp
+    src/ir/inline_binding_origins.cpp
+    src/ir/helper_binding_origins.cpp
+    src/ir/check_binding_origins.cpp
+    src/ir/facts/tensor.cpp
+    src/ir/canonical_encoding.cpp
+    src/ir/content_hash.cpp
+    src/ir/facts/initialization.cpp
+    src/ir/facts/shape_proof.cpp
     src/ir/analysis/tail_calls.cpp
     src/ir/analysis/device_reach.cpp
     src/ir/dump.cpp
     src/ir/instruction_text.cpp
+    src/ir/visit.cpp
+    src/ir/mutable_operands.cpp
+    src/ir/verify.cpp
+    src/ir/value_allocator.cpp
     src/lowering/aggregate_lowering.cpp
     src/lowering/assignment_lowering.cpp
     src/lowering/assignment_order.cpp
@@ -165,6 +198,7 @@ set(QUIDRA_CORE_SOURCES
     src/lowering/json_lowering.cpp
     src/lowering/lifetime_lowering.cpp
     src/lowering/lower_module.cpp
+    src/lowering/binding_origins.cpp
     src/lowering/lowerer.cpp
     src/lowering/operator_lowering.cpp
     src/lowering/random_lowering.cpp
@@ -173,6 +207,7 @@ set(QUIDRA_CORE_SOURCES
     src/lowering/shape_constraint_lowering.cpp
     src/lowering/source_locator.cpp
     src/lowering/statement_lowering.cpp
+    src/lowering/statement_sites.cpp
     src/lowering/storage_writes.cpp
     src/lowering/string_concat_chain.cpp
     src/lowering/syntax_queries.cpp
@@ -183,6 +218,8 @@ set(QUIDRA_CORE_SOURCES
     src/lowering/user_sources.cpp
     src/semantics/argument_isolation.cpp
     src/semantics/effect_summary.cpp
+    src/semantics/interface_contracts.cpp
+    src/semantics/interface_fingerprint.cpp
     src/semantics/parallel_effects.cpp
     src/semantics/mutation_markers.cpp
     src/semantics/tensor_extents.cpp
@@ -190,6 +227,7 @@ set(QUIDRA_CORE_SOURCES
     src/optimizer/call_contract.cpp
     src/optimizer/chain_fusion.cpp
     src/optimizer/conditional_rules.cpp
+    src/optimizer/declaration_binding.cpp
     src/optimizer/execution_policy.cpp
     src/optimizer/finite_check_merging.cpp
     src/optimizer/ownership_adaptation.cpp
@@ -197,6 +235,11 @@ set(QUIDRA_CORE_SOURCES
     src/optimizer/region_candidates.cpp
     src/optimizer/region_formation.cpp
     src/optimizer/rule_registry.cpp
+    src/optimizer/rule_dispatch.cpp
+    src/optimizer/helper_specialization.cpp
+    src/optimizer/inlining.cpp
+    src/optimizer/check_elimination.cpp
+    src/optimizer/foundation_passes.cpp
     src/optimizer/static_tensor_facts.cpp
     src/optimizer/textual_uses.cpp
     src/llvm_backend/aggregate_emitter.cpp
@@ -264,6 +307,8 @@ set(QUIDRA_CORE_SOURCES
     src/compile_inputs.cpp
     src/compiler.cpp
     src/frontend.cpp
+    src/compiler_extension.cpp
+    src/compiler_extension_expression.cpp
     src/import_path.cpp
     src/source_tools.cpp
     src/source_patch.cpp
@@ -358,13 +403,31 @@ set(QUIDRA_RUNTIME_SOURCES
     src/runtime_error.cpp
     src/platform/sha256.cpp
     src/platform/unwind.cpp
+    src/platform/clock.cpp
 )
+set(QUIDRA_PROFILE_CAPTURE_SOURCES
+    src/runtime/metal_capture.cpp
+    src/platform/file_descriptor.cpp
+    src/platform/private_directory.cpp
+    src/platform/user_cache_directory.cpp
+)
+if(APPLE)
+  list(APPEND QUIDRA_PROFILE_CAPTURE_SOURCES src/runtime/metal_capture.mm)
+endif()
 set(QUIDRA_DEVICE_SOURCES
     src/runtime_parallel.cpp
     src/runtime_counters.cpp
     src/device_backend.cpp
     src/unified_storage.cpp
+    src/runtime/timeline.cpp
+    src/runtime/profile.cpp
+    ${QUIDRA_PROFILE_CAPTURE_SOURCES}
+    src/device/capabilities.cpp
+    src/platform/os_version.cpp
 )
+if(APPLE)
+  list(APPEND QUIDRA_DEVICE_SOURCES src/runtime/metal_timeline.mm)
+endif()
 
 add_library(quidra_runtime STATIC ${QUIDRA_RUNTIME_SOURCES} ${QUIDRA_DEVICE_SOURCES})
 
@@ -419,6 +482,7 @@ set_target_properties(quidra_runtime_jit PROPERTIES POSITION_INDEPENDENT_CODE ON
 if(WIN32)
   set_target_properties(quidra_runtime_jit PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   target_compile_definitions(quidra_runtime_jit PRIVATE NOMINMAX)
+  target_link_libraries(quidra_runtime_jit PRIVATE advapi32 ole32 shell32)
 endif()
 target_include_directories(quidra_runtime PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} src)
 if(CMAKE_DL_LIBS)
@@ -434,6 +498,7 @@ set_target_properties(quidra_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
   target_compile_definitions(quidra_runtime PRIVATE NOMINMAX)
   target_compile_definitions(quidra_core PRIVATE NOMINMAX)
+  target_link_libraries(quidra_runtime PUBLIC advapi32 ole32 shell32)
 endif()
 
 # The runtime archive is linked into programs produced by Quidra itself.
@@ -460,14 +525,23 @@ add_executable(quidra
     src/lsp_server.cpp
     src/package_cli.cpp
     src/device_cli.cpp
+    src/device/capabilities.cpp
+    src/profile_cli.cpp
     src/device_backend.cpp
     src/runtime_counters.cpp
     src/runtime_parallel.cpp
     src/unified_storage.cpp
+    src/platform/clock.cpp
     src/native_build.cpp
+    src/runtime/timeline.cpp
+    src/runtime/profile.cpp
+    src/runtime/metal_capture.cpp
     src/run_artifact.cpp
     src/run_cache.cpp
     src/jit.cpp
+    src/ir_cli.cpp
+    src/ir_report.cpp
+    src/optimization_cli.cpp
     src/platform/cache_files.cpp
     src/platform/executable.cpp
     src/platform/file_descriptor.cpp
@@ -498,6 +572,9 @@ add_executable(quidra
     src/toolchain/toolchain_identity.cpp
 )
 target_link_libraries(quidra PRIVATE quidra_core quidra_runtime)
+if(APPLE)
+  target_sources(quidra PRIVATE src/runtime/metal_timeline.mm src/runtime/metal_capture.mm)
+endif()
 # The platform sources include their headers by directory: "platform/x.hpp".
 target_include_directories(quidra PRIVATE src)
 if(WIN32)
@@ -636,7 +713,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 elseif(MSVC)
   target_compile_options(quidra_runtime PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra_runtime_jit PRIVATE /W4 /Gy /Gw)
-  target_compile_options(quidra PRIVATE /W4)
+  # CLI translation units can exceed the default COFF section limit.
+  target_compile_options(quidra PRIVATE /W4 /bigobj)
   # Windows reserves only 1 MiB of stack for executables by default. Compiler
   # lowering legitimately walks nested typed AST/IR structures that fit in the
   # larger defaults on Linux/macOS; reserve the same practical headroom here.
@@ -695,6 +773,49 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_shape_relation_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_shape_relation_tests COMMAND quidra_shape_relation_tests)
 
+  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache work_budget summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings inline_binding_origin helper_binding_origin check_binding_origin step_regions step_region_annotation node_cleanup_query object_binding_inline)
+    add_executable(quidra_ir_${analysis}_tests tests/ir_${analysis}_tests.cpp)
+    target_include_directories(quidra_ir_${analysis}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_ir_${analysis}_tests PRIVATE quidra_core)
+    if(MSVC)
+      target_compile_options(quidra_ir_${analysis}_tests PRIVATE /bigobj)
+    endif()
+    add_test(NAME quidra_ir_${analysis} COMMAND quidra_ir_${analysis}_tests)
+  endforeach()
+
+  add_executable(quidra_compiler_extension_tests tests/compiler_extension_tests.cpp)
+  target_include_directories(quidra_compiler_extension_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_compiler_extension_tests PRIVATE quidra_core)
+  add_test(NAME quidra_compiler_extension
+      COMMAND quidra_compiler_extension_tests ${CMAKE_BINARY_DIR}/compiler-extension-unit)
+
+  foreach(feature IN ITEMS declaration_binding rule_dispatch statement_sites helper_specialization interface_fingerprint inlining inlining_hot_sites check_elimination)
+    add_executable(quidra_${feature}_tests tests/${feature}_tests.cpp)
+    target_include_directories(quidra_${feature}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_${feature}_tests PRIVATE quidra_core)
+    add_test(NAME quidra_${feature} COMMAND quidra_${feature}_tests)
+  endforeach()
+  add_test(NAME quidra_ir_cli
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/ir_cli_tests.py $<TARGET_FILE:quidra>)
+  add_test(NAME quidra_native_optimizer_cli
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/native_optimizer_cli_tests.py $<TARGET_FILE:quidra>)
+
+  # Emits baseline/inlined programs for the native ownership and trace gate.
+  add_executable(quidra_inlining_native_driver
+      tests/inlining_native_driver.cpp
+      src/toolchain/call_site_table.cpp
+      src/toolchain/dwarf_lines.cpp
+      src/toolchain/object_file.cpp)
+  target_include_directories(quidra_inlining_native_driver PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_inlining_native_driver PRIVATE quidra_core)
+  if(MSVC)
+    target_compile_options(quidra_inlining_native_driver PRIVATE /bigobj)
+  endif()
+  add_test(NAME quidra_inlining_nested_exit
+      COMMAND quidra_inlining_native_driver emit
+        ${CMAKE_SOURCE_DIR}/tests/inlining_nested_exit.qui
+        ${CMAKE_BINARY_DIR}/inlining-nested-exit ordinary stop nested)
+
   # The refactoring equivalence harness (tests/golden, driven by
   # tests/ir_golden.sh). The dump tool prints every observable compiler output
   # of one input; it links the compiler core with src/ on its private include
@@ -730,8 +851,24 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
         "-framework Foundation" "-framework Metal" objc)
   endif()
   add_executable(quidra_ir_full_tests tests/golden/ir_full_tests.cpp)
+  target_include_directories(quidra_ir_full_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(quidra_ir_full_tests PRIVATE quidra_golden_support)
   add_test(NAME quidra_ir_full_tests COMMAND quidra_ir_full_tests)
+  add_executable(quidra_ir_operand_tests tests/ir_operand_tests.cpp)
+  target_link_libraries(quidra_ir_operand_tests PRIVATE quidra_core)
+  add_test(NAME quidra_ir_operand_tests COMMAND quidra_ir_operand_tests)
+  add_executable(quidra_ir_instruction_text_tests tests/ir_instruction_text_tests.cpp)
+  target_include_directories(quidra_ir_instruction_text_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_ir_instruction_text_tests PRIVATE quidra_core)
+  add_test(NAME quidra_ir_instruction_text COMMAND quidra_ir_instruction_text_tests)
+  add_executable(quidra_ir_optimizer_operand_tests tests/ir_optimizer_operand_tests.cpp)
+  target_include_directories(quidra_ir_optimizer_operand_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_ir_optimizer_operand_tests PRIVATE quidra_core)
+  add_test(NAME quidra_ir_optimizer_operands COMMAND quidra_ir_optimizer_operand_tests)
+  add_executable(quidra_ir_value_allocator_tests tests/ir_value_allocator_tests.cpp)
+  target_include_directories(quidra_ir_value_allocator_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_ir_value_allocator_tests PRIVATE quidra_core)
+  add_test(NAME quidra_ir_value_allocator COMMAND quidra_ir_value_allocator_tests)
   # The expected-difference rules of the golden comparison
   # (tests/golden/expect.py), on synthetic captures, and the column map of a
   # synthetic rewrite captured with the golden tool.
@@ -761,6 +898,10 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_executable(quidra_parser_tests tests/parser_tests.cpp)
   target_link_libraries(quidra_parser_tests PRIVATE quidra_core)
   add_test(NAME quidra_parser_tests COMMAND quidra_parser_tests)
+
+  add_executable(quidra_array_selector_initialization_tests tests/array_selector_initialization_tests.cpp)
+  target_link_libraries(quidra_array_selector_initialization_tests PRIVATE quidra_core)
+  add_test(NAME quidra_array_selector_initialization_tests COMMAND quidra_array_selector_initialization_tests)
 
   add_executable(quidra_type_policy_tests tests/type_policy_tests.cpp)
   target_link_libraries(quidra_type_policy_tests PRIVATE quidra_core)
@@ -807,6 +948,85 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_runtime_parallel_tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
   target_link_libraries(quidra_runtime_parallel_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_runtime_parallel_tests COMMAND quidra_runtime_parallel_tests)
+  add_executable(quidra_runtime_saved_tensor_tests tests/runtime_saved_tensor_tests.cpp)
+  target_include_directories(quidra_runtime_saved_tensor_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_saved_tensor_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_saved_tensors COMMAND quidra_runtime_saved_tensor_tests)
+  if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+    add_test(NAME quidra_runtime_saved_tensors_fake COMMAND quidra_runtime_saved_tensor_tests --fake)
+    set_tests_properties(quidra_runtime_saved_tensors_fake PROPERTIES
+        ENVIRONMENT "QUIDRA_TEST_FAKE_GPU_COUNT=1" TIMEOUT 90)
+  endif()
+  add_executable(quidra_runtime_counter_report_probe tests/runtime_counter_report_probe.cpp)
+  target_include_directories(quidra_runtime_counter_report_probe PRIVATE ${CMAKE_SOURCE_DIR}/src
+                             ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_counter_report_probe PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_counter_reports
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_counter_report_tests.py
+                   $<TARGET_FILE:quidra_runtime_counter_report_probe>)
+  add_executable(quidra_runtime_counter_flush_exception_tests
+      tests/runtime_counter_flush_exception_tests.cpp)
+  target_include_directories(quidra_runtime_counter_flush_exception_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_counter_flush_exception_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_counter_flush_exceptions
+           COMMAND quidra_runtime_counter_flush_exception_tests)
+  add_executable(quidra_runtime_observation_probe tests/runtime_observation_probe.cpp)
+  add_executable(quidra_runtime_tensor_proven_tests tests/runtime_tensor_proven_tests.cpp)
+  target_include_directories(quidra_runtime_tensor_proven_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_tensor_proven_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_tensor_proven
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_tensor_proven_tests.py
+          $<TARGET_FILE:quidra_runtime_tensor_proven_tests>)
+  target_include_directories(quidra_runtime_observation_probe PRIVATE ${CMAKE_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_runtime_observation_probe PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_observation
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_observation_tests.py
+                   $<TARGET_FILE:quidra_runtime_observation_probe>)
+  add_executable(quidra_runtime_timeline_probe tests/runtime_timeline_probe.cpp
+      src/runtime/timeline.cpp src/platform/clock.cpp)
+  target_include_directories(quidra_runtime_timeline_probe PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_timeline_probe PRIVATE Threads::Threads)
+  add_test(NAME quidra_runtime_timeline
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_timeline_tests.py
+                   $<TARGET_FILE:quidra_runtime_timeline_probe>)
+  add_executable(quidra_runtime_timeline_stream_tests tests/runtime_timeline_stream_tests.cpp)
+  target_include_directories(quidra_runtime_timeline_stream_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_timeline_stream_tests PRIVATE Threads::Threads)
+  add_test(NAME quidra_runtime_timeline_stream COMMAND quidra_runtime_timeline_stream_tests)
+  set_tests_properties(quidra_runtime_timeline_stream PROPERTIES ENVIRONMENT "QUIDRA_TIMELINE=stderr")
+  add_executable(quidra_runtime_profile_probe tests/runtime_profile_probe.cpp
+      src/runtime/profile.cpp src/platform/clock.cpp ${QUIDRA_PROFILE_CAPTURE_SOURCES})
+  target_include_directories(quidra_runtime_profile_probe PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_profile_probe PRIVATE Threads::Threads)
+  if(APPLE)
+    target_link_libraries(quidra_runtime_profile_probe PRIVATE "-framework Foundation" "-framework Metal")
+  elseif(WIN32)
+    target_link_libraries(quidra_runtime_profile_probe PRIVATE advapi32 ole32 shell32)
+  endif()
+  add_test(NAME quidra_runtime_profile
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_profile_tests.py
+                   $<TARGET_FILE:quidra_runtime_profile_probe>)
+  add_executable(quidra_runtime_capture_config_probe tests/runtime_capture_config_probe.cpp
+      src/runtime/profile.cpp src/platform/clock.cpp ${QUIDRA_PROFILE_CAPTURE_SOURCES})
+  target_include_directories(quidra_runtime_capture_config_probe PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_capture_config_probe PRIVATE Threads::Threads)
+  if(APPLE)
+    target_link_libraries(quidra_runtime_capture_config_probe PRIVATE
+        "-framework Foundation" "-framework Metal")
+  elseif(WIN32)
+    target_link_libraries(quidra_runtime_capture_config_probe PRIVATE advapi32 ole32 shell32)
+  endif()
+  add_test(NAME quidra_runtime_capture_configuration
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_capture_config_tests.py
+                   $<TARGET_FILE:quidra_runtime_capture_config_probe>)
 
   add_executable(quidra_parallel_effects_tests tests/parallel_effects_tests.cpp)
   target_link_libraries(quidra_parallel_effects_tests PRIVATE quidra_core)
@@ -826,6 +1046,101 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_executable(quidra_platform_environment_tests tests/platform_environment_tests.cpp)
   target_include_directories(quidra_platform_environment_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_platform_environment_tests COMMAND quidra_platform_environment_tests)
+  add_executable(quidra_platform_clock_tests tests/platform_clock_tests.cpp)
+  target_include_directories(quidra_platform_clock_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_platform_clock_tests PRIVATE Threads::Threads)
+  add_test(NAME quidra_platform_clock_tests COMMAND quidra_platform_clock_tests)
+  add_executable(quidra_device_capabilities_tests tests/device_capabilities_tests.cpp
+      src/device/capabilities.cpp src/platform/sha256.cpp src/platform/os_version.cpp)
+  target_include_directories(quidra_device_capabilities_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_device_capabilities_tests COMMAND quidra_device_capabilities_tests)
+  add_executable(quidra_device_cli_tests tests/device_cli_tests.cpp src/device_cli.cpp)
+  target_include_directories(quidra_device_cli_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  add_test(NAME quidra_device_cli_tests COMMAND quidra_device_cli_tests)
+  add_executable(quidra_device_observation_tests tests/device_observation_tests.cpp)
+  target_include_directories(quidra_device_observation_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  add_test(NAME quidra_device_observation_scopes COMMAND quidra_device_observation_tests)
+  add_executable(quidra_encoder_attribution_tests tests/encoder_attribution_tests.cpp)
+  target_include_directories(quidra_encoder_attribution_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_encoder_attribution COMMAND quidra_encoder_attribution_tests)
+  add_executable(quidra_capture_request_tests tests/capture_request_tests.cpp)
+  target_include_directories(quidra_capture_request_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_capture_request COMMAND quidra_capture_request_tests)
+  add_executable(quidra_metal_capture_tests tests/metal_capture_tests.cpp
+      src/runtime/metal_capture.cpp src/platform/clock.cpp)
+  target_include_directories(quidra_metal_capture_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_metal_capture_tests PRIVATE Threads::Threads)
+  if(APPLE)
+    target_sources(quidra_metal_capture_tests PRIVATE src/runtime/metal_capture.mm)
+    target_link_libraries(quidra_metal_capture_tests PRIVATE "-framework Foundation" "-framework Metal")
+  endif()
+  add_test(NAME quidra_metal_capture COMMAND quidra_metal_capture_tests)
+  add_executable(quidra_device_capture_gate_tests tests/device_capture_gate_tests.cpp
+      src/runtime/metal_capture.cpp src/platform/clock.cpp)
+  target_include_directories(quidra_device_capture_gate_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_device_capture_gate_tests PRIVATE Threads::Threads)
+  if(APPLE)
+    target_sources(quidra_device_capture_gate_tests PRIVATE src/runtime/metal_capture.mm)
+    target_link_libraries(quidra_device_capture_gate_tests PRIVATE "-framework Foundation" "-framework Metal")
+  endif()
+  add_test(NAME quidra_device_capture_gate COMMAND quidra_device_capture_gate_tests)
+  add_executable(quidra_native_capability_source_tests tests/native_capability_source_tests.cpp)
+  target_include_directories(quidra_native_capability_source_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  add_test(NAME quidra_native_capability_source COMMAND quidra_native_capability_source_tests)
+  add_executable(quidra_device_observation_probe tests/device_observation_probe.cpp)
+  target_include_directories(quidra_device_observation_probe PRIVATE ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_device_observation_probe PRIVATE quidra_runtime)
+  add_executable(quidra_device_observation_failure_probe tests/device_observation_failure_probe.cpp)
+  target_include_directories(quidra_device_observation_failure_probe PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_device_observation_failure_probe PRIVATE quidra_runtime)
+  if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+    add_test(NAME quidra_device_observation_backend
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/device_observation_tests.py
+                     $<TARGET_FILE:quidra_device_observation_probe>
+                     $<TARGET_FILE:quidra_device_observation_failure_probe>)
+    set_tests_properties(quidra_device_observation_backend PROPERTIES TIMEOUT 90)
+    add_test(NAME quidra_device_capture
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/device_capture_tests.py
+                     $<TARGET_FILE:quidra_device_observation_probe>)
+    set_tests_properties(quidra_device_capture PROPERTIES TIMEOUT 90)
+  endif()
+  if(APPLE)
+    add_executable(quidra_metal_capture_smoke tests/metal_capture_smoke.mm
+        src/runtime/metal_capture.cpp src/runtime/metal_capture.mm src/platform/clock.cpp)
+    target_include_directories(quidra_metal_capture_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_metal_capture_smoke PRIVATE
+        "-framework Foundation" "-framework Metal")
+    add_test(NAME quidra_metal_capture_hardware
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/metal_capture_smoke.py
+                     $<TARGET_FILE:quidra_metal_capture_smoke>)
+    set_tests_properties(quidra_metal_capture_hardware PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 90)
+    add_executable(quidra_metal_timeline_tests tests/metal_timeline_tests.mm
+        src/runtime/metal_timeline.mm src/runtime/timeline.cpp src/runtime/profile.cpp
+        src/platform/clock.cpp ${QUIDRA_PROFILE_CAPTURE_SOURCES})
+    target_include_directories(quidra_metal_timeline_tests PRIVATE ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include)
+    target_link_libraries(quidra_metal_timeline_tests PRIVATE Threads::Threads
+        "-framework Foundation" "-framework Metal")
+    add_test(NAME quidra_metal_timeline COMMAND quidra_metal_timeline_tests)
+    set_tests_properties(quidra_metal_timeline PROPERTIES ENVIRONMENT "QUIDRA_TIMELINE=stderr;QUIDRA_PROFILE=")
+    add_test(NAME quidra_metal_timeline_disabled COMMAND quidra_metal_timeline_tests --disabled)
+    set_tests_properties(quidra_metal_timeline_disabled PROPERTIES
+        ENVIRONMENT "QUIDRA_TIMELINE=;QUIDRA_PROFILE=")
+    add_executable(quidra_metal_timeline_smoke tests/metal_timeline_smoke.mm
+        src/runtime/metal_timeline.mm src/runtime/timeline.cpp src/runtime/profile.cpp
+        src/platform/clock.cpp ${QUIDRA_PROFILE_CAPTURE_SOURCES})
+    target_include_directories(quidra_metal_timeline_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include)
+    target_link_libraries(quidra_metal_timeline_smoke PRIVATE Threads::Threads
+        "-framework Foundation" "-framework Metal")
+    add_test(NAME quidra_metal_timeline_hardware COMMAND quidra_metal_timeline_smoke)
+    set_tests_properties(quidra_metal_timeline_hardware PROPERTIES SKIP_RETURN_CODE 77
+        ENVIRONMENT "QUIDRA_TIMELINE=stderr;QUIDRA_PROFILE=" TIMEOUT 90)
+  endif()
 
   # The user cache directory, private directories and files, file identity
   # and the OS version.
@@ -861,6 +1176,19 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       src/platform/temporary_directory.cpp)
   target_include_directories(quidra_platform_process_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_platform_process_tests COMMAND quidra_platform_process_tests)
+  add_executable(quidra_profile_cli_tests tests/profile_cli_tests.cpp src/profile_cli.cpp
+      src/platform/strict_json.cpp src/platform/user_cache_directory.cpp
+      src/platform/private_directory.cpp src/platform/file_descriptor.cpp)
+  target_include_directories(quidra_profile_cli_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_profile_cli_tests COMMAND quidra_profile_cli_tests)
+  add_executable(quidra_profile_capture_reader_tests tests/profile_capture_reader_tests.cpp
+      src/profile_cli.cpp src/platform/strict_json.cpp src/platform/user_cache_directory.cpp
+      src/platform/private_directory.cpp src/platform/file_descriptor.cpp)
+  target_include_directories(quidra_profile_capture_reader_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  if(WIN32)
+    target_link_libraries(quidra_profile_capture_reader_tests PRIVATE advapi32 ole32 shell32)
+  endif()
+  add_test(NAME quidra_profile_capture_reader COMMAND quidra_profile_capture_reader_tests)
 
   # The native link recipe with the host toolchain: build and run modes, the
   # template, the run-mode recording, and byte-identical executables.
@@ -985,6 +1313,45 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_exact_real_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_exact_real_tests COMMAND quidra_exact_real_tests)
 
+  add_executable(quidra_infinity_constant_tests tests/infinity_constant_tests.cpp)
+  target_link_libraries(quidra_infinity_constant_tests PRIVATE quidra_core)
+  add_test(NAME quidra_infinity_constant_tests COMMAND quidra_infinity_constant_tests)
+  add_executable(quidra_exact_infinity_tests tests/exact_infinity_tests.cpp)
+  target_include_directories(quidra_exact_infinity_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_exact_infinity_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_exact_infinity_tests COMMAND quidra_exact_infinity_tests)
+  add_executable(quidra_fixed_infinity_tests tests/fixed_infinity_tests.cpp)
+  target_include_directories(quidra_fixed_infinity_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_fixed_infinity_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_fixed_infinity_tests COMMAND quidra_fixed_infinity_tests)
+  add_executable(quidra_infinity_literal_tests tests/infinity_literal_tests.cpp src/lexer.cpp)
+  target_include_directories(quidra_infinity_literal_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  add_test(NAME quidra_infinity_literal_tests COMMAND quidra_infinity_literal_tests)
+  foreach(infinity_feature IN ITEMS tensor_infinity infinity_package_validation)
+    add_executable(quidra_${infinity_feature}_tests tests/${infinity_feature}_tests.cpp)
+    target_include_directories(quidra_${infinity_feature}_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_link_libraries(quidra_${infinity_feature}_tests PRIVATE quidra_runtime)
+    add_test(NAME quidra_${infinity_feature}_tests COMMAND quidra_${infinity_feature}_tests)
+  endforeach()
+  if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+    add_executable(quidra_device_infinity_tests tests/device_infinity_tests.cpp)
+    target_include_directories(quidra_device_infinity_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_device_infinity_tests PRIVATE quidra_runtime)
+    add_test(NAME quidra_device_infinity_tests COMMAND quidra_device_infinity_tests)
+    set_tests_properties(quidra_device_infinity_tests PROPERTIES ENVIRONMENT "QUIDRA_TEST_FAKE_GPU_COUNT=1")
+  endif()
+  add_test(NAME quidra_infinity_runtime_failures
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/infinity_runtime_failure_tests.py
+      --exact $<TARGET_FILE:quidra_exact_infinity_tests>
+      --fixed $<TARGET_FILE:quidra_fixed_infinity_tests>
+      --tensor $<TARGET_FILE:quidra_tensor_infinity_tests>
+      --package $<TARGET_FILE:quidra_infinity_package_validation_tests>)
+  add_test(NAME quidra_infinity_contract
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/infinity_tests.py $<TARGET_FILE:quidra>)
+  set_tests_properties(quidra_infinity_contract PROPERTIES TIMEOUT 1200 RUN_SERIAL TRUE)
+
+
   # Arbitrary-precision integer words agree with the boxed big integers.
   add_executable(quidra_runtime_integer_tests tests/runtime_integer_tests.cpp)
   target_include_directories(quidra_runtime_integer_tests PRIVATE
@@ -1091,6 +1458,10 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_array_comprehensions COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/array_comprehension_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_parallel_determinism COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/parallel_determinism_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+    add_test(NAME quidra_stream_operators COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stream_operator_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/stream-operator-tests)
+    add_test(NAME quidra_sorted_by COMMAND bash ${CMAKE_SOURCE_DIR}/tests/sorted_by_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/sorted-by-tests)
+    add_test(NAME quidra_line_io COMMAND bash ${CMAKE_SOURCE_DIR}/tests/line_io_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/line-io-tests)
+    add_test(NAME quidra_semantic_apis COMMAND bash ${CMAKE_SOURCE_DIR}/tests/semantic_apis_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/semantic-apis-tests)
     add_test(NAME quidra_nat_lengths COMMAND bash ${CMAKE_SOURCE_DIR}/tests/nat_length_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_exact_real_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/exact_real_cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     # No visible NaN or infinity: real operations whose results are not finite.
@@ -1098,9 +1469,17 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_half_precision COMMAND bash ${CMAKE_SOURCE_DIR}/tests/half_precision_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_complex COMMAND bash ${CMAKE_SOURCE_DIR}/tests/complex_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_shape_variables COMMAND bash ${CMAKE_SOURCE_DIR}/tests/shape_variable_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_shape_ellipsis COMMAND bash ${CMAKE_SOURCE_DIR}/tests/shape_ellipsis_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_generic_container_reductions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/generic_container_reductions.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     # Slices and slice assignment against a brute-force oracle.
     add_test(NAME quidra_slices COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_extensions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_extension_contract_tests.py $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_selection_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/array_selection_contract_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_array_selector_runtime COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/array_selector_runtime_tests.py $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_range_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/range_contract_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_extension_visibility COMMAND bash ${CMAKE_SOURCE_DIR}/tests/extension_visibility_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_slice_direction COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_direction_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_real_loop_headers COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_loop_headers_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_for_shorthand COMMAND bash ${CMAKE_SOURCE_DIR}/tests/for_shorthand_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_tuples COMMAND bash ${CMAKE_SOURCE_DIR}/tests/tuple_tests.sh $<TARGET_FILE:quidra>)
@@ -1128,6 +1507,12 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
       add_test(NAME quidra_gpu_contracts_autograd COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_autograd_contract_tests.sh $<TARGET_FILE:quidra>)
       add_test(NAME quidra_runtime_counters COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_counters.sh $<TARGET_FILE:quidra>)
+      add_test(NAME quidra_runtime_validation_counters
+               COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_validation_counters.sh $<TARGET_FILE:quidra>)
+      set_tests_properties(quidra_runtime_validation_counters PROPERTIES TIMEOUT 90)
+      add_test(NAME quidra_profile_cli_integration
+               COMMAND bash ${CMAKE_SOURCE_DIR}/tests/profile_cli_integration.sh $<TARGET_FILE:quidra>)
+      set_tests_properties(quidra_profile_cli_integration PROPERTIES TIMEOUT 90)
     endif()
     add_test(NAME quidra_real_gpu_integration COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_gpu_integration.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
@@ -1165,22 +1550,79 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   set_tests_properties(
     quidra_tests
     quidra_ir_full_tests
+    quidra_ir_operand_tests
+    quidra_ir_analysis
+    quidra_ir_dominator
+    quidra_ir_def_use
+    quidra_ir_local_ssa
+    quidra_ir_alias
+    quidra_ir_liveness
+    quidra_ir_analysis_cache
+    quidra_ir_summary
+    quidra_ir_content_hash
+    quidra_ir_tensor_facts
+    quidra_ir_loop_invariant
+    quidra_ir_clone_contracts
+    quidra_ir_binding_proof
+    quidra_ir_binding_origin
+    quidra_ir_object_bindings
+    quidra_ir_inline_binding_origin
+    quidra_ir_helper_binding_origin
+    quidra_ir_step_regions
+    quidra_ir_step_region_annotation
+    quidra_ir_node_cleanup_query
+    quidra_ir_object_binding_inline
+    quidra_compiler_extension
+    quidra_declaration_binding
+    quidra_rule_dispatch
+    quidra_statement_sites
+    quidra_helper_specialization
+    quidra_interface_fingerprint
+    quidra_inlining
+    quidra_inlining_hot_sites
+    quidra_inlining_nested_exit
+    quidra_check_elimination
+    quidra_ir_cli
+    quidra_runtime_tensor_proven
+    quidra_ir_instruction_text
+    quidra_ir_optimizer_operands
+    quidra_ir_value_allocator
     quidra_import_path_tests
     quidra_parser_tests
+    quidra_array_selector_initialization_tests
     quidra_type_policy_tests
     quidra_shape_relation_tests
     quidra_package_manifest_tests
     quidra_package_lock_tests
     quidra_runtime_string_tests
     quidra_runtime_parallel_tests
+    quidra_runtime_saved_tensors
+    quidra_runtime_counter_reports
+    quidra_runtime_counter_flush_exceptions
+    quidra_runtime_observation
+    quidra_runtime_timeline
+    quidra_runtime_timeline_stream
+    quidra_runtime_profile
+    quidra_runtime_capture_configuration
     quidra_parallel_effects_tests
     quidra_parallel_block_abi_tests
     quidra_owned_native_fences_tests
     quidra_platform_environment_tests
+    quidra_platform_clock_tests
+    quidra_device_capabilities_tests
+    quidra_device_cli_tests
+    quidra_device_observation_scopes
+    quidra_encoder_attribution
+    quidra_capture_request
+    quidra_metal_capture
+    quidra_device_capture_gate
+    quidra_native_capability_source
     quidra_platform_cache_directory_tests
     quidra_platform_sha256_tests
     quidra_platform_strict_json_tests
     quidra_platform_process_tests
+    quidra_profile_cli_tests
+    quidra_profile_capture_reader
     quidra_toolchain_identity_tests
     quidra_run_cache_unit_tests
     quidra_tensor_view_bounds_tests
@@ -1230,8 +1672,19 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     set_tests_properties(
       quidra_cli
       quidra_stdlib
+      quidra_array_extensions
+      quidra_array_selection_contracts
+      quidra_range_contracts
+      quidra_extension_visibility
       PROPERTIES TIMEOUT ${QUIDRA_PROGRAM_SUITE_TIMEOUT}
     )
+    # The stdlib integration suite now exercises many more native programs than
+    # the other CLI suites. Under ASan/UBSan it exceeded the shared 720-second
+    # timeout despite progressing through the integration assertions. Preserve
+    # every test and a finite hang guard while allowing instrumented runs time.
+    if(CMAKE_CXX_FLAGS MATCHES "sanitize")
+      set_tests_properties(quidra_stdlib PROPERTIES TIMEOUT 1200)
+    endif()
     # Builds a few hundred small programs, a few of them in parallel.
     math(EXPR QUIDRA_RUN_CACHE_TEST_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 6")
     set_tests_properties(

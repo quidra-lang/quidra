@@ -3,22 +3,13 @@ int n = 42
 auto ready = true
 string separator = HT
 
-print("Hello, {name}")
-print(NL)
-print("n = {n}; ready = {ready}")
-print(NL)
-print("first line
+print.line("Hello, {name}")
+print.line("n = {n}; ready = {ready}")
+print.line("first line
 second line")
-print(NL)
-print("first{NL}second")
-print(NL)
-print("A{separator}B")
-print(NL)
-print("{DQ}quoted{DQ}")
-print(NL)
-print("C:\Users\data\image.png")
-print(NL)
-print("nested {error("value")}")
-print(NL)
-print("Hello, " + name == "Hello, Quidra")
-print(NL)
+print.line("first{NL}second")
+print.line("A{separator}B")
+print.line("{DQ}quoted{DQ}")
+print.line("C:\Users\data\image.png")
+print.line("nested {error("value")}")
+print.line("Hello, " + name == "Hello, Quidra")

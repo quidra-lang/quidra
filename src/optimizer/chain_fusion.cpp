@@ -56,6 +56,7 @@ struct ChainMatch {
 
 bool fusion_bridge_instruction(const Instruction& instruction) {
     return std::holds_alternative<SourceLocation>(instruction) ||
+           std::holds_alternative<ir::StatementBoundary>(instruction) ||
            (std::holds_alternative<LoadLocal>(instruction) && !std::get<LoadLocal>(instruction).move_out) ||
            std::holds_alternative<LoadReference>(instruction) ||
            std::holds_alternative<FieldGet>(instruction) ||
@@ -290,8 +291,7 @@ Call replacement_call(const Call& first_call, const Call& final_call,
     replacement.callee =
         replacement_target.name;
     replacement.result = final_call.result;
-    replacement.line = final_call.line;
-    replacement.column = final_call.column;
+    replacement.position = final_call.position;
     replacement.args.clear();
     replacement.args.insert(
         replacement.args.end(),

@@ -3,8 +3,10 @@
 #include "llvm_backend/bare_integer.hpp"
 #include "llvm_backend/runtime_abi.hpp"
 #include "llvm_backend/small_rational.hpp"
+#include "quidra/abi/symbols.hpp"
 
 #include <array>
+#include <stdexcept>
 
 namespace quidra::llvm_backend {
 
@@ -114,6 +116,76 @@ StatementAttribution::StatementAttribution(const ir::Function& fn, const ModuleC
                                            StringPool& pool)
     : context_(context), builder_(builder), names_(names), pool_(pool) {
     enter_file(fn.source_file);
+    root_state_ = state();
+    for (const auto& scope : fn.inline_scopes) {
+        InlineState frame;
+        const auto found = context_.user_source_index.find(scope.source_file);
+        frame.callee.user = found != context_.user_source_index.end();
+        frame.callee.file_index = frame.callee.user ? found->second : 0;
+        frame.saved_user = names_.value("inline.user.statement");
+        if (!inline_states_.emplace(scope.identity, std::move(frame)).second)
+            throw std::logic_error("duplicate inline attribution scope");
+    }
+}
+
+StatementAttribution::State StatementAttribution::state() const {
+    return {user_,file_index_,statement_line_,statement_column_,record_,entered_user_code_,saved_user_statement_};
+}
+void StatementAttribution::state(const State& saved) {
+    user_ = saved.user;
+    file_index_ = saved.file_index;
+    statement_line_ = saved.line;
+    statement_column_ = saved.column;
+    record_ = saved.record;
+    entered_user_code_ = saved.entered_user;
+    saved_user_statement_ = saved.pending_user;
+}
+StatementAttribution::State StatementAttribution::location_state(const ir::SourceLocation& location) {
+    State saved;
+    const auto found = context_.user_source_index.find(location.source_file);
+    saved.user = found != context_.user_source_index.end();
+    saved.file_index = saved.user ? found->second : 0;
+    saved.line = location.position.line;
+    saved.column = location.position.column;
+    if (saved.user) saved.record = pool_.intern_provenance(location);
+    return saved;
+}
+void StatementAttribution::select_inline_scope(const ir::InlineScope* scope) {
+    const auto next = scope ? scope->identity : 0;
+    if (next == inline_scope_) return;
+    if (inline_scope_) inline_states_.at(inline_scope_).callee = state();
+    else root_state_ = state();
+    state(next ? inline_states_.at(next).callee : root_state_);
+    inline_scope_ = next;
+}
+void StatementAttribution::begin_inline_scope(const ir::InlineScope& scope) {
+    auto& frame = inline_states_.at(scope.identity);
+    auto caller = scope.caller_location ? location_state(*scope.caller_location) :
+        scope.parent ? inline_states_.at(scope.parent).callee : root_state_;
+    state(caller);
+    // A preceding callback can have replaced the runtime user statement.
+    // Restoring the owned caller record is non-fallible and also covers CFG
+    // joins whose observer state was emitted in another block.
+    if (user_ && !record_.empty())
+        builder_.call(runtime_abi::program::restore_user_statement,
+            {{ptr,LlvmOperand::global(record_)}});
+    builder_.call(frame.saved_user,runtime_abi::program::user_statement,{});
+    frame.caller = state();
+    const auto effect = effect_of(abi::user_symbol(scope.callee));
+    if (frame.caller.user && (effect & enters)) frame.caller.entered_user = true;
+    state(frame.callee);
+    inline_scope_ = scope.identity;
+}
+void StatementAttribution::end_inline_scope(const ir::InlineScope& scope) {
+    auto& frame = inline_states_.at(scope.identity);
+    frame.callee = state();
+    // This changes only the user's statement. The innermost record still
+    // identifies the callee's last statement, as after an ordinary call.
+    builder_.call(runtime_abi::program::restore_user_statement,{{ptr,frame.saved_user}});
+    state(frame.caller);
+    inline_scope_ = scope.parent;
+    if (scope.parent) inline_states_.at(scope.parent).callee = state();
+    else root_state_ = state();
 }
 
 void StatementAttribution::enter_file(const std::string& file) {
@@ -124,8 +196,8 @@ void StatementAttribution::enter_file(const std::string& file) {
 
 void StatementAttribution::begin_statement(const ir::SourceLocation& location) {
     enter_file(location.source_file);
-    statement_line_ = location.line;
-    statement_column_ = location.column;
+    statement_line_ = location.position.line;
+    statement_column_ = location.position.column;
     entered_user_code_ = false;
     record_.clear();
     if (!location.node_id.empty()) {

@@ -27,10 +27,11 @@ void ControlFlowLowering::lower_discard_sequence_for(const ForStmt& n) {
     if(sliced) {
         const auto bounds=lowerer_.lower_slice_bounds(*n.iterable,slice->items[0]);
         const auto first=builder_.hidden("for.discard.slice_first");scope_.local_type(first)=word;
+        builder_.emit(DeclareLocal{first,word,{}});
         auto address=builder_.fresh();builder_.emit(AddressLocal{address,first});
         auto count=builder_.fresh();builder_.emit(SliceLoopPlan{count,length,address,bounds,
-            static_cast<std::uint32_t>(n.iterable->span.start.line),
-            static_cast<std::uint32_t>(n.iterable->span.start.column)});
+            {static_cast<std::uint32_t>(n.iterable->span.start.line),
+            static_cast<std::uint32_t>(n.iterable->span.start.column)}});
         length=count;
     }
     const auto counter=builder_.hidden("for.discard.counter");
@@ -106,8 +107,8 @@ void ControlFlowLowering::lower_discard_integer_range_for(const ForStmt& n) {
         auto start=load(start_name),end=load(end_name);
         auto step=step_name.empty()?constant(n.range->descending?-1:1):load(step_name);
         builder_.emit(ForStepCheck{step,n.range->descending,
-            static_cast<std::uint32_t>(n.iterable->span.start.line),
-            static_cast<std::uint32_t>(n.iterable->span.start.column)});
+            {static_cast<std::uint32_t>(n.iterable->span.start.line),
+            static_cast<std::uint32_t>(n.iterable->span.start.column)}});
         auto distance=binary("-",n.range->descending?start:end,n.range->descending?end:start,integer);
         auto magnitude=step;
         if(n.range->descending) {

@@ -8,11 +8,47 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace quidra::lowering {
 
 std::optional<ValueId> AggregateLowering::try_array_method(
     const Expr& e, const MethodCallExpr& n, const Type& receiver_type) {
+    if (receiver_type.kind == TypeKind::Array && n.method == "indices") {
+        // Materialize first-axis indices in a new nat[]; no integer casts
+        // are implicit, and a temporary receiver is evaluated exactly once.
+        auto source = lowerer_.lower(*n.receiver);
+        auto count = builder_.fresh();
+        builder_.emit(ArrayLength{count, source});
+        lifetime_.release_temporary(*n.receiver, source);
+        const auto nat_type = Type::simple(TypeKind::Nat);
+        const auto result_type = Type::array(nat_type);
+        auto result = builder_.fresh();
+        builder_.emit(ArrayAlloc{result, count, result_type});
+        const auto index_type = Type::simple(TypeKind::Int64);
+        const auto index_name = builder_.hidden("indices.index");
+        scope_.local_type(index_name) = index_type;
+        auto zero = builder_.const_int(0);
+        builder_.emit(StoreLocal{index_name, zero, index_type});
+        const auto cond = builder_.label("indices.cond");
+        const auto body = builder_.label("indices.body");
+        const auto done = builder_.label("indices.done");
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(cond));
+        auto index = builder_.fresh(), more = builder_.fresh();
+        builder_.emit(LoadLocal{index, index_name, index_type});
+        builder_.emit(Binary{more, "<", index, count, index_type, Type::simple(TypeKind::Bool)});
+        builder_.emit(Branch{more, body, done});
+        builder_.enter(builder_.add_block(body));
+        auto nat_index = lowerer_.bare_from_int64(index, nat_type, true);
+        builder_.emit(ArraySet{result, index, nat_index, nat_type});
+        auto one = builder_.const_int(1), next = builder_.fresh();
+        builder_.emit(Binary{next, "+", index, one, index_type, index_type, 0, 0, true});
+        builder_.emit(StoreLocal{index_name, next, index_type});
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(done));
+        return result;
+    }
     if(receiver_type.kind==TypeKind::Array && n.method=="sorted"){
         const bool receiver_owned=lifetime_.expression_owns_result(*n.receiver);
         auto source=lowerer_.lower(*n.receiver);
@@ -26,13 +62,117 @@ std::optional<ValueId> AggregateLowering::try_array_method(
             source_type=dynamic_type;
             source_owned=true;
         }
+        const CallArg* key_argument=nullptr;
+        const CallArg* descending_argument=nullptr;
+        for(const auto& argument:n.args){
+            if(*argument.name=="by")key_argument=&argument;
+            else if(*argument.name=="descending")descending_argument=&argument;
+        }
+        if(key_argument){
+            struct ConvertedSortKey { ValueId value; Type type; };
+            std::vector<ConvertedSortKey> converted_keys;
+            // Preserve source evaluation order of the named arguments.
+            ValueId by_value=0, descending_value=0;
+            for(const auto& argument:n.args){
+                if(*argument.name=="by")by_value=lowerer_.lower(*argument.value);
+                else descending_value=lowerer_.lower(*argument.value);
+            }
+            const auto by_type=type_of(checked_,*key_argument->value);
+            const auto descending_type=descending_argument
+                ? type_of(checked_,*descending_argument->value)
+                : Type::simple(TypeKind::Bool);
+            const auto position=SourcePosition{
+                static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)};
+            std::vector<ValueId> keys;
+            std::vector<Type> key_types;
+            const auto append_key=[&](ValueId key,const Type& key_type){
+                if(key_type.length>=0){
+                    const auto dynamic_type=Type::array(*key_type.first);
+                    auto dynamic_key=conversions_.convert(key,key_type,dynamic_type);
+                    converted_keys.push_back({dynamic_key,dynamic_type});
+                    keys.push_back(dynamic_key);
+                    key_types.push_back(dynamic_type);
+                }else{
+                    keys.push_back(key);
+                    key_types.push_back(key_type);
+                }
+            };
+            if(by_type.kind==TypeKind::Tuple){
+                for(std::size_t i=0;i<by_type.parameters.size();++i){
+                    auto key=builder_.fresh();
+                    builder_.emit(TupleGet{key,by_value,i,by_type.parameters[i]});
+                    append_key(key,by_type.parameters[i]);
+                }
+            }else append_key(by_value,by_type);
+            std::vector<ValueId> directions(keys.size(),builder_.const_bool(false));
+            if(descending_argument){
+                if(descending_type.kind==TypeKind::Tuple){
+                    for(std::size_t i=0;i<keys.size();++i){
+                        auto direction=builder_.fresh();
+                        builder_.emit(TupleGet{direction,descending_value,i,descending_type.parameters[i]});
+                        directions[i]=direction;
+                    }
+                }else{
+                    for(auto& direction:directions)direction=descending_value;
+                }
+            }
+            const auto indices_type=Type::array(Type::simple(TypeKind::Int64));
+            std::optional<ValueId> indices;
+            // Stable sorts are applied in reverse key priority.
+            for(std::size_t step=keys.size();step-->0;){
+                auto next=builder_.fresh();
+                builder_.emit(ArraySortIndices{
+                    next,source,indices,keys[step],key_types[step],directions[step],position});
+                if(indices)release_owned(builder_,*indices,indices_type);
+                indices=next;
+            }
+            for(const auto& entry:converted_keys)release_owned(builder_,entry.value,entry.type);
+            lifetime_.release_temporary(*key_argument->value,by_value);
+            if(descending_argument)
+                lifetime_.release_temporary(*descending_argument->value,descending_value);
+            auto length=builder_.fresh();
+            builder_.emit(ArrayLength{length,source});
+            const auto result_type=Type::array(*source_type.first);
+            auto output=builder_.fresh();
+            builder_.emit(ArrayAlloc{output,length,result_type});
+            const auto index_type=Type::simple(TypeKind::Int64);
+            const auto name=builder_.hidden("sorted.by.index");
+            scope_.local_type(name)=index_type;
+            auto zero=builder_.const_int(0);
+            builder_.emit(StoreLocal{name,zero,index_type});
+            const auto condition=builder_.label("sorted.by.cond");
+            const auto body=builder_.label("sorted.by.body");
+            const auto done=builder_.label("sorted.by.done");
+            builder_.emit(Jump{condition});
+            builder_.enter(builder_.add_block(condition));
+            auto index=builder_.fresh(),more=builder_.fresh();
+            builder_.emit(LoadLocal{index,name,index_type});
+            builder_.emit(Binary{more,"<",index,length,index_type,Type::simple(TypeKind::Bool)});
+            builder_.emit(Branch{more,body,done});
+            builder_.enter(builder_.add_block(body));
+            auto position_index=builder_.fresh();
+            builder_.emit(ArrayGet{position_index,*indices,index,index_type,position,true,true});
+            auto value=builder_.fresh();
+            builder_.emit(ArrayGet{value,source,position_index,*source_type.first,position,false,true});
+            auto copied=lifetime_.copy_value(value,*source_type.first);
+            builder_.emit(ArraySet{output,index,copied,*source_type.first,position,false,true});
+            auto one=builder_.const_int(1),next_index=builder_.fresh();
+            builder_.emit(Binary{next_index,"+",index,one,index_type,index_type,0,0,true});
+            builder_.emit(StoreLocal{name,next_index,index_type});
+            builder_.emit(Jump{condition});
+            builder_.enter(builder_.add_block(done));
+            release_owned(builder_,*indices,indices_type);
+            if(source_owned)release_owned(builder_,source,source_type);
+            return output;
+        }
         // sorted(descending = ...): a constant false, like no argument, is
         // today's ascending sort; a constant true selects descending order,
         // and any other value is a run-time flag.
         bool descending_constant=false;
         std::optional<ValueId> descending;
-        if(!n.args.empty()){
-            const auto& flag=*n.args.front().value;
+        if(descending_argument){
+            const auto& flag=*descending_argument->value;
             if(const auto* literal=std::get_if<BoolExpr>(&flag.data))
                 descending_constant=literal->value;
             else
@@ -41,8 +181,8 @@ std::optional<ValueId> AggregateLowering::try_array_method(
         auto out=builder_.fresh();
         builder_.emit(ArraySorted{
             out,source,source_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column),
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)},
             descending_constant,descending});
         if(source_owned) release_owned(builder_,source,source_type);
         return out;
@@ -64,8 +204,8 @@ std::optional<ValueId> AggregateLowering::try_array_method(
         auto out=builder_.fresh();
         builder_.emit(StringJoin{
             out,source,separator,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,separator);
         if(source_owned) release_owned(builder_,source,source_type);
         return out;
@@ -146,7 +286,7 @@ ValueId AggregateLowering::lower_array_allocation(const Expr& e, const CallExpr&
     builder_.enter(builder_.add_block(body));
     auto value=conversions_.convert(fill,*t.first,*t.first,true);
     builder_.emit(ArraySet{
-        out,idx,value,*t.first,0,0,true,true});
+        out,idx,value,*t.first,{0,0},true,true});
     auto one=builder_.const_int(1),next=builder_.fresh();
     builder_.emit(
         Binary{next,"+",idx,one,scope_.local_type(idxname),scope_.local_type(idxname)});

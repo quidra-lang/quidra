@@ -23,10 +23,10 @@ struct ConstantExact { ValueId out; std::string spelling; Type type; };
 struct ConstantBool { ValueId out; bool value; };
 struct ConstantString { ValueId out; std::string value; };
 
-template <> struct InstructionTraits<ConstantInt> : InDomain<Domain::constant> {};
-template <> struct InstructionTraits<ConstantFloat> : InDomain<Domain::constant> {};
-template <> struct InstructionTraits<ConstantExact> : InDomain<Domain::constant> {};
-template <> struct InstructionTraits<ConstantBool> : InDomain<Domain::constant> {};
-template <> struct InstructionTraits<ConstantString> : InDomain<Domain::constant> {};
+template <> struct InstructionTraits<ConstantInt> : WithOperands<Domain::constant, ConstantInt> {};
+template <> struct InstructionTraits<ConstantFloat> : WithOperands<Domain::constant, ConstantFloat> {};
+template <> struct InstructionTraits<ConstantExact> : WithOperands<Domain::constant, ConstantExact> {};
+template <> struct InstructionTraits<ConstantBool> : WithOperands<Domain::constant, ConstantBool> {};
+template <> struct InstructionTraits<ConstantString> : WithOperands<Domain::constant, ConstantString> {};
 
 } // namespace quidra::ir

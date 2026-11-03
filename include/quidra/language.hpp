@@ -68,6 +68,7 @@ inline constexpr std::optional<std::string_view> canonical_builtin_type_name(std
 
 enum class BuiltinCallable {
     Print,
+    PrintLine,
     Scan,
     Flush,
     Exit,
@@ -153,7 +154,8 @@ inline constexpr std::array<BuiltinCallableInfo, 6> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 61> intrinsic_callables{{
+    {"$std.print.line", BuiltinCallable::PrintLine},
     {"$std.cli.argument", BuiltinCallable::CliArgument},
     {"$std.cli.argument_optional", BuiltinCallable::CliArgumentOptional},
     {"$std.cli.option", BuiltinCallable::CliOption},
@@ -232,7 +234,7 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
 // and a method that changes existing state needs the mutation marker at
 // every call (`.handle.write(text)`). External I/O is never such a change;
 // it only takes part in conflicts. The methods with a Quidra body
-// (map.Map, set.Set, random.Generator) declare their marker in that body.
+// (map, distinct, random.Generator) declare their marker in that body.
 
 // The external resources, in the order of semantics::ResourceKind.
 enum class BuiltinResource : unsigned char {
@@ -262,8 +264,9 @@ struct BuiltinCallableEffect {
     bool advances_receiver;
 };
 
-inline constexpr std::array<BuiltinCallableEffect, 28> builtin_callable_effects{{
+inline constexpr std::array<BuiltinCallableEffect, 29> builtin_callable_effects{{
     {BuiltinCallable::Print, {{{BuiltinResource::Stdout, BuiltinResourceUse::Exclusive}}}, 1, false},
+    {BuiltinCallable::PrintLine, {{{BuiltinResource::Stdout, BuiltinResourceUse::Exclusive}}}, 1, false},
     {BuiltinCallable::Flush, {{{BuiltinResource::Stdout, BuiltinResourceUse::Exclusive}}}, 1, false},
     {BuiltinCallable::Scan, {{{BuiltinResource::Stdin, BuiltinResourceUse::Exclusive}}}, 1, false},
     {BuiltinCallable::FileRead, {{{BuiltinResource::FileSystem, BuiltinResourceUse::Shared}}}, 1, false},
@@ -334,7 +337,12 @@ struct StandardMethodEffect {
 // Every method of a built-in type that changes existing state: each needs
 // the mutation marker. tensor.track(), retrack() and untrack() return a new
 // value and leave their receiver as it was, so they are not listed.
-inline constexpr std::array<StandardMethodEffect, 11> standard_method_effects{{
+inline constexpr std::array<StandardMethodEffect, 16> standard_method_effects{{
+    {standard_class::file_read, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Read},
+    {standard_class::file_write, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
+    {standard_class::file_append, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
+    {standard_class::file_write, "line", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
+    {standard_class::file_append, "line", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
     {"tensor", "clear_grad", StandardMethodChange::Receiver, StandardMethodFileAccess::None},
     {"$std.file.Handle", "read", StandardMethodChange::SharedState, StandardMethodFileAccess::Read},
     {"$std.file.Handle", "read_line", StandardMethodChange::SharedState, StandardMethodFileAccess::Read},
@@ -358,9 +366,9 @@ inline constexpr const StandardMethodEffect* standard_method_effect(std::string_
     return nullptr;
 }
 
-inline constexpr std::array<std::string_view, 18> standard_modules{{
+inline constexpr std::array<std::string_view, 15> standard_modules{{
     "cli", "file", "environment", "test", "time", "gpu", "autograd", "reflect", "random", "process",
-    "map", "set", "json", "http", "tensor"
+    "map", "distinct", "json", "http", "tensor"
 }};
 
 inline constexpr bool is_standard_module(std::string_view name) {
@@ -441,8 +449,6 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         return std::nullopt;
     }
     if (module == "file") {
-        if (member == "open") return "$std.file.open";
-        if (member == "create") return "$std.file.create";
         if (member == "append") return "$std.file.append";
         if (member == "read") return "$std.file.read";
         if (member == "read_bin") return "$std.file.read_bin";
@@ -460,11 +466,11 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     return std::nullopt;
 }
 
-// The functions a built-in type name provides as a namespace:
-// real.atom(provider, opcode), real.unary(provider, opcode, value) and
-// real.op(provider, opcode, values...), the exact-real extension intrinsics.
+// Builtin type and function namespace calls, rewritten before value lookup.
+// print is already a reserved builtin, so print.line reserves no new root name.
 inline constexpr std::optional<std::string_view> standard_type_function_target(
     std::string_view type, std::string_view member) {
+    if (type == "print" && member == "line") return "$std.print.line";
     if (type == "real") {
         if (member == "atom") return "$std.real.atom";
         if (member == "unary") return "$std.real.unary";
@@ -524,12 +530,12 @@ inline constexpr std::string_view renamed_text_constant(std::string_view name) {
 }
 
 // Ordinary class bindings need an explicitly supplied instance. Only standard
-// map/set bindings establish their compiler-owned empty storage at declaration.
+// map/distinct bindings establish their compiler-owned empty storage at declaration.
 inline constexpr bool class_storage_established_at_declaration(
     std::string_view class_name, bool standard_library) {
     return standard_library &&
         (class_name.starts_with(standard_class::map_instance_prefix) ||
-         class_name.starts_with(standard_class::set_instance_prefix));
+         class_name.starts_with(standard_class::distinct_instance_prefix));
 }
 
 // `_` is the discard name: where a construct binds a value it does not use,
@@ -555,7 +561,7 @@ inline constexpr bool is_reserved_value_name(std::string_view name) {
     return is_builtin_text_constant(name) || is_builtin_callable(name) ||
            is_builtin_type_name(name) || is_standard_module(name) ||
            name == "func" || name == "fn" || name == "auto" || name == "union" ||
-           name == "main" || name == "parallel" || name == "local";
+           name == "main" || name == "parallel" || name == "local" || name == "extend";
 }
 
 inline std::string builtin_types_json() {

@@ -6,6 +6,7 @@
 
 #include "lowering/checked_types.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/tuple_text.hpp"
 #include <optional>
 
 namespace quidra::lowering {
@@ -15,7 +16,7 @@ std::optional<ValueId> TextLowering::try_string_type_method(
     const auto* receiver_name=std::get_if<NameExpr>(&n.receiver->data);
     if(receiver_name && receiver_name->name=="string" && n.method=="from_utf8"){
         auto data=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-        builder_.emit(StringFromUtf8{out,data,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(StringFromUtf8{out,data,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,data);
         return out;
     }
@@ -66,6 +67,11 @@ std::optional<ValueId> TextLowering::try_string_method(
             builder_.emit(StringTrim{out,receiver});
             return finish_string_receiver(out);
         }
+        if(n.method=="lower_ascii" || n.method=="upper_ascii"){
+            auto out=builder_.fresh();
+            builder_.emit(StringAsciiCase{out,receiver,n.method=="upper_ascii"});
+            return finish_string_receiver(out);
+        }
         if(n.method=="split"){
             auto a=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
             builder_.emit(StringSplit{out,receiver,a});
@@ -89,8 +95,29 @@ std::optional<ValueId> TextLowering::try_string_method(
 std::optional<ValueId> TextLowering::try_implicit_string_method(
     const Expr& e, const MethodCallExpr& n) {
     if(n.method=="string" && !checked_.method_calls.contains(&e)){
-        auto value=lowerer_.lower(*n.receiver),out=builder_.fresh();
-        builder_.emit(ToString{out,value,type_of(checked_,*n.receiver)});
+        const auto receiver_type = type_of(checked_, *n.receiver);
+        auto value = lowerer_.lower(*n.receiver);
+        ValueId out;
+        // Printable unions need per-case dispatch. A bare ToString IR node
+        // has no union backend, and previously emitted an undefined LLVM SSA
+        // operand in otherwise valid expressions such as value.string().
+        if (receiver_type.kind == TypeKind::Union ||
+            receiver_type.kind == TypeKind::Tuple) {
+            out = value_text(builder_, value, receiver_type);
+        } else {
+            out = builder_.fresh();
+            ToString conversion{out, value, receiver_type, std::nullopt, false};
+            for (const auto& argument : n.args) {
+                if (argument.name && *argument.name == "base") {
+                    const auto* literal = std::get_if<IntegerExpr>(&argument.value->data);
+                    if (literal) conversion.radix = static_cast<std::uint32_t>(literal->value);
+                } else if (argument.name && *argument.name == "uppercase") {
+                    const auto* literal = std::get_if<BoolExpr>(&argument.value->data);
+                    if (literal) conversion.uppercase = literal->value;
+                }
+            }
+            builder_.emit(std::move(conversion));
+        }
         lifetime_.release_temporary(*n.receiver,value);
         return out;
     }

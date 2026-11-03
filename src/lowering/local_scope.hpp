@@ -21,6 +21,7 @@
 #include "ir/function_builder.hpp"
 #include "quidra/types.hpp"
 #include <string>
+#include <functional>
 #include <unordered_map>
 #include <utility>
 
@@ -28,6 +29,7 @@ namespace quidra::lowering {
 
 class LocalScope {
 public:
+    void binding_observer(std::function<void(const std::string&,const std::string&)> observer) {binding_observer_=std::move(observer);}
     struct ScaledReal {
         std::string numerator,denominator,general,start,step,counter;
         bool exclusive_start{};
@@ -151,15 +153,18 @@ public:
 private:
     // Binds `source_name` to the IR local `ir_name` of `type`.
     void bind_local(const std::string& source_name, const std::string& ir_name, const Type& type) {
+        if(binding_observer_)binding_observer_(ir_name,source_name);
         local_names_[source_name] = ir_name;
         locals_[ir_name] = type;
     }
     // Binds `source_name` to the IR reference `ir_name` of `type`.
     void bind_reference(const std::string& source_name, const std::string& ir_name, const Type& type) {
+        if(binding_observer_)binding_observer_(ir_name,source_name);
         reference_names_[source_name] = ir_name;
         references_[ir_name] = type;
     }
 
+    std::function<void(const std::string&,const std::string&)> binding_observer_;
     std::unordered_map<std::string, ScaledReal> scaled_reals_;
     std::unordered_map<ir::ValueId,std::string> value_addresses_;
     std::unordered_map<std::string, BitPlace> bit_places_;

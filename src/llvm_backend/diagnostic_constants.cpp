@@ -48,6 +48,7 @@ constexpr std::array diagnostic_constants{
     DiagnosticConstant{".fmt.uint.text", "%llu"},
     DiagnosticConstant{".fmt.address.raw", "%p"},
     DiagnosticConstant{".fmt.string.raw", "%s"},
+    DiagnosticConstant{".fmt.newline", "\n"},
     DiagnosticConstant{".fmt.repl.string", "\"%s\""},
     DiagnosticConstant{".bool.true", "true"},
     DiagnosticConstant{".bool.false", "false"},

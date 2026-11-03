@@ -1,7 +1,8 @@
 // FiniteCheckMerging (finite_check_merging.hpp).
 #include "optimizer/finite_check_merging.hpp"
 
-#include "ir/instruction_text.hpp"
+#include "quidra/ir/visit.hpp"
+#include "quidra/ir/value_allocator.hpp"
 #include "quidra/ir/check.hpp"
 #include "quidra/ir/numeric.hpp"
 #include "quidra/numeric_types.hpp"
@@ -28,38 +29,14 @@ using ir::Function;
 using ir::Instruction;
 using ir::ValueId;
 
-// The %N values the text of an instruction names after its first " = "
-// (all of them when it defines none): the values it reads, or more.
+// The semantic SSA reads, independent of the diagnostic renderer.
 std::vector<ValueId> read_values(const Instruction& instruction) {
-    const auto text = ir::instruction_text(instruction);
-    const auto assignment = text.find(" = ");
-    std::vector<ValueId> values;
-    for (auto at = text.find('%', assignment == std::string::npos ? 0 : assignment + 3);
-         at != std::string::npos; at = text.find('%', at + 1)) {
-        std::size_t end = at + 1;
-        ValueId value = 0;
-        while (end < text.size() && text[end] >= '0' && text[end] <= '9')
-            value = value * 10 + static_cast<ValueId>(text[end++] - '0');
-        if (end > at + 1) values.push_back(value);
-    }
-    return values;
-}
-
-// The largest %N any instruction of the function names.
-ValueId largest_value(const Function& function) {
-    ValueId largest = 0;
-    for (const auto& block : function.blocks)
-        for (const auto& instruction : block.instructions) {
-            const auto text = ir::instruction_text(instruction);
-            for (auto at = text.find('%'); at != std::string::npos; at = text.find('%', at + 1)) {
-                std::size_t end = at + 1;
-                ValueId value = 0;
-                while (end < text.size() && text[end] >= '0' && text[end] <= '9')
-                    value = value * 10 + static_cast<ValueId>(text[end++] - '0');
-                largest = std::max(largest, value);
-            }
-        }
-    return largest;
+    struct Reads final : ir::OperandVisitor {
+        void use(ValueId value) override { values.push_back(value); }
+        std::vector<ValueId> values;
+    } visitor;
+    ir::visit_operands(instruction, visitor);
+    return visitor.values;
 }
 
 bool is_finite_instruction(const Instruction& instruction) {
@@ -261,15 +238,9 @@ std::optional<std::vector<std::string>> successors(const Block& block) {
     return std::nullopt;
 }
 
-bool same_statement(const ir::SourceLocation& a, const ir::SourceLocation& b) {
-    return a.line == b.line && a.column == b.column && a.source_file == b.source_file &&
-           a.source_revision == b.source_revision && a.node_id == b.node_id &&
-           a.node_kind == b.node_kind;
-}
-
 // Sinks the check of the range loop whose header is block `header`, when
 // it qualifies; true when it did.
-bool sink_loop(Function& function, std::size_t header, ValueId& next_value) {
+bool sink_loop(Function& function, std::size_t header) {
     const auto& label = function.blocks[header].label;
     const bool range = label.starts_with("for.range.cond.");
     const std::string_view prefix = range ? "for.range.cond." : "for.cond.";
@@ -332,7 +303,7 @@ bool sink_loop(Function& function, std::size_t header, ValueId& next_value) {
     // Nothing fails or has an effect but one check of one operation with a
     // single cause, under one statement.
     std::optional<std::pair<std::size_t, std::size_t>> check_at;
-    const ir::SourceLocation* statement = nullptr;
+    std::optional<std::uint64_t> statement;
     std::optional<std::pair<std::size_t, std::size_t>> statement_at;
     std::vector<std::size_t> blocks{header};
     blocks.insert(blocks.end(), loop.begin(), loop.end());
@@ -347,14 +318,18 @@ bool sink_loop(Function& function, std::size_t header, ValueId& next_value) {
                     cause != FiniteCause::multiplication)
                     return false;
                 check_at = std::pair{b, i};
-            } else if (const auto* location = std::get_if<ir::SourceLocation>(&instruction)) {
-                if (b == header) return false;
+            } else if (const auto* boundary = std::get_if<ir::StatementBoundary>(&instruction)) {
+                if (b == header || boundary->identity == 0) return false;
                 if (statement) {
-                    if (!same_statement(*statement, *location)) return false;
+                    if (*statement != boundary->identity) return false;
                 } else {
-                    statement = location;
+                    statement = boundary->identity;
                     statement_at = std::pair{b, i};
                 }
+            } else if (std::holds_alternative<ir::SourceLocation>(instruction)) {
+                // An imported/hand-built source marker needs a semantic site.
+                // Its coordinates and attribution fields are never inspected.
+                if (!statement) return false;
             } else if (is_finite_instruction(instruction) || !quiet_in_loop(instruction)) {
                 return false;
             }
@@ -366,14 +341,15 @@ bool sink_loop(Function& function, std::size_t header, ValueId& next_value) {
                       statement_at->second > check_at->second))
         return false;
 
+    const auto cleared = ir::allocate_value(function);
+    if (!cleared) return false;
     auto& sunk = function.blocks[check_at->first].instructions[check_at->second];
     const auto value = std::get<FiniteCheck>(sunk).primary.front();
     const auto flag = "$finite.flag." + std::to_string(value.value);
     sunk = ir::FiniteFlagUpdate{flag, value};
     auto& entry = function.blocks[*preheader].instructions;
-    const auto cleared = ++next_value;
-    entry.insert(entry.end() - 1, ir::ConstantBool{cleared, false});
-    entry.insert(entry.end() - 1, ir::StoreLocal{flag, cleared, Type::simple(TypeKind::Bool)});
+    entry.insert(entry.end() - 1, ir::ConstantBool{*cleared, false});
+    entry.insert(entry.end() - 1, ir::StoreLocal{flag, *cleared, Type::simple(TypeKind::Bool)});
     auto& exit = function.blocks[*end].instructions;
     exit.insert(exit.begin(), ir::FiniteFlagCheck{flag, value});
     return true;
@@ -400,9 +376,8 @@ bool run_function(Function& function) {
         for (const auto& instruction : block.instructions)
             has_check = has_check || std::holds_alternative<FiniteCheck>(instruction);
     if (!has_check) return changed;
-    auto next_value = largest_value(function);
     for (std::size_t header = 0; header < function.blocks.size(); ++header)
-        changed = sink_loop(function, header, next_value) || changed;
+        changed = sink_loop(function, header) || changed;
     return changed;
 }
 

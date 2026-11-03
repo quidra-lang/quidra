@@ -4,7 +4,8 @@
 // (first, count, step), for arrays, strings (code points), bins and tensor
 // axes alike. The rules live here once:
 //   - direction: the markers (`<` ascending, `>` descending), else the
-//     step's sign, else ascending; two markers that disagree, a marker
+//     step's sign, else both explicit endpoints' order, else ascending;
+//     two markers that disagree, a marker
 //     against the step's sign, and a step of 0 are step errors;
 //   - the default step is +1 ascending and -1 descending; an omitted start
 //     is the inclusive 0 ascending or len - 1 descending, and an omitted end
@@ -16,7 +17,8 @@
 //     (2) an exclusive endpoint is in [-1, len]; (3) an inclusive end is a
 //     valid index, or len when the slice is empty; (4) so is an inclusive
 //     start; (5) the start may pass the end in the slice's direction only
-//     when a side is exclusive (the slice is then empty).
+//     when a side is exclusive and no source-written step fixes the
+//     opposite direction (the slice is then empty).
 // All arithmetic is exact over 64-bit operands: no intermediate overflows.
 #include "quidra/slice_form.hpp"
 
@@ -70,7 +72,11 @@ struct SlicePlanResult {
     constexpr explicit operator bool() const { return status == SliceStatus::ok; }
 };
 
-constexpr SlicePlanResult plan_slice(std::uint64_t length, const SliceRequest& request) {
+// Tensor adapters retain their separate positive-step contract, including
+// reversed exclusive empty slices, by disabling only the explicit-step rule.
+// Both-inclusive wrong-direction bound errors always remain enforced.
+constexpr SlicePlanResult plan_slice(std::uint64_t length, const SliceRequest& request,
+                                     bool strict_explicit_step_endpoints = true) {
     constexpr auto max = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
     if (length > max) return {{}, SliceStatus::length_overflow};
     const auto n = static_cast<std::int64_t>(length);
@@ -89,7 +95,10 @@ constexpr SlicePlanResult plan_slice(std::uint64_t length, const SliceRequest& r
         if (direction != 0 && direction != sign) return {{}, SliceStatus::step_against_marker};
         direction = sign;
     } else {
-        if (direction == 0) direction = 1;
+        if (direction == 0)
+            direction = request.start_form != SliceStart::omitted &&
+                        request.end_form != SliceEnd::omitted && request.start > request.end
+                      ? -1 : 1;
         step = direction;
     }
     const bool ascending = direction > 0;
@@ -106,6 +115,9 @@ constexpr SlicePlanResult plan_slice(std::uint64_t length, const SliceRequest& r
     // arithmetic below works on bounded values.
     if ((!start_omitted && (start < -1 || start > n)) ||
         (!end_omitted && (end < -1 || end > n)))
+        return {{}, SliceStatus::out_of_bounds};
+    if (strict_explicit_step_endpoints && request.step && !start_omitted && !end_omitted &&
+        (ascending ? start > end : start < end))
         return {{}, SliceStatus::out_of_bounds};
 
     // The count: the j >= sigma with d*(s + j*k) <= d*e (inclusive end) or

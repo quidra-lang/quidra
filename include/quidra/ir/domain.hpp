@@ -18,6 +18,8 @@
 
 namespace quidra::ir {
 
+class OperandVisitor;
+
 // The enumerators are lower case, unlike the PascalCase enumerators elsewhere
 // in the repository, on purpose: each is also the file name of its domain in
 // every layer (quidra/ir/control_flow.hpp, control_flow_lowering.cpp), so
@@ -71,6 +73,15 @@ struct InDomain {
     static constexpr bool classified = true;
     static constexpr Domain domain = D;
     static constexpr bool is_terminator = D == Domain::control_flow;
+};
+
+// An instruction's operand traversal is a separate typed contract from its
+// domain. Definitions, uses and local/CFG names are declared explicitly in
+// src/ir/visit.cpp; their roles never depend on diagnostic text or integer
+// field layout. InstructionTraits inherits this entry point for every node.
+template <Domain D, class T>
+struct WithOperands : InDomain<D> {
+    static void visit_operands(const T& instruction, OperandVisitor& visitor);
 };
 
 } // namespace quidra::ir

@@ -408,13 +408,17 @@ static void bad_message(const std::string& s, const std::string& code,
         for (const auto& d : errors.diagnostics()) {
             if (d.code == code && d.message.find(fragment) != std::string::npos) return;
         }
-        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n";
+        for (const auto& diagnostic : errors.diagnostics())
+            std::cerr << "  actual " << diagnostic.code << ": " << diagnostic.message << "\n";
+        std::cerr << s;
         std::exit(1);
     }
     catch (const quidra::CompileError& error) {
         const auto& d = error.diagnostic();
         if (d.code == code && d.message.find(fragment) != std::string::npos) return;
-        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n"
+                  << "  actual " << d.code << ": " << d.message << "\n" << s;
         std::exit(1);
     }
     std::cerr << "unexpected acceptance, expected " << code << " containing '" << fragment
@@ -722,7 +726,7 @@ static void imported_signatures_use_module_scope() {
 // checked against the functions, classes, and enums of their own module,
 // never against the importing program's (`import nn` with a root `int M()`
 // must accept nn's `save<M>`). Standard-library generics such as
-// map.Map<K, V> never conflict with root declarations. A module whose type
+// map<K, V> never conflict with root declarations. A module whose type
 // parameter reuses its own declaration name is rejected whether it is compiled
 // on its own or imported.
 static void imported_type_parameters_use_module_scope() {
@@ -776,7 +780,7 @@ static void imported_type_parameters_use_module_scope() {
               "int[] values = [1, 2]\n"
               "string key = \"k\"\n"
               "real64 scale = 2.0\n"
-              "map.Map<string, int> counts = map.Map<string, int>()\n"
+              "map<string, int> counts = map<string, int>()\n"
               "int total = lib.first(values, 2) + lib.pick(key, scale) + outer.through(5) + holder.value + M()\n");
         (void)quidra::compile_file(root / "main.qui", {}, root);
 
@@ -1392,7 +1396,7 @@ static void standard_class_instance_prefixes_follow_the_frontend() {
     namespace standard_class = quidra::standard_class;
     const std::pair<const char*, const char*> classes[] = {
         {standard_class::map, standard_class::map_instance_prefix},
-        {standard_class::set, standard_class::set_instance_prefix},
+        {standard_class::distinct, standard_class::distinct_instance_prefix},
     };
     for (const auto& [id, prefix] : classes) {
         const auto expected = quidra::abi::generic_instance_prefix(
@@ -1473,7 +1477,7 @@ static void runtime_handle_classes_match_the_standard_classes() {
         standard_class::autograd_target, standard_class::time_instant,
         standard_class::time_duration,  standard_class::process_result,
         standard_class::random_generator, standard_class::map,
-        standard_class::set,
+        standard_class::distinct,
     };
     for (const char* id : ids) {
         const bool handle = quidra::llvm_backend::runtime_abi::runtime_handle_class(id) != nullptr;
@@ -1597,7 +1601,7 @@ static void standard_library_classes_are_marked_by_origin() {
              "\n"
              "_std_box<int> b = _std_box<int>()\n",
              "CONSTRUCTOR_SIGNATURE");
-    // Fields of a user class named like map.Map's instances are user fields,
+    // Fields of a user class named like map's instances are user fields,
     // readable like any other.
     good("class _std_map_Map<K, V> this(local K key, local V value)\n"
          "    K __key\n"
@@ -1611,7 +1615,7 @@ static void standard_library_classes_are_marked_by_origin() {
          "print(entry.__value)\n"
          "print(NL)\n");
     // A standard collection's internals stay hidden.
-    bad_code("map.Map<int, int> values = map.Map<int, int>()\nprint(len(values.__keys))\n",
+    bad_code("map<int, int> values = map<int, int>()\nprint(len(values.__keys))\n",
              "UNKNOWN_MEMBER");
     // Every kind of declaration rejects the compiler's names.
     bad_message("int __quidra_value = 1\n", "SHADOWING", reserved);
@@ -2185,7 +2189,7 @@ static void mutation_markers_are_required() {
                 "'increment' may change existing state (field 'value'); declare it as '.increment'.");
     bad_message("extern void .tick() = \"tick\"\n\nvoid run()\n    .tick()\n", "MUTATION_MARKER",
                 "'run' may change existing state (runtime state through 'tick'); declare it as '.run'.");
-    bad_message("void log(file.Handle handle)\n    .handle.write_line(\"x\")\n", "MUTATION_MARKER",
+    bad_message("void log(file.write handle)\n    .handle(\"x\")\n", "MUTATION_MARKER",
                 "declare it as '.log'");
     // R2: a declaration may promise more than its body does.
     good("int64 .zero()\n    return 0\n\nprint(.zero())\nprint(NL)\n");
@@ -2229,11 +2233,32 @@ static void mutation_markers_are_required() {
                           "        .this.inner.increment()\n",
                 "MUTATION_MARKER", "declare it as '.touch'");
     // Methods of built-in types that change existing state.
-    good("map.Map<string, int> counts\n.counts.set(\"a\", 1)\nprint(counts.has(\"a\"))\nprint(NL)\n"
+    good("map<string, int> counts\n.counts.set(\"a\", 1)\nprint(counts.has(\"a\"))\nprint(NL)\n"
          "print(len(counts.keys()))\nprint(NL)\n");
-    bad_message("map.Map<string, int> counts\ncounts.set(\"a\", 1)\n", "MUTATION_MARKER",
+    bad_message("map<string, int> counts\ncounts.set(\"a\", 1)\n", "MUTATION_MARKER",
                 "write '.counts.set(\"a\", 1)'");
-    bad_message("set.Set<int> seen\nseen.add(1)\n", "MUTATION_MARKER", "write '.seen.add(1)'");
+    bad_message("distinct<int> seen\nseen.add(1)\n", "MUTATION_MARKER", "write '.seen.add(1)'");
+    // A built-in collection may read its own private fields, including through
+    // another instance of the same specialized type. Public code may not.
+    good("distinct<int> a\ndistinct<int> b\n.a.add(1)\n.b.add(1)\n"
+         "auto intersection = a.intersection(b)\n"
+         "auto difference = a.difference(b)\n"
+         "auto symmetric = a.symmetric_difference(b)\n"
+         "auto united = a.union(b)\n"
+         "print.line(intersection.has(1))\n");
+    bad_message("distinct<int> a\nprint(a.__values)\n", "UNKNOWN_MEMBER",
+                "Standard collection internals are not source-visible.");
+    good("distinct<int> a\n.a.add(4)\n"
+         "const distinct<int> b = a\n"
+         "print.line(b.has(4))\n");
+    good("int set(int value)\n    return value + 1\nmap<string, int> counts\n.counts.set(\"apple\", set(2))\ndistinct<string> tags\n.tags.add(\"apple\")\nprint(counts.has(\"apple\"))\n");
+    // Legacy set collection types must remain invalid without reserving set as a function.
+    bad("set<int> old_collection\n");
+    bad("set.Set<int> old_collection\n");
+    bad("map.Map<int, int> old_map\n");
+    bad("map.Map<int, int>()\n");
+    bad("distinct.Distinct<int> old_distinct\n");
+    bad("distinct.Distinct<int>()\n");
     good("random.Generator generator = random.generator(7)\nint roll = .generator.int(1, 6)\nprint(roll > 0)\nprint(NL)\n");
     bad_message("random.Generator generator = random.generator(7)\nint roll = generator.int(1, 6)\n",
                 "MUTATION_MARKER", "through '.int'");
@@ -2242,7 +2267,7 @@ static void mutation_markers_are_required() {
     good("tensor<real32> t = tensor.ones<real32>([2])\ntensor<real32> u = t.track()\nprint(t.is_tracked())\nprint(NL)\n");
     // A class whose methods only read its map needs no marker.
     good("class Index this()\n"
-         "    map.Map<string, int> entries = map.Map<string, int>()\n"
+         "    map<string, int> entries = map<string, int>()\n"
          "\n"
          "    bool has(string key)\n"
          "        return this.entries.has(key)\n"
@@ -2368,11 +2393,11 @@ static void sorted_takes_a_descending_flag() {
     good(values + "bool flag = len(a) > 2\nint64[] d = a.sorted(descending = flag)\nprint(d[0])\nprint(NL)\n");
     good("int64[3] f = [3, 1, 2]\nint64[] d = f.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
     bad_message(values + "auto d = a.sorted(true)\n", "ARGUMENT_MISMATCH",
-                "sorted() accepts only the named argument 'descending'.");
+                "sorted accepts only named 'by' and 'descending' arguments.");
     bad_message(values + "auto d = a.sorted(order = true)\n", "ARGUMENT_MISMATCH",
-                "sorted() accepts only the named argument 'descending'.");
+                "Unknown sorted argument 'order'.");
     bad_message(values + "auto d = a.sorted(descending = true, descending = false)\n",
-                "ARGUMENT_MISMATCH", "sorted() accepts only the named argument 'descending'.");
+                "ARGUMENT_MISMATCH", "Duplicate sorted(descending=...).");
     bad_message(values + "int64 one = 1\nauto d = a.sorted(descending = one)\n", "TYPE_MISMATCH",
                 "descending must be bool.");
     // Ascending (no argument or a constant false) is today's instruction;
@@ -2398,7 +2423,9 @@ static void comparison_chains_keep_one_direction() {
     good(values + "bool x = a == b == c\nprint(x)\nprint(NL)\n");
     good("bool p = false\nbool q = false\nbool r = true\nprint(p == q == r)\nprint(NL)\n");
     good("string s = \"a\"\nstring t = \"a\"\nstring u = \"a\"\nprint(s == t == u)\nprint(NL)\n");
-    good("int[] p = [1]\nint[] q = [1]\nint[] r = [1]\nprint(p == q == r)\nprint(NL)\n");
+    bad_message("int[] p = [1]\nint[] q = [1]\nint[] r = [1]\nprint(p == q == r)\n",
+                "CHAINED_COMPARISON",
+                "Arrays and tensors cannot be compared in a chain; combine the comparisons explicitly.");
     good("class P this(local int value)\n"
          "    int v\n"
          "\n"
@@ -2429,7 +2456,7 @@ static void comparison_chains_keep_one_direction() {
                 "'!=' and '<' cannot share a chain");
     // Tensors give masks, which a chain cannot join.
     bad_message("tensor<real32> t = tensor.zeros<real32>([2])\nauto m = t < t <= t\n",
-                "CHAINED_COMPARISON", "Tensors cannot be compared in a chain");
+                "CHAINED_COMPARISON", "Arrays and tensors cannot be compared in a chain");
     // `a < b < c > (d)` reads as the generic call `b<c>(d)`.
     bad_message(values + "int64 d = 4\nbool x = a < b < c > (d)\n", "CHAINED_COMPARISON",
                 "write '(c > d)' if '>' starts a new comparison");
@@ -3741,6 +3768,83 @@ func<tensor<real32>{A, B}>(tensor<real32>{nat A, nat B}) operation = square
 )", "FUNCTION_REFERENCE_SIGNATURE");
 }
 
+static void function_values_consume_managed_parameters() {
+    struct Case { const char* type; const char* value; };
+    const Case cases[] = {
+        {"tensor<real32>", "tensor.zeros<real32>([2, 3, 4])"},
+        {"tensor<real32>{2, ...}", "tensor.zeros<real32>([2, 3, 4])"},
+        {"int64[]", "[1, 2]"},
+        {"(tensor<real32>, int64[])", "(tensor.zeros<real32>([2, 3, 4]), [1, 2])"},
+    };
+    const auto require = [](bool condition, const char* message) {
+        if (!condition) {
+            std::cerr << message << "\n";
+            std::exit(1);
+        }
+    };
+    for (const auto& test : cases) {
+        const std::string type = test.type;
+        const std::string source =
+            "void read(" + type + " value)\n    return\n"
+            "void direct(" + type + " value)\n    return\n"
+            "void reference(" + type + " &value)\n    return\n"
+            "func<void>(" + type + ") operation = read\n" +
+            type + " source = " + test.value + "\n"
+            "operation(source)\nread(source)\ndirect(source)\nreference(&source)\n";
+        capture_source("function_value_ownership", source);
+        const auto verify = [&](const quidra::Compilation& compilation) {
+            bool owned_target = false, borrowed_direct = false, reference_parameter = false;
+            bool explicit_target = false, indirect_call = false;
+            bool shaped_wrapper = false, checked_body = false, forwarding_move = false;
+            for (const auto& function : compilation.ir.functions) {
+                if (function.name == "read" || function.name == "read.shape_checked") {
+                    require(!function.parameters.at(0).borrowed,
+                            "function-value target borrows an owned argument");
+                    owned_target = true;
+                    shaped_wrapper = shaped_wrapper || function.shape_wrapper;
+                    checked_body = checked_body || function.name == "read.shape_checked";
+                }
+                if (function.name == "direct" || function.name == "direct.shape_checked") {
+                    require(function.parameters.at(0).borrowed,
+                            "ordinary direct function lost borrow inference");
+                    borrowed_direct = true;
+                }
+                if (function.name == "reference" || function.name == "reference.shape_checked") {
+                    const auto& parameter = function.parameters.at(0);
+                    require(parameter.writable && !parameter.borrowed,
+                            "explicit reference parameter changed ownership form");
+                    reference_parameter = true;
+                }
+                for (const auto& block : function.blocks)
+                    for (const auto& instruction : block.instructions) {
+                        if (const auto* ref = std::get_if<quidra::ir::FunctionRef>(&instruction))
+                            explicit_target = explicit_target || ref->function == "read";
+                        indirect_call = indirect_call ||
+                            std::holds_alternative<quidra::ir::IndirectCall>(instruction);
+                        if (function.name == "read" && function.shape_wrapper)
+                            if (const auto* load = std::get_if<quidra::ir::LoadLocal>(&instruction);
+                                load && load->name == "value") {
+                                // The final forwarding load transfers ownership to the
+                                // checked body; earlier shape checks merely inspect it.
+                                forwarding_move = forwarding_move || load->move_out;
+                            }
+                    }
+            }
+            require(owned_target && borrowed_direct && reference_parameter &&
+                        explicit_target && indirect_call,
+                    "function-value ownership test did not reach every call form");
+            require(!shaped_wrapper || (checked_body && forwarding_move),
+                    "shape wrapper did not transfer its owned parameter to the checked body");
+        };
+        verify(quidra::compile(source));
+        quidra::CompileOptions options;
+        options.lowering.check_every_shape_constraint = true;
+        verify(quidra::compile(source, options));
+        // The backend's parallel call receipt also requires a consuming target.
+        (void)quidra::compile(source + "parallel\n    operation(" + test.value + ")\n");
+    }
+}
+
 static void shape_entries_preserve_call_paths() {
     const std::string source = R"(tensor<real32>{N, N} square(tensor<real32>{nat N, N} value)
     return value
@@ -3791,6 +3895,7 @@ auto indirect = operation(tensor.ones<real32>([2, 2]))
 
 int main(){
     string_templates_release_owned_inputs();
+    function_values_consume_managed_parameters();
     inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "\"collection_count\":2");
     inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "ForCollectionBinding");
     good("nat[2] expected_shape = [2, 3]\nparallel\n    tensor<real32>{nat N, N + 1} a = tensor.zeros<real32>([2, 3])\n    tensor<real32>{N, N + 1} b = tensor.ones<real32>()\n    print(b.shape() == expected_shape)\n");
@@ -3842,8 +3947,9 @@ int main(){
                 "INDEX_BOUNDS", "Slice 1:3 out of bounds for length 3.");
     bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[4>:0]\n",
                 "INDEX_BOUNDS", "Slice 4>:0 out of bounds for length 3.");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0]\n",
-                "INDEX_BOUNDS", "Slice 2:0 out of bounds for length 3.");
+    good("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0]\n");
+    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0:1]\n",
+                "INDEX_BOUNDS", "Slice 2:0:1 out of bounds for length 3.");
     bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[-1<:-1]\n",
                 "INDEX_BOUNDS", "Slice -1<:-1 out of bounds for length 3.");
     bad_message("int[] values = [1, 2, 3]\nint[] part = values[0:1, 1:2]\n",
@@ -4013,33 +4119,33 @@ print(NL)
      "int x = 123456789012345678901234567890\n",
      "call i64 @quidra.int.literal");
  bad_code("tensor<int> x = tensor<int>([1])\n", "INVALID_TYPE");
- bad_code("map.Map<real, int> values = map.Map<real, int>()\n", "STANDARD_KEY_TYPE");
- bad_code("set.Set<real> values = set.Set<real>()\n", "STANDARD_KEY_TYPE");
+ bad_code("map<real, int> values = map<real, int>()\n", "STANDARD_KEY_TYPE");
+ bad_code("distinct<real> values = distinct<real>()\n", "STANDARD_KEY_TYPE");
  llvm_not_contains(
-     "map.Map<int, int> values = map.Map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
+     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
      "call ptr @quidra_format_signed");
  llvm_not_contains(
-     "set.Set<nat64> values = set.Set<nat64>()\nnat64 key = nat64(7)\n.values.add(key)\nbool present = values.has(key)\n",
+     "distinct<nat64> values = distinct<nat64>()\nnat64 key = nat64(7)\n.values.add(key)\nbool present = values.has(key)\n",
      "call ptr @quidra_format_unsigned");
  llvm_not_contains(
-     "map.Map<int, int> values = map.Map<int, int>()\nint key = int(7)\n.values.set(key, 2)\nauto value = values.get(key)\n",
+     "map<int, int> values = map<int, int>()\nint key = int(7)\n.values.set(key, 2)\nauto value = values.get(key)\n",
      "call ptr @quidra.int.text");
  // Standard map/set slot capacities are compiler-owned powers of two, so hot
  // probing uses masking rather than signed remainder and branchy wraparound.
  llvm_function_not_contains(
-     "map.Map<int, int> values = map.Map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
+     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
      "___slot_of(", "srem i64");
  llvm_function_not_contains(
-     "set.Set<int> values = set.Set<int>()\n.values.add(1)\nbool present = values.has(1)\n",
+     "distinct<int> values = distinct<int>()\n.values.add(1)\nbool present = values.has(1)\n",
      "___slot_of(", "srem i64");
  // Map/Set scalar fields have compiler-owned initializers. Array-copy paths
  // inside these methods may still need element initialization checks, so scope
  // this regression to the typed-IR address path used by scalar compound updates.
  ir_function_not_contains(
-     "map.Map<int, int> values = map.Map<int, int>()\n.values.set(1, 2)\n",
+     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\n",
      ".set(", "address.load");
  ir_function_not_contains(
-     "map.Map<int, int> values = map.Map<int, int>()\n.values.set(1, 2)\n",
+     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\n",
      ".set(", "address.store");
 
  // Compiler-owned +1 induction variables are bounded by their loop
@@ -4404,10 +4510,11 @@ nat b = twice(nat(4))
  bad_code("nat x = 3 - 5\n", "INTEGER_RANGE");
  bad_code("int64 x = 9223372036854775807 + 1\n", "INTEGER_RANGE");
  good("int x = 9223372036854775807 + 1\nnat y = 18446744073709551615 + 1\n");
- // Literal powers without a value are compile-time errors.
+ // Undefined literal powers are compile-time errors; zero to a negative
+ // real exponent now produces positive infinity.
  bad_message("int64 x = 0 ^ 0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
  bad_message("real64 x = 0.0 ^ 0.0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
- bad_message("real64 x = 0.0 ^ -1.0\n", "POWER_DOMAIN", "0 ^ a negative exponent is undefined.");
+ good("real64 x = 0.0 ^ -1.0\n");
  bad_message("real64 x = (-2.0) ^ 0.5\n", "POWER_DOMAIN", "A negative base requires an integer exponent.");
  good("real64 x = (-2.0) ^ 3.0\nint64 y = 0 ^ 2\n");
  llvm_contains("real64 f(real64 a, real64 b)\n    return a ^ b\n", "call double @quidra.power.real64(");
@@ -6957,15 +7064,36 @@ print(NL)
 print(identity<int, int>(1))
 print(NL)
 )", "GENERIC_ARITY");
+ good(R"(file.read reader("sample.txt")
+while .reader(string &line)
+    print(line)
+)");
+ good(R"(file.write writer("out.txt")
+.writer("hello")
+file.append extra("out.txt")
+.extra("world")
+)");
+ good(R"(file.read reader
+reader = file.read("sample.txt")
+while .reader(string &line)
+    print(line)
+)");
+ bad_code(R"(file.write writer = file.append("log.txt")
+)", "TYPE_MISMATCH");
+ bad_code(R"(file.Reader reader
+)", "UNKNOWN_TYPE");
+ bad_code(R"(file.Writer writer
+)", "UNKNOWN_TYPE");
+ bad_code(R"(file stream = file.read("sample.txt")
+)", "FILE_TYPE");
  good(R"(void | error read_open_file(string path)
-    file.Handle handle = try file.open(path)
-    string text = try .handle.read()
-    .handle.close()
+    file.read reader = try file.read(path)
+    string text = ""
+    bool read = try .reader(&text)
     return void
 )");
  good(R"(void | error read_open_bin(string path)
-    file.Handle handle = try file.open(path)
-    bin data = try .handle.read_bin()
+    bin data = try file.read_bin(path)
     return void
 )");
  good(R"(int | error fallible_value(bool ok)
@@ -7060,7 +7188,7 @@ int | error converted = int(value)
  llvm_contains(R"(string text = "12"
 int64 | error parsed = int64.parse(text)
 )", "= getelementptr inbounds [72 x i8], ptr @.quidra.err.");
- llvm_contains(R"(file.Handle | error handle = file.append("log.txt")
+ llvm_contains(R"(file.append | error handle = file.append("log.txt")
 )", "@quidra_error_file(i32 3, i32 2, ptr ");
  bad_code(R"(int | real64 value = 5
 real64 narrowed = value
@@ -7083,23 +7211,28 @@ int still_returns()
         print(NL)
 )", "MISSING_RETURN");
  llvm_contains(R"(void | error read_open_file(string path)
-    file.Handle handle = try file.open(path)
-    string text = try .handle.read()
+    file.read reader = try file.read(path)
+    string text = ""
+    bool read = try .reader(&text)
     return void
 )", "ptr @quidra_file_handle_drop)");
  llvm_contains(R"(void | error copy_handle(string path)
-    file.Handle first = try file.open(path)
-    file.Handle second = first
+    file.read first = try file.read(path)
+    file.read second = first
     return void
 )", "call ptr @quidra_file_handle_clone");
- bad_code(R"(void close_readonly(const file.Handle handle)
-    handle.close()
+ bad_code(R"(void close_obsolete(file.read handle)
+    .handle.close()
+)", "UNKNOWN_METHOD");
+ bad_code(R"(void read_readonly(const file.read handle)
+    string line = ""
+    bool read = .handle(&line)
 )", "WRITE_CAPABILITY");
- bad_code(R"(void read_readonly(const file.Handle handle)
-    auto text = handle.read()
-)", "WRITE_CAPABILITY");
- bad_code(R"(void read_bin_readonly(const file.Handle handle)
-    auto data = handle.read_bin()
+ bad_code(R"(void read_bin_obsolete(file.read handle)
+    .handle.read_bin()
+)", "UNKNOWN_METHOD");
+ bad_code(R"(void write_readonly(const file.write handle)
+    .handle("x")
 )", "WRITE_CAPABILITY");
  good(R"(enum Token
     Number(real64)
@@ -7173,7 +7306,7 @@ class Box<T: equatable>()
 Box<CallbackHolder> box
 )", "GENERIC_CONSTRAINT");
  bad_code(R"(class ResourceHolder()
-    file.Handle handle
+    file.read handle
 T same<T: equatable>(T value)
     return value
 ResourceHolder holder
@@ -8508,5 +8641,16 @@ while count < 2
     data = partial
     count += 1
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
+ // Returning an array expression in a fallible function must still take
+ // the elementwise lowering path and keep the first operand alive when a
+ // later try can return early. Result-context union widening is not the
+ // operator's own result type.
+ ir_contains(R"(int[] make_values()
+    return [1, 2]
+int[] | error fail_values()
+    return error("intentional failure")
+int[] | error add_values()
+    return make_values() + try fail_values()
+)", "array.elementwise.left");
  std::cout<<"all compiler tests passed\n";
 }

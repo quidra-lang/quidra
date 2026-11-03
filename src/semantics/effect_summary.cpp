@@ -112,7 +112,10 @@ bool is_reference_member(const CheckedProgram& checked,const Type& type,const st
 // changes: a file handle's position and open state.
 bool is_shared_handle(const Type& type) {
     return type.kind == TypeKind::Class &&
-           type.class_name == standard_class::file_handle;
+           (type.class_name == standard_class::file_handle ||
+             type.class_name == standard_class::file_read ||
+             type.class_name == standard_class::file_write ||
+             type.class_name == standard_class::file_append);
 }
 
 bool shared_region_in(const CheckedProgram& checked, const Type& type,
@@ -2071,7 +2074,10 @@ private:
                 shared_mutation_of_argument(*node.receiver, expression.span);
             }
         };
-        if (class_name == standard_class::file_handle) {
+        if (class_name == standard_class::file_handle ||
+            class_name == standard_class::file_read ||
+            class_name == standard_class::file_write ||
+            class_name == standard_class::file_append) {
             if (!effect || effect->file == StandardMethodFileAccess::None) return;
             const auto use =
                 effect->file == StandardMethodFileAccess::Write ? ResourceUse::Exclusive : ResourceUse::Shared;

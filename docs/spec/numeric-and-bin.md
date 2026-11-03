@@ -148,7 +148,7 @@ Floating and `real` operands support real exponents. The operands have the
 same concrete numeric type; `^` does not introduce implicit numeric conversion.
 
 Powers without a value are `POWER_DOMAIN` failures in every numeric family:
-`0 ^ 0`, a zero base with a negative exponent, a negative integer exponent,
+`0 ^ 0`, a negative integer exponent,
 and, for `real32`, `real64` and `real`, a negative base with an exponent that is not an
 integer (`real64 a = -2.0; a ^ 0.5`; there is no promotion to a complex
 result). With literal operands these are compile-time errors; otherwise the
@@ -169,40 +169,40 @@ power that only a provider's refinement can decide.
 Bitwise XOR is deliberately separate and continues to use the uppercase `XOR`
 operator.
 
-## No NaN or infinity
+## Signed infinity without NaN
 
-No value of a fixed-width real type that a program can observe is NaN or an
-infinity. Producing one is an error at the operation that would produce it,
-and the program stops with status 101:
+The real types (`real16`, `real16b`, `real32`, `real64` and exact `real`)
+admit signed infinity, written `inf` and `-inf`. Exact `real` displays these
+values as `∞` and `-∞`; fixed-width types display `inf` and `-inf`. The same
+spellings are used by printing, interpolation and `.string()`.
 
-- `+`, `-`, `*`, `/` and `^` whose result lies beyond the type's finite
-  range stop with `REAL_OVERFLOW` (`real64 multiplication overflow`);
-- a division by zero, `0.0 / 0.0` included, stops with `DIVISION_BY_ZERO`
-  (`real32 division by zero`);
-- the powers without a value stop with `POWER_DOMAIN` before they are
-  computed (see Exponentiation).
+Real overflow, nonzero real division by zero and zero to a negative real
+power may produce infinity. NaN is never observable: an indeterminate
+operation such as `inf - inf`, `0 * inf` or `inf / inf` fails with
+`NONFINITE_RESULT`, while `0.0 / 0.0` fails with `DIVISION_BY_ZERO`.
+Undefined powers, including `0 ^ 0` and a negative real base with a
+fractional exponent, retain `POWER_DOMAIN`.
 
-Unary minus and the comparisons never produce such a value, conversions
-check their destination's range, and parsing rejects `nan`, `inf` and text
-beyond the finite range. Signed zero and subnormal values are finite: `-0.0`
-prints as `-0.0` and equals `0.0`. A constant expression of real literals is
-computed in its type at compile time, so its overflow is a compile-time
-error:
+A constant expression follows the same rules in its concrete type:
 
 ```quidra
-real64 big = 1.0e308 * 10.0 // compile-time error
+real64 big = 1.0e308 * 10.0 // inf: arithmetic overflow is allowed
+real64 invalid = 0.0 / 0.0 // compile-time error: indeterminate division
 ```
 
-Tensors follow the same rule element by element: a real tensor operation
-tests every element it computes (on a GPU the test stays on the device and
-fails at the next synchronization point), a gradient that a backward pass
-delivers is tested, and so is a real tensor that a package function writes.
+Finite out-of-range literals and finite narrowing conversions still fail;
+an already infinite real value preserves its sign in real-family conversions.
+Infinity cannot convert to an integer. Parsing accepts `inf` and `-inf`,
+rejects NaN, and retains range checks for finite text. Exact `real.parse`
+also accepts `∞` and `-∞`. Signed zero and subnormal behavior is unchanged;
+fixed-width `-0.0` prints with its sign and compares equal to `0.0`.
 
-When several operations of one expression overflow, the first one in
-evaluation order is reported, at its own location. The implementation may
-test the operations of one expression together, or the single operation of
-a loop once at the loop's end; the failure it reports is the one the
-operation-by-operation test would report.
+Arrays, tensor elements, delivered gradients and native package outputs
+obey this policy. CPU tensor checks report the first failing logical element;
+GPU checks stay on the device and report at the next synchronization point.
+Merged checks must report the same first indeterminate operation, at its
+own location, as unmerged checks. An intermediate NaN cannot be hidden by a
+later operation such as raising it to zero.
 
 ## Complex numbers
 
@@ -229,9 +229,9 @@ The operators are `+`, `-`, `*`, `/`, unary `-`, `==`, `!=` and, for the
 fixed-width types, `^`. Complex values have no ordering. Each part operation
 of a fixed-width type rounds once to the part type: `*` is
 `(ac - bd) + (ad + bc)i` with no fused operation, and `/` is Smith's
-algorithm. A result, or an intermediate value of `/`, that is not finite
-stops the program like a real overflow (`REAL_OVERFLOW`,
-`com32 multiplication overflow`), and a divisor `0.0 + 0.0i` is
+algorithm. A NaN result, or a NaN intermediate value of `/`, stops the
+program (`NONFINITE_RESULT`, `com32 multiplication produced NaN`);
+infinite parts are valid. A divisor `0.0 + 0.0i` remains
 `DIVISION_BY_ZERO` (`com64 division by zero`). `z ^ w` is the principal value `exp(w Log z)`,
 computed in binary64 with the platform's math library and rounded once per
 part: it is deterministic on one platform but not correctly rounded. `0 ^ w`
@@ -296,7 +296,7 @@ These operations are representation operations rather than arithmetic conversion
 
 Equality and ordering of exact symbolic values must not silently fall back to rounded IEEE guesses. Core decides them by certified refinement: it encloses the difference of the two values in intervals with dyadic bounds, rounded outward, that narrow as the precision doubles from 64 to 4096 bits, using the enclosures that the providers of the atoms and operations supply, until the interval excludes zero. Rationals are compared exactly. If a result cannot be established within this deterministic budget (precision, node visits and nesting, never time), the program stops with `EXACT_UNPROVEN` instead of returning an unproved Boolean, the same way on every run and platform. Decimal formatting is an observation of the exact stored value and does not mutate it.
 
-A contextual constant is declared with `const literal real` (`const literal com` once complex values exist): its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use of the constant is a literal of the real category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
+A contextual constant is declared with `const literal real` or `const literal com`: its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use of the constant is a literal of the real category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
 
 ```quidra
 import math
@@ -330,7 +330,7 @@ int value = 100
 int8 checked = int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (±infinity narrowed to `real32`), `numeric conversion failed: value is not an integer and cannot be represented as bigint` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Already infinite values retain their sign in real-family conversions; they cannot convert to an integer. Integer widening whose source range is fully contained in the destination is infallible.
 
 A real (`real16`, `real16b`, `real32`, `real64` or exact `real`) converts to an integer-family type only when its mathematical value is integral and fits the destination range. The result has type `T | error`: `NOT_INTEGRAL` for a fractional value, `OUT_OF_RANGE` for an integral value outside the range, and `UNDECIDED` when an exact proof cannot establish integrality. Signed zero converts to integer zero. No integer rounding is performed; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to select one.
 
@@ -356,6 +356,9 @@ real32 | error ratio = real32.parse("1.5")
 int | error huge = int.parse("123456789012345678901234567890")
 real | error exact = real.parse("0.1")
 ```
+
+
+For integer values only, `value.string(base = 2)` or `value.string(base = 16, uppercase = true)` selects an integer radix from 2 through 36. The optional `uppercase` flag changes digits A–Z only and defaults to false. `base` and `uppercase` are named compile-time literals in this initial Core API, checked at compile time; other type families keep zero-argument `.string()`. Zero renders as `0`, signed negatives retain a single leading minus, and no base prefix or leading zeros are added. The implementation converts the exact integer (including arbitrary-precision `int`/`nat` and fixed-width signed/unsigned integers) without loss of precision. The same integer semantics are available in string interpolation as `{value:base=16,upper}`; `base=N` accepts a decimal literal from 2 through 36, and the optional `upper` flag selects uppercase digits. Radix interpolation cannot be mixed with decimal padding, precision, or grouping options, and requires an integer expression.
 
 Scalar values provide `.string()` for their standard textual representation. A `real16` or `real16b` value prints as the shortest decimal that reads back to the same value of its type (`real16 x = 0.1` prints `0.1`, its value being 0.0999755859375); `real16.parse` and `real16b.parse` round once, as the other real parsers do. The text of a `real` is exact: a finite decimal when the value has one (`0.5`, `4.0`, `-0.75`), otherwise an exact fraction (`1/3`, `-1/3`), and a symbolic value in canonical text. Core lays that text out and a provider supplies only the symbols of its atoms and operations: square roots take the radical sign (`√2`, `√(2/3)`), other roots print as powers (`2^(1/3)`), coefficients are juxtaposed (`2√3`, `3π`, `π/2`, `√2/2`, with `·` only between two digits, `3·2^(1/3)`), a sum prints its constant first (`1+√2`), and an operation prints as its symbol applied to its arguments (`sin(1)`). An atom or operation of a version-1 provider, which has no symbol, prints in its intrinsic's source form (`real.atom("math", 1)`). Interpolation formats apply to `real` as well: `frac=N` and `sig=N` give the correctly rounded digits, ties to even, certified by refinement (`EXACT_UNPROVEN` when refinement cannot decide them), and `int=N` and `zero` pad that decimal text, so they need `frac` or `sig`. `int.parse` and `real.parse` consume the input text directly rather than passing through a fixed-width integer or an IEEE type. `real32.parse` and `real64.parse` round the exact decimal value of the text once to the nearest value of their type, ties to even, subnormal values included, as literals do, so the text of any finite value parses back to the same value; text whose value lies beyond the finite range, or is not zero but rounds to zero, is an error. `real.parse` accepts a decimal with an optional exponent or a fraction `p/q` with an optional sign (`1/3`, `-2/4`), the text `real` prints for rationals; symbolic text such as `√2` or `π` is not parseable. A failed parse is a `NUMERIC_PARSE` error naming the type, `cannot parse numeric input as int8` for text that is not a number of the type and `cannot parse numeric input as int8: value out of range` for a number outside its range; its `type` and `reason` (`INVALID_TEXT`, `OUT_OF_RANGE`) are details. The input is not echoed.
 
@@ -394,15 +397,15 @@ An index result is a one-bit `bin`. Bin elements do not expose addressable refer
 
 ## Bin conversion
 
-All conversions between `bin` and other concrete types are explicit. The source must already have a concrete width:
+All conversions between `bin` and other concrete types are explicit. Integer sources must have a fixed-width bit representation; arbitrary-precision `int` and `nat` have no fixed bit width and cannot be converted directly to `bin`:
 
 ```quidra
 bin raw = bin(3567446)          // error: integer-family literal has no width
 bin raw32 = bin(int32(3567446)) // 32-bit representation
-bin raw64 = bin(int(3567446))   // 64-bit representation
+bin raw64 = bin(int64(3567446)) // 64-bit representation
 ```
 
-`bin(integer)` preserves the integer type's fixed-width representation, including the defined two's-complement representation of signed fixed-width integers. `intN(bin)` and `uintN(bin)` require an exact bit-length match. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
+`bin(integer)` accepts only fixed-width `int8`..`int64` and `nat8`..`nat64` sources and preserves their exact bit patterns, including the defined two's-complement representation of signed integers. `intN(bin)` and `natN(bin)` require an exact match between the bit length and the destination width. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
 
 Flat integer and bool arrays use the same rule:
 

@@ -73,18 +73,30 @@ match nested
 QUI
 [[ "$("$QUIDRA" "$TMP/match.qui")" == $'1 first\n1 0.5\n2 1.0\n1 2 nested' ]]
 cat > "$TMP/keys.qui" <<'QUI'
-map.Map<(string, int), int> values
+map<(string, int), int> values
 .values.set(("key", 1), 11)
 .values.set(("key", 1), 12)
 print(values.has(("key", 1)))
 print(NL)
-set.Set<(int, (string, bool))> keys
+distinct<(int, (string, bool))> keys
 .keys.add((1, ("a", true)))
 .keys.add((1, ("a", true)))
 print(keys.has((1, ("a", true))))
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/keys.qui")" == $'true\ntrue' ]]
+# Union stringification uses the same per-alternative rendering as
+# interpolation, rather than emitting an undefined LLVM ToString result.
+cat > "$TMP/union-string.qui" <<'QUI'
+int | none present = 7
+int | none missing = none
+print(present.string())
+print(NL)
+print(missing.string())
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/union-string.qui")" == $'7\nnone' ]]
+
 check_rejected() {
     local code="$1" source="$2"
     printf '%s\n' "$source" > "$TMP/reject.qui"

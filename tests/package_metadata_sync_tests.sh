@@ -18,7 +18,7 @@ version = "1.2.3"
 repository = "https://github.com/example/sample"
 
 [requires]
-quidra = ">=0.5.0 <0.6.0"
+quidra = ">=0.6.0 <0.7.0"
 abi = 1
 numerics = ">=0.5.0 <0.6.0"
 
@@ -51,7 +51,7 @@ repository = https://github.com/example/sample
 asset.linux-x86_64 = https://github.com/example/sample/releases/download/v1.2.3/sample-linux.tar.xz
 native.source.cpu = native/cpu.cpp
 native.pkg.codec = libcodec
-requires.quidra = >=0.5.0 <0.6.0
+requires.quidra = >=0.6.0 <0.7.0
 requires.numerics = >=0.5.0 <0.6.0
 MANIFEST
 cmp "$TMP/expected" "$PKG/quidra.package"

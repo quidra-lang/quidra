@@ -11,7 +11,7 @@
 namespace quidra::llvm_backend {
 using namespace llvm_text;
 using namespace llvm_text::types;
-void OwnedShadowEmitter::reserve(const std::string& name,const Type& type,bool pin,const std::string& custom_release) {
+void OwnedShadowEmitter::reserve(const std::string& name,const Type& type,bool pin,const std::string& custom_release,std::uint64_t scope) {
     if(!pin && !node_owns_value(type))return;
     if(entry_emitted_)throw std::logic_error("node shadow reserved after entry");
     if(indices_.contains(name))throw std::logic_error("duplicate node owning shadow");
@@ -19,13 +19,15 @@ void OwnedShadowEmitter::reserve(const std::string& name,const Type& type,bool p
     if(payload>std::numeric_limits<std::uint64_t>::max()-31)
         throw std::logic_error("node owning shadow frame overflow");
     const auto stride=(header_bytes+payload+15)&~std::uint64_t{15};
-    if(bytes_>std::numeric_limits<std::uint64_t>::max()-stride)
+    auto& bytes=scope_bytes_[scope];
+    if(bytes>std::numeric_limits<std::uint64_t>::max()-stride)
         throw std::logic_error("node owning shadow frame overflow");
     indices_[name]=slots_.size();
     const auto index=slots_.size();
     if(prefix_.empty())throw std::logic_error("node shadow function identity missing");
-    slots_.push_back({name,type,pin,bytes_,prefix_+".drop."+std::to_string(index),prefix_+".clear."+std::to_string(index),custom_release});
-    bytes_+=stride;
+    const auto prefix=prefix_+suffix(scope);
+    slots_.push_back({name,type,pin,bytes,prefix+".drop."+std::to_string(index),prefix+".clear."+std::to_string(index),custom_release,scope});
+    bytes+=stride;
 }
 std::string OwnedShadowEmitter::header(const std::string& name)const {
     return "%quidra.shadow."+std::to_string(indices_.at(name));
@@ -44,29 +46,34 @@ void OwnedShadowEmitter::prepare(const std::string& function) {
     if(!prefix_.empty())throw std::logic_error("node shadow prepared twice");
     prefix_=".quidra.shadow."+sanitize_identifier(function);
 }
-std::string OwnedShadowEmitter::entry_code(const std::string& function)const {
+std::string OwnedShadowEmitter::entry_code(const std::string& function,std::uint64_t scope)const {
     FunctionText text;LlvmBuilder out(text);
     OwnedShadowEmitter copy(out,names_,layouts_);
-    copy.indices_=indices_;copy.slots_=slots_;copy.prefix_=prefix_;copy.bytes_=bytes_;
-    copy.entry(function);return text.str();
+    copy.indices_=indices_;copy.slots_=slots_;copy.prefix_=prefix_;copy.scope_bytes_=scope_bytes_;
+    copy.entry(function,scope);return text.str();
 }
-void OwnedShadowEmitter::entry(const std::string& function) {
-    if(empty())return;
+std::string OwnedShadowEmitter::scope_allocations()const {
+    FunctionText text;LlvmBuilder out(text);
+    for(const auto& [scope,bytes]:scope_bytes_)if(scope)
+        out.alloca_slot("%quidra.shadow.stack"+suffix(scope),LlvmType::array(bytes,i8),Align::sixteen);
+    return text.str();
+}
+void OwnedShadowEmitter::entry(const std::string& function,std::uint64_t scope) {
+    if(!has_scope(scope))return;
     if(prefix_.empty())prepare(function);
     entry_emitted_=true;
-    const auto bytes=bytes_;
+    const auto bytes=scope_bytes_.at(scope);
     const auto array=LlvmType::array(bytes,i8);
-    builder_.alloca_slot("%quidra.shadow.stack",array,Align::sixteen);
-    builder_.call("%quidra.shadow.frame",runtime_abi::program::parallel_frame_create,
-        {{i64,bytes},{i64,16},{ptr,LlvmOperand::global(prefix_+".cleanup")}});
-    builder_.icmp("%quidra.shadow.active",IntPredicate::ne,ptr,"%quidra.shadow.frame","null");
-    builder_.select("%quidra.shadow.base","%quidra.shadow.active",
-        {ptr,"%quidra.shadow.frame"},{ptr,"%quidra.shadow.stack"});
+    if(!scope)builder_.alloca_slot("%quidra.shadow.stack",array,Align::sixteen);
+    builder_.call(frame(scope),runtime_abi::program::parallel_frame_create,
+        {{i64,bytes},{i64,16},{ptr,LlvmOperand::global(cleanup_symbol(scope))}});
+    builder_.icmp("%quidra.shadow.active"+suffix(scope),IntPredicate::ne,ptr,frame(scope),"null");
+    builder_.select(base(scope),"%quidra.shadow.active"+suffix(scope),
+        {ptr,frame(scope)},{ptr,"%quidra.shadow.stack"+suffix(scope)});
     for(std::size_t i=0;i<slots_.size();++i) {
         auto& slot=slots_[i];
-        slot.drop_symbol=prefix_+".drop."+std::to_string(i);
-        slot.clear_symbol=prefix_+".clear."+std::to_string(i);
-        builder_.getelementptr(header(slot.name),Inbounds::no,i8,"%quidra.shadow.base",{{i64,slot.offset}});
+        if(slot.scope!=scope)continue;
+        builder_.getelementptr(header(slot.name),Inbounds::no,i8,base(scope),{{i64,slot.offset}});
         builder_.getelementptr(payload(slot.name),Inbounds::no,i8,header(slot.name),{{i64,16}});
         builder_.store({ptr,"null"},header(slot.name),Align::none);
         builder_.store({slot.pin?ptr:llvm_type(slot.type),empty_value(slot)},payload(slot.name),Align::none);
@@ -138,11 +145,11 @@ std::string OwnedShadowEmitter::consume_link(const std::string& address) {
     builder_.call(void_type,LlvmOperand(receipt.clear_symbol),{{ptr,receipt.stable_cell}});
     builder_.br(done);builder_.block(done);return receipt.stable_cell;
 }
-void OwnedShadowEmitter::cleanup() {
-    if(empty())return;
+void OwnedShadowEmitter::cleanup(std::uint64_t scope) {
+    if(!has_scope(scope))return;
     builder_.call(runtime_abi::program::parallel_frame_cleanup,
-        {{ptr,LlvmOperand::global(prefix_+".cleanup")},{ptr,"%quidra.shadow.base"}});
-    builder_.call(runtime_abi::program::parallel_frame_leave,{{ptr,"%quidra.shadow.frame"}});
+        {{ptr,LlvmOperand::global(cleanup_symbol(scope))},{ptr,base(scope)}});
+    builder_.call(runtime_abi::program::parallel_frame_leave,{{ptr,frame(scope)}});
 }
 std::string OwnedShadowEmitter::helpers()const {
     if(empty())return {};
@@ -224,10 +231,12 @@ std::string OwnedShadowEmitter::helpers()const {
         }
         out.ret_void();out.end_function();
     }
-    LlvmFunction cleanup(void_type,"@"+prefix_+".cleanup");cleanup.parameter(ptr,"","%frame");
+    for(const auto& [scope,bytes]:scope_bytes_) {
+    (void)bytes;
+    LlvmFunction cleanup(void_type,"@"+cleanup_symbol(scope));cleanup.parameter(ptr,"","%frame");
     out.define(cleanup);out.block("entry");
     for(std::size_t j=slots_.size();j;--j) {
-        const auto& slot=slots_[j-1];const auto suffix=std::to_string(j-1);
+        const auto& slot=slots_[j-1];if(slot.scope!=scope)continue;const auto suffix=std::to_string(j-1);
         const auto cell="%cell."+suffix,drop="%drop.callback."+suffix,live="%live."+suffix;
         const auto release="drop."+suffix,next="next."+suffix;
         out.getelementptr(cell,Inbounds::no,i8,"%frame",{{i64,slot.offset}});
@@ -236,6 +245,8 @@ std::string OwnedShadowEmitter::helpers()const {
         out.call(runtime_abi::program::parallel_frame_cleanup,{{ptr,drop},{ptr,cell}});
         out.br(next);out.block(next);
     }
-    out.ret_void();out.end_function();return text.str();
+    out.ret_void();out.end_function();
+    }
+    return text.str();
 }
 }

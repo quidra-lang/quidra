@@ -50,19 +50,17 @@ std::string emit_foreign_export(const ir::Function& function, const std::string&
     if (sites) builder.locate_calls(&*sites);
     builder.call(runtime_abi::program::register_sources,
                  {{ptr, LlvmOperand::global(source_table_symbol)}});
-    // A real argument from C must be finite: x - x is NaN exactly when x is
-    // NaN or an infinity. The labels and values are named after the
+    // A real argument from C must not be NaN. Infinities are valid.
+    // The labels and values are named after the
     // parameter, whose Quidra name has no '.'.
     for (std::size_t i = 0; i < function.parameters.size(); ++i) {
         const auto& parameter = function.parameters[i];
         if (!is_fixed_real(parameter.type)) continue;
         const auto type = llvm_type(parameter.type);
-        const auto difference = "%" + parameter.name + ".difference";
         const auto bad = "%" + parameter.name + ".nonfinite";
         const auto fail = parameter.name + ".nonfinite.fail";
         const auto ok = parameter.name + ".finite";
-        builder.binary(difference, BinaryOp::fsub, type, arguments[i], arguments[i]);
-        builder.fcmp(bad, FloatPredicate::uno, type, difference, difference);
+        builder.fcmp(bad, FloatPredicate::uno, type, arguments[i], arguments[i]);
         builder.br(bad, fail, ok);
         builder.block(fail);
         builder.call(runtime_abi::failure::conversion_fail,

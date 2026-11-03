@@ -50,6 +50,7 @@ struct qf {
 };
 qf qfromraw(uint b){qf v;v.bits=b;return v;}
 uint qraw(qf v){return v.bits;}
+bool qnan(qf v){return (v.bits&0x7fffffffu)>0x7f800000u;}
 bool qfinite(qf v){return (v.bits&0x7f800000u)!=0x7f800000u;}
 qf qabs(qf v){return qfromraw(v.bits&0x7fffffffu);}
 qf operator-(qf v){return qfromraw(v.bits^0x80000000u);}
@@ -90,6 +91,7 @@ qf qpow(qf a,qf b){
 }
 struct qf2 {qf x,y;qf2(){} qf2(qf a,qf b):x(a),y(b){} qf2(qf v):x(v),y(v){} qf2(float2 v):x(v.x),y(v.y){} };
 qf2 operator-(qf2 v){return qf2(-v.x,-v.y);}
+bool2 qnan(qf2 v){return bool2(qnan(v.x),qnan(v.y));}
 bool2 qfinite(qf2 v){return bool2(qfinite(v.x),qfinite(v.y));}
 qf2 qpair(ulong b){return qf2(qfromraw(uint(b)),qfromraw(uint(b>>32)));}
 #endif

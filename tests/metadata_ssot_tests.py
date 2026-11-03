@@ -283,7 +283,7 @@ def check_no_source_extension_literals(project: dict) -> None:
 
 def check_first_party_repositories(project: dict) -> None:
     repos = project["repos"]
-    expected_names = {"core", "math", "nn", "vision", "video", "dnn"}
+    expected_names = {"core", "math", "collections", "text", "encoding", "nn", "vision", "video", "dnn"}
     check(
         set(repos) == expected_names,
         "project.toml [repos] must list exactly the first-party semantic package graph: "
@@ -327,7 +327,7 @@ def check_generated_header_placeholders() -> None:
 
 # Where a version literal would be a second definition rather than an example.
 # tests/ and docs/ are excluded on purpose: their version strings are fixtures
-# and tutorial snippets. benchmark/ records the toolchain a frozen run measured.
+# and tutorial snippets.
 VERSION_SCAN_ROOTS = (
     "src",
     "include",

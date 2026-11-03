@@ -13,6 +13,7 @@
 #include "lowering/string_concat_chain.hpp"
 #include "operator_policy.hpp"
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -27,9 +28,111 @@ ValueId OperatorLowering::lower_binary(const Expr& e, const BinaryExpr& n) {
         if (const auto out = lower_empty_string_test(n)) return *out;
         if (const auto out = lower_ascii_character_test(n)) return *out;
     }
+    // The contextual expression type may be a result union (T[] | error)
+    // even when the binary operation itself produces T[]. Dispatch by the
+    // raw operator result, or a fallible array-returning function can bypass
+    // elementwise lowering and lose its snapshot/try cleanup guarantees.
+    if (checked_.raw_types.at(&e).kind == TypeKind::Array &&
+        (type_of(checked_, *n.left).kind == TypeKind::Array ||
+         type_of(checked_, *n.right).kind == TypeKind::Array))
+        return lower_array_elementwise(e, n);
     if(n.op=="+" && type_of(checked_, e).kind==TypeKind::String) return lower_string_concatenation(e);
     if(n.op=="and"||n.op=="or") return lower_short_circuit(n);
     return lower_operator_tree(e);
+}
+
+// Materialize elementwise array arithmetic/comparison with the scalar IR
+// operations at leaves. Nested arrays recurse, checking each pair of row
+// lengths as it is reached. Never broadcast one array over another.
+ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExpr& n) {
+    const Type lhs_type = type_of(checked_, *n.left);
+    const Type rhs_type = type_of(checked_, *n.right);
+    const Type result_type = checked_.raw_types.at(&e);
+    auto lhs = lowerer_.lower(*n.left);
+    const bool hold_left = owns_managed(lhs_type) && expression_runs_code(*n.right);
+    std::string left_slot;
+    // The right operand can replace or mutate the left operand's storage.
+    // Copy borrowed values, and adopt existing temporaries without copying.
+    // The owned local also releases the value if a later try returns early.
+    if (hold_left) {
+        if (!lifetime_.expression_owns_result(*n.left))
+            lhs = lifetime_.copy_value(lhs, lhs_type);
+        left_slot = builder_.hidden("array.elementwise.left");
+        builder_.emit(DeclareLocal{left_slot, lhs_type, "", 0, 0});
+        scope_.local_type(left_slot) = lhs_type;
+        builder_.emit(StoreLocal{left_slot, lhs, lhs_type});
+    }
+    const auto rhs = lowerer_.lower(*n.right);
+    const auto index_type = Type::simple(TypeKind::Int64);
+    const auto bool_type = Type::simple(TypeKind::Bool);
+    const SourcePosition site{
+        static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)};
+    std::function<ValueId(ValueId, const Type&, ValueId, const Type&, const Type&)> apply;
+    apply = [&](ValueId l, const Type& lt, ValueId r, const Type& rt,
+                const Type& ot) -> ValueId {
+        if (ot.kind != TypeKind::Array) {
+            auto result = builder_.fresh();
+            emit_checked_binary(builder_, Binary{
+                result, n.op, l, r, lt, ot, site.line, site.column});
+            return result;
+        }
+        const bool l_array = lt.kind == TypeKind::Array;
+        const bool r_array = rt.kind == TypeKind::Array;
+        if (!l_array && !r_array)
+            throw std::logic_error("Checked elementwise array operation lacks an array");
+        auto length = builder_.fresh();
+        builder_.emit(ArrayLength{length, l_array ? l : r});
+        if (l_array && r_array) {
+            auto other = builder_.fresh();
+            builder_.emit(ArrayLength{other, r});
+            builder_.emit(ExtentEqualCheck{length, other, site});
+        }
+        auto result = builder_.fresh();
+        builder_.emit(ArrayAlloc{result, length, ot});
+        const auto index_slot = builder_.hidden("array.elementwise.index");
+        scope_.local_type(index_slot) = index_type;
+        const auto zero = builder_.const_int(0), one = builder_.const_int(1);
+        builder_.emit(StoreLocal{index_slot, zero, index_type});
+        const auto cond = builder_.label("array.elementwise.cond");
+        const auto body = builder_.label("array.elementwise.body");
+        const auto done = builder_.label("array.elementwise.done");
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(cond));
+        auto index = builder_.fresh(), more = builder_.fresh();
+        builder_.emit(LoadLocal{index, index_slot, index_type});
+        builder_.emit(Binary{more, "<", index, length, index_type, bool_type});
+        builder_.emit(Branch{more, body, done});
+        builder_.enter(builder_.add_block(body));
+        ValueId left = l, right = r;
+        if (l_array) {
+            left = builder_.fresh();
+            builder_.emit(ArrayGet{left, l, index, *lt.first, site, false, true});
+        }
+        if (r_array) {
+            right = builder_.fresh();
+            builder_.emit(ArrayGet{right, r, index, *rt.first, site, false, true});
+        }
+        const auto mapped = apply(
+            left, l_array ? *lt.first : lt,
+            right, r_array ? *rt.first : rt, *ot.first);
+        builder_.emit(ArraySet{result, index, mapped, *ot.first, site, false, true});
+        auto next = builder_.fresh();
+        builder_.emit(Binary{next, "+", index, one, index_type, index_type,
+                             0, 0, true});
+        builder_.emit(StoreLocal{index_slot, next, index_type});
+        builder_.emit(Jump{cond});
+        builder_.enter(builder_.add_block(done));
+        return result;
+    };
+    const auto output = apply(lhs, lhs_type, rhs, rhs_type, result_type);
+    if (hold_left) {
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, left_slot, lhs_type, true});
+        release_owned(builder_, consumed, lhs_type);
+    } else lifetime_.release_temporary(*n.left, lhs);
+    lifetime_.release_temporary(*n.right, rhs);
+    return output;
 }
 
 // A comparison chain compares operand 0 with operand 1, then, while every
@@ -175,8 +278,8 @@ std::optional<ValueId> OperatorLowering::lower_ascii_character_test(const Binary
             const auto& at=indexed->items.front().index->span.start;
             builder_.emit(StringIndexAsciiCompare{
                 out,text,index,byte,n.op=="!=",
-                static_cast<std::uint32_t>(at.line),
-                static_cast<std::uint32_t>(at.column)});
+                {static_cast<std::uint32_t>(at.line),
+                static_cast<std::uint32_t>(at.column)}});
             if(base_owned)
                 release_owned(builder_,text,Type::simple(TypeKind::String));
             return out;
@@ -222,9 +325,15 @@ ValueId OperatorLowering::lower_short_circuit(const BinaryExpr& n) {
 }
 
 ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
-    const auto eager_binary = [](const Expr& expression) -> const BinaryExpr* {
+    const auto eager_binary = [&](const Expr& expression) -> const BinaryExpr* {
         const auto* binary=std::get_if<BinaryExpr>(&expression.data);
         if(!binary || operator_policy::is_short_circuit(binary->op)) return nullptr;
+        // Nested array operators generate their own indexed IR loops, rather
+        // than using the scalar eager-binary path for their operand trees.
+        if (checked_.raw_types.at(&expression).kind == TypeKind::Array &&
+            (type_of(checked_, *binary->left).kind == TypeKind::Array ||
+             type_of(checked_, *binary->right).kind == TypeKind::Array))
+            return nullptr;
         return binary;
     };
 
@@ -277,8 +386,8 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
             if(comparison){
                 builder_.emit(TensorCompare{
                     out,binary->op,left,right,left_type,right_type,type_of(checked_,*current),
-                    static_cast<std::uint32_t>(current->span.start.line),
-                    static_cast<std::uint32_t>(current->span.start.column)});
+                    {static_cast<std::uint32_t>(current->span.start.line),
+                    static_cast<std::uint32_t>(current->span.start.column)}});
             }else{
                 if(left_type.kind!=TypeKind::Tensor && left_type!=element){
                     left=conversions_.convert(left,left_type,element);
@@ -290,8 +399,8 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
                 }
                 builder_.emit(TensorBinary{
                     out,binary->op,left,right,left_type,right_type,type_of(checked_,*current),
-                    static_cast<std::uint32_t>(current->span.start.line),
-                    static_cast<std::uint32_t>(current->span.start.column)});
+                    {static_cast<std::uint32_t>(current->span.start.line),
+                    static_cast<std::uint32_t>(current->span.start.column)}});
             }
         }else{
             emit_checked_binary(builder_,Binary{

@@ -113,7 +113,7 @@ void FunctionLowering::begin_function(Function out, bool signature_layout) {
             else extents.push_back(std::nullopt);
         }
         builder_.emit(ShapedConstraintCheck{
-            parameter,p.type.kind,std::move(extents),0,0,{},{}});
+            parameter,p.type.kind,std::move(extents),{0,0},{},{},p.type.tensor_shape_ellipsis});
     }
 }
 
@@ -125,6 +125,7 @@ Function FunctionLowering::function_header(
     const std::string& name, const FunctionDecl& source, const FunctionType& sig,
     bool borrowed_receiver) {
     Function out; out.name=name; out.source_file=source.source_file;
+    out.declaration = source.declaration;
     out.source_line=static_cast<std::uint32_t>(source.span.start.line);
     out.source_column=static_cast<std::uint32_t>(source.span.start.column);
     out.result=sig.result;
@@ -139,6 +140,12 @@ Function FunctionLowering::function_header(
         out.parameters.push_back(Parameter{
         p.name, p.type, p.writable,
         (borrowed_receiver&&p.name=="$receiver")||borrows_.parameter_is_borrowed(name,i), p.is_const});}
+    ir::analysis::SemanticBinding binding;
+    binding.semantic_key = name; // Exact checked signature key supplied by this caller.
+    for (std::size_t i = 0; i < out.parameters.size(); ++i)
+        binding.semantic_parameter_for_ir_parameter.push_back(i);
+    lowerer_.binding_origins().header(out,binding);
+    lowerer_.summary_bindings().emplace(name, std::move(binding));
     return out;
 }
 
@@ -184,6 +191,7 @@ void FunctionLowering::lower_prologue_and_body(
     if (enclosing_class_.in_constructor()) {
     const auto self=Type::class_type(enclosing_class_.name());
     scope_.bind_parameter("$receiver",self);
+    lowerer_.binding_origins().local(*builder_.function(),"$receiver","this");
     builder_.emit(DeclareLocal{"$receiver",self,"$receiver",
         static_cast<std::uint32_t>(source.span.start.line),
         static_cast<std::uint32_t>(source.span.start.column)});
@@ -237,6 +245,14 @@ void FunctionLowering::finish_shape_entry() {
     checked.blocks.front().instructions.erase(checked.blocks.front().instructions.begin(),
         checked.blocks.front().instructions.begin() + shape_entry_offset_);
     checked.parameters.insert(checked.parameters.end(), shape_captures_.begin(), shape_captures_.end());
+    // The generated entry inherits this exact checked declaration, while
+    // captured extents are synthetic parameters, not checker parameters.
+    if (const auto origin = lowerer_.summary_bindings().find(wrapper.name);
+        origin != lowerer_.summary_bindings().end()) {
+        auto binding = origin->second;
+        binding.semantic_parameter_for_ir_parameter.resize(checked.parameters.size());
+        lowerer_.summary_bindings().emplace(checked.name, std::move(binding));
+    }
     wrapper.blocks.resize(shape_entry_block_ + 1);
     wrapper.blocks.back().instructions.resize(shape_entry_offset_);
     wrapper.shape_wrapper = true;
@@ -262,9 +278,11 @@ void FunctionLowering::finish_shape_entry() {
     }
     const auto result = checked.result.kind == TypeKind::Never ? ValueId{} : forward.fresh();
     forward.emit(Call{result, checked.name, std::move(arguments), checked.result,
-        wrapper.source_line, wrapper.source_column, checked.result.kind == TypeKind::Never, true});
+        {wrapper.source_line, wrapper.source_column}, checked.result.kind == TypeKind::Never, true});
     if (checked.result.kind == TypeKind::Void) forward.emit(ReturnVoid{});
     else if (checked.result.kind != TypeKind::Never) forward.emit(Return{result, checked.result});
+    forward.finish();
+    lowerer_.binding_origins().split_shape_entry(wrapper.name,checked.name,shape_entry_block_,shape_entry_offset_);
     *builder_.function() = std::move(wrapper);
     module_.functions.push_back(std::move(checked));
     split_shape_entry_ = false;
@@ -305,8 +323,8 @@ void FunctionLowering::materialize_literal_constants() {
         const auto value = lowerer_.lower(*entry.value);
         const auto out = builder_.fresh();
         builder_.emit(ExactRound{out, value, entry.type, literal_constant_slot_name(checked_, slot),
-                                 static_cast<std::uint32_t>(entry.first_use.start.line),
-                                 static_cast<std::uint32_t>(entry.first_use.start.column)});
+                                 {static_cast<std::uint32_t>(entry.first_use.start.line),
+                                 static_cast<std::uint32_t>(entry.first_use.start.column)}});
         lowerer_.release_temporary(*entry.value, value);
     }
 }

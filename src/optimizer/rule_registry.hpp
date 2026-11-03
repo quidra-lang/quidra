@@ -8,6 +8,7 @@
 // to Core: they are compared and split, never given a domain meaning.
 
 #include "optimizer/rule_stage.hpp"
+#include "optimizer/declaration_binding.hpp"
 #include "optimizer/static_tensor_facts.hpp"
 
 #include "quidra/ir/module.hpp"
@@ -27,6 +28,8 @@ struct FusionPattern {
     std::string reference;
     std::vector<std::string> operations;
     std::optional<std::string> replacement;
+    std::int64_t priority{};
+    bool ordered_priority{};
 };
 
 // An execution-policy table (`[execution_policy.<id>]`) that a function
@@ -119,6 +122,8 @@ struct RuleConstraints {
     std::optional<bool> tracked;
     std::optional<bool> last_use;
     std::optional<bool> owned;
+    std::optional<std::string> backend;
+    bool shape_present{}; // Full-model shape=[] constrains rank zero.
 
     // Whether the call `call` of function meets every constraint that is
     // set: policy against the policies known before the call
@@ -139,6 +144,8 @@ struct ConditionalRule {
     std::string operation;
     std::string replacement;
     RuleConstraints constraints;
+    std::int64_t priority{};
+    bool runtime_dispatch{};
 };
 
 // Everything above for one module. The bindings and the extension tables
@@ -149,7 +156,8 @@ struct ConditionalRule {
 // module must outlive it.
 class RuleRegistry {
 public:
-    static RuleRegistry build(const ir::Module& module);
+    static RuleRegistry build(const ir::Module& module,
+                              DeclarationBindingMode mode = DeclarationBindingMode::Off);
 
     RuleRegistry(const RuleRegistry&) = delete;
     RuleRegistry& operator=(const RuleRegistry&) = delete;
@@ -158,6 +166,20 @@ public:
 
     const OperationBindings& bindings() const { return bindings_; }
     const ExtensionTables& extension_tables() const { return extension_tables_; }
+    const DeclarationBindings& declarations() const { return declarations_; }
+    struct TableSnapshot {
+        std::string extension, name;
+        std::uint32_t schema_revision{};
+        std::map<std::string, std::string> raw;
+        std::optional<CompilerExtensionTable> normalized;
+    };
+    const std::vector<TableSnapshot>& normalized_tables() const { return tables_; }
+    struct BindingDifference {
+        std::string operation;
+        std::vector<std::string> legacy, exact;
+    };
+    const std::vector<BindingDifference>& binding_differences() const { return differences_; }
+
 
     // The conditional rules of the tensor-region extensions, ordered by
     // stage and then by reference. A table without an operation or a
@@ -165,15 +187,19 @@ public:
     const std::vector<ConditionalRule>& conditional_rules() const;
 
 private:
-    RuleRegistry(const ir::Module& module, OperationBindings bindings,
-                 ExtensionTables extension_tables)
-        : module_(&module), bindings_(std::move(bindings)),
-          extension_tables_(std::move(extension_tables)) {}
+    RuleRegistry(OperationBindings bindings,
+                 ExtensionTables extension_tables, DeclarationBindings declarations,
+                 std::vector<TableSnapshot> tables, std::vector<BindingDifference> differences)
+        : bindings_(std::move(bindings)),
+          extension_tables_(std::move(extension_tables)), declarations_(std::move(declarations)),
+          tables_(std::move(tables)), differences_(std::move(differences)) {}
 
-    const ir::Module* module_;
     OperationBindings bindings_;
     ExtensionTables extension_tables_;
     mutable std::optional<std::vector<ConditionalRule>> conditional_rules_;
+    DeclarationBindings declarations_;
+    std::vector<TableSnapshot> tables_;
+    std::vector<BindingDifference> differences_;
 };
 
 // Whether source_file lies inside package_root (lexically).

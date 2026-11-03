@@ -1,11 +1,10 @@
 #pragma once
 
 // instruction_text: one instruction on one line, as `quidra ir` prints it
-// (ir::dump) and as the optimizer reads value uses (%N) out of it.
+// (ir::dump). Every instruction kind has an explicit rendering.
 //
-// The text is part of `quidra ir`'s output and of what the optimizer decides,
-// so it changes only together with both. An instruction kind without a
-// rendering gives the empty string.
+// The text is a diagnostic view, not an operand inventory. Optimizer analyses
+// read semantic operands through ir::visit_operands instead of parsing it.
 
 #include "quidra/ir/instruction.hpp"
 

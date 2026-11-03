@@ -19,7 +19,7 @@ public:
           lifetime_(lifetime) {}
 
     // print, flush
-    ValueId lower_print(const Expr& e, const CallExpr& n);
+    ValueId lower_print(const Expr& e, const CallExpr& n, bool newline = false);
     ValueId lower_flush(const Expr& e);
 
 private:

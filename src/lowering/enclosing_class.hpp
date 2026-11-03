@@ -37,11 +37,11 @@ public:
     bool in_constructor() const { return in_constructor_; }
     void set_in_constructor(bool value) { in_constructor_ = value; }
 
-    // Whether the class is a standard Map or Set specialization, whose
+    // Whether the class is a standard map or distinct specialization, whose
     // methods the lowering treats as part of the collection.
     bool is_standard_collection() const {
         return standard_class::is_map_instance(name_, standard_library_) ||
-               standard_class::is_set_instance(name_, standard_library_);
+               standard_class::is_distinct_instance(name_, standard_library_);
     }
 
 private:

@@ -81,8 +81,10 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             const auto& parameter=signature.parameters.at(argument.parameter);
             if(argument.reference) {
                 scope_.bind_capture(parameter.name,argument.storage,parameter.type,true);
+                lowerer_.binding_origins().local_unknown(*builder_.function(),argument.storage);
             }else {
                 const auto storage=scope_.bind_source_local(builder_,parameter.name,parameter.type);
+                lowerer_.binding_origins().local_unknown(*builder_.function(),storage);
                 builder_.emit(StoreLocal{storage,argument.value,parameter.type,true});
             }
         }
@@ -92,6 +94,7 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             const auto value=lowerer_.lower(*parameter.default_value);
             const auto owned=lifetime_.expression_owns_result(*parameter.default_value)?value:lifetime_.copy_value(value,parameter.type);
             const auto storage=scope_.bind_source_local(builder_,parameter.name,parameter.type);
+            lowerer_.binding_origins().local_unknown(*builder_.function(),storage);
             builder_.emit(StoreLocal{storage,owned,parameter.type,true});
             argument_values.emplace_back(owned,parameter.type);lifetime_.enter_loop_value(owned,parameter.type);
         }
@@ -113,6 +116,9 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
         });
     if(copied) root=lifetime_.copy_value(root,plan.root);
     const bool owned=!n.writable&&(copied||lifetime_.expression_owns_result(source));
+    lowerer_.binding_origins().traversal(builder_,plan,
+        ir::analysis::BindingTraversalOrigin::Kind::Each,root,{},
+        root_address?std::optional<ValueId>(root_address):std::nullopt);
     if(owned) lifetime_.enter_loop_value(root,plan.root);
     // A stored reference carries a serial for provenance, but its actual
     // target address is what managed_pin protects. Preserve that address
@@ -137,7 +143,7 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             if(step.kind==TraversalNode::Kind::Field) builder_.emit(AddressField{address,value,step.field});
             else if(step.kind==TraversalNode::Kind::TupleElement)
                 builder_.emit(AddressTupleElement{address,parent_address,step.field,step.parent});
-            else builder_.emit(AddressElement{address,value,step.index,step.parent,step.type,false,0,0,true});
+            else builder_.emit(AddressElement{address,value,step.index,step.parent,step.type,false,{0,0},true});
             const auto next=builder_.fresh();builder_.emit(LoadAddress{next,address,step.type});value=next;
         }
         return {value,address};
@@ -175,10 +181,10 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
                 const auto line=static_cast<std::uint32_t>(statement.span.start.line),column=static_cast<std::uint32_t>(statement.span.start.column);
                 for(const auto& guard:guards) {
                     const auto current=resolve(guard.path).first;
-                    builder_.emit(IterationShapeCheck{current,guard.array,guard.length,line,column});
+                    builder_.emit(IterationShapeCheck{current,guard.array,guard.length,{line,column}});
                 }
                 const auto current=resolve(path).second;
-                builder_.emit(TraversalSiteCheck{address,current,line,column});
+                builder_.emit(TraversalSiteCheck{address,current,{line,column}});
             };
             loop_targets_.enter(next,leave);
             for(std::size_t i=0;i<n.body.size();++i) {
@@ -232,9 +238,9 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             path.push_back({TraversalNode::Kind::Array,node.type,*node.type.first,0,index});
             auto child=builder_.fresh(),child_address=ValueId{};
             if(n.writable) {
-                child_address=builder_.fresh();builder_.emit(AddressElement{child_address,value,index,node.type,*node.type.first,false,0,0,true});
+                child_address=builder_.fresh();builder_.emit(AddressElement{child_address,value,index,node.type,*node.type.first,false,{0,0},true});
                 builder_.emit(LoadAddress{child,child_address,*node.type.first});
-            }else builder_.emit(ArrayGet{child,value,index,*node.type.first,0,0,true,true});
+            }else builder_.emit(ArrayGet{child,value,index,*node.type.first,{0,0},true,true});
             walk(node.children.front(),child,child_address,std::move(path));
             if(n.writable)guards.pop_back();
             auto increment=builder_.fresh();builder_.emit(Binary{increment,"+",index,builder_.const_int(1),integer,integer,0,0,true});

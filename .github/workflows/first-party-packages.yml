@@ -9,6 +9,10 @@ on:
       - develop
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compatibility:
     runs-on: ubuntu-latest
@@ -21,6 +25,24 @@ jobs:
           repository: quidra-lang/math
           ref: develop
           path: packages/math
+      - name: Check out collections
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/collections
+          ref: develop
+          path: packages/collections
+      - name: Check out text
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/text
+          ref: develop
+          path: packages/text
+      - name: Check out encoding
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/encoding
+          ref: develop
+          path: packages/encoding
       - name: Check out nn
         uses: actions/checkout@v4
         with:
@@ -59,22 +81,31 @@ jobs:
       - name: Install Video native dependencies
         run: bash packages/video/scripts/install-linux-native-deps.sh
       - name: Enforce package native ABI boundary
-        run: python3 tests/package_native_boundary_tests.py packages/math packages/nn packages/vision packages/video packages/dnn
+        run: python3 tests/package_native_boundary_tests.py packages/math packages/collections packages/text packages/encoding packages/nn packages/vision packages/video packages/dnn
       - name: Enforce first-party package layer boundary
-        run: python3 tests/first_party_layer_tests.py packages/math packages/nn packages/vision packages/video packages/dnn
+        run: python3 tests/first_party_layer_tests.py packages/math packages/collections packages/text packages/encoding packages/nn packages/vision packages/video packages/dnn
       - name: Build Quidra
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON && cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON && cmake --build build --target quidra --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Smoke-test local first-party installs
         env:
           HOME: ${{ runner.temp }}/quidra-install-home
         run: |
           build/quidra install packages/math
+          build/quidra install packages/collections
+          build/quidra install packages/text
+          build/quidra install packages/encoding
           build/quidra install packages/nn
           build/quidra install packages/vision
           build/quidra install packages/video
           build/quidra install packages/dnn
       - name: Test math against this Quidra
         run: bash packages/math/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Collections against this Quidra
+        run: bash packages/collections/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Text against this Quidra
+        run: bash packages/text/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Encoding against this Quidra
+        run: bash packages/encoding/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test Math fake-GPU contract against this Quidra
         run: bash packages/math/tests/device.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test NN against this Quidra

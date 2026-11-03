@@ -1,7 +1,7 @@
-// MB-10 - File I/O: text write of three files through the ordinary file handle
-// writer, then read-back through the ordinary line reader with integer parsing.
-// Quidra's file.Handle does not expose a configurable buffer size; the handle's
-// own buffering is what the language offers and is recorded in representation.json.
+// MB-10 - File I/O: write three text files with file.write and read each back
+// using the file.read line-stream operator, with integer parsing.
+// A stream closes at its owned lifetime boundary; the writer is scoped to
+// write_round so it closes before a reader opens the same path.
 // Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
 cli args
     string mode = argument(default = "once")
@@ -23,6 +23,17 @@ class Result()
     int nbytes
     int lines
 
+// The writer must close before the next reader opens this path.
+int .write_round(string name, int n, Lcg &generator)
+    file.write writer(name)
+    int nbytes = 0
+    for 0 <= int i < n
+        int v = .generator.next_int()
+        string record = "{i} {v}{NL}"
+        .writer(record)
+        nbytes += int(len(record))
+    return nbytes
+
 // The whole workload body (methodology 06 section 4, MB-10).
 Result workload()
     int n = 1000000
@@ -36,36 +47,19 @@ Result workload()
     for 0 <= int r < rounds
         string name = "mb10_round_{r}.txt"
 
-        file.Handle writer = file.create(name)
-        for 0 <= int i < n
-            int v = .g.next_int()
-            string record = "{i} {v}{NL}"
-            .writer.write(record)
-            nbytes = nbytes + int(len(record))
-        .writer.flush()
-        .writer.close()
-
-        file.Handle reader = file.open(name)
+        nbytes += .write_round(name, n, &g)
+        file.read reader(name)
         int idx = 0
-        bool more = true
-        while more
-            string | none | error next = .reader.read_line()
-            match next
-                string text
-                    string[] fields = text.split(" ")
-                    int a = int.parse(fields[0])
-                    int v = int.parse(fields[1])
-                    if a != idx
-                        process.exit(3)
-                    idx = idx + 1
-                    lines = lines + 1
-                    sum_v = (sum_v + v) % 1000000007
-                    chk = (chk * 31 + (v % 1000003)) % 1000003
-                none
-                    more = false
-                error problem
-                    process.exit(3)
-        .reader.close()
+        while .reader(string &text)
+            string[] fields = text.split(" ")
+            int a = int.parse(fields[0])
+            int v = int.parse(fields[1])
+            if a != idx
+                process.exit(3)
+            idx += 1
+            lines += 1
+            sum_v = (sum_v + v) % 1000000007
+            chk = (chk * 31 + (v % 1000003)) % 1000003
 
     Result result
     result.sum_v = sum_v

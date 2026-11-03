@@ -143,7 +143,7 @@ component by `corpus.py census`:
   | `argument-isolation-copy` | by-value arguments passed as a copy because the call may write their storage: storage of exactly the parameter's type, given to a borrowed parameter of a function or method, that the effect analysis isolates (the call lowering's decision) |
   | `typed-constant-retyped` | uses of an imported typed constant whose checked type differs from its declared type |
   | `autograd-target-copy` | user-visible copies of Target-holding values whose origins reach backward/track destinations or a Target's `has_grad`, `gradient` or `clear_grad`; origins propagate through bindings, assignments, value arguments, returns, arrays, tuples, loops and recursive call summaries to a finite fixed point; reference fields carry original target origins but never make their holder copy a Target copy; field and control-flow joins conservatively merge origins |
-  | `backward-unvisitable-target` | backward destinations rejected by the shared writable visit planner: Target containment under unions, `map.Map`, `set.Set`, recursive values or const fields; arrays and tuples are included, reference fields are excluded |
+  | `backward-unvisitable-target` | backward destinations rejected by the shared writable visit planner: Target containment under unions, `map<K, V>`, `distinct<T>`, recursive values or const fields; arrays and tuples are included, reference fields are excluded |
 
   The IR keys come from the lowered module, the others from the checked
   program (a REPL session or a hand-built module has no checked program, so

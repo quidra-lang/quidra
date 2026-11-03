@@ -1,4 +1,3 @@
 import lib = "./lib.qui"
 
-print(lib.answer())
-print(NL)
+print.line(lib.answer())

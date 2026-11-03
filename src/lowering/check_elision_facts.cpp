@@ -15,19 +15,6 @@ namespace quidra::lowering {
 
 using namespace quidra::ir;
 
-bool ShapeProof::rank(const Expr* expression) const {
-    if (force_ || !expression) return false;
-    const auto found = checked_.proven_shape_constraints.find(expression);
-    return found != checked_.proven_shape_constraints.end() && found->second.rank;
-}
-
-bool ShapeProof::axis(const Expr* expression, std::size_t axis) const {
-    if (force_ || !expression) return false;
-    const auto found = checked_.proven_shape_constraints.find(expression);
-    return found != checked_.proven_shape_constraints.end() &&
-        axis < found->second.axes.size() && found->second.axes[axis];
-}
-
 IntegerRangeFacts::IntegerRangeFacts(const CheckedProgram& checked, const LocalScope& scope)
     : checked_(checked), scope_(scope) {}
 
@@ -155,16 +142,6 @@ void CheckElisionFacts::record_local_store(
             }
         }
     }
-}
-
-std::unordered_set<std::string> intersect_full_arrays(
-    const std::unordered_set<std::string>& left,
-    const std::unordered_set<std::string>& right) {
-    std::unordered_set<std::string> result;
-    const auto& small = left.size() <= right.size() ? left : right;
-    const auto& large = left.size() <= right.size() ? right : left;
-    for (const auto& name : small) if (large.contains(name)) result.insert(name);
-    return result;
 }
 
 std::optional<NonnegativeIntegerRange> IntegerRangeFacts::fixed_nonnegative_range(
@@ -693,7 +670,7 @@ void ArrayBoundsProof::cache_reference_bounds(
             if (bound_type.kind != TypeKind::Int64) {
                 limit = builder.fresh();
                 builder.emit(NumericConvert{
-                    limit, length, Type::simple(TypeKind::Int64), bound_type, false, 0, 0, true});
+                    limit, length, Type::simple(TypeKind::Int64), bound_type, false, {0, 0}, true});
             }
             auto safe = builder.fresh();
             builder.emit(Binary{

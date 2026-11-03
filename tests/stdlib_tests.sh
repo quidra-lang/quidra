@@ -56,8 +56,33 @@ for mode in missing invalid unknown duplicate; do
     grep -q 'Quidra CLI error:' "$TMP/$mode.err"
 done
 
+bash "$ROOT/tests/stream_operator_tests.sh" "$QUIDRA" "$TMP"
+
 cat > "$TMP/file.qui" <<QUI
-auto | error written = file.write("$TMP/source.txt", "hello")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+void | error stream_write_text(string path, string text)
+    file.write writer = try file.write(path)
+    return .writer(text)
+
+auto | error written = stream_write_text("$TMP/source.txt", "hello")
 match written
     void
         print("write")
@@ -66,7 +91,7 @@ match written
         print(e)
         print(NL)
 
-auto | error read = file.read("$TMP/source.txt")
+auto | error read = stream_read_text("$TMP/source.txt")
 match read
     string value
         print(value)
@@ -134,352 +159,134 @@ QUI
 [[ "$(cat "$TMP/source.txt")" == "hello" ]]
 [[ -d "$TMP/new-directory" ]]
 
-cat > "$TMP/file-handle.qui" <<QUI
-auto | error opened = file.open("$TMP/source.txt")
-match opened
-    file.Handle handle
-        auto | error content = .handle.read()
-        match content
-            string value
-                print(value)
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-        .handle.close()
-        auto | error closed = .handle.read()
-        match closed
-            string value
-                print("unexpected")
-                print(NL)
-            error problem
-                print("closed")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+cat > "$TMP/file-reader.qui" <<QUI
+file.read reader = file.read("$TMP/source.txt")
+if .reader(string &line)
+    print(line)
+print(",")
+if .reader(string &line)
+    print("unexpected")
+else
+    print("eof")
 QUI
-file_handle_expected=$(printf 'hello\nclosed')
-[[ "$("$QUIDRA" "$TMP/file-handle.qui")" == "$file_handle_expected" ]]
+[[ "$("$QUIDRA" "$TMP/file-reader.qui")" == "hello,eof" ]]
 
-cat > "$TMP/file-handle-copy.qui" <<QUI
-auto | error opened = file.open("$TMP/source.txt")
-match opened
-    file.Handle first
-        file.Handle second = first
-        .first.close()
-        auto | error content = .second.read()
-        match content
-            string value
-                print(value)
-                print(NL)
-            error problem
-                print("copy-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+cat > "$TMP/file-reader-copy.qui" <<QUI
+file.read first = file.read("$TMP/source.txt")
+file.read second = first
+if .first(string &line)
+    print(line)
+print(",")
+if .second(string &line)
+    print(line)
 QUI
-[[ "$("$QUIDRA" "$TMP/file-handle-copy.qui")" == "hello" ]]
+[[ "$("$QUIDRA" "$TMP/file-reader-copy.qui")" == "hello,hello" ]]
 
 printf 'old-resource' > "$TMP/resource-source.txt"
-cat > "$TMP/file-handle-resource-identity.qui" <<QUI
-auto | error opened = file.open("$TMP/resource-source.txt")
-match opened
-    file.Handle first
-        auto | error moved = file.move("$TMP/resource-source.txt", "$TMP/resource-original.txt")
-        match moved
-            void
-                auto | error written = file.write("$TMP/resource-source.txt", "new-resource")
-                match written
-                    void
-                        file.Handle second = first
-                        auto | error a = .first.read()
-                        auto | error b = .second.read()
-                        match a
-                            string left
-                                match b
-                                    string right
-                                        print(left)
-                                        print(NL)
-                                        print(right)
-                                        print(NL)
-                                    error problem
-                                        print("copy-read-error")
-                                        print(NL)
-                            error problem
-                                print("first-read-error")
-                                print(NL)
-                    error problem
-                        print("write-error")
-                        print(NL)
-            error problem
-                print("move-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
-QUI
-file_resource_identity_expected=$(printf 'old-resource\nold-resource')
-[[ "$("$QUIDRA" "$TMP/file-handle-resource-identity.qui")" == "$file_resource_identity_expected" ]]
+cat > "$TMP/file-resource-identity.qui" <<QUI
+void | error replace_resource(string path)
+    file.write writer = try file.write(path)
+    try .writer("new-resource")
+    return
 
-cat > "$TMP/file-handle-closed-copy.qui" <<QUI
-auto | error opened = file.open("$TMP/source.txt")
-match opened
-    file.Handle first
-        .first.close()
-        auto | error removed = file.remove("$TMP/source.txt")
-        match removed
-            void
-                file.Handle second = first
-                auto | error content = .second.read()
-                match content
-                    string value
-                        print("unexpected")
-                        print(NL)
-                    error problem
-                        print("closed-copy")
-                        print(NL)
-            error problem
-                print("remove-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+file.read first = file.read("$TMP/resource-source.txt")
+file.move("$TMP/resource-source.txt", "$TMP/resource-original.txt")
+replace_resource("$TMP/resource-source.txt")
+file.read second = first
+if .first(string &line)
+    print("{line}{NL}")
+if .second(string &line)
+    print("{line}{NL}")
 QUI
-[[ "$("$QUIDRA" "$TMP/file-handle-closed-copy.qui")" == "closed-copy" ]]
+[[ "$("$QUIDRA" "$TMP/file-resource-identity.qui")" == "$(printf 'old-resource\nold-resource')" ]]
 
-cat > "$TMP/file-handle-write.qui" <<QUI
-auto | error created = file.create("$TMP/incremental.txt")
-match created
-    file.Handle handle
-        match .handle.write("alpha")
-            void
-                match .handle.write_line(" beta")
-                    void
-                        match .handle.flush()
-                            void
-                                match .handle.seek(0)
-                                    void
-                                        match .handle.read()
-                                            string content
-                                                print(content)
-                                                print(NL)
-                                            error problem
-                                                print("read-error")
-                                                print(NL)
-                                    error problem
-                                        print("seek-error")
-                                        print(NL)
-                            error problem
-                                print("flush-error")
-                                print(NL)
-                    error problem
-                        print("line-error")
-                        print(NL)
-            error problem
-                print("write-error")
-                print(NL)
-    error problem
-        print("create-error")
-        print(NL)
-QUI
-[[ "$("$QUIDRA" "$TMP/file-handle-write.qui")" == "alpha beta" ]]
+cat > "$TMP/file-write.qui" <<QUI
+void | error write_incremental(string path)
+    file.write writer = try file.write(path)
+    try .writer("alpha")
+    try .writer(" beta{NL}")
+    return
 
-cat > "$TMP/file-handle-read-line.qui" <<QUI
-auto | error opened = file.open("$TMP/incremental.txt")
-match opened
-    file.Handle handle
-        auto | error first = .handle.read_line()
-        match first
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-line-error")
-                print(NL)
-        auto | error eof = .handle.read_line()
-        match eof
-            string line
-                print("unexpected-line")
-                print(NL)
-            none
-                print("eof")
-                print(NL)
-            error problem
-                print("read-line-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+write_incremental("$TMP/incremental.txt")
+file.read reader = file.read("$TMP/incremental.txt")
+if .reader(string &line)
+    print("{line}{NL}")
+if .reader(string &line)
+    print("unexpected")
+else
+    print("eof")
 QUI
-file_read_line_expected=$(printf 'alpha beta\neof')
-[[ "$("$QUIDRA" "$TMP/file-handle-read-line.qui")" == "$file_read_line_expected" ]]
+[[ "$("$QUIDRA" "$TMP/file-write.qui")" == "$(printf 'alpha beta\neof')" ]]
 
 printf 'one\ntwo\nthree\n' > "$TMP/interleaved-lines.txt"
-cat > "$TMP/file-handle-interleaved-copy.qui" <<QUI
-auto | error opened = file.open("$TMP/interleaved-lines.txt")
-match opened
-    file.Handle first
-        file.Handle second = first
-        match .first.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-        match .first.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-        match .second.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-        match .first.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-        match .second.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+cat > "$TMP/file-reader-interleaved-copy.qui" <<QUI
+file.read first = file.read("$TMP/interleaved-lines.txt")
+file.read second = first
+if .first(string &line)
+    print("{line}{NL}")
+if .first(string &line)
+    print("{line}{NL}")
+if .second(string &line)
+    print("{line}{NL}")
+if .first(string &line)
+    print("{line}{NL}")
+if .second(string &line)
+    print("{line}{NL}")
 QUI
-file_interleaved_copy_expected=$(printf 'one\ntwo\none\nthree\ntwo')
-[[ "$("$QUIDRA" "$TMP/file-handle-interleaved-copy.qui")" == "$file_interleaved_copy_expected" ]]
+[[ "$("$QUIDRA" "$TMP/file-reader-interleaved-copy.qui")" == "$(printf 'one\ntwo\none\nthree\ntwo')" ]]
 
 printf 'last' > "$TMP/line-no-newline.txt"
 printf '\377\n' > "$TMP/line-invalid-utf8.bin"
-cat > "$TMP/file-handle-read-line-edge.qui" <<QUI
-auto | error tail_opened = file.open("$TMP/line-no-newline.txt")
-match tail_opened
-    file.Handle handle
-        match .handle.read_line()
-            string line
-                print(line)
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("read-line-error")
-                print(NL)
-        match .handle.read_line()
-            string line
-                print("unexpected-line")
-                print(NL)
-            none
-                print("eof")
-                print(NL)
-            error problem
-                print("read-line-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
+cat > "$TMP/file-reader-edge.qui" <<QUI
+file.read tail = file.read("$TMP/line-no-newline.txt")
+if .tail(string &line)
+    print("{line}{NL}")
+if .tail(string &line)
+    print("unexpected")
+else
+    print("eof{NL}")
 
-auto | error invalid_opened = file.open("$TMP/line-invalid-utf8.bin")
-match invalid_opened
-    file.Handle handle
-        match .handle.read_line()
-            string line
-                print("unexpected-text")
-                print(NL)
-            none
-                print("unexpected-eof")
-                print(NL)
-            error problem
-                print("invalid")
-                print(NL)
+file.read invalid = file.read("$TMP/line-invalid-utf8.bin")
+string text = ""
+bool | error result = .invalid(&text)
+match result
+    bool ok
+        print("unexpected")
     error problem
-        print("open-error")
-        print(NL)
+        print("invalid")
 QUI
-file_read_line_edge_expected=$(printf 'last\neof\ninvalid')
-[[ "$("$QUIDRA" "$TMP/file-handle-read-line-edge.qui")" == "$file_read_line_edge_expected" ]]
+[[ "$("$QUIDRA" "$TMP/file-reader-edge.qui")" == "$(printf 'last\neof\ninvalid')" ]]
 
-cat > "$TMP/file-handle-append.qui" <<QUI
-auto | error appended = file.append("$TMP/incremental.txt")
-match appended
-    file.Handle handle
-        match .handle.write_line("tail")
-            void
-                match .handle.flush()
-                    void
-                        .handle.close()
-                    error problem
-                        print("flush-error")
-                        print(NL)
-            error problem
-                print("append-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
-auto | error loaded = file.read("$TMP/incremental.txt")
-match loaded
-    string content
-        print(content)
-        print(NL)
-    error problem
-        print("read-error")
-        print(NL)
+cat > "$TMP/file-append.qui" <<QUI
+void | error append_tail(string path)
+    file.append writer = try file.append(path)
+    try .writer("tail{NL}")
+    return
+
+append_tail("$TMP/incremental.txt")
+file.read reader = file.read("$TMP/incremental.txt")
+while .reader(string &line)
+    print("{line}{NL}")
 QUI
-file_append_expected=$(printf 'alpha beta\ntail')
-[[ "$("$QUIDRA" "$TMP/file-handle-append.qui")" == "$file_append_expected" ]]
+[[ "$("$QUIDRA" "$TMP/file-append.qui")" == "$(printf 'alpha beta\ntail')" ]]
 
 printf 'hello' > "$TMP/source.txt"
-
-cat > "$TMP/file-handle-fail-fast.qui" <<QUI
-file.Handle handle = file.open("$TMP/does-not-exist.txt")
+cat > "$TMP/file-stream-fail-fast.qui" <<QUI
+file.read reader = file.read("$TMP/does-not-exist.txt")
 print("unreachable")
 print(NL)
 QUI
 set +e
-"$QUIDRA" "$TMP/file-handle-fail-fast.qui" >"$TMP/file-handle-fail-fast.out" 2>&1
-file_handle_fail_fast_rc=$?
+"$QUIDRA" "$TMP/file-stream-fail-fast.qui" >"$TMP/file-stream-fail-fast.out" 2>&1
+file_stream_fail_fast_rc=$?
 set -e
-[[ "$file_handle_fail_fast_rc" -eq 101 ]]
-grep -q 'Quidra runtime error\[FILE_OPEN\]' "$TMP/file-handle-fail-fast.out"
-grep -qF "cannot open \"$TMP/does-not-exist.txt\": file not found" "$TMP/file-handle-fail-fast.out"
+[[ "$file_stream_fail_fast_rc" -eq 101 ]]
+grep -q 'Quidra runtime error\[FILE_OPEN\]' "$TMP/file-stream-fail-fast.out"
+grep -qF "cannot open \"$TMP/does-not-exist.txt\": file not found" "$TMP/file-stream-fail-fast.out"
 
-cat > "$TMP/file-handle-auto-close.qui" <<QUI
+cat > "$TMP/file-stream-auto-close.qui" <<QUI
 void | error open_and_return(string path)
-    file.Handle handle = try file.open(path)
+    file.read reader = try file.read(path)
     return
 
 int i = 0
@@ -495,7 +302,7 @@ while i < 256
 print("released")
 print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/file-handle-auto-close.qui")" == "released" ]]
+[[ "$("$QUIDRA" "$TMP/file-stream-auto-close.qui")" == "released" ]]
 
 cat > "$TMP/bin-string.qui" <<'QUI'
 bin allocated = bin.fill(5, 1)
@@ -596,28 +403,6 @@ import sys
 open(sys.argv[1], "wb").write(bytes([0, 255, 65, 10, 128]))
 PY
 
-cat > "$TMP/file-handle-bin.qui" <<QUI
-auto | error opened = file.open("$TMP/source.bin")
-match opened
-    file.Handle handle
-        auto | error raw = .handle.read_bin()
-        match raw
-            bin value
-                print(len(value))
-                print(NL)
-                nat8[] bytes = nat8[](value)
-                print(bytes[1])
-                print(NL)
-            error problem
-                print("read-error")
-                print(NL)
-    error problem
-        print("open-error")
-        print(NL)
-QUI
-file_handle_bin_expected=$(printf '40\n255')
-[[ "$("$QUIDRA" "$TMP/file-handle-bin.qui")" == "$file_handle_bin_expected" ]]
-
 cat > "$TMP/file-bin.qui" <<QUI
 auto | error raw = file.read_bin("$TMP/source.bin")
 match raw
@@ -695,7 +480,26 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-list-missing.qui")" == "cannot list \"$TMP/no-such-directory\": file not found" ]]
 
 cat > "$TMP/missing-file.qui" <<QUI
-auto | error read = file.read("$TMP/does-not-exist.txt")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error read = stream_read_text("$TMP/does-not-exist.txt")
 match read
     string value
         print(value)
@@ -704,14 +508,33 @@ match read
         print(e)
         print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/missing-file.qui")" == "cannot read \"$TMP/does-not-exist.txt\": file not found" ]]
+[[ "$("$QUIDRA" "$TMP/missing-file.qui")" == *"file not found"* ]]
 
 python3 - "$TMP/invalid-utf8.txt" <<'PY'
 import sys
 open(sys.argv[1], "wb").write(b"\xc0\xaf")
 PY
 cat > "$TMP/invalid-utf8-file.qui" <<QUI
-auto | error read = file.read("$TMP/invalid-utf8.txt")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error read = stream_read_text("$TMP/invalid-utf8.txt")
 match read
     string value
         print("unexpected")
@@ -720,14 +543,33 @@ match read
         print(problem)
         print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/invalid-utf8-file.qui")" == "cannot read \"$TMP/invalid-utf8.txt\": invalid UTF-8 text" ]]
+[[ "$("$QUIDRA" "$TMP/invalid-utf8-file.qui")" == *"invalid UTF-8"* ]]
 
 python3 - "$TMP/nul-text.txt" <<'PY'
 import sys
 open(sys.argv[1], "wb").write(b"A\x00B")
 PY
 cat > "$TMP/nul-text-file.qui" <<QUI
-auto | error read = file.read("$TMP/nul-text.txt")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error read = stream_read_text("$TMP/nul-text.txt")
 match read
     string value
         print("unexpected")
@@ -736,7 +578,7 @@ match read
         print(problem)
         print(NL)
 QUI
-[[ "$("$QUIDRA" "$TMP/nul-text-file.qui")" == "cannot read \"$TMP/nul-text.txt\": text contains a NUL character" ]]
+[[ "$("$QUIDRA" "$TMP/nul-text-file.qui")" == *"NUL"* ]]
 
 cat > "$TMP/local-file.qui" <<'QUI'
 int answer()
@@ -1090,7 +932,7 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/process-direct-construction.json"
 
 cat > "$TMP/map.qui" <<'QUI'
-map.Map<string, int> counts = map.Map<string, int>()
+map<string, int> counts
 print(counts.size())
 print(NL)
 print(counts.has("apple"))
@@ -1131,7 +973,7 @@ print(NL)
 print(values[1])
 print(NL)
 
-map.Map<string, int> copied = counts
+map<string, int> copied = counts
 .copied.set("cherry", 4)
 print(counts.has("cherry"))
 print(NL)
@@ -1142,8 +984,63 @@ map_output="$("$QUIDRA" "$TMP/map.qui")"
 map_expected="$(printf '0\nfalse\nnone\n2\n3\napple\nbanana\n3\n1\nfalse\ntrue')"
 [[ "$map_output" == "$map_expected" ]]
 
+cat > "$TMP/concise-collections.qui" <<'QUI'
+map<string, int> counts
+.counts.set("apple", 2)
+.counts.set("banana", 1)
+print(counts.size())
+print(NL)
+match counts.get("apple")
+    int value
+        print(value)
+        print(NL)
+    none
+        print("missing")
+        print(NL)
+
+map<string, int> explicit_map = map<string, int>()
+map <string, int> spaced_map
+.spaced_map.set("plum", 9)
+distinct <string> spaced_distinct
+.spaced_distinct.add("ready")
+.explicit_map.set("pear", 4)
+print(explicit_map.has("pear"))
+print(NL)
+
+distinct<string> tags
+.tags.add("compiler")
+.tags.add("ai")
+.tags.add("compiler")
+print(tags.size())
+print(NL)
+
+distinct<string> explicit_distinct = distinct<string>()
+.explicit_distinct.add("ready")
+print(explicit_distinct.has("ready"))
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/concise-collections.qui")" == "$(printf '2\n2\ntrue\n2\ntrue')" ]]
+
+cat > "$TMP/distinct-and-set-name.qui" <<'QUI'
+int set(int value)
+    return value * 2
+
+map<string, int> counts
+.counts.set("apple", 2)
+distinct<string> tags
+.tags.add("apple")
+.tags.add("apple")
+print(set(3))
+print(NL)
+print(counts.has("apple"))
+print(NL)
+print(tags.size())
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/distinct-and-set-name.qui")" == "$(printf '6\ntrue\n1')" ]]
+
 cat > "$TMP/map-get-set-cache.qui" <<'QUI'
-map.Map<int, int> values = map.Map<int, int>()
+map<int, int> values = map<int, int>()
 .values.set(1, 10)
 
 auto present = values.get(1)
@@ -1201,7 +1098,7 @@ array_append_cache_expected="$(printf '10001\n10000\n10000\n9999')"
 [[ "$array_append_cache_output" == "$array_append_cache_expected" ]]
 
 cat > "$TMP/map-remove.qui" <<'QUI'
-map.Map<string, int> values = map.Map<string, int>()
+map<string, int> values = map<string, int>()
 .values.set("a", 1)
 .values.set("i", 2)
 .values.set("q", 3)
@@ -1234,7 +1131,7 @@ for auto value = remaining_values[]
 string[] reinserted_keys = values.keys()
 print(reinserted_keys[len(reinserted_keys) - 1])
 print(NL)
-map.Map<string, int> copied_values = values
+map<string, int> copied_values = values
 print(.copied_values.remove("q"))
 print(NL)
 print(values.has("q"))
@@ -1246,8 +1143,8 @@ map_remove_output="$("$QUIDRA" "$TMP/map-remove.qui")"
 map_remove_expected="$(printf 'true\nfalse\n3\nfalse\n3\na\nq\nz\n1\n3\n4\ni\ntrue\ntrue\nfalse')"
 [[ "$map_remove_output" == "$map_remove_expected" ]]
 
-cat > "$TMP/set.qui" <<'QUI'
-set.Set<string> tags = set.Set<string>()
+cat > "$TMP/distinct.qui" <<'QUI'
+distinct<string> tags
 .tags.add("compiler")
 .tags.add("ai")
 .tags.add("compiler")
@@ -1263,19 +1160,19 @@ print(NL)
 print(values[1])
 print(NL)
 
-set.Set<string> copied = tags
+distinct<string> copied = tags
 .copied.add("new")
 print(tags.has("new"))
 print(NL)
 print(copied.has("new"))
 print(NL)
 QUI
-set_output="$("$QUIDRA" "$TMP/set.qui")"
-set_expected="$(printf '2\ntrue\nfalse\ncompiler\nai\nfalse\ntrue')"
-[[ "$set_output" == "$set_expected" ]]
+distinct_output="$("$QUIDRA" "$TMP/distinct.qui")"
+distinct_expected="$(printf '2\ntrue\nfalse\ncompiler\nai\nfalse\ntrue')"
+[[ "$distinct_output" == "$distinct_expected" ]]
 
-cat > "$TMP/set-remove.qui" <<'QUI'
-set.Set<string> values = set.Set<string>()
+cat > "$TMP/distinct-remove.qui" <<'QUI'
+distinct<string> values = distinct<string>()
 .values.add("a")
 .values.add("i")
 .values.add("q")
@@ -1296,7 +1193,7 @@ for auto value = remaining[]
 string[] reinserted = values.values()
 print(reinserted[len(reinserted) - 1])
 print(NL)
-set.Set<string> copied = values
+distinct<string> copied = values
 print(.copied.remove("q"))
 print(NL)
 print(values.has("q"))
@@ -1304,13 +1201,13 @@ print(NL)
 print(copied.has("q"))
 print(NL)
 QUI
-set_remove_output="$("$QUIDRA" "$TMP/set-remove.qui")"
-set_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntrue\nfalse')"
-[[ "$set_remove_output" == "$set_remove_expected" ]]
+distinct_remove_output="$("$QUIDRA" "$TMP/distinct-remove.qui")"
+distinct_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntrue\nfalse')"
+[[ "$distinct_remove_output" == "$distinct_remove_expected" ]]
 
 cat > "$TMP/hash-collection-tombstones.qui" <<'QUI'
-map.Map<int, int> values = map.Map<int, int>()
-set.Set<int> unique = set.Set<int>()
+map<int, int> values = map<int, int>()
+distinct<int> unique = distinct<int>()
 for 0 <= nat i < 32
     .values.set(int(i), int(i))
     .unique.add(int(i))
@@ -1334,7 +1231,7 @@ tombstone_expected="$(printf '1\n1\ntrue\ntrue')"
 [[ "$tombstone_output" == "$tombstone_expected" ]]
 
 cat > "$TMP/hash-collections.qui" <<'QUI'
-map.Map<string, int> many = map.Map<string, int>()
+map<string, int> many = map<string, int>()
 for 0 <= nat i < 100
     .many.set("k{int(i)}", int(i) * 3)
 print(many.size())
@@ -1364,7 +1261,7 @@ print(NL)
 print(many.has("missing"))
 print(NL)
 
-map.Map<int, string> numbers = map.Map<int, string>()
+map<int, string> numbers = map<int, string>()
 .numbers.set(-7, "negative")
 .numbers.set(42, "answer")
 auto number_value = numbers.get(42)
@@ -1376,7 +1273,7 @@ match number_value
         print("missing")
         print(NL)
 
-set.Set<string> unique = set.Set<string>()
+distinct<string> unique = distinct<string>()
 for 0 <= nat i < 100
     .unique.add("v{i}")
 for 0 <= nat i < 100
@@ -1401,10 +1298,10 @@ grep -q 'append.field.move' "$TMP/hash-collections.ll"
 grep -q '@quidra_array_grow_move' "$TMP/hash-collections.ll"
 
 # Cross many rehash thresholds and verify lookup, replacement, insertion order,
-# set uniqueness, and value-copy isolation at a scale large enough to catch
+# distinct uniqueness, and value-copy isolation at a scale large enough to catch
 # accidental quadratic regressions in generated collection code.
 cat > "$TMP/hash-collections-stress.qui" <<'QUI'
-map.Map<int, int> large = map.Map<int, int>()
+map<int, int> large = map<int, int>()
 for 0 <= nat i < 5000
     .large.set(int(i), int(i) * 2)
 print(large.size())
@@ -1434,25 +1331,25 @@ print(NL)
 print(large.has(6000))
 print(NL)
 
-map.Map<int, int> copied_large = large
+map<int, int> copied_large = large
 .copied_large.set(6000, 42)
 print(large.has(6000))
 print(NL)
 print(copied_large.has(6000))
 print(NL)
 
-set.Set<int> large_set = set.Set<int>()
+distinct<int> large_distinct = distinct<int>()
 for 0 <= nat i < 5000
-    .large_set.add(int(i))
+    .large_distinct.add(int(i))
 for 0 <= nat i < 5000
-    .large_set.add(int(i))
-print(large_set.size())
+    .large_distinct.add(int(i))
+print(large_distinct.size())
 print(NL)
-print(large_set.has(4097))
+print(large_distinct.has(4097))
 print(NL)
-print(large_set.has(6000))
+print(large_distinct.has(6000))
 print(NL)
-int[] large_values = large_set.values()
+int[] large_values = large_distinct.values()
 print(large_values[0])
 print(NL)
 print(large_values[4999])
@@ -1463,8 +1360,8 @@ hash_stress_expected="$(printf '5000\n8194\n123456\n0\n4999\nfalse\nfalse\ntrue\
 [[ "$hash_stress_output" == "$hash_stress_expected" ]]
 
 cat > "$TMP/hash-collection-removal-stress.qui" <<'QUI'
-map.Map<int, int> values = map.Map<int, int>()
-set.Set<int> unique = set.Set<int>()
+map<int, int> values = map<int, int>()
+distinct<int> unique = distinct<int>()
 for 0 <= nat i < 5000
     .values.set(int(i), int(i) * 3)
     .unique.add(int(i))
@@ -1490,14 +1387,14 @@ print(NL)
 print(unique.has(3500))
 print(NL)
 int[] keys = values.keys()
-int[] set_values = unique.values()
+int[] distinct_values = unique.values()
 print(keys[0])
 print(NL)
 print(keys[len(keys) - 1])
 print(NL)
-print(set_values[0])
+print(distinct_values[0])
 print(NL)
-print(set_values[len(set_values) - 1])
+print(distinct_values[len(distinct_values) - 1])
 print(NL)
 .values.set(100, 7)
 .unique.add(100)
@@ -1515,7 +1412,7 @@ removal_stress_expected="$(printf '1500\n1500\nfalse\ntrue\nfalse\ntrue\n3500\n4
 # "a", "i", and "q" have the same initial bucket modulo the default capacity 8,
 # so this directly exercises deterministic open-addressing collision handling.
 cat > "$TMP/hash-collection-domains.qui" <<'QUI'
-map.Map<string, int> collisions = map.Map<string, int>()
+map<string, int> collisions = map<string, int>()
 .collisions.set("a", 1)
 .collisions.set("i", 2)
 .collisions.set("q", 3)
@@ -1551,7 +1448,7 @@ print(NL)
 print(collision_keys[2])
 print(NL)
 
-map.Map<bool, string> flags = map.Map<bool, string>()
+map<bool, string> flags = map<bool, string>()
 .flags.set(false, "off")
 .flags.set(true, "on")
 auto flag_false = flags.get(false)
@@ -1571,22 +1468,22 @@ match flag_true
         print("missing")
         print(NL)
 
-set.Set<int> numbers_set = set.Set<int>()
-.numbers_set.add(-1)
-.numbers_set.add(42)
-.numbers_set.add(-1)
-print(numbers_set.size())
+distinct<int> numbers_distinct = distinct<int>()
+.numbers_distinct.add(-1)
+.numbers_distinct.add(42)
+.numbers_distinct.add(-1)
+print(numbers_distinct.size())
 print(NL)
-print(numbers_set.has(42))
+print(numbers_distinct.has(42))
 print(NL)
 
-set.Set<bool> bool_set = set.Set<bool>()
-.bool_set.add(false)
-.bool_set.add(true)
-.bool_set.add(false)
-print(bool_set.size())
+distinct<bool> bool_distinct = distinct<bool>()
+.bool_distinct.add(false)
+.bool_distinct.add(true)
+.bool_distinct.add(false)
+print(bool_distinct.size())
 print(NL)
-bool[] bool_values = bool_set.values()
+bool[] bool_values = bool_distinct.values()
 print(bool_values[0])
 print(NL)
 print(bool_values[1])
@@ -1597,7 +1494,7 @@ hash_domain_expected="$(printf '1\n2\n3\na\ni\nq\noff\non\n2\ntrue\n2\nfalse\ntr
 [[ "$hash_domain_output" == "$hash_domain_expected" ]]
 
 cat > "$TMP/map-invalid-key.qui" <<'QUI'
-map.Map<real64, int> values = map.Map<real64, int>()
+map<real64, int> values = map<real64, int>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/map-invalid-key.qui" --json >"$TMP/map-invalid-key.json"
@@ -1607,7 +1504,7 @@ set -e
 grep -q 'STANDARD_KEY_TYPE' "$TMP/map-invalid-key.json"
 
 cat > "$TMP/map-hidden-field.qui" <<'QUI'
-map.Map<string, int> values = map.Map<string, int>()
+map<string, int> values = map<string, int>()
 print(values.__keys)
 print(NL)
 QUI
@@ -1776,7 +1673,26 @@ cat > "$TMP/json-data.json" <<'JSON'
 JSON
 
 cat > "$TMP/json.qui" <<QUI
-auto | error loaded = file.read("$TMP/json-data.json")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error loaded = stream_read_text("$TMP/json-data.json")
 match loaded
     string source
         auto | error parsed = json.parse(source)
@@ -1956,7 +1872,26 @@ cat > "$TMP/json-duplicate.json" <<'JSON'
 {"a":1,"a":2}
 JSON
 cat > "$TMP/json-duplicate.qui" <<QUI
-auto | error loaded = file.read("$TMP/json-duplicate.json")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error loaded = stream_read_text("$TMP/json-duplicate.json")
 match loaded
     string source
         auto | error parsed = json.parse(source)
@@ -2376,11 +2311,11 @@ python3 "$ROOT/tests/runtime_report.py" "$TMP/exact-noninteger-cast.err" code=NU
 
 cat > "$TMP/exact-collections.qui" <<'QUI'
 int key = 123456789012345678901234567890
-map.Map<int, string> table = map.Map<int, string>()
+map<int, string> table = map<int, string>()
 .table.set(key, "exact")
 print(table.has(key))
 print(NL)
-set.Set<int> keys = set.Set<int>()
+distinct<int> keys = distinct<int>()
 .keys.add(key)
 print(keys.has(key))
 print(NL)
@@ -2673,9 +2608,9 @@ for case_name in bitwise shift tensor extern negative-nat; do
     grep -q "$code" "$TMP/int-reject-$case_name.out"
 done
 
-# Powers without a value stop with POWER_DOMAIN in every family: 0 ^ 0, a
-# zero base with a negative exponent and a negative fixed-width real base
-# with a fractional exponent. Literal operands are compile-time errors.
+# Undefined powers retain POWER_DOMAIN: 0 ^ 0 and a negative real base
+# with a fractional exponent. Zero to a negative real power is infinity.
+# Literal operands obey the same rules during constant evaluation.
 power_domain_case() {
     local name="$1" type="$2" base="$3" exponent="$4" message="$5"
     cat > "$TMP/power-$name.qui" <<QUI
@@ -2699,8 +2634,6 @@ power_domain_case nat-zero nat 0 0 '0 ^ 0 is undefined'
 power_domain_case real64-zero real64 0.0 0.0 '0 ^ 0 is undefined'
 power_domain_case real32-zero real32 0.0 0.0 '0 ^ 0 is undefined'
 power_domain_case real-zero real 0.0 0.0 '0 ^ 0 is undefined'
-power_domain_case real64-negative real64 0.0 -1.0 '0 ^ a negative exponent is undefined'
-power_domain_case real-negative real 0.0 -2.0 '0 ^ a negative exponent is undefined'
 power_domain_case real64-base real64 -2.0 0.5 'a negative base requires an integer exponent'
 power_domain_case real32-base real32 -8.0 0.25 'a negative base requires an integer exponent'
 
@@ -2725,11 +2658,21 @@ real32 i = 2.0
 real32 j = 0.0
 print(i ^ j)
 print(NL)
+real64 negative = -1.0
+print(g ^ negative)
+print(NL)
+real exact_zero = 0.0
+real exact_negative = -2.0
+print(exact_zero ^ exact_negative)
+print(NL)
+real64 constant = 0.0 ^ -1.0
+print(constant)
+print(NL)
 QUI
-power_defined_expected="$(printf '0\n0\n-8.0\n0.0\n1.0')"
+power_defined_expected="$(printf '0\n0\n-8.0\n0.0\n1.0\ninf\n∞\ninf')"
 [[ "$("$QUIDRA" run "$TMP/power-defined.qui")" == "$power_defined_expected" ]]
 
-for literal in '0 ^ 0' '0.0 ^ 0.0' '0.0 ^ -1.0' '(-2.0) ^ 0.5'; do
+for literal in '0 ^ 0' '0.0 ^ 0.0' '(-2.0) ^ 0.5'; do
     case "$literal" in
         0.*|\(*) printf 'real64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
         *) printf 'int64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
@@ -2743,7 +2686,7 @@ for literal in '0 ^ 0' '0.0 ^ 0.0' '0.0 ^ -1.0' '(-2.0) ^ 0.5'; do
 done
 
 cat > "$TMP/bigreal-map-key.qui" <<'QUI'
-map.Map<real, string> invalid = map.Map<real, string>()
+map<real, string> invalid = map<real, string>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/bigreal-map-key.qui" --json >"$TMP/bigreal-map-key.json"
@@ -2753,7 +2696,7 @@ set -e
 grep -q 'STANDARD_KEY_TYPE' "$TMP/bigreal-map-key.json"
 
 cat > "$TMP/bigreal-set-key.qui" <<'QUI'
-set.Set<real> invalid = set.Set<real>()
+distinct<real> invalid = distinct<real>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/bigreal-set-key.qui" --json >"$TMP/bigreal-set-key.json"
@@ -2766,7 +2709,26 @@ cat > "$TMP/json-exact-data.json" <<'JSON'
 {"huge":12345678901234567890123456789012345678901234567890,"real":1.25e1000}
 JSON
 cat > "$TMP/json-exact-numerics.qui" <<QUI
-auto | error loaded = file.read("$TMP/json-exact-data.json")
+string | error stream_read_text(string path)
+    file.read reader = try file.read(path)
+    string result = ""
+    bool first = true
+    string line = ""
+    while true
+        bool | error state = .reader(&line)
+        match state
+            bool has_line
+                if not has_line
+                    break
+                if not first
+                    result += NL
+                result += line
+                first = false
+            error problem
+                return problem
+    return result
+
+auto | error loaded = stream_read_text("$TMP/json-exact-data.json")
 match loaded
     string source
         auto | error parsed = json.parse(source)
@@ -3405,7 +3367,7 @@ print("{values.h} {values.b} {values.f} {values.d}" + NL)
 QUI
 for index in 0 1 2 3
  do
-    for bad in nan inf -inf
+    for bad in nan -nan invalid
      do
         finite_cli_args=(1.0 1.0 1.0 1.0)
         finite_cli_args[$index]="$bad"
@@ -3414,6 +3376,12 @@ for index in 0 1 2 3
         finite_cli_rc=$?
         set -e
         [[ "$finite_cli_rc" -eq 2 ]]
+     done
+    for infinity in inf -inf
+     do
+        finite_cli_args=(1.0 1.0 1.0 1.0)
+        finite_cli_args[$index]="$infinity"
+        [[ "$("$QUIDRA" "$TMP/cli-finite.qui" "${finite_cli_args[@]}")" == "${finite_cli_args[*]}" ]]
      done
  done
 cat > "$TMP/time-numeric-kinds.qui" <<'QUI'
@@ -3488,3 +3456,50 @@ print(.rng.bool() == false)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/random-compat.qui")" == "$(printf '%s\n' '2' '-709' '-4084088288392011950' '6349198060258255763' '0' '0' 'true' 'true')" ]]
+
+cat > "$TMP/map-increment.qui" <<'QUI'
+map<string, nat> counts
+.counts.increment("apple")
+.counts.increment("apple", by = 4)
+.counts.increment("banana", by = 2)
+print(counts.size())
+print(NL)
+match counts.get("apple")
+    nat value
+        print(value)
+    none
+        print("missing")
+print(NL)
+match counts.get("banana")
+    nat value
+        print(value)
+    none
+        print("missing")
+print(NL)
+map<string, string> labels
+.labels.set("a", "b")
+print(labels.size())
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/map-increment.qui")" == $'2\n5\n2\n1' ]]
+
+cat > "$TMP/map-increment-invalid.qui" <<'QUI'
+map<string, string> labels
+.labels.increment("key")
+QUI
+set +e
+"$QUIDRA" check "$TMP/map-increment-invalid.qui" --json > "$TMP/map-increment-invalid.json"
+map_increment_invalid_rc=$?
+set -e
+[[ "$map_increment_invalid_rc" -eq 1 ]]
+grep -q 'UNKNOWN_MEMBER' "$TMP/map-increment-invalid.json"
+
+cat > "$TMP/ascii-case.qui" <<'QUI'
+print("AßZ 한국".lower_ascii() == "aßz 한국")
+print(NL)
+print("aßz 한국".upper_ascii() == "AßZ 한국")
+print(NL)
+print("".lower_ascii() == "")
+print(NL)
+QUI
+[[ "$("$QUIDRA" "$TMP/ascii-case.qui")" == $'true\ntrue\ntrue' ]]

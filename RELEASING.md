@@ -19,6 +19,9 @@ First-party packages have their own equivalent release documentation, in
 dependency order:
 
 - Math: [quidra-lang/math](https://github.com/quidra-lang/math) `docs/development.md`
+- Collections: [quidra-lang/collections](https://github.com/quidra-lang/collections) `docs/development.md`
+- Text: [quidra-lang/text](https://github.com/quidra-lang/text) `docs/development.md`
+- Encoding: [quidra-lang/encoding](https://github.com/quidra-lang/encoding) `docs/development.md`
 - NN: [quidra-lang/nn](https://github.com/quidra-lang/nn) `docs/development.md`
 - Vision: [quidra-lang/vision](https://github.com/quidra-lang/vision) `docs/development.md`
 - Video: [quidra-lang/video](https://github.com/quidra-lang/video) `docs/development.md`

@@ -25,7 +25,7 @@ void HttpEmitter::emit(const ir::HttpGet& n,const ir::Instruction&){
     builder_.block(bad);
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto message=names_.value("http.get.message"),error_payload=names_.value("http.get.error.payload");
-    builder_.call(message,runtime_abi::error::http_last,{{i64,records_.line(n.line)},{i64,records_.column(n.column)}});
+    builder_.call(message,runtime_abi::error::http_last,{{i64,records_.line(n.position.line)},{i64,records_.column(n.position.column)}});
     union_box_.payload_slot(error_payload,result);
     builder_.store({ptr,message},error_payload,Align::none);
     builder_.br(done);

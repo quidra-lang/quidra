@@ -13,7 +13,7 @@ namespace quidra::lowering {
 // parsed field into its target. The result is void | error; on error no
 // target is written after the failing point, and the ones before it hold
 // what was parsed.
-ValueId ScanLowering::lower_scan(const Expr& e){
+ValueId ScanLowering::lower_scan(const Expr& e, ValueId external_raw, bool from_file){
     const auto& format=checked_.scan_formats.at(&e);
     const auto result_type=checked_.raw_types.at(&e);
     const auto error_type=Type::simple(TypeKind::Error);
@@ -31,6 +31,14 @@ ValueId ScanLowering::lower_scan(const Expr& e){
         for(const unsigned char c:text) if((c&0xC0)!=0x80) ++count;
         return count;
     };
+    const auto finish_success=[&](bool success){
+        const auto value_type=Type::simple(from_file?TypeKind::Bool:TypeKind::Void);
+        ValueId value=from_file?builder_.const_bool(success):0;
+        auto wrapped=builder_.fresh();
+        builder_.emit(VariantMake{wrapped,case_index(result_type,value_type),value,result_type,value_type});
+        builder_.emit(StoreLocal{result_name,wrapped,result_type,true});
+        builder_.emit(Jump{done});
+    };
     // Stores an error result and leaves for the join. The current block
     // must not be used afterwards.
     const auto fail_with=[&](ValueId message){
@@ -44,7 +52,7 @@ ValueId ScanLowering::lower_scan(const Expr& e){
     const auto fail_make=[&](abi::ErrorValueCode code,std::vector<ErrorDetailOperand> details){
         auto made=builder_.fresh();
         builder_.emit(ErrorMake{made,static_cast<std::uint32_t>(code),{},std::move(details),std::nullopt,
-            static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         fail_with(made);
     };
     const auto constant=[](std::string text){return ErrorDetailOperand{std::nullopt,std::move(text),false};};
@@ -65,8 +73,11 @@ ValueId ScanLowering::lower_scan(const Expr& e){
     };
 
     // 1. One line of input.
-    auto raw=builder_.fresh();
-    builder_.emit(Input{raw,line_type,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    auto raw=external_raw;
+    if (!from_file) {
+        raw=builder_.fresh();
+        builder_.emit(Input{raw,line_type,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
+    }
     auto tag=builder_.fresh();
     builder_.emit(VariantTag{tag,raw});
     {
@@ -89,7 +100,8 @@ ValueId ScanLowering::lower_scan(const Expr& e){
         builder_.emit(Branch{is_none,on_eof,on_text});
         builder_.enter(builder_.add_block(on_eof));
         release_owned(builder_,raw,line_type);
-        fail_make(abi::ErrorValueCode::input_end,{});
+        if (from_file) finish_success(false);
+        else fail_make(abi::ErrorValueCode::input_end,{});
         builder_.enter(builder_.add_block(on_text));
         auto text=builder_.fresh();
         builder_.emit(VariantPayload{text,raw,string_type});
@@ -115,6 +127,10 @@ ValueId ScanLowering::lower_scan(const Expr& e){
     };
     expect_literal(format.literals.front());
 
+    // Stage every decoded field. No destination is changed until the complete
+    // format (including trailing text) has been validated.
+    struct PendingField { ValueId address; std::string slot; Type type; };
+    std::vector<PendingField> pending;
     // 3. Each target takes the text up to the next literal (or the end).
     for(std::size_t i=0;i<format.targets.size();++i){
         const auto& delimiter=format.literals[i+1];
@@ -155,13 +171,53 @@ ValueId ScanLowering::lower_scan(const Expr& e){
             builder_.emit(StoreLocal{rest_name,remaining,string_type});
         }
         auto address=lowerer_.lower_address(*format.targets[i],true);
+        const auto stage=builder_.hidden("scan.field");
+        scope_.local_type(stage)=target_type;
+        pending.push_back(PendingField{address,stage,target_type});
         if(target_type.kind==TypeKind::String){
-            builder_.emit(StoreAddress{address,field,string_type});
+            builder_.emit(StoreLocal{stage,field,string_type,true});
+            continue;
+        }
+        const auto report_invalid=[&](){
+            auto made=builder_.fresh();
+            builder_.emit(ErrorMake{made,static_cast<std::uint32_t>(abi::ErrorValueCode::input_format),{},
+                {constant("UNREADABLE_FIELD"),absent,constant(type_name(target_type)),
+                 ErrorDetailOperand{field,{},false}},
+                std::nullopt,{static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
+            release_owned(builder_,field,string_type);
+            fail_with(made);
+        };
+        if(target_type.kind==TypeKind::Bool){
+            const auto equal=[&](const char* spelling){
+                auto constant_text=builder_.fresh(),match=builder_.fresh();
+                builder_.emit(ConstantString{constant_text,spelling});
+                builder_.emit(Binary{match,"==",field,constant_text,string_type,bool_type});
+                return match;
+            };
+            auto true_match=equal("true");
+            const auto yes=builder_.label("scan.bool.true"),other=builder_.label("scan.bool.other");
+            const auto no=builder_.label("scan.bool.false"),invalid=builder_.label("scan.bool.invalid");
+            const auto bool_done=builder_.label("scan.bool.done");
+            builder_.emit(Branch{true_match,yes,other});
+            builder_.enter(builder_.add_block(yes));
+            builder_.emit(StoreLocal{stage,builder_.const_bool(true),target_type,true});
+            builder_.emit(Jump{bool_done});
+            builder_.enter(builder_.add_block(other));
+            auto false_match=equal("false");
+            builder_.emit(Branch{false_match,no,invalid});
+            builder_.enter(builder_.add_block(no));
+            builder_.emit(StoreLocal{stage,builder_.const_bool(false),target_type,true});
+            builder_.emit(Jump{bool_done});
+            builder_.enter(builder_.add_block(invalid));
+            report_invalid();
+            builder_.enter(builder_.add_block(bool_done));
+            release_owned(builder_,field,string_type);
             continue;
         }
         const auto parsed_type=Type::union_of({target_type,error_type});
         auto parsed=builder_.fresh();
-        builder_.emit(ParseNumber{parsed,field,target_type,parsed_type,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(ParseNumber{parsed,field,target_type,parsed_type,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         auto parsed_tag=builder_.fresh();
         builder_.emit(VariantTag{parsed_tag,parsed});
         auto error_index=builder_.const_int(case_index(parsed_type,error_type)),is_error=builder_.fresh();
@@ -170,22 +226,14 @@ ValueId ScanLowering::lower_scan(const Expr& e){
         builder_.emit(Branch{is_error,bad,good});
         builder_.enter(builder_.add_block(bad));
         release_owned(builder_,parsed,parsed_type);
-        {
-            auto made=builder_.fresh();
-            builder_.emit(ErrorMake{made,static_cast<std::uint32_t>(abi::ErrorValueCode::input_format),{},
-                {constant("UNREADABLE_FIELD"),absent,constant(type_name(target_type)),
-                 ErrorDetailOperand{field,{},false}},
-                std::nullopt,static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
-            release_owned(builder_,field,string_type);
-            fail_with(made);
-        }
+        report_invalid();
         builder_.enter(builder_.add_block(good));
         release_owned(builder_,field,string_type);
         auto value=builder_.fresh();
         builder_.emit(VariantPayload{value,parsed,target_type});
+        auto kept=lifetime_.copy_value(value,target_type);
         release_owned(builder_,parsed,parsed_type);
-        builder_.emit(StoreAddress{address,value,target_type});
+        builder_.emit(StoreLocal{stage,kept,target_type,true});
     }
 
     // 4. Nothing may remain after the format.
@@ -198,10 +246,14 @@ ValueId ScanLowering::lower_scan(const Expr& e){
         fail_make(abi::ErrorValueCode::input_format,
                   {constant("TRAILING_INPUT"),absent,absent,ErrorDetailOperand{rest,{},false}});
         builder_.enter(builder_.add_block(complete));
-        auto ok=builder_.fresh();
-        builder_.emit(VariantMake{ok,case_index(result_type,Type::simple(TypeKind::Void)),0,result_type,Type::simple(TypeKind::Void)});
-        builder_.emit(StoreLocal{result_name,ok,result_type,true});
-        builder_.emit(Jump{done});
+        for (const auto& field : pending) {
+            auto staged=builder_.fresh();
+            builder_.emit(LoadLocal{staged,field.slot,field.type});
+            auto committed=lifetime_.copy_value(staged,field.type);
+            builder_.emit(StoreAddress{field.address,committed,field.type});
+            release_owned(builder_,staged,field.type);
+        }
+        finish_success(true);
     }
     builder_.enter(builder_.add_block(done));
     auto out=builder_.fresh();

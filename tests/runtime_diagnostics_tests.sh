@@ -248,13 +248,12 @@ real64 value = 1.0e300
 print("before" + NL)
 print(real32(value))
 QUI
-# No real value is an infinity, so no scalar conversion meets one: the
-# division that would make it stops first (an export's argument from C is
-# the scalar NON_FINITE case, tests/c_export_tests.sh).
+# Signed infinity is valid. Indeterminate 0 / 0 must still stop before
+# producing NaN (C-supplied NaN is tested in tests/c_export_tests.sh).
 row real-division-by-zero 101 3 7 "real64 division by zero" code=DIVISION_BY_ZERO <<'QUI'
 real64 zero = 0.0
 print("before" + NL)
-print(1.0 / zero)
+print(0.0 / zero)
 QUI
 conversion_row conversion-bigint-int32 3 7 "numeric conversion out of range: value cannot be represented as int32" <<'QUI'
 int value = 1099511627776

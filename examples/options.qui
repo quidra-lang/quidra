@@ -5,8 +5,6 @@ int | none maybe_value(bool present)
 
 match maybe_value(false)
     int value
-        print(value)
-        print(NL)
+        print.line(value)
     none
-        print("none")
-        print(NL)
+        print.line("none")

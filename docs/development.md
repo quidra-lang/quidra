@@ -18,27 +18,31 @@ existing release tag.
 
 An unqualified release request is a coordinated Quidra release, not a Core-only
 release. Instructions such as "release Quidra", "release", "リリースして", or
-equivalent wording that does not name a repository put all eight official
+equivalent wording that does not name a repository put all eleven official
 repositories in scope:
 
 1. Quidra Core (`quidra-lang/quidra`)
 2. Quidra Math (`quidra-lang/math`)
-3. Quidra NN (`quidra-lang/nn`)
-4. Quidra Vision (`quidra-lang/vision`)
-5. Quidra Video (`quidra-lang/video`)
-6. Quidra DNN (`quidra-lang/dnn`)
-7. Quidra Playground (`quidra-lang/playground`)
-8. Quidra Website (`quidra-lang/website`)
+3. Quidra Collections (`quidra-lang/collections`)
+4. Quidra Text (`quidra-lang/text`)
+5. Quidra Encoding (`quidra-lang/encoding`)
+6. Quidra NN (`quidra-lang/nn`)
+7. Quidra Vision (`quidra-lang/vision`)
+8. Quidra Video (`quidra-lang/video`)
+9. Quidra DNN (`quidra-lang/dnn`)
+10. Quidra Playground (`quidra-lang/playground`)
+11. Quidra Website (`quidra-lang/website`)
 
 Do not silently stop after releasing Core when the request is unqualified.
 A repository-specific instruction such as "release Core", "release Math",
+"release Collections", "release Text", "release Encoding",
 "release NN", "release DNN", "release Vision", "release Video",
 "release Playground", or "release Website" narrows the scope to that repository.
 
 For a coordinated release, use the canonical order shown later in this document:
-Core -> Math -> NN -> Vision -> Video -> DNN -> Playground -> Website. Math is
-released immediately after Core; the three Layer-3 packages then establish their
-released states before the Layer-4 DNN package is released. The fixed sibling
+Core -> Math -> Collections -> Text -> Encoding -> NN -> Vision -> Video ->
+DNN -> Playground -> Website. Layer-2 packages are released after Core in a
+fixed sibling order; Layer-3 dependencies must be released before Layer-4 DNN. The fixed sibling
 order keeps the procedure deterministic for both humans and automation.
 
 ## Permanent branch roles
@@ -65,10 +69,10 @@ Quidra uses Semantic Versioning. While the language is below 1.0:
   minor line.
 - `1.0.0` is reserved for the first explicitly stable language contract.
 
-Core and all first-party computational packages (Math, NN, Vision, Video, and
-DNN) use one synchronized release-train version. Their `project.toml` package
+Core and all eight first-party packages (Math, Collections, Text, Encoding,
+NN, Vision, Video, and DNN) use one synchronized release-train version. Their `project.toml` package
 versions must exactly equal Core's `[project].version` on `develop`, and every
-coordinated release publishes the same immutable `vX.Y.Z` across those six
+coordinated release publishes the same immutable `vX.Y.Z` across those nine
 repositories. Package versions never advance independently.
 
 A version number in a development branch is not itself a release. Only an
@@ -112,11 +116,6 @@ The README build-requirement list restates the `[dependencies]` minimums in
 prose, because build requirements have to be readable without running a script.
 That is the only permitted restatement, and the check above verifies it rather
 than trusting it.
-
-Benchmark metadata is deliberately outside this. `benchmark/template/` is
-copied whole into the measurement sandbox and must stay immutable during a
-frozen measurement window, so it owns its own metadata under
-`benchmark/template/config/`.
 
 ## Environment variables
 
@@ -177,8 +176,14 @@ such as `fegetenv` do not. The test also fails when this table and the
 | `QUIDRA_SAVED_TENSORS` | Runtime: tensors autograd keeps for backward, once | `cow` (also unset or empty): storage shared copy-on-write. `copy`: copied. Anything else: a warning on stderr, then `copy`. | `no` |
 | `QUIDRA_AUTOGRAD_PRUNE` | Runtime: `backward`, once | `on` (also unset or empty): no gradient formula runs for values that reach no target. `off`: every node runs. Anything else: a warning on stderr, then `off`. | `no` |
 | `QUIDRA_TEST_AUTOGRAD_STATS` | Runtime: `backward`, once | `1`: each backward prints `autograd stats: formulas N pruned M` on stderr. | `no` |
-| `QUIDRA_COUNTERS` | Runtime counters, once at program start | Non-empty: per-step counter records are written to this file; `-` or `stderr` selects stderr. Unset or empty: off. | `no` |
-| `QUIDRA_COUNTERS_STEP` | Runtime counters, once, only with `QUIDRA_COUNTERS` | `none`: a backward does not end a step. Anything else or unset: each backward ends a step. | `no` |
+| `QUIDRA_COUNTERS` | Runtime counters, once at program start | Non-empty: per-step counter records are buffered and written to this file at exit or runtime failure; `-` or `stderr` selects stderr. Unset or empty: off. | `no` |
+| `QUIDRA_COUNTERS_STEP` | Runtime observation, once | `none`: a backward does not end a counter step. `marks`: time.now/since also end counter and timeline steps. Anything else or unset: each backward ends a counter step. Explicit native marks always end steps. | `no` |
+| `QUIDRA_COUNTERS_FLUSH` | Runtime counters, once, only with `QUIDRA_COUNTERS` | `step`: write and flush each step immediately for crash debugging. Anything else or unset: buffer until exit or runtime failure. | `no` |
+| `QUIDRA_TIMELINE` | Runtime timeline, once | Non-empty: buffer host points, waits and supplied GPU intervals, then write JSON to this path at exit or failure; `-` or `stderr` selects stderr. Unset or empty: off. | `no` |
+| `QUIDRA_PROFILE` | Runtime profiler, once | Non-empty: buffer statement and operation ranges, then write Chrome Trace JSON to this path at exit or failure; `-` or `stderr` selects stderr. Unset or empty: off. | `no` |
+| `QUIDRA_PROFILE_SPLIT` | Runtime profiler, once, only with `QUIDRA_PROFILE` | `1`: request encoder-boundary GPU attribution. Anything else or unset: off. The report identifies requested instrumentation and timing availability. | `no` |
+| `QUIDRA_METAL_CAPTURE` | Generated program, once | `step:<k>` with an unsigned decimal 64-bit step: request a Metal capture for that logical step. Invalid values are ignored. Artifacts and a status report use a fresh private cache session; the status distinguishes exact, partial and unavailable captures and records additional commands. | `no` |
+| `MTL_CAPTURE_ENABLED` | Metal SDK in the generated child | The CLI supplies `1` to the generated Apple program only for a valid capture request. The compiler process keeps its inherited value. | `no` |
 | `QUIDRA_UNIFIED_MEMORY` | Runtime: `.gpu(n)` and `.cpu()` on unified memory, once | `0`, `off` or `false`: every transfer copies. `upload`: only `.gpu(n)` may become a view. Anything else or unset: both may become views. | `no` |
 | `QUIDRA_UNIFIED_MEMORY_STATS` | Runtime, once | Non-empty and not `0`, `off` or `false`: transfer counters are printed on stderr at exit. | `no` |
 | `QUIDRA_GPU_ZERO_FILL` | Runtime: write-only GPU outputs, once | `always`: they are zero-filled. Anything else or unset: Metal and the test backend skip the fill. | `no` |
@@ -291,8 +296,8 @@ in order.
 9. Verify that the GitHub Release tag, `main` version metadata, packaged
    `quidra --version`, and published assets all report the same `X.Y.Z`.
 10. Bring any release-time `main` changes back into `develop` if necessary,
-    but do not advance Core's version independently. Core, Math, NN, Vision,
-    Video, and DNN must keep the same `MAJOR.MINOR.PATCH` value on `develop`.
+    but do not advance Core's version independently. Core, Math, Collections,
+    Text, Encoding, NN, Vision, Video, and DNN must keep the same `MAJOR.MINOR.PATCH` value on `develop`.
 11. Verify the CI of that post-release `develop` state.
 12. Leave `main` at the released version and continue ordinary work on
     `develop`. Report the released tag, the exact `main` SHA, and the release
@@ -322,56 +327,65 @@ A core release is not complete until the applicable checks pass:
 - `quidra --version` and `quidra describe` consistency;
 - documented examples.
 
-Benchmarks are not part of the release procedure. Do not start, rerun, or
-regenerate benchmark measurements merely because a release is being performed,
-even when semantics or performance-sensitive behavior changed. Run benchmarks
-only when the release instruction explicitly requests benchmark execution.
-An already completed formal benchmark result may be published or synchronized
-during the release without starting a new benchmark run.
+Benchmarks live in the separate
+[quidra-lang/benchmark](https://github.com/quidra-lang/benchmark) repository and
+are not part of the release procedure.
 
 ## Coordinated multi-repository release order
 
-Core and all first-party computational packages use one lockstep release
-version: Core, Math, NN, Vision, Video, and DNN must all carry the same
-`MAJOR.MINOR.PATCH` value. They do not version independently. An unqualified
-Quidra release covers Core, Math, NN, Vision, Video, DNN, Playground, and
-Website and is performed in this order:
+Core and the eight first-party source packages share one lockstep
+`MAJOR.MINOR.PATCH` version: Core, Math, Collections, Text, Encoding,
+NN, Vision, Video, and DNN. None of these packages advance independently.
+An unqualified Quidra release covers all eleven repositories in this
+deterministic order:
 
 ```text
 1. Quidra Core
-   -> complete Core release and verify the immutable Core tag/assets
+   -> release and verify the immutable Core tag and assets
 
 2. Quidra Math
    -> require the same-version released Core tag
-   -> complete the Math release at the same `vX.Y.Z` and verify its immutable package tag/assets
+   -> release and verify the Math tag and package assets
 
-3. Quidra NN
+3. Quidra Collections
+   -> require the same-version released Core tag
+   -> release and verify the Collections tag and package assets
+
+4. Quidra Text
+   -> require the same-version released Core tag
+   -> release and verify the Text tag and package assets
+
+5. Quidra Encoding
+   -> require the same-version released Core tag
+   -> release and verify the Encoding tag and package assets
+
+6. Quidra NN
    -> require the same-version released Core and Math tags
-   -> complete the NN release at the same `vX.Y.Z` and verify its immutable package tag/assets
+   -> release and verify the NN tag and package assets
 
-4. Quidra Vision
+7. Quidra Vision
    -> require the same-version released Core and Math tags
-   -> complete the Vision release at the same `vX.Y.Z` and verify its immutable package tag/assets
+   -> release and verify the Vision tag and package assets
 
-5. Quidra Video
+8. Quidra Video
    -> require the same-version released Core and Math tags
-   -> complete the Video release at the same `vX.Y.Z` and verify its immutable package tag/assets
+   -> release and verify the Video tag and package assets
 
-6. Quidra DNN
+9. Quidra DNN
    -> require the same-version released Core, Math, and NN tags
-   -> complete the DNN release at the same `vX.Y.Z` and verify its immutable package tag/assets
+   -> release and verify the DNN tag and package assets
 
-7. Quidra Playground
-   -> publish Playground only after the preceding release states are stable
-   -> fast-forward Playground `main` to its verified `develop`
-   -> verify the production deployment uses the intended released Core/package state
+10. Quidra Playground
+    -> publish only after the preceding release states are stable
+    -> fast-forward Playground `main` to its verified `develop`
+    -> verify the deployment uses the intended released Core/package state
 
-8. Quidra Website
-   -> update the site to the released Core/Math/NN/Vision/Video/DNN state and release date
-   -> re-verify examples, release links, and package references
-   -> synchronize an already completed formal benchmark result only when one is intended for publication; never trigger a benchmark run as part of release
-   -> require Website `develop` CI to pass, publish the verified state to `main`, and deploy it
-   -> verify https://quidra-lang.com serves the intended release and its key links/assets work
+11. Quidra Website
+    -> update the site to the nine-repository released Core/package state and date
+    -> re-verify examples, release links, and all package references
+    -> synchronize a previously completed benchmark result only when publication is intended; never start a benchmark as part of release
+    -> require Website `develop` CI to pass, publish its verified state to `main`, and deploy
+    -> verify https://quidra-lang.com serves the intended release and links/assets
 ```
 
 Do not begin a dependent step merely because an earlier repository was merged
@@ -382,16 +396,17 @@ finished successfully and verify its published state first.
 
 After the coordinated release is fully published and verified, do not bump only
 one repository to the next development version. When a next release-train version
-is selected, update Core, Math, NN, Vision, Video, and DNN to that exact same
-`MAJOR.MINOR.PATCH` value as one coordinated metadata operation. Regenerate each
+is selected, update Core, Math, Collections, Text, Encoding, NN, Vision,
+Video, and DNN to that exact same `MAJOR.MINOR.PATCH` value as one coordinated
+metadata operation. Regenerate each
 derived `quidra.package`/Core metadata artifact, update first-party compatibility
-ranges when required, and finish only when all six remote `develop` branches
+ranges when required, and finish only when all nine remote `develop` branches
 agree again and the Core first-party compatibility workflow is green. Temporary
 cross-repository CI failures during that multi-repository transition are not a
 valid final state.
 
-Do not publish Math, NN, Vision, Video, or DNN until every declared first-party
-dependency has an immutable tag with the exact same `vX.Y.Z`. NN, Vision, and
+Do not publish any of Math, Collections, Text, Encoding, NN, Vision, Video,
+or DNN until every declared first-party dependency has an immutable tag with the exact same `vX.Y.Z`. NN, Vision, and
 Video require same-version Core and Math tags; DNN requires same-version Core,
 Math, and NN tags. Every first-party computational package uses the same release
 version as Core. Its declared first-party compatibility ranges must admit that
@@ -411,7 +426,8 @@ then verify the production page/runner version and package set match.
 Website is deliberately last. Follow `quidra-lang/website`'s release-update
 procedure: point the site at the released Core version/date, re-verify all
 published Quidra examples with that immutable compiler, update
-Math/NN/Vision/Video/DNN and benchmark references when applicable, require
+Math/Collections/Text/Encoding/NN/Vision/Video/DNN and benchmark references
+when applicable, require
 Website CI to pass, publish the verified `develop` state to `main`, deploy
 the production site, and verify the live `https://quidra-lang.com` content and
 important release/download/docs/Playground links. A coordinated release is not

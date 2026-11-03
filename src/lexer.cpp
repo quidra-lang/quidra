@@ -157,6 +157,7 @@ Token Lexer::identifier() {
         {"parallel", TokenKind::KwParallel}, {"while", TokenKind::KwWhile}, {"for", TokenKind::KwFor},
         {"match", TokenKind::KwMatch}, {"try", TokenKind::KwTry},
         {"break", TokenKind::KwBreak}, {"continue", TokenKind::KwContinue},
+        {"inf", TokenKind::RealLiteral},
         {"true", TokenKind::KwTrue}, {"false", TokenKind::KwFalse}, {"not", TokenKind::KwNot},
         {"and", TokenKind::KwAnd}, {"or", TokenKind::KwOr},
         {"NOT", TokenKind::KwBitNot}, {"AND", TokenKind::KwBitAnd},

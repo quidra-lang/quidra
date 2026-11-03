@@ -28,10 +28,9 @@ verify_and_run() {
 printf 'scope' > "$TMP/file-handle-cleanup.txt"
 cat > "$TMP/file-handle-cleanup.qui" <<QUI
 void | error consume(string path)
-    file.Handle handle = try file.open(path)
-    string text = try .handle.read()
-    print(text)
-    print(NL)
+    file.read handle = try file.read(path)
+    while .handle(string &line)
+        print("{line}{NL}")
     return void
 
 auto | error result = consume("$TMP/file-handle-cleanup.txt")
@@ -52,18 +51,12 @@ grep -Eq 'call void @quidra_managed_release\(ptr [^,]+, ptr @quidra_file_handle_
 # allocation. A freshly exposed append slot must be empty before ArraySet replaces
 # it, otherwise a stale managed pointer can be released as a live element.
 cat > "$TMP/file-handle-string-append.qui" <<QUI
-file.Handle create_file(string path)
-    match file.create(path)
-        file.Handle handle
-            return handle
-        error problem
-            print("create failed")
-            print(NL)
-            process.exit(1)
+file.write create_file(string path)
+    return file.write(path)
 
 void go()
     int state = 20270917
-    file.Handle w = create_file("$TMP/file-handle-string-append.txt")
+    file.write w = create_file("$TMP/file-handle-string-append.txt")
     string[] buffer = []
     for 0 <= nat i < 3
         state = (state * 48271) % 2147483647
@@ -73,7 +66,6 @@ void go()
     string joined = buffer.join("|")
     print("RESULT {joined.trim()}")
     print(NL)
-    .w.close()
     return
 
 go()

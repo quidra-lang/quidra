@@ -1,4 +1,4 @@
-// MB-11 - Collections: the standard map.Map, set.Set and growable int[] under
+// MB-11 - Collections: the standard map, distinct and growable int[] under
 // insert / update / lookup / delete / iterate. Default construction only.
 // Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
 cli args
@@ -49,7 +49,7 @@ Result workload()
     for 0 <= int r < rounds
         keys[r] = keys[r] + 1000000
 
-        map.Map<int, int> m = map.Map<int, int>()
+        map<int, int> m = map<int, int>()
         for 0 <= int i < n
             int k = keys[i] % km
             int | none current = m.get(k)
@@ -84,7 +84,7 @@ Result workload()
                 .m.remove(k)
         size2 = int(m.size())
 
-        set.Set<int> st = set.Set<int>()
+        distinct<int> st = distinct<int>()
         for 0 <= int i < n
             .st.add(keys[i] % sm)
         size3 = int(st.size())

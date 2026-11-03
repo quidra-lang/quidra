@@ -55,8 +55,8 @@ ValueId ExpressionLowering::lower_int64(const Expr& e) {
     auto out = builder_.fresh();
     builder_.emit(NumericConvert{
         out, value, source, target, false,
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column),
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)},
         facts_.integer_ranges.conversion_inline_proven(e, source, target)});
     if (fail_fast) release_owned(builder_,value, source);
     else lifetime_.release_temporary(e, value);
@@ -86,11 +86,11 @@ ValueId ExpressionLowering::lower_string_slice(
        !item.step){
         auto start=lower_int64(*item.start),end=lower_int64(*item.stop);
         out=builder_.fresh();
-        builder_.emit(StringSlice{out,text,start,end,line,column});
+        builder_.emit(StringSlice{out,text,start,end,{line,column}});
     }else{
         auto bounds=lower_slice_bounds(e,item);
         out=builder_.fresh();
-        builder_.emit(StringSliceStepped{out,text,std::move(bounds),line,column});
+        builder_.emit(StringSliceStepped{out,text,std::move(bounds),{line,column}});
     }
     if(text_owned) release_owned(builder_,text,text_type);
     return out;
@@ -100,7 +100,7 @@ ValueId ExpressionLowering::bare_from_int64(
     ValueId value, const Type& target, bool proven_inline) {
     auto out = builder_.fresh();
     builder_.emit(NumericConvert{
-        out, value, Type::simple(TypeKind::Int64), target, false, 0, 0, proven_inline});
+        out, value, Type::simple(TypeKind::Int64), target, false, {0, 0}, proven_inline});
     return out;
 }
 
@@ -113,6 +113,15 @@ ValueId ExpressionLowering::lower(const Expr& e) {
     auto v=lower_at_raw_type(e);
     const auto from=checked_.raw_types.at(&e);
     const auto to=type_of(checked_,e);
+    // A success-only expression can still produce T | error at runtime.
+    // Consume that union at the expression site before the caller uses its
+    // checked T value (for instance as an if/while condition or call operand).
+    if(checked_.fail_fast_expressions.contains(&e)){
+        const bool owned=lifetime_.expression_owns_result(e);
+        const auto hop=owned?errors_.hop_call(e):std::nullopt;
+        return conversions_.consume_fail_fast(v,from,to,owned,e.span,
+                                              hop?&*hop:nullptr);
+    }
     auto converted=conversions_.convert(v,from,to);
     if(lifetime_.expression_owns_result(e)&&array_shape_conversion(from,to))
         release_owned(builder_,v,from);
@@ -188,8 +197,8 @@ ValueId ExpressionLowering::lower_address(const Expr& e, bool may_write) {
         const auto& at=n->items.front().index->span.start;
         builder_.emit(AddressElement{
             out,array,index,array_type,element_type,array_type.kind==TypeKind::Bin,
-            static_cast<std::uint32_t>(at.line),
-            static_cast<std::uint32_t>(at.column)});
+            {static_cast<std::uint32_t>(at.line),
+            static_cast<std::uint32_t>(at.column)}});
         return out;
     }
     throw std::runtime_error("invalid address target");
@@ -318,7 +327,7 @@ ValueId ExpressionLowering::lower_literal_constant(const Expr& e, const LiteralC
     }
     auto value=lower(*n.value);
     builder_.emit(ExactRound{out,value,type,"",
-        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.value,value);
     return out;
 }
@@ -346,8 +355,11 @@ ValueId ExpressionLowering::lower_string_template(const StringTemplateExpr& n) {
         if(n.formats[i].active()){
             auto converted=builder_.fresh();
             const auto& format=n.formats[i];
-            builder_.emit(FormatNumber{converted,part,pt,format.integer_width,
-                format.fractional_digits,format.significant_digits,format.zero});
+            if(format.radix)
+                builder_.emit(ToString{converted,part,pt,format.radix,format.uppercase});
+            else
+                builder_.emit(FormatNumber{converted,part,pt,format.integer_width,
+                    format.fractional_digits,format.significant_digits,format.zero,format.grouping});
             if(part_owned) release_owned(builder_,part,pt);
             part=converted;
             part_owned=true;
@@ -361,7 +373,7 @@ ValueId ExpressionLowering::lower_string_template(const StringTemplateExpr& n) {
         }else if(pt.kind!=TypeKind::String){
             auto converted=builder_.fresh();
             if(pt.kind==TypeKind::Tuple || pt.kind==TypeKind::Union)converted=value_text(builder_,part,pt);
-            else builder_.emit(ToString{converted,part,pt});
+            else builder_.emit(ToString{converted,part,pt,std::nullopt,false});
             if(part_owned) release_owned(builder_,part,pt);
             part=converted;
             part_owned=true;
@@ -454,7 +466,7 @@ ValueId ExpressionLowering::lower_name(const Expr& e, const NameExpr& n) {
     if(const auto* value=scope_.source_value(n.name)) return *value;
     auto out=builder_.fresh(); const auto raw=checked_.raw_types.at(&e);
     if(const auto* bit=scope_.bit_place(n.name)) {
-        builder_.emit(BinGet{out,bit->array,bit->index,0,0,true});
+        builder_.emit(BinGet{out,bit->array,bit->index,{0,0},true});
         return out;
     }
     if(scope_.is_source_reference(n.name)){
@@ -543,7 +555,7 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
     builder_.emit(Binary{more, "<", index, length, integer, Type::simple(TypeKind::Bool)});
     builder_.emit(Branch{more, body, done}); builder_.enter(builder_.add_block(body));
     auto element = builder_.fresh();
-    builder_.emit(ArrayGet{element, source, index, item_type, line, column, false, true});
+    builder_.emit(ArrayGet{element, source, index, item_type, {line, column}, false, true});
     element = lifetime_.copy_value(element, item_type);
     builder_.emit(StoreLocal{item_name, element, item_type});
     if (n.condition) {
@@ -560,8 +572,8 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
     builder_.emit(ArrayGrowMove{grown, current, result_type});
     builder_.emit(StoreLocal{result_name, grown, result_type, false, true});
     builder_.emit(ArraySet{grown, old_length, value, *result_type.first,
-        static_cast<std::uint32_t>(n.value->span.start.line),
-        static_cast<std::uint32_t>(n.value->span.start.column), true, true});
+        {static_cast<std::uint32_t>(n.value->span.start.line),
+        static_cast<std::uint32_t>(n.value->span.start.column)}, true, true});
     builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
     auto consumed = builder_.fresh(); builder_.emit(LoadLocal{consumed, item_name, item_type, true});
     release_owned(builder_, consumed, item_type);
@@ -583,7 +595,8 @@ ValueId ExpressionLowering::lower_array_literal(const Expr& e, const ArrayExpr& 
 }
 
 ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
-    const bool base_owned=lifetime_.expression_owns_result(*n.base);
+    const bool snapshot_base=lifetime_.index_base_needs_snapshot(n);
+    const bool base_owned=snapshot_base || lifetime_.expression_owns_result(*n.base);
     const auto base_type=type_of(checked_,*n.base);
     const bool standard_collection_array =
         base_type.kind == TypeKind::Array &&
@@ -594,10 +607,169 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         (facts_.array_initialization.fully_initialized(*n.base) ||
          standard_collection_array);
     auto a=lower(*n.base);
-    if(base_type.kind==TypeKind::String && n.items.front().slice)
-        return lower_string_slice(e,n,a,base_owned,base_type);
+    // Evaluate the base before the indices without leaving a borrowed
+    // pointer exposed to replacement or in-place mutation in later calls.
+    if (snapshot_base) a=lifetime_.copy_value(a,base_type);
+    const bool hold_base = base_owned && std::any_of(
+        n.items.begin(), n.items.end(), [](const IndexPart& item) {
+            const auto runs_code = [](const ExprPtr& operand) {
+                return operand && expression_runs_code(*operand);
+            };
+            return runs_code(item.index) || runs_code(item.start) ||
+                   runs_code(item.stop) || runs_code(item.step);
+        });
+    std::string base_slot;
+    if (hold_base) {
+        // Both snapshots and existing owned temporaries need ordinary
+        // return cleanup if an index operand propagates an error.
+        base_slot = builder_.hidden("index.base");
+        builder_.emit(DeclareLocal{base_slot, base_type, "", 0, 0});
+        scope_.local_type(base_slot) = base_type;
+        builder_.emit(StoreLocal{base_slot, a, base_type});
+    }
+    const auto release_base = [&] {
+        if (hold_base) {
+            auto consumed = builder_.fresh();
+            builder_.emit(LoadLocal{consumed, base_slot, base_type, true});
+            release_owned(builder_, consumed, base_type);
+        } else if (base_owned) release_owned(builder_, a, base_type);
+    };
+    if (base_type.kind == TypeKind::Array && n.items.size() == 1 &&
+        !n.items.front().slice && n.items.front().index &&
+        type_of(checked_, *n.items.front().index).kind == TypeKind::Array) {
+        // Indexed gather and boolean masks are read-only selection operators.
+        // Each operand is evaluated exactly once and the output has separate
+        // storage; managed rows receive value copies.
+        const auto& selector_expression = *n.items.front().index;
+        const auto selector_type = type_of(checked_, selector_expression);
+        const auto selector_element = *selector_type.first;
+        const bool is_mask = selector_element.kind == TypeKind::Bool;
+        const auto output_type = checked_.raw_types.at(&e);
+        const auto element_type = *base_type.first;
+        const auto integer = Type::simple(TypeKind::Int64);
+        const auto boolean = Type::simple(TypeKind::Bool);
+        const SourcePosition site{
+            static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)};
+        auto selector = lower(selector_expression);
+        auto selector_length = builder_.fresh();
+        builder_.emit(ArrayLength{selector_length, selector});
+        auto source_length = builder_.fresh();
+        builder_.emit(ArrayLength{source_length, a});
+        if (is_mask)
+            builder_.emit(ExtentEqualCheck{selector_length, source_length, site});
+        auto index_slot = builder_.hidden("selection.index");
+        scope_.local_type(index_slot) = integer;
+        auto zero = builder_.const_int(0);
+        auto one = builder_.const_int(1);
+        auto output_length = selector_length;
+        if (is_mask) {
+            // A mask has dynamic output size: count set bits before allocation.
+            auto count_slot = builder_.hidden("selection.count");
+            scope_.local_type(count_slot) = integer;
+            builder_.emit(StoreLocal{count_slot, zero, integer});
+            builder_.emit(StoreLocal{index_slot, zero, integer});
+            auto cond = builder_.label("selection.count.cond");
+            auto body = builder_.label("selection.count.body");
+            auto accept = builder_.label("selection.count.accept");
+            auto step = builder_.label("selection.count.step");
+            auto done = builder_.label("selection.count.done");
+            builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(cond));
+            auto i = builder_.fresh(), less = builder_.fresh();
+            builder_.emit(LoadLocal{i, index_slot, integer});
+            builder_.emit(Binary{less, "<", i, selector_length, integer, boolean});
+            builder_.emit(Branch{less, body, done}); builder_.enter(builder_.add_block(body));
+            auto flag = builder_.fresh();
+            builder_.emit(ArrayGet{flag, selector, i, boolean, site, false, true});
+            builder_.emit(Branch{flag, accept, step});
+            builder_.enter(builder_.add_block(accept));
+            auto count = builder_.fresh(), incremented = builder_.fresh();
+            builder_.emit(LoadLocal{count, count_slot, integer});
+            builder_.emit(Binary{incremented, "+", count, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{count_slot, incremented, integer});
+            builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
+            auto next = builder_.fresh();
+            builder_.emit(Binary{next, "+", i, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{index_slot, next, integer});
+            builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(done));
+            output_length = builder_.fresh();
+            builder_.emit(LoadLocal{output_length, count_slot, integer});
+        }
+        auto output = builder_.fresh();
+        builder_.emit(ArrayAlloc{output, output_length, output_type});
+        builder_.emit(StoreLocal{index_slot, zero, integer});
+        const auto write_slot = builder_.hidden("selection.write");
+        if (is_mask) {
+            scope_.local_type(write_slot) = integer;
+            builder_.emit(StoreLocal{write_slot, zero, integer});
+        }
+        const auto cond = builder_.label("selection.gather.cond");
+        const auto body = builder_.label("selection.gather.body");
+        const auto selected = builder_.label("selection.gather.selected");
+        const auto step = builder_.label("selection.gather.step");
+        const auto done = builder_.label("selection.gather.done");
+        builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(cond));
+        auto i = builder_.fresh(), less = builder_.fresh();
+        builder_.emit(LoadLocal{i, index_slot, integer});
+        builder_.emit(Binary{less, "<", i, selector_length, integer, boolean});
+        builder_.emit(Branch{less, body, done}); builder_.enter(builder_.add_block(body));
+        auto selection = builder_.fresh();
+        builder_.emit(ArrayGet{selection, selector, i, selector_element, site, false, true});
+        ValueId input_index = i;
+        if (is_mask) {
+            builder_.emit(Branch{selection, selected, step});
+            builder_.enter(builder_.add_block(selected));
+        } else if (selector_element.kind != TypeKind::Int64) {
+            input_index = builder_.fresh();
+            builder_.emit(NumericConvert{input_index, selection, selector_element,
+                                        integer, false, site});
+        } else input_index = selection;
+        auto item = builder_.fresh();
+        builder_.emit(ArrayGet{item, a, input_index, element_type, site});
+        item = lifetime_.copy_value(item, element_type);
+        auto write_index = i;
+        if (is_mask) {
+            write_index = builder_.fresh();
+            builder_.emit(LoadLocal{write_index, write_slot, integer});
+        }
+        builder_.emit(ArraySet{output, write_index, item, element_type, site, false, true});
+        if (is_mask) {
+            auto next_write = builder_.fresh();
+            builder_.emit(Binary{next_write, "+", write_index, one, integer, integer, 0, 0, true});
+            builder_.emit(StoreLocal{write_slot, next_write, integer});
+            builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
+        }
+        auto next = builder_.fresh();
+        builder_.emit(Binary{next, "+", i, one, integer, integer, 0, 0, true});
+        builder_.emit(StoreLocal{index_slot, next, integer});
+        builder_.emit(Jump{cond}); builder_.enter(builder_.add_block(done));
+        lifetime_.release_temporary(selector_expression, selector);
+        release_base();
+        return output;
+    }
+    if(base_type.kind==TypeKind::String && n.items.front().slice) {
+        auto out=lower_string_slice(e,n,a,false,base_type);
+        release_base();
+        return out;
+    }
     auto out=builder_.fresh();
     if(base_type.kind==TypeKind::Tensor){
+        if (n.items.size() == 1 && !n.items.front().slice &&
+            n.items.front().index &&
+            type_of(checked_, *n.items.front().index).kind == TypeKind::Tensor) {
+            const auto& selector = *n.items.front().index;
+            auto mask = lower(selector);
+            TensorIndexPart marked_mask;
+            marked_mask.kind = static_cast<std::uint8_t>(abi::tensor_index_spec::mask);
+            marked_mask.index = mask;
+            std::vector<TensorIndexPart> items;
+            items.push_back(std::move(marked_mask));
+            builder_.emit(TensorIndex{
+                out,a,std::move(items),checked_.raw_types.at(&e),
+                {static_cast<std::uint32_t>(e.span.start.line),
+                 static_cast<std::uint32_t>(e.span.start.column)}});
+            lifetime_.release_temporary(selector, mask);
+        } else {
         std::vector<TensorIndexPart> items;
         items.reserve(n.items.size());
         for(const auto& item:n.items){
@@ -620,8 +792,9 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         }
         builder_.emit(TensorIndex{
             out,a,std::move(items),base_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
+        }
     }else{
         if(base_type.kind==TypeKind::Bin) {
             const auto& item=n.items.front();
@@ -631,8 +804,8 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             if(item.slice && !half_open){
                 // Every other form plans the bits it selects.
                 builder_.emit(BinSlicePlanned{out,a,lower_slice_bounds(e,item),
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                    {static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)}});
             }else if(item.slice){
                 auto start=item.start?lower_int64(*item.start):builder_.const_int(0);
                 ValueId stop;
@@ -640,14 +813,14 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
                 else { stop=builder_.fresh(); builder_.emit(BinLength{stop,a}); }
                 // A slice reports the indexing expression.
                 builder_.emit(BinSlice{out,a,start,stop,
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                    {static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)}});
             }else{
                 // An element index failure reports the index operand.
                 auto i=lower_int64(*item.index);
                 builder_.emit(BinGet{
-                    out,a,i,static_cast<std::uint32_t>(item.index->span.start.line),
-                    static_cast<std::uint32_t>(item.index->span.start.column),
+                    out,a,i,{static_cast<std::uint32_t>(item.index->span.start.line),
+                    static_cast<std::uint32_t>(item.index->span.start.column)},
                     checked_.bounds_proven.contains(item.index.get())});
             }
         } else if(base_type.kind==TypeKind::Array && n.items.front().slice) {
@@ -656,15 +829,15 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             auto bounds=lower_slice_bounds(e,n.items.front());
             builder_.emit(ArraySlice{
                 out,a,std::move(bounds),base_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column),
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)},
                 false,initialization_proven});
         } else if(base_type.kind==TypeKind::String) {
             const auto& index=*n.items.front().index;
             auto i=lower_int64(index);
             builder_.emit(StringIndex{
-                out,a,i,static_cast<std::uint32_t>(index.span.start.line),
-                static_cast<std::uint32_t>(index.span.start.column)});
+                out,a,i,{static_cast<std::uint32_t>(index.span.start.line),
+                static_cast<std::uint32_t>(index.span.start.column)}});
         } else {
             auto i=lower_int64(*n.items.front().index);
             const auto initialization_guard = initialization_proven
@@ -682,15 +855,15 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
                     *n.base, *n.items.front().index);
             builder_.emit(ArrayGet{
                 out,a,i,checked_.raw_types.at(&e),
-                static_cast<std::uint32_t>(n.items.front().index->span.start.line),
-                static_cast<std::uint32_t>(n.items.front().index->span.start.column),
+                {static_cast<std::uint32_t>(n.items.front().index->span.start.line),
+                static_cast<std::uint32_t>(n.items.front().index->span.start.column)},
                 initialization_proven, bounds_proven,
                 initialization_guard, bounds_guard});
             if(base_owned && owns_managed(checked_.raw_types.at(&e)))
                 out=lifetime_.copy_value(out,checked_.raw_types.at(&e));
         }
     }
-    if(base_owned) release_owned(builder_,a,base_type);
+    release_base();
     return out;
 }
 
@@ -715,8 +888,8 @@ ValueId ExpressionLowering::lower_unary(const Expr& e, const UnaryExpr& n) {
     }
     auto v=lower(*n.operand), out=builder_.fresh();
     builder_.emit(Unary{
-        out,n.op,v,type_of(checked_,e),static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column),
+        out,n.op,v,type_of(checked_,e),{static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)},
         facts_.integer_ranges.inline_proven(e)});
     // Tensor, bigint and bigreal negation return a new value and
     // leave the operand alone; release an owned temporary operand

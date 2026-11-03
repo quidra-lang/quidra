@@ -15,7 +15,8 @@ namespace quidra::ir {
 
 // A slice item as written: the values of its start, end and step (int64;
 // absent when omitted), the form of each side, and the direction the
-// checker resolved (by_step_sign: a run-time step decides it).
+// checker resolved (by_step_sign: a run-time step decides it;
+// by_bounds: the two explicit endpoint values decide it).
 struct SliceBounds {
     std::optional<ValueId> start;
     std::optional<ValueId> end;

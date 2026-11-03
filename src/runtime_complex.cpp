@@ -56,7 +56,9 @@ bool rounded(double re, double im, int kind, double* out) {
     const auto part = part_dtype(kind);
     out[0] = round_part(re, part);
     out[1] = round_part(im, part);
-    if (!std::isfinite(out[0]) || !std::isfinite(out[1]))
+    if (std::isnan(re) || std::isnan(im) ||
+        (std::isfinite(re) && !std::isfinite(out[0])) ||
+        (std::isfinite(im) && !std::isfinite(out[1])))
         return decline(abi::ConversionReason::out_of_range);
     return true;
 }
@@ -176,7 +178,7 @@ bool exact_to_part(const ExactRealValue& value, int part, double& out) {
     double wide = 0.0;
     if (!exact_try_float64(value, wide)) return false;
     out = round_part(wide, part);
-    if (!std::isfinite(out)) {
+    if (std::isnan(wide) || (std::isfinite(wide) && !std::isfinite(out))) {
         quidra::runtime::record_conversion_reason(abi::ConversionReason::out_of_range);
         return false;
     }
@@ -346,7 +348,7 @@ extern "C" void quidra_complex_pow(double re, double im, double exponent_re, dou
     const auto part = part_dtype(kind);
     out[0] = round_part(scale * std::cos(y), part);
     out[1] = round_part(scale * std::sin(y), part);
-    if (!std::isfinite(out[0]) || !std::isfinite(out[1]))
+    if (std::isnan(out[0]) || std::isnan(out[1]))
         complex_overflow(kind, abi::RealOperation::power, line, column);
 }
 

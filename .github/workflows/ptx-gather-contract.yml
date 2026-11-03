@@ -1,0 +1,54 @@
+name: ptx-gather-contract
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'project.toml'
+      - 'CMakeLists.txt'
+      - 'tests/ptx_gather_exit_tests.cpp'
+      - 'tests/device_infinity_source_tests.cpp'
+      - '.github/workflows/ptx-gather-contract.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'project.toml'
+      - 'CMakeLists.txt'
+      - 'tests/ptx_gather_exit_tests.cpp'
+      - 'tests/device_infinity_source_tests.cpp'
+      - '.github/workflows/ptx-gather-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generated-gather-exit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure generated headers
+        run: cmake -S . -B build-ptx-contract -DBUILD_TESTING=OFF -DQUIDRA_BUILD_WASM_FRONTEND=ON
+      - name: Compile real PTX generator test
+        run: >-
+          clang++ -std=c++20 -O0 -g0 -ffunction-sections -fdata-sections
+          -Iinclude -Isrc -Ibuild-ptx-contract/generated
+          tests/ptx_gather_exit_tests.cpp -Wl,--gc-sections -ldl
+          -o build-ptx-contract/ptx_gather_exit_tests
+      - name: Verify the gather loop exit for real32 and real64
+        run: build-ptx-contract/ptx_gather_exit_tests
+      - name: Compile real CUDA and HIP infinity generator tests
+        run: >-
+          clang++ -std=c++20 -O0 -g0 -ffunction-sections -fdata-sections
+          -Iinclude -Isrc -Ibuild-ptx-contract/generated
+          tests/device_infinity_source_tests.cpp -Wl,--gc-sections -ldl
+          -o build-ptx-contract/device_infinity_source_tests
+      - name: Verify infinity, NaN, and finite-narrowing guards
+        run: build-ptx-contract/device_infinity_source_tests

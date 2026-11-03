@@ -67,8 +67,8 @@ std::string emit_parallel_node_tables(const ir::Module& module,StringPool& pool)
         for(std::size_t i=0;i<module.user_sources.size();++i)if(module.user_sources[i].absolute_path==function.source_file){file_index=i;user=true;break;}
         for(std::size_t i=0;i<parallel->nodes.size();++i){
             const auto& node=parallel->nodes[i];if(i)out<<", ";
-            const auto line=user?(static_cast<unsigned long long>(file_index)<<32)|node.line:0;
-            out<<"i64 "<<node.predecessors.size()<<", i64 "<<(node.worker_safe?1:0)<<", i64 "<<line<<", i64 "<<(user?node.column:0);
+            const auto line=user?(static_cast<unsigned long long>(file_index)<<32)|node.position.line:0;
+            out<<"i64 "<<node.predecessors.size()<<", i64 "<<(node.worker_safe?1:0)<<", i64 "<<line<<", i64 "<<(user?node.position.column:0);
         }
         out<<"]\n";
     }

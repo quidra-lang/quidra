@@ -9,10 +9,12 @@
 #include "platform/private_directory.hpp"
 #include "platform/sha256.hpp"
 #include "run_cache_options.hpp"
+#include "optimizer/inspection.hpp"
 #include "toolchain/run_cache_eviction.hpp"
 #include "toolchain/run_cache_key.hpp"
 #include "toolchain/run_cache_metadata.hpp"
 #include "toolchain/run_cache_store.hpp"
+#include "toolchain/compile_environment.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -213,6 +215,49 @@ std::string key_of(const RunCachePreKeyMaterial& material, const ToolchainSnapsh
     return run_cache_key(material, snapshot, recipe, dependencies);
 }
 
+void runtime_environment_keys() {
+    const char* names[] = {"QUIDRA_PROFILE", "QUIDRA_TIMELINE", "QUIDRA_PROFILE_SPLIT", "QUIDRA_CLANGXX"};
+    std::vector<std::pair<const char*, std::optional<std::string>>> original;
+    for (const auto name : names) original.emplace_back(name, platform::environment_value(name));
+    const auto set = [](const char* name, const std::optional<std::string>& value) {
+#ifdef _WIN32
+        return _putenv_s(name, value ? value->c_str() : "") == 0;
+#else
+        return (value ? setenv(name, value->c_str(), 1) : unsetenv(name)) == 0;
+#endif
+    };
+    struct Restore {
+        const decltype(original)& values;
+        const decltype(set)& setter;
+        ~Restore() { for (const auto& [name, value] : values) (void)setter(name, value); }
+    } restore{original, set};
+    const auto actual_material = [] {
+        auto material = sample_material();
+        material.environment.clear();
+        for (const auto& [name, value] : compile_environment_values())
+            material.environment.emplace_back(name, value);
+        return material;
+    };
+    for (const auto name : names) check(set(name, std::nullopt), "remove key environment fixture");
+    const auto before = actual_material();
+    const auto snapshot = sample_snapshot();
+    const auto dependencies = sample_dependencies();
+    const auto pre_key = run_cache_pre_key(before);
+    const auto key = key_of(before, snapshot, digest('f'), dependencies);
+    for (const auto value : {"isolated-first-report", "isolated-second-report", ""}) {
+        for (const auto name : {"QUIDRA_PROFILE", "QUIDRA_TIMELINE", "QUIDRA_PROFILE_SPLIT"})
+            check(set(name, std::string(value)), "set runtime key environment fixture");
+        const auto changed = actual_material();
+        check(run_cache_pre_key(changed) == pre_key && key_of(changed, snapshot, digest('f'), dependencies) == key,
+              "runtime observation flags changed cache pre-key/key");
+    }
+    check(set("QUIDRA_CLANGXX", std::string("changed-compiler-driver")), "set compiler key environment fixture");
+    const auto compiler_changed = actual_material();
+    check(run_cache_pre_key(compiler_changed) != pre_key &&
+          key_of(compiler_changed, snapshot, digest('f'), dependencies) != key,
+          "compiler flags missing from cache key while testing runtime exclusion");
+}
+
 void keys() {
     const auto material = sample_material();
     const auto snapshot = sample_snapshot();
@@ -350,6 +395,64 @@ void keys() {
     LinkOptions unoptimized;
     unoptimized.optimize = false;
     const auto base = run_cache::cache_key_options(CompileOptions{}, LinkOptions{});
+    check(base.size() == 13 && std::none_of(base.begin(), base.end(), [](const auto& option) {
+              return option.name.starts_with("compile.optimizer.");
+          }), "unspecified optimizer controls retain the historical default key fields");
+    CompileOptions verify_binding, exact_binding;
+    verify_binding.optimizer.exact_binding = DeclarationBindingMode::Verify;
+    exact_binding.optimizer.exact_binding = DeclarationBindingMode::On;
+    const auto verify_key = run_cache::cache_key_options(verify_binding, LinkOptions{});
+    const auto exact_key = run_cache::cache_key_options(exact_binding, LinkOptions{});
+    check(verify_key != base && exact_key != base && verify_key != exact_key,
+          "exact declaration binding modes cannot share a cache key");
+    std::vector<ir::OptimizerDiagnostic> diagnostics;
+    CompileOptions with_diagnostics;
+    with_diagnostics.optimizer.diagnostics = &diagnostics;
+    check(run_cache::cache_key_options(with_diagnostics, LinkOptions{}) == base,
+          "diagnostic output addresses do not identify executable artifacts");
+    optimizer::OptimizerInspection first_inspection, second_inspection;
+    first_inspection.capture_proofs = true;
+    first_inspection.capture_step_regions = true;
+    with_diagnostics.optimizer.inspection = &first_inspection;
+    check(run_cache::cache_key_options(with_diagnostics, LinkOptions{}) == base,
+          "inspection addresses and capture flags do not identify executable artifacts");
+    with_diagnostics.optimizer.inspection = &second_inspection;
+    check(run_cache::cache_key_options(with_diagnostics, LinkOptions{}) == base,
+          "a different inspection destination keeps the same artifact key");
+    const auto optimizer_key = [&](const CompileOptions& compile) {
+        auto configured = material;
+        configured.options = run_cache::cache_key_options(compile, LinkOptions{});
+        return std::pair{run_cache_pre_key(configured), key_of(configured, snapshot, recipe, dependencies)};
+    };
+    check(optimizer_key(with_diagnostics) == optimizer_key(CompileOptions{}),
+          "observation destinations leave both executable cache identities unchanged");
+    const auto omitted = optimizer_key(exact_binding);
+    std::set<std::string> optimizer_pre_keys{omitted.first}, optimizer_keys{omitted.second};
+    const auto distinct_optimizer_mode = [&](const CompileOptions& compile, const char* name) {
+        const auto changed = optimizer_key(compile);
+        check(optimizer_pre_keys.insert(changed.first).second &&
+                  optimizer_keys.insert(changed.second).second,
+              std::string(name) + " has distinct pre-key and executable key material");
+    };
+    // Null is the historical exact-binding-dependent default; explicit Off
+    // must not collide with that default under exact-binding On.
+    for (const auto member : {&ir::OptimizerOptions::cfg_facts, &ir::OptimizerOptions::interproc,
+                              &ir::OptimizerOptions::inline_functions})
+        for (const auto mode : {ir::OptimizerMode::Off, ir::OptimizerMode::Verify, ir::OptimizerMode::On}) {
+            auto changed = exact_binding;
+            changed.optimizer.*member = mode;
+            distinct_optimizer_mode(changed, "explicit optional optimizer mode");
+        }
+    for (const auto member : {&ir::OptimizerOptions::check_elimination, &ir::OptimizerOptions::step_regions}) {
+        auto off = exact_binding;
+        off.optimizer.*member = ir::OptimizerMode::Off;
+        check(optimizer_key(off) == omitted, "default-Off optimizer stages keep the historical omitted fields");
+        for (const auto mode : {ir::OptimizerMode::Verify, ir::OptimizerMode::On}) {
+            auto changed = exact_binding;
+            changed.optimizer.*member = mode;
+            distinct_optimizer_mode(changed, "enabled optimizer stage");
+        }
+    }
     check(run_cache::cache_key_options(debug_info, LinkOptions{}) != base, "debug_info is an option");
     check(run_cache::cache_key_options(lowering, LinkOptions{}) != base, "lowering is an option");
     const auto check_lowering_option = [&](bool ir::LoweringOptions::*member,
@@ -1114,6 +1217,7 @@ int main() {
         run();
     };
     step("keys", keys);
+    step("runtime_environment_keys", runtime_environment_keys);
     step("metadata_round_trip", metadata_round_trip);
     step("corrupt_metadata", corrupt_metadata);
     step("index_files", index_files);

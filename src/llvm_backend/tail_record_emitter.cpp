@@ -30,7 +30,7 @@ void TailRecordEmitter::record(std::uint32_t site, bool self) {
         builder_.cast(depth, CastOp::trunc, {i64, "%quidra.depth"}, i32);
     }
     builder_.call(runtime_abi::tail::record,
-                  {{i32, site}, {i32, depth}, {ptr, frame}, {i32, self ? 1 : 0}});
+                  {{i32, "__quidra_tail_site_"+std::to_string(site)+"__"}, {i32, depth}, {ptr, frame}, {i32, self ? 1 : 0}});
 }
 
 void TailRecordEmitter::normal_return() {
@@ -43,7 +43,8 @@ void TailRecordEmitter::normal_return() {
     builder_.block(cleanup);
     const auto frame = cfa();
     builder_.call(runtime_abi::tail::return_cleanup,
-                  {{i32, first_site_}, {i32, range_end}, {ptr, frame}});
+                  {{i32, "__quidra_tail_begin_"+std::to_string(owner_)+"__"},
+                   {i32, "__quidra_tail_end_"+std::to_string(owner_)+"__"}, {ptr, frame}});
     builder_.br(resumed);
     builder_.block(resumed);
 }

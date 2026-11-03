@@ -1,9 +1,8 @@
 #pragma once
 
-// Value uses read from instruction text: an instruction uses value N when
-// its instruction_text contains %N not followed by another digit. These
-// scans stand in for def-use information, which the IR does not have yet;
-// they see only the operands that instruction_text renders.
+// Conservative value-use helpers over the exhaustive typed operand visitor.
+// Definitions and literal/diagnostic spellings are not uses. The historical
+// file and helper names remain while CFG def-use and liveness are introduced.
 
 #include "quidra/ir/module.hpp"
 
@@ -19,8 +18,8 @@ bool instruction_mentions_value(const ir::Instruction& instruction, ir::ValueId 
 bool has_later_or_cross_block_use(const ir::Function& function, const ir::Instruction* current,
                                   ir::ValueId value);
 
-// The value after the largest %N in the text of the function: the first
-// value a rewrite may define. None when there is no such ValueId.
+// The Function's persistent allocation cursor, not a scan of current IDs.
+// Imported IR is seeded once at the optimizer boundary. None on exhaustion.
 std::optional<ir::ValueId> next_rewrite_value(const ir::Function& function);
 
 } // namespace quidra::optimizer

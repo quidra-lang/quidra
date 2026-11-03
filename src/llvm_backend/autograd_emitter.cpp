@@ -33,18 +33,18 @@ void AutogradEmitter::emit(const ir::TensorHasGrad& n,const ir::Instruction&){
 }
 
 void AutogradEmitter::emit(const ir::TensorClearGrad& n,const ir::Instruction&){
-    builder_.call(runtime_abi::tensor::clear_grad,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::tensor::clear_grad,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void AutogradEmitter::emit(const ir::TensorTrack& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
     if(n.mode==ir::tensor_track_mode::track && n.target!=0){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::track_target,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.target)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::track_target,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.target)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         // Every mode other than untrack and track retracks.
         const auto& callee=n.mode==ir::tensor_track_mode::untrack?runtime_abi::tensor::untrack:
                            n.mode==ir::tensor_track_mode::track?runtime_abi::tensor::track:runtime_abi::tensor::retrack;
-        builder_.call(symbols_.value(n.out),callee,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),callee,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
@@ -67,15 +67,15 @@ void AutogradEmitter::emit(const ir::TensorBackward& n,const ir::Instruction& in
         }
     }
     if(n.autograd_targets!=0){
-        builder_.call(runtime_abi::tensor::backward_many_with_autograd_targets,{{ptr,symbols_.value(n.tensor)},{ptr,raw_targets},{ptr,kinds},{i64,n.targets.size()},{ptr,symbols_.value(n.autograd_targets)},{i1,symbols_.value(n.track)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(runtime_abi::tensor::backward_many_with_autograd_targets,{{ptr,symbols_.value(n.tensor)},{ptr,raw_targets},{ptr,kinds},{i64,n.targets.size()},{ptr,symbols_.value(n.autograd_targets)},{i1,symbols_.value(n.track)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
-        builder_.call(runtime_abi::tensor::backward_many,{{ptr,symbols_.value(n.tensor)},{ptr,raw_targets},{ptr,kinds},{i64,n.targets.size()},{i1,symbols_.value(n.track)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(runtime_abi::tensor::backward_many,{{ptr,symbols_.value(n.tensor)},{ptr,raw_targets},{ptr,kinds},{i64,n.targets.size()},{i1,symbols_.value(n.track)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
 }
 
 void AutogradEmitter::emit(const ir::TensorGrad& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::grad,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::grad,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -91,12 +91,12 @@ void AutogradEmitter::emit(const ir::AutogradTargetHasGrad& n,const ir::Instruct
 }
 
 void AutogradEmitter::emit(const ir::AutogradTargetClearGrad& n,const ir::Instruction&){
-    builder_.call(runtime_abi::autograd::target_clear_grad,{{ptr,symbols_.value(n.target)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::autograd::target_clear_grad,{{ptr,symbols_.value(n.target)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void AutogradEmitter::emit(const ir::AutogradTargetGradient& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::autograd::target_gradient,{{ptr,symbols_.value(n.target)},{i32,abi::dtype_code(ir::dtype_of(*n.type.first))},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::autograd::target_gradient,{{ptr,symbols_.value(n.target)},{i32,abi::dtype_code(ir::dtype_of(*n.type.first))},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 

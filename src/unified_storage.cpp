@@ -1,5 +1,6 @@
 #include "unified_storage.hpp"
 #include "platform/environment.hpp"
+#include "runtime_counters.hpp"
 
 #include <array>
 #include <cstdio>
@@ -171,6 +172,10 @@ void detach(Block* block, bool device_view) {
 }
 
 void count(Counter counter) {
+    if (counter == Counter::CpuView || counter == Counter::DeviceView)
+        quidra::counters::add(quidra::counters::Id::UnifiedViews);
+    else if (counter == Counter::Relocate)
+        quidra::counters::add(quidra::counters::Id::UnifiedCopies);
     if (!statistics_enabled()) return;
     counters[static_cast<std::size_t>(counter)].fetch_add(1, std::memory_order_relaxed);
 }

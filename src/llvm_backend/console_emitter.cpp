@@ -22,7 +22,7 @@ void ConsoleEmitter::reserve(const ir::Input&,const ir::Instruction& ins){
 void ConsoleEmitter::emit(const ir::Flush& n,const ir::Instruction&){
     const auto status=names_.value("flush.status");
     builder_.call(status,runtime_abi::console::flush,{});
-    errors_.output_result(n.out,n.result_type,status,n.line,n.column);
+    errors_.output_result(n.out,n.result_type,status,n.position.line,n.position.column);
 }
 
 void ConsoleEmitter::emit(const ir::Print& n,const ir::Instruction&){
@@ -81,11 +81,13 @@ void ConsoleEmitter::emit(const ir::Print& n,const ir::Instruction&){
     }else{
         builder_.call(runtime_abi::c_library::printf,{{ptr,"@.fmt.string.raw"},{ptr,symbols_.value(n.value)}});
     }
+    if (n.newline)
+        builder_.call(runtime_abi::c_library::printf,{{ptr,"@.fmt.newline"}});
     builder_.br(done_label);
     builder_.block(done_label);
     const auto status=names_.value("output.status");
     builder_.call(status,runtime_abi::console::output_status,{});
-    errors_.output_result(n.out,n.result_type,status,n.line,n.column);
+    errors_.output_result(n.out,n.result_type,status,n.position.line,n.position.column);
 }
 
 void ConsoleEmitter::emit(const ir::Input& n,const ir::Instruction& ins){
@@ -127,7 +129,7 @@ void ConsoleEmitter::emit(const ir::Input& n,const ir::Instruction& ins){
     builder_.call(reason,runtime_abi::failure::last_reason,{});
     const auto code=abi::ErrorValueCode::input_read;
     const std::array details{abi::ErrorDetailValue::name_value(abi::input_read_reasons[0])};
-    const auto array=records_.record_array(code,details,0,abi::input_read_reasons,abi::input_read_reasons.size(),n.line,n.column);
+    const auto array=records_.record_array(code,details,0,abi::input_read_reasons,abi::input_read_reasons.size(),n.position.line,n.position.column);
     records_.store(error_payload,records_.element(array,code,reason,error_payload),error_payload);
     builder_.br(done_label);
 

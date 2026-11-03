@@ -41,7 +41,7 @@ same bound spelling and require an explicit step.
 Collection headers iterate exactly one level:
 
 ```quidra
-for int value := values[]
+for value := values[]
     print(value)
 for &value := &values[nat i]
     value = value + int(i)

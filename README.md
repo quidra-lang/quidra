@@ -90,10 +90,10 @@ int count := 7
 increment(&count)
 
 tensor<real32>{3, _, _} pixels := tensor.zeros([3, 224, 224])
-real32 sample := first_sample(pixels)
+sample := first_sample(pixels)
 
 nat8 flags := 240
-nat8 selected := flags AND 15
+selected := flags AND 15
 ```
 
 The surviving tokens carry concrete semantics:
@@ -118,7 +118,7 @@ parameter and the call.
 
 ```quidra
 int[] original := [1, 2, 3]
-int[] copy := original
+copy := original
 copy[0] = 9
 
 void reset(int &value)
@@ -266,10 +266,10 @@ Fixed-width integers use explicit bitwise syntax:
 ```quidra
 nat8 flags := 240
 nat8 mask := 15
-nat8 selected := flags AND mask
-nat8 toggled := flags XOR mask
-nat8 inverted := NOT flags
-nat8 shifted := flags << 2
+selected := flags AND mask
+toggled := flags XOR mask
+inverted := NOT flags
+shifted := flags << 2
 ```
 
 Uppercase bitwise words are intentionally distinct from boolean `and` / `or` / `not`, safe storage `&`, and union `|`. Signed operations use the same defined N-bit two's-complement representation used by explicit binary conversion; signed `>>` preserves the sign bit. This is a small example of Quidra preferring one stable semantic role per spelling over familiar overloads.
@@ -283,10 +283,10 @@ There is no `char` type:
 Numeric parsing and standard text conversion use methods:
 
 ```quidra
-int value := int.parse("123")
+value := int.parse("123")
 
 int number := 123
-string text := number.string()
+text := number.string()
 ```
 
 ### Arrays and bin
@@ -301,7 +301,7 @@ pending[0] = 7
 int[] zeros := array(100, fill = 0)
 values = values.append(4)
 
-string[] names := ["Aki", "Yui", "Haru"]
+names := ["Aki", "Yui", "Haru"]
 int[] scores := [90, 85, 95]
 ranked := names.sorted(by = scores, descending = true)
 ```
@@ -323,10 +323,10 @@ code-point slice syntax and remain immutable.
 `bin` is mutable packed raw binary data:
 
 ```quidra
-bin data := bin.fill(8, 0)
+data := bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
-bin first := data[0]
-bin parsed := bin.parse("0101")
+first := data[0]
+parsed := bin.parse("0101")
 ```
 
 `len(data)` is the number of bits, indexing returns one-bit `bin`, and slicing
@@ -338,8 +338,8 @@ example `nat8(bits)`, and the bit length must match the destination width.
 Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `value` is exactly one Unicode code point and `n` is the repeat count.
 
 ```quidra
-string name := "Quidra"
-string repeated := string.repeat("a", 6)
+name := "Quidra"
+repeated := string.repeat("a", 6)
 print.line("Hello, {name}")
 print.line("first{NL}second")
 ```
@@ -369,7 +369,7 @@ class Point(real64 x, real64 y)
     real64 length_squared()
         return x * x + y * y
 
-Point point := Point(3.0, 4.0)
+point := Point(3.0, 4.0)
 print.line(point.length_squared())
 
 Point origin
@@ -406,8 +406,8 @@ class Holder(local int &source)
     int &value := &source
 
 int count := 1
-Holder first := Holder(&count)
-Holder second := first
+first := Holder(&count)
+second := first
 second.value = 7
 print.line(&first.value == &second.value)
 ```
@@ -457,7 +457,7 @@ import geometry = "./geometry.qui"
 import shared = "@/shared.qui"
 import plot = plotting
 
-geometry.Point point := geometry.Point(2, 3)
+point := geometry.Point(2, 3)
 ```
 
 Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `nn.mode.fast()`.
@@ -474,7 +474,7 @@ class Box<T>(T value)
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box := Box<int>(7)
+box := Box<int>(7)
 print.line(first<int>([4, 5]))
 ```
 
@@ -485,7 +485,7 @@ Repeated function or method names are permitted only for a generic specializatio
 ### Control flow
 
 ```quidra
-bool condition := false
+condition := false
 
 void work()
     print.line("work")
@@ -568,11 +568,11 @@ print.line("{n} + {m}")
 int amount := 123456789
 print.line("{amount:group=3}") // 123,456,789
 
-file.read input := file.read("pairs.txt")
+input := file.read("pairs.txt")
 while .input("{int &left} {int &right}")
     print.line("{left} {right}")
 
-file.write output := file.write("output.txt")
+output := file.write("output.txt")
 .output("{n} {m}")
 .output.line("next line")
 .output.line()
@@ -601,7 +601,7 @@ tensor<real32>{1, _, _} bias := tensor.ones([1, 224, 224])
 tensor<real32>{3, _, _} result := pixels + bias
 
 crop := result[:, 10:<20, 30:<40]
-real32 value := result[0, 10, 20].item()
+value := result[0, 10, 20].item()
 ```
 
 `tensor<T>(shape)` creates uninitialized tensor storage; `tensor.zeros` and
@@ -615,8 +615,8 @@ Device movement is always visible:
 tensor<real32> cpu := tensor.zeros([1024])
 tensor<real32> gpu0 := tensor.zeros([1024], gpu = 0)
 
-tensor<real32> copied := cpu.gpu(0)
-tensor<real32> host := copied.cpu()
+copied := cpu.gpu(0)
+host := copied.cpu()
 ```
 
 CPU is the default. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never
@@ -671,7 +671,7 @@ field containing a matching destination is rejected for writable traversal.
 class Model()
     private int weight := 1
     int[] rest := [2, 3]
-Model model := Model()
+model := Model()
 for int &value := &reflect.each<int>(&model)[nat index]
     value += int(index)
 ```
@@ -694,11 +694,11 @@ import math
 class Scale()
     nn.Parameter<real32> value
 
-Scale model := Scale()
+model := Scale()
 model.value = nn.Parameter<real32>(value = tensor.ones([1]))
-nn.Adam<Scale> optimizer := nn.Adam<Scale>(&model)
-tensor<real32> prediction := .model.value.track() * real32(2)
-tensor<real32> loss := math.mean(prediction * prediction)
+optimizer := nn.Adam<Scale>(&model)
+prediction := .model.value.track() * real32(2)
+loss := math.mean(prediction * prediction)
 
 loss.backward(&model)
 .optimizer.update()

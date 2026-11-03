@@ -44,7 +44,7 @@ int y := 3.0      // error
 Use an explicit conversion when a representation change is intended:
 
 ```quidra
-real64 x := real64(3)
+x := real64(3)
 ```
 
 When a real-family literal materializes as `real32` or `real64`, destination rounding is allowed, but the literal must remain inside the finite range of that IEEE type after rounding. The exact decimal value is rounded once to the nearest value of the destination, ties to even, subnormal values included; a `real32` literal is not rounded to `real64` first. Thus `real32 x := 0.1` is valid and deterministically rounds to binary32. An integer-family literal converted explicitly to an IEEE type, as in `real32(16777217)`, rounds the same way. When the same literal materializes as `real`, its decimal spelling becomes an exact rational value; it is not routed through `real64` first.
@@ -137,10 +137,10 @@ more tightly than multiplication and division:
 ```quidra
 int base := 2
 int exponent := 10
-int value := base ^ exponent
+value := base ^ exponent
 
 real64 x := 4.0
-real64 root := x ^ 0.5
+root := x ^ 0.5
 ```
 
 Integer exponentiation requires a non-negative integer exponent. Fixed-width results retain the language's checked-overflow semantics.
@@ -215,8 +215,8 @@ real literal inside a complex literal is its real part:
 com64 z := 1.0 + 2.0i
 com32 w := 1.5 - 0.25i
 com exact := 0.5i
-real64 re := z.real
-real64 im := z.imag
+re := z.real
+im := z.imag
 print("{z} {w} {exact}")
 ```
 
@@ -248,8 +248,8 @@ value: use `z.real`, `z.imag` or `math.abs(z)`.
 ```quidra
 com32 a := 1.0 + 1.0i
 real32 x := 2.0
-com32 b := a * com32(x)
-bool same := a == b
+b := a * com32(x)
+same := a == b
 ```
 
 `tensor<com16>`, `tensor<com16b>`, `tensor<com32>` and `tensor<com64>` hold
@@ -270,12 +270,12 @@ Bitwise operations are defined only for the fixed-width integer types `nat8` to 
 nat8 flags := 240
 nat8 mask := 204
 
-nat8 both := flags AND mask
-nat8 either := flags OR mask
-nat8 changed := flags XOR mask
-nat8 inverted := NOT flags
-nat8 left := flags << 1
-nat8 right := flags >> 2
+both := flags AND mask
+either := flags OR mask
+changed := flags XOR mask
+inverted := NOT flags
+left := flags << 1
+right := flags >> 2
 ```
 
 `AND`, `OR`, `XOR`, and `NOT` are uppercase deliberately. Lowercase `and`, `or`, and `not` are bool-only logical operations; `&` remains explicit storage access and `|` remains union syntax. The language therefore does not reuse one spelling for unrelated meanings.
@@ -324,10 +324,10 @@ Explicit conversion uses the destination type as a call:
 
 ```quidra
 int8 small := 10
-int16 wider := int16(small)
+wider := int16(small)
 
 int value := 100
-int8 checked := int8(value)
+checked := int8(value)
 ```
 
 Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. An inferred declaration infers the success type and fails fast on error, an explicit union destination keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Already infinite values retain their sign in real-family conversions; they cannot convert to an integer. Integer widening whose source range is fully contained in the destination is infallible.
@@ -369,8 +369,8 @@ JSON number parsing is likewise lossless at the syntax boundary: a valid JSON nu
 `bin` is a mutable packed raw bit sequence with value semantics.
 
 ```quidra
-bin zeros := bin.fill(8, 0)
-bin ones := bin.fill(5, 1)
+zeros := bin.fill(8, 0)
+ones := bin.fill(5, 1)
 bin | error pattern := bin.parse("01010000")
 ```
 
@@ -387,9 +387,9 @@ bin | error value := bin.parse("01010000")
 Indexing and slicing operate in bits:
 
 ```quidra
-bin bits := bin.fill(8, 0)
-bin first := bits[0]
-bin high := bits[0:<4]
+bits := bin.fill(8, 0)
+first := bits[0]
+high := bits[0:<4]
 bits[0] = bin.fill(1, 1)
 ```
 
@@ -411,8 +411,8 @@ Flat integer and bool arrays use the same rule:
 
 ```quidra
 int8[] values := [80, -1]
-bin raw := bin(values)
-int8[] restored := int8[](raw)
+raw := bin(values)
+restored := int8[](raw)
 ```
 
 `T[](bin)` requires `len(bin)` to be exactly divisible by the destination element width. No conversion pads, truncates, wraps, or silently changes bit count.
@@ -422,9 +422,9 @@ int8[] restored := int8[](raw)
 Ordinary `bin` assignment is independent:
 
 ```quidra
-bin a := bin.fill(3, 0)
+a := bin.fill(3, 0)
 a[2] = bin.fill(1, 1)
-bin b := a
+b := a
 b[0] = bin.fill(1, 1)
 
 print(a) // 001

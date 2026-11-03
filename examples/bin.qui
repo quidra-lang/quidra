@@ -1,4 +1,4 @@
-bin data := bin.fill(8, 0)
+data := bin.fill(8, 0)
 data[1] = bin.fill(1, 1)
 print.line(len(data))
 print.line(data)

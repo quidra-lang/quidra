@@ -9,17 +9,17 @@ class Point(local int x_initial := 1)
         return x + y
 
 class ShiftedPoint()
-    Point point := Point()
+    point := Point()
     int offset := 1
 
     int sum()
         return point.sum() + offset
 
-Point a := Point()
+a := Point()
 a.x = 1
 a.y = 2
-Point b := Point(1)
-ShiftedPoint shifted := ShiftedPoint()
+b := Point(1)
+shifted := ShiftedPoint()
 
 int[] left := [1, 2, 3]
 int[] right := [1, 2, 3]

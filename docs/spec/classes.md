@@ -7,12 +7,12 @@ optional instance name, argument list, and optional generation error contract.
 class Point point(real64 x, real64 y, local real64 scale := 2.0)
     x *= scale
     y *= scale
-    real64 length_squared := x * x + y * y
+    length_squared := x * x + y * y
     real64 sum()
         return x + y
     Point copy()
         return point
-Point p := Point(3.0, 4.0)
+p := Point(3.0, 4.0)
 
 class Greeting(text := "hello")
     suffix := "!"
@@ -20,7 +20,7 @@ class Greeting(text := "hello")
     string message()
         return text + suffix
 
-Greeting greeting := Greeting()
+greeting := Greeting()
 print.line(greeting.message())
 ```
 
@@ -59,7 +59,7 @@ or local declaration. Another instance's members use an explicit receiver.
 ```quidra
 class Document document(local string path) | error
     file.read stream := try file.read(path)
-    string text := ""
+    text := ""
     while .stream(string &line)
         text += "{line}{NL}"
 Document | error result := Document("notes.txt")

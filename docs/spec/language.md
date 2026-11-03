@@ -85,12 +85,12 @@ array comparison chains are not permitted.
 
 ```quidra
 int[] values := [-2, 3, 0, 4]
-bool[] positive := values > 0
-int[] selected := values[positive]   // [3, 4]
-int[] squared := values ^ 2         // [4, 9, 0, 16]
+positive := values > 0
+selected := values[positive]   // [3, 4]
+squared := values ^ 2         // [4, 9, 0, 16]
 int[] indices := [3, 1, 3]
-int[] gathered := values[indices]   // [4, 3, 4]
-nat[] locations := values.indices()  // [0, 1, 2, 3]
+gathered := values[indices]   // [4, 3, 4]
+locations := values.indices()  // [0, 1, 2, 3]
 ```
 
 A `bool[]` mask must match the input array's outer length; it selects complete
@@ -109,11 +109,11 @@ used by slices are available. An omitted start is zero. An omitted end is
 only meaningful when indexing an actual array, not in an independent range.
 
 ```quidra
-int[] a := 0:3       // [0, 1, 2, 3]
-int[] b := :3        // [0, 1, 2, 3]
-int[] c := 0:<3      // [0, 1, 2]
-int[] d := 5:0:-2    // [5, 3, 1]
-int[] e := 3:0       // [3, 2, 1, 0]
+a := 0:3       // [0, 1, 2, 3]
+b := :3        // [0, 1, 2, 3]
+c := 0:<3      // [0, 1, 2]
+d := 5:0:-2    // [5, 3, 1]
+e := 3:0       // [3, 2, 1, 0]
 ```
 
 `int[] invalid := 3:` is rejected at compile time because a standalone range must have an end.
@@ -197,9 +197,9 @@ Over ten elements `a[5:3]` selects 5, 4, 3, while `a[5:<3]` and `a[3>:5]` are em
 
 ```quidra
 int[] values := [10, 20, 30, 40, 50]
-int[] middle := values[1:3]
-int[] reversed := values[len(values)>:0]
-int[] evens := values[0:<len(values):2]
+middle := values[1:3]
+reversed := values[len(values)>:0]
+evens := values[0:<len(values):2]
 print.line(middle[0] + reversed[0] + evens[2])
 // output: 120
 ```
@@ -213,14 +213,14 @@ A slice of an array is also an assignment target. `a[1:3] = b` stores the elemen
 `bin` is a mutable packed raw bit sequence. It is not an array type and has no separate `bit`, `byte`, or `bytes` element type.
 
 ```quidra
-bin zeros := bin.fill(8, 0)
-bin ones := bin.fill(5, 1)
+zeros := bin.fill(8, 0)
+ones := bin.fill(5, 1)
 bin | error pattern := bin.parse("01010000")
 
-bin data := bin.fill(8, 0)
+data := bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
-bin first := data[0]
-bin nibble := data[0:<4]
+first := data[0]
+nibble := data[0:<4]
 ```
 
 `bin.fill(n, bit)` allocates exactly `n` bits (a `nat`) and accepts only `0` or `1` for `bit`. Length zero is valid. Invalid allocation sizes and fill values other than 0 or 1 are rejected. `len(value)` returns the bit count as `nat`. Indexing is zero-based and returns a one-bit `bin`; slicing takes the forms of array slices without a step (`data[0:<4]` excludes bit 4, `data[0:3]` includes bit 3, `data[len(data)>:0]` reverses the bits) and returns `bin`; a start past an excluded end gives an empty `bin`. `print(bin)` and `bin.string()` expose the exact 0/1 sequence.
@@ -336,7 +336,7 @@ class Counter(int value)
         value += 1
         return value
 
-Counter counter := Counter(0)
+counter := Counter(0)
 print(.counter())
 ```
 
@@ -372,7 +372,7 @@ receiver mutation, trait object or access to private class members.
 int squared(extend int value)
     return value * value
 
-int result := 5.squared()  // squared(5)
+result := 5.squared()  // squared(5)
 ```
 
 An imported, public extension function is available as a method only while
@@ -476,11 +476,11 @@ class Convert()
 Class type positions require explicit type arguments. Class generation calls, function calls and method calls may omit type arguments when every generic parameter is uniquely determined from typed call arguments:
 
 ```quidra
-Box<int> box := Box<int>()
+box := Box<int>()
 box.value = 7
 int[] values := [1, 2, 3]
 int first_value := first(values)
-Convert convert := Convert()
+convert := Convert()
 int sample := 5
 int same := convert.identity(sample)
 ```
@@ -532,8 +532,8 @@ enum Token
     Plus
     End
 
-Token token := Token.Number(3.0)
-Token end := Token.End
+token := Token.Number(3.0)
+end := Token.End
 ```
 
 The enum name is the static type. Variants are always qualified with the enum name. A variant carries either one explicitly typed payload or no payload; payload-free variants are values and are written without parentheses. Different variants remain distinct even when they carry the same payload type.
@@ -547,7 +547,7 @@ enum Token
     Plus
     End
 
-Token token := Token.End
+token := Token.End
 
 match token
     Token.Number(value)
@@ -570,7 +570,7 @@ A class definition has a type name, an optional instance name, a mandatory argum
 class Point point(real64 x, real64 y, local real64 scale := 2.0)
     x *= scale
     y *= scale
-    real64 length_squared := x * x + y * y
+    length_squared := x * x + y * y
 
     real64 sum()
         return x + y
@@ -578,24 +578,22 @@ class Point point(real64 x, real64 y, local real64 scale := 2.0)
     Point copy()
         return point
 
-Point complete := Point(3.0, 4.0)
-Point larger := Point(x = 3.0, y = 4.0, scale = 10.0)
+complete := Point(3.0, 4.0)
+larger := Point(x = 3.0, y = 4.0, scale = 10.0)
 ```
 
 Ordinary header parameters declare members initialized from the supplied arguments. A `local` parameter is a temporary available only during initialization; `scale` is not a member. Header members are initialized first, then direct statements and member initialization expressions execute once, sequentially in written order. Methods define operations and do not execute during generation. Empty classes still use `class Empty()`. There is no special `construct` declaration: that name may name an ordinary function or method.
 
 `T(...)` runs this ordered initialization. Arguments follow ordinary positional, named and default rules. The header has one parameter list; express alternate call forms with defaults or free factory functions. Generic parameters belong to the class header or an ordinary function/method, so a generic factory may construct a non-generic class without changing its type identity.
 
-A typed declaration without an initializer, such as `Point pending`, leaves the binding uninitialized and creates no usable instance. It permits subsequent whole-value assignment, such as `pending = Point(3.0, 4.0)`, but no member access, method call or instance borrowing before initialization. `Point point := Point(3.0, 4.0)` is an initialized declaration and follows ordinary constructor call rules for argument evaluation, mutation markers and errors. Failed generation cannot initialize the destination with an unfinished instance. Standard `map` and `distinct` bare bindings retain their initialized empty-storage contract.
+A typed declaration without an initializer, such as `Point pending`, leaves the binding uninitialized and creates no usable instance. It permits subsequent whole-value assignment, such as `pending = Point(3.0, 4.0)`, but no member access, method call or instance borrowing before initialization. `point := Point(3.0, 4.0)` is an initialized declaration and follows ordinary constructor call rules for argument evaluation, mutation markers and errors. Failed generation cannot initialize the destination with an unfinished instance. Standard `map` and `distinct` bare bindings retain their initialized empty-storage contract.
 
 ```quidra
 Point pending
 pending = Point(3.0, 4.0, scale = 1.0)
 ```
 
-A normal declaration directly inside a class creates a member. A field initializer
-uses `:=`; write `label := "hello"` when the expression determines its type or
-`string label := "hello"` to state the type explicitly. A field without an
+A normal declaration directly inside a class creates a member. A field initializer uses `:=`. Omit the field type when the expression determines it, as in `label := "hello"`. Write the type when the initializer needs it or the field has a stronger type contract. A field without an
 initializer needs an explicit type. A default header parameter may likewise infer
 its type, as in `class Greeting(text := "hello")`. `local` keeps an initialization temporary; declarations inside control blocks are local with or without the qualifier. A name is visible only from its declaration through its block and nested control blocks. It cannot implicitly cross a function or class definition boundary. A method therefore cannot capture an initialization local. In ordinary function bodies and parameters `local` is optional and has the ordinary declaration or parameter semantics.
 
@@ -605,7 +603,7 @@ The whole instance cannot escape while initialization is in progress, including 
 
 ```quidra
 class Document document(local string path) | error
-    file.read stream := try file.read(path)
+    stream := try file.read(path)
 
 Document | error result := Document("notes.txt")
 ```
@@ -626,7 +624,7 @@ class Counter()
     void .increment()
         .increment_raw()
 
-Counter counter := Counter()
+counter := Counter()
 .counter.increment()
 ```
 
@@ -641,9 +639,9 @@ class CopyPoint()
     real64 x
     real64 y
 
-CopyPoint a := CopyPoint()
+a := CopyPoint()
 a.x = 1.0
-CopyPoint b := a
+b := a
 b.y = 2.0
 ```
 
@@ -689,7 +687,7 @@ After the assignment, `a` and `b` both read as `5`. A reference binding may poin
 
 ```quidra
 int value := 5
-const int view := value
+const view := value
 
 value = 7
 print.line(view) // 5
@@ -703,7 +701,7 @@ A reference binding may point at a binding, field, or array element:
 int[] values := [1, 2, 3]
 int &first := &values[0]
 
-Point point := Point(1.0, 0.0)
+point := Point(1.0, 0.0)
 real64 &x := &point.x
 ```
 
@@ -739,8 +737,8 @@ class Holder this(local int &source)
         this.total += amount
 
 int value := 4
-Holder first := Holder(&value)
-Holder second := first
+first := Holder(&value)
+second := first
 .second.add(3)
 print.line(first.read()) // 7: both holders refer to value
 ```
@@ -823,7 +821,7 @@ class Counter()
     int read()
         return value
 
-Counter counter := Counter()
+counter := Counter()
 .counter.increment()
 print.line(counter.read())
 ```
@@ -882,7 +880,7 @@ A header may zip several arrays by position:
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
 int total := 0
-for int price := prices[], int quantity := quantities[]
+for price := prices[], int quantity := quantities[]
     total += price * quantity
 print(total) // 80
 ```
@@ -911,7 +909,7 @@ available for Cartesian iteration.
 
 ```quidra
 int score := 85
-string grade := if score >= 90 then "A" elif score >= 80 then "B" else "C"
+grade := if score >= 90 then "A" elif score >= 80 then "B" else "C"
 print.line(grade)
 ```
 
@@ -1108,7 +1106,7 @@ Without an ellipsis, the number of shape entries is the required rank. Each exte
 Known rank or extent conflicts are rejected statically. A tensor expected type may supply the numeric element type when an explicit shape argument is present, so `tensor<real32> x := tensor.zeros([2, 3])` is valid and avoids repeating `real32`. Without either an explicit tensor type argument or an expected tensor element type, as in `x := tensor.zeros([2, 3])`, the element type is ambiguous and the call is rejected. If a source tensor's relevant rank or extent is not statically known, assignment or parameter passing to a constrained destination performs the corresponding runtime constraint check instead of silently assuming the shape. Declared captured constraints remain fixed for that binding across reassignment, while inferred flow facts may weaken after reassignment or control-flow joins. APIs that produce runtime data may additionally validate an expected pattern through their normal result model. Shape constraints and inferred rank/shape facts do not change TensorStorage or the LLVM ABI.
 
 ```quidra
-tensor<real32> a := tensor<real32>([3, 224, 224])
+a := tensor<real32>([3, 224, 224])
 a[0, 0, 0] = 1.0
 
 tensor<real32> contextual := tensor.zeros([2, 3])
@@ -1177,8 +1175,8 @@ A proven direct call may enter the internal checked body. Other direct calls, ca
 Device placement is explicit runtime/compiler metadata and is not part of the nominal `tensor<T>{...}` type. CPU is the default. A tensor constructor may instead name a zero-based GPU index with the ordinary named-argument syntax `gpu = n`:
 
 ```quidra
-tensor<real32> cpu := tensor.zeros<real32>([1024])
-tensor<real32> gpu0 := tensor.zeros<real32>([1024], gpu = 0)
+cpu := tensor.zeros<real32>([1024])
+gpu0 := tensor.zeros<real32>([1024], gpu = 0)
 tensor<real32>{1024} gpu1 := tensor.ones(gpu = 1)
 ```
 
@@ -1199,10 +1197,10 @@ NVIDIA systems use the `cuda` backend through the CUDA Driver API rather than a 
 Tensor storage is row-major, with the last dimension contiguous. Integer indices remove axes, slices retain axes, and omitted trailing dimensions mean full slices. Tensor slices take the forms of array slices that ascend, as views: `t[a:b]` includes `b`, `t[a:<b]` excludes it and `t[a<:b]` excludes `a`, with an optional positive step; a descending marker (`>:`, `:>`) is a `SLICE_STEP` error, and a start past an excluded end is an empty view. Inferred rank and known shape facts are projected accordingly. Fully indexing a known rank-N tensor with N integer indices yields an internal rank-0 tensor, not a scalar; `.item()` is the explicit scalar extraction operation. On a GPU tensor, `.item()` performs only the required one-element device-to-host read. This scalar extraction is an explicit semantic boundary and is not permission to move or evaluate the surrounding tensor operation on the CPU.
 
 ```quidra
-tensor<real32> z := tensor.zeros<real32>([3, 224, 224])
+z := tensor.zeros<real32>([3, 224, 224])
 channel := z[1]
 crop := z[:, 10:<20, 30:<40]
-real32 value := z[0, 10, 20].item()
+value := z[0, 10, 20].item()
 ```
 
 Slices may share internal storage, but source semantics remain value-oriented. Mutating a copied tensor or slice triggers copy-on-write when needed. Slice assignment and writable `&` references to tensor elements are intentionally not exposed.
@@ -1260,11 +1258,11 @@ Generic mathematical semantics are owned by the first-party Math package, not Co
 ```quidra
 import math
 
-real64 root := math.sqrt(real64(16.0))
+root := math.sqrt(real64(16.0))
 real exact_pi := math.pi
-tensor<real32> left := tensor.ones<real32>([1, 1])
-tensor<real32> right := tensor.ones<real32>([1, 1])
-tensor<real32> product := math.matmul(left, right)
+left := tensor.ones<real32>([1, 1])
+right := tensor.ones<real32>([1, 1])
+product := math.matmul(left, right)
 ```
 
 ### Output flushing
@@ -1315,15 +1313,15 @@ requires a success value. In a `T | error` destination, the error is preserved
 instead. An uninitialized stream cannot be used before assignment.
 
 ```quidra
-file.read f := file.read("input.txt")
+f := file.read("input.txt")
 while .f(string &line)
     print.line("{line}")
 
-file.read numbers := file.read("numbers.txt")
+numbers := file.read("numbers.txt")
 while .numbers(int &value)
     print.line("{value}")
 
-file.read pairs := file.read("pairs.txt")
+pairs := file.read("pairs.txt")
 int first := 0
 while .pairs("{&first} {int &second}")
     print.line("{first} + {second} = {first + second}")
@@ -1411,10 +1409,10 @@ A failed assertion exits with status 1. This is a test failure, not a runtime-sa
 `time` represents elapsed-time concepts with opaque value types rather than unitless integers:
 
 ```quidra
-time.Instant start := time.now()
-time.Duration pause := time.seconds(0.01)
+start := time.now()
+pause := time.seconds(0.01)
 time.sleep(pause)
-time.Duration elapsed := time.since(start)
+elapsed := time.since(start)
 print.line(elapsed.seconds())
 ```
 
@@ -1425,10 +1423,10 @@ print.line(elapsed.seconds())
 `random` has no implicit process-global generator. Randomness is explicit state:
 
 ```quidra
-random.Generator rng := random.generator(seed = 42)
-int n := .rng.int(1, 10)
-real64 x := .rng.real64()
-bool b := .rng.bool()
+rng := random.generator(seed = 42)
+n := .rng.int(1, 10)
+x := .rng.real64()
+b := .rng.bool()
 ```
 
 `random.generator(seed)` accepts an `int` seed and deterministically creates a generator. `Generator.int(start, end)` accepts arbitrary-precision `int` bounds and returns an `int` sampled uniformly from the half-open integer range `[start, end)` using rejection sampling; `start >= end` is a runtime-safety failure with status 101. `Generator.real64()` yields a `real64` in `[0.0, 1.0)`; `Generator.bool()` yields a boolean. Calls advance only that generator's state. Ordinary assignment copies generator state according to normal class value semantics, so later advancement of one copy cannot mutate another. Standard-library generator values cannot be directly constructed and their state representation is not source-visible.
@@ -1438,7 +1436,7 @@ bool b := .rng.bool()
 `process.run` launches an executable directly with an explicit string-array argument vector:
 
 ```quidra
-process.Result result := process.run("git", ["status", "--short"])
+result := process.run("git", ["status", "--short"])
 print.line(result.started)
 print.line(result.status)
 print.line(result.output)
@@ -1459,7 +1457,7 @@ map<string, int> counts
 
 print.line(counts.has("apple"))
 value := counts.get("apple")
-string[] keys := counts.keys()
+keys := counts.keys()
 ```
 
 `increment(key, by = 1)` is available when a Map's value type is an integer or natural type. It adds to an existing value or inserts `by` when the key is absent; it is invoked as `.counts.increment(key)` or `.counts.increment(key, by = amount)`. The operation preserves insertion order and the existing type's checked arithmetic. It does not exist on Maps with non-integer values and is not an atomic concurrent increment.
@@ -1768,7 +1766,7 @@ node, which differs from a `parallel for`.
 int[5] a
 parallel for x < 5
     a[x] = x
-for int value := a[]
+for value := a[]
     print.line(value)
 ```
 
@@ -2042,7 +2040,7 @@ Reference parameters are lent by the caller and cannot be rebound.
 
 ### Array generation expressions
 
-`[for int x := values[] if x > 0 then x * x]` creates a new Array of the selected values. The `if` condition is optional; `then` is required. The bracketed expression may span multiple lines. Declare one element binding with its exact source element type or omit the type to infer it.
+`[for x := values[] if x > 0 then x * x]` creates a new Array of the selected values. The `if` condition is optional; `then` is required. The bracketed expression may span multiple lines. Declare one element binding with its exact source element type or omit the type to infer it.
 
 The source Array is evaluated once and held as a value snapshot. Elements are visited in their original order. Each condition is evaluated once per element, and the value following `then` is evaluated once only when its condition is true. Without a condition, every element contributes one value. Execution is sequential.
 

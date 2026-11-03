@@ -1792,7 +1792,7 @@ static void brace_shapes_and_shape_variables() {
                 "'C' is not declared");
     bad_message("tensor<real32>{nat B, nat H} t\n", "SHAPE_VARIABLE",
                 "'B' has no value: without an initializer, write a literal, an expression, "
-                "'nat B = ...' or an existing nat value.");
+                "'B := ...' or an existing nat value.");
     bad_message("int n := 3\ntensor<real32>{n} u := tensor.zeros<real32>([3])\n", "SHAPE_VARIABLE",
                 "'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.");
     bad_message("tensor<real32>{nat C, nat H} x := tensor.zeros<real32>([2, 3])\n"
@@ -2007,6 +2007,7 @@ static std::string modules_diagnostic(const std::string& main,
 // Module-private top-level declarations (L3): usable only inside their
 // module, never exported, never exposed by a public declaration.
 static void private_declarations_stay_in_their_module() {
+    bad_code("private class Hidden()\nconst leaked := Hidden()\n", "PRIVATE_DECLARATION");
     const auto expect = [](const std::string& actual, const std::string& expected) {
         if (actual.rfind(expected, 0) != 0) {
             std::cerr << "private declarations: expected '" << expected << "', got '" << actual
@@ -2095,7 +2096,7 @@ static void private_declarations_stay_in_their_module() {
     good("private int f();\n\nprint(f())\nprint(NL)\n\nprivate int f()\n    return 1\n");
     // `private` applies to declarations only.
     bad_message("private import lib = \"./lib.qui\"\n", "PARSE_ERROR", "private applies to declarations.");
-    bad_message("private int x = 3\n", "PARSE_ERROR", "private applies to declarations.");
+    bad_message("private int x := 3\n", "PARSE_ERROR", "private applies to declarations.");
     bad_message("private print(1)\n", "PARSE_ERROR", "private applies to declarations.");
     bad_message("private export \"C\" int64 f(int64 x)\n    return x\n", "FFI_EXPORT",
                 "Exported C functions are public");
@@ -3616,7 +3617,7 @@ static void native_call_sites_follow_the_artifact() {
         require(site.callee < native.call_sites.functions.size(), "an invalid callee id");
         if (native.call_sites.functions[site.callee].display == "twice()") {
             found_twice = true;
-            require(site.line == 3 && site.column == 15, "the call's source position");
+            require(site.line == 3 && site.column == 16, "the call's source position");
         }
     }
     require(found_twice, "the user call is missing from the site table");
@@ -6249,13 +6250,13 @@ run()
 )");
  bad_code(R"(class EarlyReceiver this()
     real64[] values
-    void | error initialize(int count)
+    void | error .initialize(int count)
         if count < 0
             return error("bad")
-        this.values = array(count, fill = 0.0)
+        this.values = array(nat(count), fill = 0.0)
         return
 EarlyReceiver item := EarlyReceiver()
-result := item.initialize(-1)
+void | error result := .item.initialize(-1)
 print(item.values[0])
 print(NL)
 )", "UNINITIALIZED");
@@ -6743,7 +6744,7 @@ print(NL)
 )", "PRIVATE_MEMBER");
  bad_code("class Secret()\n"
           "    private private int value\n", "PARSE_ERROR");
- bad_code("private int value = 1\n", "PARSE_ERROR");
+ bad_code("private int value := 1\n", "PARSE_ERROR");
  good(R"(class SecretRef()
     private int value := 1
     int read_other(SecretRef other)
@@ -7414,7 +7415,7 @@ print(NL)
  bad_code("real32 too_large := real32(1000000000000000000000000000000000000000)\n", "NUMERIC_CAST");
 
  // Numeric spelling has one integer radix; exponent notation is visibly floating.
- bad_code("real64 x = 1e8\n", "LEX_ERROR");
+ bad_code("real64 x := 1e8\n", "LEX_ERROR");
  good("real64 x := 1.0e8\n");
 
  // '^' is a Core basic operator. Scalar power preserves the concrete
@@ -7442,8 +7443,8 @@ tensor<int64> powered := 2 ^ base
  bad_code(R"(tensor<int64> base := tensor.ones<int64>([1])
 tensor<int64> powered := base ^ -1
 )", "POWER_DOMAIN");
- bad_code("int a = 2\nint b = 3\nint c = a @ b\n", "LEX_ERROR");
- bad_code("int x = 0x10\n", "LEX_ERROR");
+ bad_code("int a := 2\nint b := 3\nint c := a @ b\n", "LEX_ERROR");
+ bad_code("int x := 0x10\n", "LEX_ERROR");
  bad_code("int array := 1\n", "SHADOWING");
  good("int math := 1\n");
  bad_code("class ReservedBuiltinField()\n"
@@ -7710,7 +7711,7 @@ bool any_empty := empty.any()
 )");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
  bad_code("void[] values := []\n", "INVALID_TYPE");
- bad_code("auto value = 1e\n", "LEX_ERROR");
+ bad_code("value := 1e\n", "LEX_ERROR");
  bad_code("Missing<int> value\n", "UNKNOWN_GENERIC");
  bad_code(R"(class A()
     int x := 0
@@ -7985,7 +7986,7 @@ tensor<real32>{2, 2} tracked := tracked_source.track()
 tensor<real64>{2, 2} tracked_converted := real64(tracked.untrack())
 )");
  good(R"(int[] values := [1, 300]
-int8 | error narrowed := int8(values)
+int8[] | error narrowed := int8(values)
 match narrowed
     int8[] converted
         print(converted[0])
@@ -8004,7 +8005,7 @@ match tensor_narrowed
         print(NL)
 )");
  llvm_contains(R"(int[] values := [1, 300]
-int8 | error narrowed := int8(values)
+int8[] | error narrowed := int8(values)
 match narrowed
     int8[] converted
         print(converted[0])
@@ -8014,7 +8015,7 @@ match narrowed
         print(NL)
 )", "@quidra_array_cast_validate_");
  llvm_contains(R"(tensor<int64> values := tensor.ones<int64>([2])
-int8 | error narrowed := int8(values)
+tensor<int8> | error narrowed := int8(values)
 match narrowed
     tensor<int8> converted
         print(converted[0].item())
@@ -8700,6 +8701,26 @@ test.equal(render(label = "override"), "override")
 )");
  bad(R"(int limit(value := 100)
     return value
+)");
+ good(R"(enum Level
+    Intro
+    Advanced
+nat parsed_count(count := nat.parse("4"))
+    return count
+string uppercase(label := "hi".upper_ascii())
+    return label
+string[] repeated(items := array(2, fill = "x"))
+    return items
+Level initial_level(level := Level.Intro)
+    return level
+test.equal(parsed_count(), nat(4))
+test.equal(uppercase(), "HI")
+test.equal(repeated(), ["x", "x"])
+match initial_level()
+    Level.Intro
+        void
+    Level.Advanced
+        test.check(false)
 )");
  std::cout<<"all compiler tests passed\n";
 }

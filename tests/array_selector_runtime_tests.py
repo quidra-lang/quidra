@@ -32,7 +32,7 @@ def cases() -> list[Case]:
                 select = "int[] result := choose(values, &selector)\n"
                 target = "selector"
             else:
-                prefix = values + declaration + f"{dtype}[2] &alias = &selector\n"
+                prefix = values + declaration + f"{dtype}[2] &alias := &selector\n"
                 select = "int[] result := values[alias]\n"
                 target = "alias"
             for written in (0, 1, 2):

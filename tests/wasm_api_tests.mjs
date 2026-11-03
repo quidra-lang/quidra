@@ -265,7 +265,7 @@ let inspection;
 {
     // Deeply nested input used to exhaust the stack. The compiler's nesting
     // budgets must turn that into a diagnostic, inside the Wasm sandbox too.
-    const deep = `int x = 1${" + 1".repeat(2000)}\n`;
+    const deep = `int x := 1${" + 1".repeat(2000)}\n`;
     const response = invoke({ schema_version: 1, operation: "check", source: deep });
     check(response.ok === true, "a pathologically deep expression does not trap", response.ok);
     check(response.valid === false, "a pathologically deep expression is rejected", response.valid);

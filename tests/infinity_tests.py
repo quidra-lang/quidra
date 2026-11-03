@@ -28,16 +28,16 @@ def cases() -> list[Case]:
         pos = '∞' if ty == 'real' else 'inf'
         neg = '-∞' if ty == 'real' else '-inf'
         result.extend([
-            Case(f'{ty}-literal', f'{ty} a = inf\n{ty} b = -inf\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
-            Case(f'{ty}-parse', f'{ty} a = {ty}.parse("inf")\n{ty} b = {ty}.parse("-inf")\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
-            Case(f'{ty}-zero-divide', f'{ty} one = 1.0\n{ty} zero = 0.0\nprint("{{one / zero}} {{-one / zero}}")\n', f'{pos} {neg}'),
-            Case(f'{ty}-extended-arithmetic', f'{ty} a = inf\n{ty} b = -inf\n{ty} one = 1.0\nprint("{{a + one}} {{b - one}} {{one / a}} {{a * -one}}")\n', f'{pos} {neg} 0.0 {neg}'),
-            Case(f'{ty}-comparison', f'{ty} a = inf\n{ty} b = -inf\n{ty} one = 1.0\nprint("{{a == a}} {{a != b}} {{b < one}} {{one < a}} {{a > b}}")\n', 'true true true true true'),
-            Case(f'{ty}-array', f'{ty}[] a = [inf, 2.0, -inf]\nprint("{{a[0]}} {{a[1]}} {{a[2]}}")\n', f'{pos} 2.0 {neg}'),
-            Case(f'{ty}-constant-zero-divide', f'{ty} a = 1.0 / 0.0\nprint(a)\n', pos),
-            Case(f'{ty}-zero-negative-power', f'{ty} zero = 0.0\n{ty} exponent = -2.0\nprint(zero ^ exponent)\n', pos),
-            Case(f'{ty}-constant-zero-negative-power', f'{ty} result = 0.0 ^ -2.0\nprint(result)\n', pos),
-            Case(f'{ty}-constant-signed-zero-power', f'{ty} result = (-0.0) ^ -3.0\nprint(result)\n', pos if ty == 'real' else neg),
+            Case(f'{ty}-literal', f'{ty} a := inf\n{ty} b := -inf\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
+            Case(f'{ty}-parse', f'{ty} a := {ty}.parse("inf")\n{ty} b := {ty}.parse("-inf")\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
+            Case(f'{ty}-zero-divide', f'{ty} one := 1.0\n{ty} zero := 0.0\nprint("{{one / zero}} {{-one / zero}}")\n', f'{pos} {neg}'),
+            Case(f'{ty}-extended-arithmetic', f'{ty} a := inf\n{ty} b := -inf\n{ty} one := 1.0\nprint("{{a + one}} {{b - one}} {{one / a}} {{a * -one}}")\n', f'{pos} {neg} 0.0 {neg}'),
+            Case(f'{ty}-comparison', f'{ty} a := inf\n{ty} b := -inf\n{ty} one := 1.0\nprint("{{a == a}} {{a != b}} {{b < one}} {{one < a}} {{a > b}}")\n', 'true true true true true'),
+            Case(f'{ty}-array', f'{ty}[] a := [inf, 2.0, -inf]\nprint("{{a[0]}} {{a[1]}} {{a[2]}}")\n', f'{pos} 2.0 {neg}'),
+            Case(f'{ty}-constant-zero-divide', f'{ty} a := 1.0 / 0.0\nprint(a)\n', pos),
+            Case(f'{ty}-zero-negative-power', f'{ty} zero := 0.0\n{ty} exponent := -2.0\nprint(zero ^ exponent)\n', pos),
+            Case(f'{ty}-constant-zero-negative-power', f'{ty} result := 0.0 ^ -2.0\nprint(result)\n', pos),
+            Case(f'{ty}-constant-signed-zero-power', f'{ty} result := (-0.0) ^ -3.0\nprint(result)\n', pos if ty == 'real' else neg),
         ])
         for name, expression in (
             ('zero-zero', 'zero / zero'),
@@ -48,18 +48,18 @@ def cases() -> list[Case]:
             ('invalid-hidden-by-power', '(a - a) ^ 0.0'),
         ):
             result.append(Case(f'{ty}-{name}',
-                f'{ty} a = inf\n{ty} b = -inf\n{ty} zero = 0.0\nprint("before")\n'
-                f'{ty} result = {expression}\nprint(result)\nprint("after")\n', 'before', True))
+                f'{ty} a := inf\n{ty} b := -inf\n{ty} zero := 0.0\nprint("before")\n'
+                f'{ty} result := {expression}\nprint(result)\nprint("after")\n', 'before', True))
         if ty != 'real':
-            result.append(Case(f'{ty}-signed-zero-divide', f'{ty} one = 1.0\n{ty} zero = -0.0\nprint(one / zero)\n', neg))
-            result.append(Case(f'{ty}-tensor', f'tensor<{ty}> one = tensor.ones<{ty}>([2])\n'
-                f'tensor<{ty}> zero = tensor.zeros<{ty}>([2])\n'
+            result.append(Case(f'{ty}-signed-zero-divide', f'{ty} one := 1.0\n{ty} zero := -0.0\nprint(one / zero)\n', neg))
+            result.append(Case(f'{ty}-tensor', f'tensor<{ty}> one := tensor.ones<{ty}>([2])\n'
+                f'tensor<{ty}> zero := tensor.zeros<{ty}>([2])\n'
                 f'tensor<{ty}> result := one / zero\nprint(result[0].item())\n', pos))
-            result.append(Case(f'{ty}-tensor-nan', f'tensor<{ty}> zero = tensor.zeros<{ty}>([2])\n'
-                f'print("before")\ntensor<{ty}> result = zero / zero\nprint(result[0].item())\n', 'before', True))
+            result.append(Case(f'{ty}-tensor-nan', f'tensor<{ty}> zero := tensor.zeros<{ty}>([2])\n'
+                f'print("before")\ntensor<{ty}> result := zero / zero\nprint(result[0].item())\n', 'before', True))
     for ty, large in (('real16', '60000.0'), ('real16b', '3.0e38'), ('real32', '3.0e38'), ('real64', '1.0e308')):
-        result.append(Case(f'{ty}-overflow', f'{ty} large = {large}\n{ty} result = large * 10.0\nprint(result)\n', 'inf'))
-        result.append(Case(f'{ty}-constant-overflow', f'{ty} result = {large} * 10.0\nprint(result)\n', 'inf'))
+        result.append(Case(f'{ty}-overflow', f'{ty} large := {large}\n{ty} result := large * 10.0\nprint(result)\n', 'inf'))
+        result.append(Case(f'{ty}-constant-overflow', f'{ty} result := {large} * 10.0\nprint(result)\n', 'inf'))
     # The platform-independent real64 -> real16 helper must avoid double
     # rounding: a binary64 value slightly above a binary16 midpoint rounds
     # UP to the next half, whereas going via binary32 can round down.
@@ -105,8 +105,8 @@ def cases() -> list[Case]:
     for source in ('real16', 'real16b', 'real32', 'real64', 'real'):
         for target in ('real16', 'real16b', 'real32', 'real64', 'real'):
             if source == target: continue
-            result.append(Case(f'convert-{source}-{target}', f'{source} a = inf\n{source} b = -inf\n'
-                f'{target} x = {target}(a)\n{target} y = {target}(b)\nprint("{{x}} {{y}}")\n',
+            result.append(Case(f'convert-{source}-{target}', f'{source} a := inf\n{source} b := -inf\n'
+                f'{target} x := {target}(a)\n{target} y := {target}(b)\nprint("{{x}} {{y}}")\n',
                 '∞ -∞' if target == 'real' else 'inf -inf'))
     result.extend([
         Case('exact-unicode-roundtrip', 'real a := real.parse("∞")\nreal b := real.parse("-∞")\nprint("{a} {b}")\n', '∞ -∞'),

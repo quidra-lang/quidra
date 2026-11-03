@@ -299,7 +299,7 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
             error("SHAPE_VARIABLE",
                   "'" + axis.name +
                       "' has no value: without an initializer, write a literal, an "
-                      "expression, 'nat " + axis.name + " = ...' or an existing nat value.",
+                      "expression, '" + axis.name + " := ...' or an existing nat value.",
                   axis.span);
         }
         unit[axis.name] = plan.variables.size();

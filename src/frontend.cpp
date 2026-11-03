@@ -3487,7 +3487,17 @@ public:
 
         type_environment_.clear();
         for (const auto& statement : source_.statements) {
-            output_.statements.push_back(clone_stmt(*statement, {}, {}, ""));
+            auto cloned = clone_stmt(*statement, {}, {}, "");
+            if (const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                binding && binding->is_const && !binding->is_private && !binding->is_local &&
+                binding->declared_type.name == "auto") {
+                const auto& value = std::get<BindingStmt>(cloned->data).value;
+                if (value) {
+                    if (const auto inferred = infer_declaration_type(*value, ""))
+                        check_inferred_public_type(*inferred, "Public constant '" + binding->name + "'");
+                }
+            }
+            output_.statements.push_back(std::move(cloned));
         }
 
         output_.imports.clear();
@@ -4474,6 +4484,25 @@ private:
         return signature;
     }
 
+    std::optional<TypeName> infer_enum_variant(
+        const Expr& base, const std::string& variant, bool with_payload) const {
+        const auto* name = std::get_if<NameExpr>(&base.data);
+        if (!name || name->this_qualifier || name->self_reference) return std::nullopt;
+        for (const auto& declaration : output_.enums) {
+            if (declaration.name != name->name) continue;
+            for (const auto& item : declaration.variants) {
+                if (item.name == variant && item.payload.has_value() == with_payload) {
+                    TypeName type;
+                    type.name = declaration.name;
+                    type.span = base.span;
+                    return type;
+                }
+            }
+            break;
+        }
+        return std::nullopt;
+    }
+
     std::optional<TypeName> infer_expression_type(
         const Expr& expression,
         const std::string& current_class) const {
@@ -4686,6 +4715,17 @@ private:
             if (call->callee == "$std.file.read") return simple_type(standard_class::file_read);
             if (call->callee == "$std.file.write") return simple_type(standard_class::file_write);
             if (call->callee == "$std.file.append") return simple_type(standard_class::file_append);
+            if (call->callee == "array" && call->args.size() == 2 &&
+                call->args[1].name == "fill") {
+                auto element = infer_expression_type(*call->args[1].value, current_class);
+                if (!element) return std::nullopt;
+                element->dimensions.insert(element->dimensions.begin(), -1);
+                if (!element->dimension_expressions.empty())
+                    element->dimension_expressions.insert(element->dimension_expressions.begin(), nullptr);
+                element->array_depth = element->dimensions.size();
+                element->span = expression.span;
+                return element;
+            }
             if (call->callee == "$std.range.generate") {
                 auto inferred = infer_expression_type(*call->args[0].value, current_class);
                 if (!inferred)
@@ -4741,6 +4781,8 @@ private:
         }
 
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+            if (auto variant = infer_enum_variant(*member->base, member->name, false))
+                return variant;
             const auto base = infer_expression_type(*member->base, current_class);
             if (!base || !base->dimensions.empty()) return std::nullopt;
             if (base->name == "tensor" && member->name == "grad") {
@@ -4839,6 +4881,27 @@ private:
         }
 
         if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
+            if (auto variant = infer_enum_variant(*call->receiver, call->method, true))
+                return variant;
+            const auto fallible = [&](const std::string& success) {
+                auto result = *simple_type("union");
+                result.arguments.push_back(*simple_type(success));
+                result.arguments.push_back(*simple_type("error"));
+                return result;
+            };
+            if (const auto* name = std::get_if<NameExpr>(&call->receiver->data);
+                name && !name->this_qualifier && !name->self_reference) {
+                if (call->method == "parse" &&
+                    (numeric_type_name(name->name) || name->name == "bin")) {
+                    return fallible(name->name);
+                }
+                if (name->name == "string" && call->method == "repeat")
+                    return simple_type("string");
+                if (name->name == "string" && call->method == "from_utf8")
+                    return fallible("string");
+                if (name->name == "bin" && call->method == "fill")
+                    return simple_type("bin");
+            }
             const auto receiver = infer_expression_type(*call->receiver, current_class);
             if (!receiver) return std::nullopt;
             if (!receiver->dimensions.empty()) {
@@ -4859,6 +4922,26 @@ private:
                 if (call->method == "join" && receiver->name == "string" &&
                     receiver->dimensions.size() == 1) return simple_type("string");
                 return std::nullopt;
+            }
+            if (receiver->name == "string") {
+                if (call->method == "string" || call->method == "trim" ||
+                    call->method == "lower_ascii" || call->method == "upper_ascii")
+                    return simple_type("string");
+                if (call->method == "contains" || call->method == "starts_with" ||
+                    call->method == "ends_with") return simple_type("bool");
+                if (call->method == "utf8") return simple_type("bin");
+                if (call->method == "find") {
+                    auto result = *simple_type("union");
+                    result.arguments.push_back(*simple_type("nat"));
+                    result.arguments.push_back(*simple_type("none"));
+                    return result;
+                }
+                if (call->method == "split" || call->method == "codepoints") {
+                    auto result = *simple_type(call->method == "split" ? "string" : "int");
+                    result.dimensions = {-1};
+                    result.array_depth = 1;
+                    return result;
+                }
             }
             if (receiver->name == "tensor") {
                 if ((call->method == "cpu" && call->args.empty()) ||
@@ -6476,6 +6559,31 @@ private:
         return std::move(*inferred);
     }
 
+    void check_inferred_public_type(const TypeName& type, const std::string& what) const {
+        const auto check = [&](const auto& self, const TypeName& item) -> void {
+            const auto reject = [&](const std::string& name, const char* kind) {
+                frontend_error("PRIVATE_DECLARATION",
+                    what + " exposes private " + kind + " '" + name + "'.", type.span);
+            };
+            if (const auto found = concrete_classes_.find(item.name);
+                found != concrete_classes_.end() && found->second->is_private)
+                reject(item.name, "class");
+            if (const auto found = class_templates_.find(item.name);
+                found != class_templates_.end() && found->second->is_private)
+                reject(item.name, "class");
+            for (const auto& declaration : source_.enums) {
+                if (declaration.name == item.name && declaration.is_private)
+                    reject(item.name, "enum");
+            }
+            if (const auto found = class_instance_types_.find(item.name);
+                found != class_instance_types_.end())
+                self(self, found->second);
+            for (const auto& argument : item.arguments) self(self, argument);
+            for (const auto& parameter : item.function_parameters) self(self, parameter);
+        };
+        check(check, type);
+    }
+
     void materialize_initializer_field(
         const std::string& class_name, const Stmt& statement) {
         const auto* assignment = std::get_if<AssignStmt>(&statement.data);
@@ -6496,6 +6604,9 @@ private:
         const auto field_index = static_cast<std::size_t>(field - fields.begin());
         const auto inferred = require_declaration_type(initializer, class_name, field->name,
                                                         "class field", field->reference);
+        if (!output_.classes[class_index].is_private && !field->is_private)
+            check_inferred_public_type(inferred,
+                "Public field '" + field->name + "' of class '" + class_name + "'");
         auto type = materialize_type(inferred, {}, {});
         output_.classes[class_index].fields[field_index].type = std::move(type);
     }
@@ -6552,6 +6663,8 @@ private:
                     auto inferred = infer_declaration_type(*copy.default_value, "");
                     type_environment_ = std::move(parameter_environment);
                     if (inferred) {
+                        if (current_class.empty() && !source.is_private)
+                            check_inferred_public_type(*inferred, "Public function '" + source.name + "'");
                         copy.type = materialize_type(*inferred, {}, deferred);
                     } else if (deferred.empty()) {
                         frontend_error("INFERRED_DECLARATION_TYPE",
@@ -6564,10 +6677,16 @@ private:
                         *parameter.default_value, substitution, deferred, current_class);
                 }
                 if (source.is_constructor && !parameter.is_local && parameter.type.name == "auto") {
-                    auto& fields = output_.classes.at(class_index_.at(current_class)).fields;
+                    auto& declaration = output_.classes.at(class_index_.at(current_class));
+                    auto& fields = declaration.fields;
                     const auto field = std::find_if(fields.begin(), fields.end(),
                         [&](const FieldDecl& member) { return member.name == parameter.name; });
-                    if (field != fields.end()) field->type = clone_type(copy.type);
+                    if (field != fields.end()) {
+                        if (!declaration.is_private && !field->is_private)
+                            check_inferred_public_type(copy.type,
+                                "Public field '" + field->name + "' of class '" + current_class + "'");
+                        field->type = clone_type(copy.type);
+                    }
                 }
                 type_environment_[copy.name] = clone_type(copy.type);
                 out.parameters.push_back(std::move(copy));

@@ -748,7 +748,7 @@ TypeName Parser::type_name() {
     if (t.name == "tensor" && at(TokenKind::LBrace)) {
         throw CompileError(Diagnostic{
             "TENSOR_TYPE",
-            "A tensor type names its element type: write 'tensor<real32>{2, 3}' or use 'auto'.",
+            "A tensor type names its element type: write 'tensor<real32>{2, 3}' or omit the declaration type with ':='.",
             peek().span});
     }
 

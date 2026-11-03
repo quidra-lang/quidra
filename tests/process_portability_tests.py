@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
         )
     else:
         command = (
-            'string command = "printf shell-ok > '
+            'string command := "printf shell-ok > '
             '{DQ}{output_path}{DQ}"'
         )
 

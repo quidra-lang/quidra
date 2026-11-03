@@ -911,7 +911,7 @@ Quidra 0.6.0
 >>> x = 8
 >>> x
 8
->>> real64 y = 4.0
+>>> real64 y := 4.0
 >>> y
 4.0
 >>> int square(int value)

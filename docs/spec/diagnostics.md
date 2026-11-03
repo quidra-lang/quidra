@@ -10,7 +10,7 @@ Codes are contracts for the category of failure. Message wording may become more
 
 | Code | Meaning | Typical correction |
 | --- | --- | --- |
-| `AMBIGUOUS_NUMERIC_LITERAL` | A numeric-family literal, contextual constant or expression does not have one unique concrete numeric type, as in `The literal constant 'math.pi' needs a unique real-family type; write 'real64 x = math.pi' or 'real64(math.pi)'.` | Add an explicit concrete numeric type or cast so the context determines exactly one representation. |
+| `AMBIGUOUS_NUMERIC_LITERAL` | A numeric-family literal, contextual constant or expression does not have one unique concrete numeric type, as in `The literal constant 'math.pi' needs a unique real-family type; write 'real64 x := math.pi' or 'real64(math.pi)'.` | Add an explicit concrete numeric type or cast so the context determines exactly one representation. |
 | `AMBIGUOUS_TYPE` | Context does not determine one valid type. | Add an explicit type or remove the ambiguous alternatives. |
 | `ARRAY_COMPREHENSION` | A generation expression has a source other than a single array value. | Iterate an array using `[for T value := source[] then expression]`, with an optional `if` condition. |
 | `ARGUMENT_MISMATCH` | Call arguments violate arity, ordering, names, defaults, or constructor shape. | Match the declared parameters and named-argument rules. |

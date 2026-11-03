@@ -51,20 +51,20 @@ int main() {
         check(type + " uninitialized", values + declaration + select, false);
         check(type + " partial", values + declaration + first_write + select, false);
         check(type + " initialized", values + declaration + first_write + second_write + select, true);
-        check(type + " initialized literal", values + type + "[2] selector = [" +
+        check(type + " initialized literal", values + type + "[2] selector := [" +
               first + ", " + second + "]\n" + select, true);
         // Escaped references use runtime initialization checks, matching
         // ordinary scalar indexing through references.
         check(type + " borrowed uninitialized runtime checked", values + declaration +
-              type + "[2] &alias = &selector\nint[] result := values[alias]\n", true);
+              type + "[2] &alias := &selector\nint[] result := values[alias]\n", true);
         check(type + " initialized through alias", values + declaration +
-              type + "[2] &alias = &selector\n" +
+              type + "[2] &alias := &selector\n" +
               "alias[0] = " + first + "\nalias[1] = " + second + "\n" + select, true);
         check(type + " partially initialized through alias runtime checked", values + declaration +
-              type + "[2] &alias = &selector\n" +
+              type + "[2] &alias := &selector\n" +
               "alias[0] = " + first + "\n" + select, true);
         check(type + " borrowed initialized", values + declaration + first_write + second_write +
-              type + "[2] &alias = &selector\nint[] result := values[alias]\n", true);
+              type + "[2] &alias := &selector\nint[] result := values[alias]\n", true);
         // Unknown caller-provided element initialization retains the existing
         // runtime check, as for scalar indexing through a reference parameter.
         check(type + " reference parameter runtime checked",

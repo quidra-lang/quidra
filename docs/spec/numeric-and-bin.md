@@ -81,7 +81,7 @@ types of its category:
 Categories never cross and none has a default type: `real32 x := 10` is an
 error (write `10.0` or `real32(10)`), `nat8 n := -1` is an error, and
 `x := 10` has no type to infer. Materialization is not a conversion:
-`nat32 n := 10; int32 x = n` is an error. A literal operand materializes into
+`nat32 n := 10` followed by `int32 x := n` is an error. A literal operand materializes into
 the other operand's type when its category allows it (`x + 2` with `int32 x`;
 `y + 2` with `real32 y` is an error), and the literal argument of an explicit
 conversion converts from its exact value (`real32(10)`). A compound literal

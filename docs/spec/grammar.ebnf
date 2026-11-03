@@ -42,7 +42,8 @@ class_definition = class_signature, NEWLINE, INDENT,
 class_item       = [ "private" ], ( field | function_definition ) | statement ;
 field            = [ "const" ], type, identifier, [ ":=", expression ], statement_end
                  | [ "const" ], identifier, ":=", expression, statement_end
-                 | type, "&", identifier, [ ":=", "&", expression ], statement_end ;
+                 | type, "&", identifier, statement_end
+                 | [ type ], "&", identifier, ":=", "&", expression, statement_end ;
 (* Ordinary header parameters and direct declarations are members. Header/body
    local declarations are initialization-only. Inner control-block declarations
    are local. Header members initialize first, then executable direct items run
@@ -71,7 +72,8 @@ type_atom        = tuple_type | "(", type, ")" | function_type | tensor_type | q
 function_type    = "func", "<", type, ">", "(", [ type, { ",", type } ], ")" ;
 tensor_type      = "tensor", "<", type, ">", [ brace_shape ] ;
 brace_shape      = "{", brace_axis, { ",", brace_axis }, "}" ;
-brace_axis       = "..." | "nat", identifier, [ "=", expression ]
+brace_axis       = "..." | "nat", identifier
+                 | [ "nat" ], identifier, ":=", expression
                  | "_"
                  | expression ;
 integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;

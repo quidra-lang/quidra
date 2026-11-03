@@ -53,7 +53,7 @@ public:
         std::vector<std::optional<std::string>> variables;
     };
     // Before the initializer: the expressions over no variable of the shape,
-    // left to right (today's capture order), and the `nat N = EXPR`
+    // left to right (today's capture order), and the `N := EXPR`
     // variables among them.
     BraceShape capture_brace_shape(const ShapePlan& plan, SourceSpan span, bool bind = true,
                                    const BraceShape* reserved = nullptr);

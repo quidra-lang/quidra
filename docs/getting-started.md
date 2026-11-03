@@ -49,7 +49,9 @@ print("count = ")
 print.line(count)
 ```
 
-The important part is the value/reference distinction:
+Omit the type by default when the initializer determines it, as in `label := "ready"`. In `int count := 7`, the annotation gives the numeric literal its type.
+
+The example also shows how values and references are passed:
 
 - `int count := 7` creates a value.
 - `int &value` makes writable access to existing storage explicit in the

@@ -679,19 +679,29 @@ TypeName Parser::type_name() {
                 consume(TokenKind::Identifier, "Expected '_'.");
                 axis.kind = ShapeAxisKind::Discard;
                 code = -1;
-            } else if (at(TokenKind::Identifier) && peek(1).kind == TokenKind::Identifier &&
-                       (axis_end(2) || peek(2).kind == TokenKind::Assign)) {
-                const auto type_token = consume(TokenKind::Identifier, "Expected 'nat'.");
-                if (type_token.text != "nat") {
-                    throw CompileError(Diagnostic{
-                        "SHAPE_VARIABLE", "A shape variable is nat: write 'nat " +
-                                              peek().text + "'.",
-                        type_token.span});
+            } else if (at(TokenKind::Identifier) &&
+                       (peek(1).kind == TokenKind::DeclareAssign || peek(1).kind == TokenKind::Assign ||
+                        (peek(1).kind == TokenKind::Identifier &&
+                         (axis_end(2) || peek(2).kind == TokenKind::DeclareAssign ||
+                          peek(2).kind == TokenKind::Assign)))) {
+                if (peek(1).kind == TokenKind::Identifier) {
+                    const auto type_token = consume(TokenKind::Identifier, "Expected 'nat'.");
+                    if (type_token.text != "nat") {
+                        throw CompileError(Diagnostic{
+                            "SHAPE_VARIABLE", "A shape variable is nat: write 'nat " +
+                                                  peek().text + "'.",
+                            type_token.span});
+                    }
                 }
                 const auto name = consume(TokenKind::Identifier, "Expected a shape variable name.");
                 axis.name = name.text;
                 axis.span.end = name.span.end;
-                if (match(TokenKind::Assign)) {
+                if (at(TokenKind::Assign)) {
+                    throw CompileError(Diagnostic{
+                        "SHAPE_VARIABLE", "Initialize a shape variable with '" + axis.name +
+                                              " := expression'.", peek().span});
+                }
+                if (match(TokenKind::DeclareAssign)) {
                     axis.kind = ShapeAxisKind::DeclareEqual;
                     auto value = expression();
                     axis.span.end = value->span.end;

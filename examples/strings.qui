@@ -1,7 +1,7 @@
 name := "Quidra"
 int n := 42
 ready := true
-string separator := HT
+separator := HT
 
 print.line("Hello, {name}")
 print.line("n = {n}; ready = {ready}")

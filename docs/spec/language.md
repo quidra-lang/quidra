@@ -28,14 +28,14 @@ Numeric built-ins are `int8`, `int16`, `int32`, `int64`, `int`, `nat8`, `nat16`,
 
 `none` is the absence alternative of a union. `string | none` can hold text or normal absence; `string | none | error` additionally admits failure. Standalone `none` declarations, function returns typed solely `none`, and `x := none` are invalid. `void` is allowed as a function result and as an alternative in a union. Non-continuing control flow is compiler-internal and is neither storable nor source-spellable.
 
-For readability, omit the type when it is obvious from the initializer on the same line. A constructor naming its class or a tensor factory naming its element type makes that choice clear. For example, given `class Point(real64 x, real64 y)`:
+Omitting the type is the standard style for a `:=` declaration when its initializer determines the intended static type. This applies to values, constants, initialized fields, defaulted parameters and collection loop bindings. For example, given `class Point(real64 x, real64 y)`:
 
 ```quidra
 point := Point(1.0, 2.0)
 image := tensor.zeros<real32>([3, 224, 224])
 ```
 
-Otherwise prefer an explicit type, such as `Point point := make_point()`, when understanding a helper's result would require finding its declaration. This is a style recommendation for both mutable and `const` bindings.
+Write an explicit type when it supplies a needed context or states a stronger contract. For example, `int count := 0` chooses the numeric type, `string[] names := []` sets the element type, and an explicit union containing `error` keeps the failure alternative.
 
 ## Arrays and shapes
 
@@ -1136,12 +1136,12 @@ The same rules apply to bindings, parameters, results and match cases. Each shap
 A shape is written in braces, `tensor<ELEM>{AXIS, ...}`, which gives each bracket kind one role: `<...>` the element type, `{...}` the shape, `[...]` an index or a slice, `(...)` a call. Outside string literals, `{` and `}` appear only in shapes (`Braces appear only in tensor shapes.`), and a tensor type always names its element type (`tensor{2, 3}` is `TENSOR_TYPE`). Each axis is one of:
 
 - `nat N`: declares a new shape variable `N`, whose value is the axis's extent;
-- `nat N = EXPR`: declares a new shape variable `N` equal to `EXPR`, and the axis must equal it;
+- `N := EXPR`: declares a new shape variable `N` equal to `EXPR`, and the axis must equal it;
 - `N`, a bare name: an existing shape variable or `nat` value, which the axis must equal;
 - `_`: an extent of any length that binds nothing (`{_, _}` is two independent axes);
 - any other `nat` expression (`3`, `rows * cols`, `nat(n)`, `(n)`, `len(v)`): the axis must equal it.
 
-Only `nat` declares, and only a lone identifier is a bare name: `(n)` is an expression. Every extent is `nat`, so an integer of another kind is written `nat(n)`; `nat(n)` of a negative `n` stops like a negative captured extent. A bare name that names nothing is an error (`'C' is not declared: write 'nat C' to declare a shape variable, or use an existing nat value.`), and so is a bare name of a binding that is not `nat` (`'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.`). A shape variable is a new name: declaring a visible name is `SHADOWING`, and declaring one twice in a shape is an error, so a square shape is `{nat N, N}`. A shape is one scope unit: an axis may use any variable of its shape whatever the textual order, `nat N = EXPR` axes are evaluated in dependency order, and a cycle is an error. These are `SHAPE_VARIABLE` errors.
+Write `nat N` to capture a dimension or `N := EXPR` to define it from an expression. The explicit form `nat N := EXPR` is also accepted. Only a lone identifier is a bare name: `(n)` is an expression. Every extent is `nat`, so an integer of another kind is written `nat(n)`; `nat(n)` of a negative `n` stops like a negative captured extent. A bare name that names nothing is an error (`'C' is not declared: write 'nat C' to declare a shape variable, or use an existing nat value.`), and so is a bare name of a binding that is not `nat` (`'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.`). A shape variable is a new name: declaring a visible name is `SHADOWING`, and declaring one twice in a shape is an error, so a square shape is `{nat N, N}`. A shape is one scope unit: an axis may use any variable of its shape whatever the textual order, `N := EXPR` axes are evaluated in dependency order, and a cycle is an error. These are `SHAPE_VARIABLE` errors.
 
 ```quidra
 tensor<real32>{2, 3, 5} cube
@@ -1156,17 +1156,17 @@ tensor<real32>{n, _} rows := tensor.zeros<real32>([3, 7])
 tensor<real32>{nat K, K} square := tensor.zeros<real32>([2, 2])
 nat height := 4
 nat width := 5
-tensor<real32>{nat H = height * width, nat W} image := tensor.zeros<real32>([20, 3])
-tensor<real32>{nat M = 2 * N, nat N} pair := tensor.zeros<real32>([4, 2])
+tensor<real32>{H := height * width, nat W} image := tensor.zeros<real32>([20, 3])
+tensor<real32>{M := 2 * N, nat N} pair := tensor.zeros<real32>([4, 2])
 print(H + M)
 // output: 24
 ```
 
-Shape variables are read-only `nat` values (`Shape variable 'N' is read-only.`), visible from their declaration onward like other bindings; one declared in a loop body is bound anew on each iteration, and a later shape reuses one by its bare name (`tensor<real32>{B, C, H, W} y := conv(x)` after `x`'s `{nat B, nat C, nat H, nat W}`). Their values come from the initializer: a declaration without one takes literals, expressions, `nat N = EXPR` and bare existing values, but no `nat N` (`'B' has no value: ...`). The expressions that use no variable of their own shape are evaluated before the initializer, left to right, the rest after it; the shape is then fixed for the binding, and every later assignment is checked against it. An axis that a shape variable fixes is checked when the extent is known at compile time (`TENSOR_SHAPE`) and otherwise when the value is stored, naming the variable and the binding (`SHAPE_MISMATCH`: `shape variable 'K' is 2, but axis 1 of 'sq' is 3`).
+Shape variables are read-only `nat` values (`Shape variable 'N' is read-only.`), visible from their declaration onward like other bindings; one declared in a loop body is bound anew on each iteration, and a later shape reuses one by its bare name (`tensor<real32>{B, C, H, W} y := conv(x)` after `x`'s `{nat B, nat C, nat H, nat W}`). Their values come from the initializer: a declaration without one takes literals, expressions, `N := EXPR` and bare existing values, but no `nat N` (`'B' has no value: ...`). The expressions that use no variable of their own shape are evaluated before the initializer, left to right, the rest after it; the shape is then fixed for the binding, and every later assignment is checked against it. An axis that a shape variable fixes is checked when the extent is known at compile time (`TENSOR_SHAPE`) and otherwise when the value is stored, naming the variable and the binding (`SHAPE_MISMATCH`: `shape variable 'K' is 2, but axis 1 of 'sq' is 3`).
 
-A match case may declare shape variables for its body and use every axis form: `tensor<real32>{3, nat W} rgb`. A case is taken when the value has its rank and every axis constraint of the case holds; a case whose selection depends on such a run-time test (an equality axis, a non-constant expression) covers nothing, so a later case of the same type takes the rest. A signature is one scope unit containing its result and every parameter shape. Parameter axes bind the shape variables, derived axes are evaluated in dependency order, and equality constraints are checked in parameter order. Result extents are computed last from those bindings. A result may write `{N + M}` or `{nat L = N + M}`; a bare `nat L` in a result cannot infer a value. Every ordinary parameter is visible to an axis expression: `f(nat N, tensor<real32>{N} a)` constrains the axis to its argument N.
+A match case may declare shape variables for its body and use every axis form: `tensor<real32>{3, nat W} rgb`. A case is taken when the value has its rank and every axis constraint of the case holds; a case whose selection depends on such a run-time test (an equality axis, a non-constant expression) covers nothing, so a later case of the same type takes the rest. A signature is one scope unit containing its result and every parameter shape. Parameter axes bind the shape variables, derived axes are evaluated in dependency order, and equality constraints are checked in parameter order. Result extents are computed last from those bindings. A result may write `{N + M}` or `{L := N + M}`; a bare `nat L` in a result cannot infer a value. Every ordinary parameter is visible to an axis expression: `f(nat N, tensor<real32>{N} a)` constrains the axis to its argument N.
 
-For example, `tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)` takes shapes `[2, 3]` and `[3, 5]` to `[2, 5]`. Different known K extents are a compile-time `TENSOR_SHAPE` error; unknown extents are checked at entry before the body. `tensor<real32>{nat L = N + M, C} concat_rows(tensor<real32>{nat N, nat C} a, tensor<real32>{nat M, C} b)` computes its result extent from both parameter bindings. A signature may refer to a variable declared later in its text. Class generation and methods use the same shape rules. A method may refer to a member by its bare name or through the explicitly declared instance name; header shapes cannot read members before initialization.
+For example, `tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)` takes shapes `[2, 3]` and `[3, 5]` to `[2, 5]`. Different known K extents are a compile-time `TENSOR_SHAPE` error; unknown extents are checked at entry before the body. `tensor<real32>{L := N + M, C} concat_rows(tensor<real32>{nat N, nat C} a, tensor<real32>{nat M, C} b)` computes its result extent from both parameter bindings. A signature may refer to a variable declared later in its text. Class generation and methods use the same shape rules. A method may refer to a member by its bare name or through the explicitly declared instance name; header shapes cannot read members before initialization.
 
 An `extern` caller binds and checks shaped arguments before the foreign call. Every shaped mutable tensor borrow is checked again afterwards, even when the pre-call constraints were proven. A read-only tensor value is not checked again. A shaped `func<R>(P...)` type is also one scope unit; its shape variables are bound afresh on each call. A function value must match that unit up to renaming, including the identities of captured values. A square-only function does not match a type with two independent axes, and a function whose axis refers to its ordinary parameter has no matching `func` type.
 

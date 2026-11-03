@@ -49,21 +49,21 @@ class Counter(local int value_initial)
     void .increment()
         value = value + 1
 
-Point a := Point(1, 2)
-Point b := a
+a := Point(1, 2)
+b := a
 b.x = 9
 
-Point &alias := &a
+&alias := &a
 alias.y = 5
 
-LabeledPoint labeled := LabeledPoint(Point(3, 4), "p")
-OffsetPoint offset := OffsetPoint(Point(3, 4), 10)
+labeled := LabeledPoint(Point(3, 4), "p")
+offset := OffsetPoint(Point(3, 4), 10)
 
-Box box := Box(a)
-Box copy := box
+box := Box(a)
+copy := box
 copy.point.x = 99
 
-Counter counter := Counter(1)
+counter := Counter(1)
 .counter.increment()
 
 print.line(a.x)

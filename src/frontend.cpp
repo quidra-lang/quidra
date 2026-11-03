@@ -3067,7 +3067,7 @@ void count_extent_names(const Expr& expression, std::unordered_map<std::string, 
 // The identity key of a brace shape (L17): constraints, never names. A
 // shape variable that occurs once constrains nothing and prints `_`, as an
 // unconstrained axis does; one that occurs more than once prints `$k` at
-// every occurrence, numbered by first occurrence; `nat N = EXPR` and an
+// every occurrence, numbered by first occurrence; `N := EXPR` and an
 // unnamed expression print their expression; a bare existing value prints
 // its name. So {nat K, K} is <$0,$0>, {nat A, nat B} and {_, _} are <_,_>,
 // and a migrated {nat(n), 2} keeps the key <n,2> of today's <n, 2>.
@@ -3100,7 +3100,7 @@ std::string brace_shape_key(const std::vector<ShapeAxis>& axes,
             number(axis.name);
         }
     }
-    // A `nat N = EXPR` variable stands for its expression.
+    // A `N := EXPR` variable stands for its expression.
     for (const auto& axis : axes) {
         if (axis.kind == ShapeAxisKind::DeclareEqual && axis.value)
             rename[axis.name] = canonical_extent_expression(*axis.value, &rename);

@@ -327,7 +327,7 @@ static void imaginary_literals() {
 // nowhere else.
 static void brace_shapes() {
     {
-        auto p = parse("tensor<real32>{nat B, 3, nat H = 2 * B, n, (n), nat(n), len(v), _} x\n");
+        auto p = parse("tensor<real32>{nat B, 3, H := 2 * B, n, (n), nat(n), len(v), _} x\n");
         const auto& type = std::get<BindingStmt>(p.statements.at(0)->data).declared_type;
         require(type.brace_shape && type.shape_axes.size() == 8 &&
                     type.tensor_rank && *type.tensor_rank == 8,
@@ -400,6 +400,16 @@ static void brace_shapes() {
     }
     reject_code("tensor{2, 3} x = f()\n", "TENSOR_TYPE");
     reject_code("tensor<real32>{int N} x = f()\n", "SHAPE_VARIABLE");
+    reject_code("tensor<real32>{nat N = 3} x := f()\n", "SHAPE_VARIABLE");
+    reject_code("tensor<real32>{N = 3} x := f()\n", "SHAPE_VARIABLE");
+    reject_code("tensor<real32>{int N := 3} x := f()\n", "SHAPE_VARIABLE");
+    {
+        const auto p = parse("tensor<real32>{nat N := 3, N} x := f()\n");
+        const auto& axes = std::get<BindingStmt>(p.statements.at(0)->data).declared_type.shape_axes;
+        require(axes[0].kind == ShapeAxisKind::DeclareEqual && axes[0].name == "N" &&
+                    axes[1].kind == ShapeAxisKind::Bare && axes[1].name == "N",
+                "an explicitly typed derived axis and a reference to it");
+    }
     reject_code("int x := {3}\n", "PARSE_ERROR");
     reject_code("int x := 3}\n", "PARSE_ERROR");
     reject("tensor<real32>{} x\n");

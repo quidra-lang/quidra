@@ -80,11 +80,11 @@ diff -u "$TMP/expected" "$TMP/actual"
 
 for slice in 'start:finish:1' 'start:<finish:1' 'finish:start:-1' 'finish:>start:-1'; do
     cat > "$TMP/fixed.qui" <<QUI
-int[] a = [0, 1, 2, 3, 4]
-int start = 4
-int finish = 0
+int[] a := [0, 1, 2, 3, 4]
+int start := 4
+int finish := 0
 print("before" + NL)
-int[] selected = a[$slice]
+int[] selected := a[$slice]
 print(len(selected))
 QUI
     status=0
@@ -95,8 +95,8 @@ done
 
 for slice in '4:0:1' '4:<0:1' '0:4:-1' '0:>4:-1'; do
     cat > "$TMP/constant.qui" <<QUI
-int[5] a = [0, 1, 2, 3, 4]
-int[] selected = a[$slice]
+int[5] a := [0, 1, 2, 3, 4]
+int[] selected := a[$slice]
 QUI
     if "$QUIDRA" check "$TMP/constant.qui" > "$TMP/out" 2> "$TMP/err"; then
         printf 'invalid fixed direction accepted: %s\n' "$slice" >&2

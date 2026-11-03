@@ -208,7 +208,7 @@ int source := 10
 inferred := source
 ```
 
-A declaration with an initializer uses `:=`. Omit the type when the initializer determines it. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
+A declaration with an initializer uses `:=`. Omit the type by default when the initializer determines the intended static type. Write an explicit type when it supplies context, as in `int count := 0` or `string[] names := []`, or states a stronger contract. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
 
 ### Numeric types
 
@@ -586,7 +586,7 @@ Dense numeric tensors use `tensor<T>`. The element type is static; an optional
 brace group states an exact-rank shape pattern. Each written axis exists,
 `_` leaves its extent unrestricted, and a `nat` expression constrains that
 extent. `{nat H, nat W}` declares readonly captured shape names, and
-`{nat H = rows * cols, nat W}` both captures an expression and names it. An
+`{H := rows * cols, nat W}` both captures an expression and names it. An
 existing bare `nat` name constrains the extent to that value; it does not bind
 a new name.
 

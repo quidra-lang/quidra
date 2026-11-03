@@ -51,28 +51,28 @@ if [[ -n "$REQUIRE_BACKEND" ]]; then
 fi
 
 cat > "$TMP/real-gpu.qui" <<QUI
-tensor<real32> cpu_a = tensor.ones<real32>([4])
-tensor<real32> cpu_b = tensor.ones<real32>([4]) * 3.0
-tensor<real32> gpu_a = cpu_a.gpu($GPU_INDEX)
-tensor<real32> gpu_b = cpu_b.gpu($GPU_INDEX)
+tensor<real32> cpu_a := tensor.ones<real32>([4])
+tensor<real32> cpu_b := tensor.ones<real32>([4]) * 3.0
+tensor<real32> gpu_a := cpu_a.gpu($GPU_INDEX)
+tensor<real32> gpu_b := cpu_b.gpu($GPU_INDEX)
 
-time.Instant gpu_timer_start = time.now(sync = true)
-tensor<real32> gpu_timer_value = (gpu_a + gpu_b) * 2.0
-time.Duration gpu_timer_elapsed = time.since(gpu_timer_start, sync = true)
+time.Instant gpu_timer_start := time.now(sync = true)
+tensor<real32> gpu_timer_value := (gpu_a + gpu_b) * 2.0
+time.Duration gpu_timer_elapsed := time.since(gpu_timer_start, sync = true)
 print(gpu_timer_elapsed.seconds() >= 0.0)
 print(NL)
 
-tensor<real32> reuse_result = tensor.zeros<real32>([4096], gpu = $GPU_INDEX)
+tensor<real32> reuse_result := tensor.zeros<real32>([4096], gpu = $GPU_INDEX)
 for 0 <= nat i < 64
-    real32 scale = real32(i + 1)
-    tensor<real32> temporary = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * scale
+    real32 scale := real32(i + 1)
+    tensor<real32> temporary := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * scale
     reuse_result = temporary + 1.0
 gpu.sync($GPU_INDEX)
 print(reuse_result[0].item() == real32(65))
 print(NL)
 
-tensor<real32> cpu_elementwise = (cpu_a + cpu_b) * 2.0
-tensor<real32> gpu_elementwise = ((gpu_a + gpu_b) * 2.0).cpu()
+tensor<real32> cpu_elementwise := (cpu_a + cpu_b) * 2.0
+tensor<real32> gpu_elementwise := ((gpu_a + gpu_b) * 2.0).cpu()
 print(cpu_elementwise[2].item() == gpu_elementwise[2].item())
 print(NL)
 print((gpu_a == gpu_a).all())
@@ -88,48 +88,48 @@ print(NL)
 print((gpu_b >= gpu_a).all())
 print(NL)
 
-tensor<real32> compare_mixed = tensor.ones<real32>([4], gpu = $GPU_INDEX)
+tensor<real32> compare_mixed := tensor.ones<real32>([4], gpu = $GPU_INDEX)
 compare_mixed[3] = real32(2)
 print((gpu_a != compare_mixed).any())
 print(NL)
 
-tensor<real32> compare_view_source = tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
-tensor<real32> compare_view_a = compare_view_source[0:<2, 1:<3]
-tensor<real32> compare_view_b = compare_view_source[0:<2, 1:<3]
+tensor<real32> compare_view_source := tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
+tensor<real32> compare_view_a := compare_view_source[0:<2, 1:<3]
+tensor<real32> compare_view_b := compare_view_source[0:<2, 1:<3]
 print((compare_view_a == compare_view_b).all())
 print(NL)
 
-tensor<real32> gpu_left = tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
+tensor<real32> gpu_left := tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
 
-tensor<int32> cpu_i = tensor.ones<int32>([4]) * int32(7)
-tensor<int32> gpu_i = cpu_i.gpu($GPU_INDEX)
-tensor<int32> gpu_i_result = (gpu_i + int32(2)).cpu()
+tensor<int32> cpu_i := tensor.ones<int32>([4]) * int32(7)
+tensor<int32> gpu_i := cpu_i.gpu($GPU_INDEX)
+tensor<int32> gpu_i_result := (gpu_i + int32(2)).cpu()
 print(gpu_i_result[3].item() == int32(9))
 print(NL)
-tensor<int32> gpu_i_remainder = (gpu_i % int32(4)).cpu()
+tensor<int32> gpu_i_remainder := (gpu_i % int32(4)).cpu()
 print(gpu_i_remainder[3].item() == int32(3))
 print(NL)
 
-tensor<real32> casted = real32(gpu_i)
+tensor<real32> casted := real32(gpu_i)
 print(casted.cpu()[0].item() == real32(7))
 print(NL)
 
-tensor<real32> view_source = tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
-tensor<real32> view = view_source[0:<2, 1:<3]
-tensor<real32> dense = view.contiguous().cpu()
+tensor<real32> view_source := tensor.ones<real32>([2, 3], gpu = $GPU_INDEX)
+tensor<real32> view := view_source[0:<2, 1:<3]
+tensor<real32> dense := view.contiguous().cpu()
 print(dense.shape()[0] == 2 and dense.shape()[1] == 2)
 print(NL)
 print(dense[1, 1].item() == real32(1))
 print(NL)
 
-tensor<int8> ri8 = tensor.ones<int8>([2], gpu = $GPU_INDEX) + int8(2)
-tensor<int16> ri16 = tensor.ones<int16>([2], gpu = $GPU_INDEX) * int16(3)
-tensor<int32> ri32 = tensor.ones<int32>([2], gpu = $GPU_INDEX) - int32(4)
-tensor<int64> ri64 = tensor.ones<int64>([2], gpu = $GPU_INDEX) + 5
-tensor<nat8> ru8 = tensor.ones<nat8>([2], gpu = $GPU_INDEX) + nat8(6)
-tensor<nat16> ru16 = tensor.ones<nat16>([2], gpu = $GPU_INDEX) * nat16(7)
-tensor<nat32> ru32 = tensor.ones<nat32>([2], gpu = $GPU_INDEX) + nat32(8)
-tensor<nat64> ru64 = tensor.ones<nat64>([2], gpu = $GPU_INDEX) + nat64(9)
+tensor<int8> ri8 := tensor.ones<int8>([2], gpu = $GPU_INDEX) + int8(2)
+tensor<int16> ri16 := tensor.ones<int16>([2], gpu = $GPU_INDEX) * int16(3)
+tensor<int32> ri32 := tensor.ones<int32>([2], gpu = $GPU_INDEX) - int32(4)
+tensor<int64> ri64 := tensor.ones<int64>([2], gpu = $GPU_INDEX) + 5
+tensor<nat8> ru8 := tensor.ones<nat8>([2], gpu = $GPU_INDEX) + nat8(6)
+tensor<nat16> ru16 := tensor.ones<nat16>([2], gpu = $GPU_INDEX) * nat16(7)
+tensor<nat32> ru32 := tensor.ones<nat32>([2], gpu = $GPU_INDEX) + nat32(8)
+tensor<nat64> ru64 := tensor.ones<nat64>([2], gpu = $GPU_INDEX) + nat64(9)
 print(ri8.cpu()[0].item() == int8(3))
 print(NL)
 print(ri16.cpu()[0].item() == int16(3))
@@ -147,15 +147,15 @@ print(NL)
 print(ru64.cpu()[0].item() == nat64(10))
 print(NL)
 
-tensor<nat16> rcast = nat16(tensor.ones<int8>([2], gpu = $GPU_INDEX))
+tensor<nat16> rcast := nat16(tensor.ones<int8>([2], gpu = $GPU_INDEX))
 print(rcast.cpu()[1].item() == nat16(1))
 print(NL)
 
-tensor<int32> scatter_values = tensor.zeros<int32>([3], gpu = $GPU_INDEX)
+tensor<int32> scatter_values := tensor.zeros<int32>([3], gpu = $GPU_INDEX)
 scatter_values[0] = int32(1)
 scatter_values[1] = int32(2)
 scatter_values[2] = int32(3)
-tensor<int32> scatter_result = scatter_values.scatter([0, 0, 2], [4]).cpu()
+tensor<int32> scatter_result := scatter_values.scatter([0, 0, 2], [4]).cpu()
 print(scatter_result[0].item() == int32(3))
 print(NL)
 print(scatter_result[1].item() == int32(0))
@@ -165,14 +165,14 @@ print(NL)
 print(scatter_result[3].item() == int32(0))
 print(NL)
 
-tensor<real32> negated = (-gpu_b).cpu()
+tensor<real32> negated := (-gpu_b).cpu()
 print(negated[0].item() == real32(-3))
 print(NL)
-tensor<real32> scalar_add = (2.0 + gpu_a).cpu()
-tensor<real32> scalar_sub_right = (gpu_b - 1.0).cpu()
-tensor<real32> scalar_sub_left = (10.0 - gpu_b).cpu()
-tensor<real32> scalar_div_right = (gpu_b / 3.0).cpu()
-tensor<real32> scalar_div_left = (12.0 / gpu_b).cpu()
+tensor<real32> scalar_add := (2.0 + gpu_a).cpu()
+tensor<real32> scalar_sub_right := (gpu_b - 1.0).cpu()
+tensor<real32> scalar_sub_left := (10.0 - gpu_b).cpu()
+tensor<real32> scalar_div_right := (gpu_b / 3.0).cpu()
+tensor<real32> scalar_div_left := (12.0 / gpu_b).cpu()
 print(scalar_add[0].item() == real32(3))
 print(NL)
 print(scalar_sub_right[0].item() == real32(2))
@@ -184,21 +184,21 @@ print(NL)
 print(scalar_div_left[0].item() == real32(4))
 print(NL)
 
-tensor<real32>{3, 2} transposed = gpu_left.transpose(0, 1)
+tensor<real32>{3, 2} transposed := gpu_left.transpose(0, 1)
 print(transposed.shape()[0] == 3 and transposed.shape()[1] == 2)
 print(NL)
 print(transposed[2, 1].item() == real32(1))
 print(NL)
 
-tensor<int32> cow_original = tensor.ones<int32>([2], gpu = $GPU_INDEX)
-tensor<int32> cow_copy = cow_original
+tensor<int32> cow_original := tensor.ones<int32>([2], gpu = $GPU_INDEX)
+tensor<int32> cow_copy := cow_original
 cow_copy[0] = int32(9)
 print(cow_original[0].item() == int32(1))
 print(NL)
 print(cow_copy[0].item() == int32(9))
 print(NL)
 
-tensor<int32> direct = tensor<int32>([2], gpu = $GPU_INDEX)
+tensor<int32> direct := tensor<int32>([2], gpu = $GPU_INDEX)
 direct[0] = int32(4)
 direct[1] = int32(5)
 print(direct[0].item() == int32(4) and direct[1].item() == int32(5))
@@ -214,11 +214,11 @@ if [[ "$output" != "$expected" ]]; then
 fi
 
 cat > "$TMP/async-boundaries.qui" <<QUI
-tensor<real32> source = tensor.ones<real32>([1024], gpu = $GPU_INDEX)
+tensor<real32> source := tensor.ones<real32>([1024], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-time.Instant start = time.now()
-tensor<real32> queued = (source + 2.0) * 3.0
-time.Duration elapsed = time.since(start)
+time.Instant start := time.now()
+tensor<real32> queued := (source + 2.0) * 3.0
+time.Duration elapsed := time.since(start)
 print(elapsed.seconds() >= 0.0)
 print(NL)
 print(queued.cpu()[0].item() == real32(9))
@@ -234,11 +234,11 @@ fi
 
 cat > "$TMP/async-lifetime.qui" <<QUI
 tensor<real32> queued_from_temporary(int gpu_index)
-    tensor<real32> source = tensor.ones<real32>([4194304], gpu = nat(gpu_index))
+    tensor<real32> source := tensor.ones<real32>([4194304], gpu = nat(gpu_index))
     return source * 3.0
 
-tensor<real32> queued_lifetime = queued_from_temporary($GPU_INDEX)
-tensor<real32> reuse_pressure = tensor.zeros<real32>([4194304], gpu = $GPU_INDEX)
+tensor<real32> queued_lifetime := queued_from_temporary($GPU_INDEX)
+tensor<real32> reuse_pressure := tensor.zeros<real32>([4194304], gpu = $GPU_INDEX)
 print(queued_lifetime.cpu()[4194303].item() == real32(3))
 print(NL)
 print(reuse_pressure.cpu()[0].item() == real32(0))
@@ -258,8 +258,8 @@ fi
 
 
 cat > "$TMP/integer-overflow.qui" <<QUI
-tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
-tensor<int8> invalid = value + int8(1)
+tensor<int8> value := tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> invalid := value + int8(1)
 print(invalid[0].item())
 print(NL)
 QUI
@@ -288,9 +288,9 @@ fi
 # A deferred check that fails at program exit (GPU_ASYNC) keeps the output
 # the program wrote before it: the exit guard flushes it ahead of the report.
 cat > "$TMP/exit-check-keeps-output.qui" <<QUI
-tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> value := tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
 print("before" + NL)
-tensor<int8> invalid = value + int8(1)
+tensor<int8> invalid := value + int8(1)
 print("after" + NL)
 QUI
 set +e
@@ -307,8 +307,8 @@ if [[ $exit_check_output_status -ne 101 ]] ||
 fi
 
 cat > "$TMP/scatter-overflow.qui" <<QUI
-tensor<int8> values = tensor.ones<int8>([2], gpu = $GPU_INDEX) * int8(127)
-tensor<int8> invalid = values.scatter([0, 0], [1])
+tensor<int8> values := tensor.ones<int8>([2], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> invalid := values.scatter([0, 0], [1])
 print(invalid.cpu()[0].item())
 print(NL)
 QUI
@@ -329,8 +329,8 @@ if ! grep -Fq "tensor.scatter integer arithmetic overflow" "$TMP/scatter-overflo
 fi
 
 cat > "$TMP/deferred-overflow-exit.qui" <<QUI
-tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
-tensor<int8> invalid = value + int8(1)
+tensor<int8> value := tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> invalid := value + int8(1)
 QUI
 set +e
 "$QUIDRA" run "$TMP/deferred-overflow-exit.qui" >"$TMP/deferred-overflow-exit.out" 2>"$TMP/deferred-overflow-exit.err"
@@ -349,8 +349,8 @@ if ! grep -Fq "tensor integer arithmetic overflow" "$TMP/deferred-overflow-exit.
 fi
 
 cat > "$TMP/integer-div-zero.qui" <<QUI
-tensor<int32> value = tensor.ones<int32>([1], gpu = $GPU_INDEX)
-tensor<int32> invalid = value / int32(0)
+tensor<int32> value := tensor.ones<int32>([1], gpu = $GPU_INDEX)
+tensor<int32> invalid := value / int32(0)
 print(invalid[0].item())
 print(NL)
 QUI
@@ -371,8 +371,8 @@ if ! grep -Fq "invalid tensor division/remainder or integer overflow" "$TMP/inte
 fi
 
 cat > "$TMP/unsigned-underflow.qui" <<QUI
-tensor<nat8> value = tensor.zeros<nat8>([1], gpu = $GPU_INDEX)
-tensor<nat8> invalid = value - nat8(1)
+tensor<nat8> value := tensor.zeros<nat8>([1], gpu = $GPU_INDEX)
+tensor<nat8> invalid := value - nat8(1)
 print(invalid[0].item())
 print(NL)
 QUI
@@ -393,8 +393,8 @@ if ! grep -Fq "tensor integer arithmetic overflow" "$TMP/unsigned-underflow.err"
 fi
 
 cat > "$TMP/integer-min-div-negative-one.qui" <<QUI
-tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
-tensor<int8> invalid = value / int8(-1)
+tensor<int8> value := tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
+tensor<int8> invalid := value / int8(-1)
 print(invalid[0].item())
 print(NL)
 QUI
@@ -415,8 +415,8 @@ if ! grep -Fq "invalid tensor division/remainder or integer overflow" "$TMP/inte
 fi
 
 cat > "$TMP/integer-min-remainder-negative-one.qui" <<QUI
-tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
-tensor<int8> remainder = value % int8(-1)
+tensor<int8> value := tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
+tensor<int8> remainder := value % int8(-1)
 print(remainder[0].item())
 print(NL)
 QUI
@@ -426,8 +426,8 @@ if [[ "$("$QUIDRA" run "$TMP/integer-min-remainder-negative-one.qui")" != "0" ]]
 fi
 
 cat > "$TMP/integer-cast-range.qui" <<QUI
-tensor<int16> source = tensor.ones<int16>([1], gpu = $GPU_INDEX) * int16(300)
-tensor<int8> invalid = int8(source)
+tensor<int16> source := tensor.ones<int16>([1], gpu = $GPU_INDEX) * int16(300)
+tensor<int8> invalid := int8(source)
 print(invalid[0].item())
 print(NL)
 QUI
@@ -638,17 +638,17 @@ fi
 # backward(track = true)) instead of silently cutting it.
 # The higher-order seed stays exactly one for a non-finite loss.
 cat > "$TMP/gpu-autograd-defects.qui" <<QUI
-autograd.Target negation_target = autograd.target()
-tensor<real32> negation_x = tensor.ones<real32>([], gpu = $GPU_INDEX).track(&negation_target)
-tensor<real32> negated = -negation_x
+autograd.Target negation_target := autograd.target()
+tensor<real32> negation_x := tensor.ones<real32>([], gpu = $GPU_INDEX).track(&negation_target)
+tensor<real32> negated := -negation_x
 print(negated.is_tracked())
 print(NL)
 (negation_x * negated).backward(&negation_target)
 print(negation_target.gradient<real32>().cpu().item())
 print(NL)
-tensor<real32> cube = (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(2)).track()
+tensor<real32> cube := (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(2)).track()
 (-(cube * cube * cube)).backward(&cube, track = true)
-tensor<real32> cube_first = cube.grad
+tensor<real32> cube_first := cube.grad
 print(cube_first.device() == $GPU_INDEX)
 print(NL)
 print(cube_first.untrack().cpu().item())
@@ -661,18 +661,18 @@ print(NL)
 // a loss that overflowed, which now stops at the operation), and a leaf that
 // the loss reaches only through the seed still receives its zero second
 // derivative.
-autograd.Target seed_target = autograd.target()
-tensor<real32> seed_x = (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(2)).track(&seed_target)
-tensor<real32> huge = tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(150000000000000000000000000000000000000.0)
-tensor<real32> large = seed_x * huge
+autograd.Target seed_target := autograd.target()
+tensor<real32> seed_x := (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(2)).track(&seed_target)
+tensor<real32> huge := tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(150000000000000000000000000000000000000.0)
+tensor<real32> large := seed_x * huge
 print(large.untrack().cpu().item())
 print(NL)
 large.backward(&seed_target, track = true)
 print(seed_target.gradient<real32>().untrack().cpu().item())
 print(NL)
-tensor<real32> linear = (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(5)).track()
+tensor<real32> linear := (tensor.ones<real32>([], gpu = $GPU_INDEX) * real32(5)).track()
 (linear * real32(3)).backward(&linear, track = true)
-tensor<real32> slope = linear.grad
+tensor<real32> slope := linear.grad
 .linear.clear_grad()
 slope.backward(&linear)
 print(linear.grad.cpu().item())
@@ -690,8 +690,8 @@ fi
 
 if grep -Fq "backend: Metal" <<<"$gpu_info"; then
     cat > "$TMP/metal-float64.qui" <<QUI
-tensor<real64> value = tensor.ones<real64>([2], gpu = $GPU_INDEX)
-tensor<real64> invalid = value + value
+tensor<real64> value := tensor.ones<real64>([2], gpu = $GPU_INDEX)
+tensor<real64> invalid := value + value
 print(invalid[0].item())
 print(NL)
 QUI
@@ -712,9 +712,9 @@ QUI
     fi
 else
     cat > "$TMP/float64-real-gpu.qui" <<QUI
-tensor<real64> a = tensor.ones<real64>([2], gpu = $GPU_INDEX)
-tensor<real64> b = tensor.ones<real64>([2], gpu = $GPU_INDEX) * 3.0
-tensor<real64> c = (a + b) / 2.0
+tensor<real64> a := tensor.ones<real64>([2], gpu = $GPU_INDEX)
+tensor<real64> b := tensor.ones<real64>([2], gpu = $GPU_INDEX) * 3.0
+tensor<real64> c := (a + b) / 2.0
 print(c.cpu()[0].item() == 2.0)
 print(NL)
 QUI
@@ -790,12 +790,12 @@ if grep -Fq "backend: Metal" <<<"$gpu_info"; then
     # command buffer, host reads flush and wait, and the values equal those
     # of one command buffer per operation (QUIDRA_METAL_STREAM=0).
     cat > "$TMP/metal-stream.qui" <<QUI
-tensor<real32> value = tensor.ones<real32>([1024], gpu = $GPU_INDEX)
+tensor<real32> value := tensor.ones<real32>([1024], gpu = $GPU_INDEX)
 for 0 <= nat step < 100
     value = value * 1.0001 + 0.5
 print(value[7].item())
 print(NL)
-tensor<real32> other = value / 3.0
+tensor<real32> other := value / 3.0
 print(other.cpu()[1023].item())
 print(NL)
 QUI
@@ -842,11 +842,11 @@ PY
     # until the packages switch with it), Core's float32 division is
     # correctly rounded and equals the CPU bit for bit.
     cat > "$TMP/metal-ieee-division.qui" <<QUI
-int n = 4096
-tensor<real32> a = tensor<real32>([nat(n)])
-tensor<real32> b = tensor<real32>([nat(n)])
-real32 x = real32(0.7316)
-real32 y = real32(1.913)
+int n := 4096
+tensor<real32> a := tensor<real32>([nat(n)])
+tensor<real32> b := tensor<real32>([nat(n)])
+real32 x := real32(0.7316)
+real32 y := real32(1.913)
 for 0 <= int i < n
     x = x * real32(1.37) + real32(0.11)
     if x > real32(1000)
@@ -856,9 +856,9 @@ for 0 <= int i < n
         y = y / real32(93)
     a[i] = x
     b[i] = y
-tensor<real32> cpu_quotient = a / b
-tensor<real32> gpu_quotient = (a.gpu($GPU_INDEX) / b.gpu($GPU_INDEX)).cpu()
-int mismatches = 0
+tensor<real32> cpu_quotient := a / b
+tensor<real32> gpu_quotient := (a.gpu($GPU_INDEX) / b.gpu($GPU_INDEX)).cpu()
+int mismatches := 0
 for 0 <= int i < n
     if cpu_quotient[i].item() != gpu_quotient[i].item()
         mismatches += 1
@@ -874,7 +874,7 @@ QUI
     # see its own completed work.
     cat > "$TMP/metal-stream-threads.qui" <<QUI
 real64 run(real32 seed)
-    tensor<real32> value = tensor.ones<real32>([256], gpu = $GPU_INDEX) * seed
+    tensor<real32> value := tensor.ones<real32>([256], gpu = $GPU_INDEX) * seed
     for 0 <= nat step < 50
         value = value + 1.0
     gpu.sync($GPU_INDEX)
@@ -889,21 +889,21 @@ real64 run3()
 real64 run4()
     return run(real32(4))
 
-func<real64>()[] operations = [run1, run2, run3, run4]
+func<real64>()[] operations := [run1, run2, run3, run4]
 real64 parallel_result_1_0
 real64 parallel_result_1_1
 real64 parallel_result_1_2
 real64 parallel_result_1_3
-func<real64>() parallel_operation_1_0 = operations[0]
-func<real64>() parallel_operation_1_1 = operations[1]
-func<real64>() parallel_operation_1_2 = operations[2]
-func<real64>() parallel_operation_1_3 = operations[3]
+func<real64>() parallel_operation_1_0 := operations[0]
+func<real64>() parallel_operation_1_1 := operations[1]
+func<real64>() parallel_operation_1_2 := operations[2]
+func<real64>() parallel_operation_1_3 := operations[3]
 parallel
     parallel_result_1_0 = parallel_operation_1_0()
     parallel_result_1_1 = parallel_operation_1_1()
     parallel_result_1_2 = parallel_operation_1_2()
     parallel_result_1_3 = parallel_operation_1_3()
-real64[] results = [parallel_result_1_0, parallel_result_1_1, parallel_result_1_2, parallel_result_1_3]
+real64[] results := [parallel_result_1_0, parallel_result_1_1, parallel_result_1_2, parallel_result_1_3]
 print(results[0] == 51.0 and results[1] == 52.0 and results[2] == 53.0 and results[3] == 54.0)
 print(NL)
 QUI
@@ -1967,15 +1967,15 @@ extern "C" int32_t qtest_stream_warmup_state(const void* input, int32_t which) {
 MM
     cat > "$TMP/stream-use.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
-tensor<real32> b = package.scale(a, real32(3), int32(0))
-tensor<real32> c = b + 1.0
-tensor<real32> d = package.scale(c, real32(2), int32(1))
-tensor<real32> e = d - 1.0
-tensor<real32> f = package.scale(e, real32(0.5), int32(2))
+tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
+tensor<real32> b := package.scale(a, real32(3), int32(0))
+tensor<real32> c := b + 1.0
+tensor<real32> d := package.scale(c, real32(2), int32(1))
+tensor<real32> e := d - 1.0
+tensor<real32> f := package.scale(e, real32(0.5), int32(2))
 print(f.cpu()[4095].item())
 print(NL)
-tensor<real32> g = f * 4.0
+tensor<real32> g := f * 4.0
 print(g[5].item())
 print(NL)
 gpu.sync($GPU_INDEX)
@@ -1984,14 +1984,14 @@ print(NL)
 QUI
     cat > "$TMP/stream-check.qui" <<QUI
 import package = stream_pkg
-tensor<real32> x = tensor.ones<real32>([16], gpu = $GPU_INDEX) - 2.0
+tensor<real32> x := tensor.ones<real32>([16], gpu = $GPU_INDEX) - 2.0
 print(package.check(x, int32(0)))
 print(NL)
 print(package.check(tensor.ones<real32>([16], gpu = $GPU_INDEX), int32(1)))
 print(NL)
 print(package.check(x, int32(1)))
 print(NL)
-tensor<real32> y = x * 2.0
+tensor<real32> y := x * 2.0
 print(y[0].item())
 print(NL)
 QUI
@@ -2035,16 +2035,16 @@ QUI
 import package = stream_pkg
 cli args
     int mode = option(default = 0)
-tensor<real32> x = tensor.ones<real32>([4096], gpu = $GPU_INDEX)
+tensor<real32> x := tensor.ones<real32>([4096], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-int32 setup = package.hooks(int32(0))
+int32 setup := package.hooks(int32(0))
 for 0 <= nat i < 200
-    tensor<real32> y = x * 1.0001
-    tensor<real32> z = package.scale(y, real32(1), int32(args.mode))
+    tensor<real32> y := x * 1.0001
+    tensor<real32> z := package.scale(y, real32(1), int32(args.mode))
     x = z + 0.0
-int32 scopes = package.hooks(int32(1))
-int32 refusals = package.hooks(int32(2))
-int32 unknown = package.hooks(int32(3))
+int32 scopes := package.hooks(int32(1))
+int32 refusals := package.hooks(int32(2))
+int32 unknown := package.hooks(int32(3))
 print("{scopes} {refusals} {unknown} {x[0].item()}")
 print(NL)
 QUI
@@ -2116,19 +2116,19 @@ PY
     # the checks whose work it waited for, so the check is not lost.
     cat > "$TMP/stream-lost-int.qui" <<QUI
 real64 reader()
-    tensor<real32> big = tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
-    real64 total = 0.0
+    tensor<real32> big := tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
+    real64 total := 0.0
     for 0 <= nat i < 300
-        tensor<real32> t = big * 1.0001
+        tensor<real32> t := big * 1.0001
         total = total + real64(t[0].item())
     return total
 
 real64 overflower()
-    real64 spin = 0.0
+    real64 spin := 0.0
     for 0 <= nat k < 200000
         spin = spin + 1.0
-    tensor<int8> values = tensor.ones<int8>([16], gpu = $GPU_INDEX) * int8(100)
-    tensor<int8> sum = values + values
+    tensor<int8> values := tensor.ones<int8>([16], gpu = $GPU_INDEX) * int8(100)
+    tensor<int8> sum := values + values
     print("overflow read {sum[0].item()}")
     print(NL)
     return spin
@@ -2138,7 +2138,7 @@ real64 parallel_result_2_1
 parallel
     parallel_result_2_0 = reader()
     parallel_result_2_1 = overflower()
-real64[] results = [parallel_result_2_0, parallel_result_2_1]
+real64[] results := [parallel_result_2_0, parallel_result_2_1]
 print("finished without reporting the overflow")
 print(NL)
 QUI
@@ -2146,20 +2146,20 @@ QUI
 import package = stream_pkg
 
 real64 reader()
-    tensor<real32> big = tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
-    real64 total = 0.0
+    tensor<real32> big := tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
+    real64 total := 0.0
     for 0 <= nat i < 300
-        tensor<real32> t = big * 1.0001
+        tensor<real32> t := big * 1.0001
         total = total + real64(t[0].item())
     return total
 
 real64 checker()
-    real64 spin = 0.0
+    real64 spin := 0.0
     for 0 <= nat k < 200000
         spin = spin + 1.0
-    tensor<real32> negative = tensor.ones<real32>([16], gpu = $GPU_INDEX) - 2.0
-    int32 status = package.check(negative, int32(1))
-    tensor<real32> y = negative * 2.0
+    tensor<real32> negative := tensor.ones<real32>([16], gpu = $GPU_INDEX) - 2.0
+    int32 status := package.check(negative, int32(1))
+    tensor<real32> y := negative * 2.0
     print("checker read {y[0].item()}")
     print(NL)
     return spin
@@ -2169,7 +2169,7 @@ real64 parallel_result_3_1
 parallel
     parallel_result_3_0 = reader()
     parallel_result_3_1 = checker()
-real64[] results = [parallel_result_3_0, parallel_result_3_1]
+real64[] results := [parallel_result_3_0, parallel_result_3_1]
 print("finished without reporting the deferred check")
 print(NL)
 QUI
@@ -2203,10 +2203,10 @@ QUI
     # the next gpu.sync reports it.
     cat > "$TMP/stream-late-check.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([262144], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([262144], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-tensor<real32> second = package.slow(a, int32(100000), int32(0))
-int32 armed = package.arm_late_check(a)
+tensor<real32> second := package.slow(a, int32(100000), int32(0))
+int32 armed := package.arm_late_check(a)
 print("{armed} {second.cpu()[0].item()} {package.late_check_state()}")
 print(NL)
 gpu.sync($GPU_INDEX)
@@ -2227,12 +2227,12 @@ QUI
     # with status 0.
     cat > "$TMP/stream-exit-check.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([262144], gpu = $GPU_INDEX)
-tensor<real32> c = tensor.ones<real32>([8388608], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([262144], gpu = $GPU_INDEX)
+tensor<real32> c := tensor.ones<real32>([8388608], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
 for 0 <= nat i < 40
     c = c * 1.0001
-int32 armed = package.arm_late_check(a)
+int32 armed := package.arm_late_check(a)
 print("armed {armed}")
 print(NL)
 QUI
@@ -2254,27 +2254,27 @@ QUI
 import package = stream_pkg
 
 real64 package_loop()
-    tensor<real32> x = tensor.ones<real32>([64], gpu = $GPU_INDEX)
-    int32 total = int32(0)
+    tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
+    int32 total := int32(0)
     for 0 <= nat i < 30000
         total = total + package.scope_status(x)
     return real64(total)
 
 real64 checked_loop()
-    tensor<int32> a = tensor.ones<int32>([64], gpu = $GPU_INDEX)
+    tensor<int32> a := tensor.ones<int32>([64], gpu = $GPU_INDEX)
     for 0 <= nat i < 30000
         a = a + int32(1)
     return real64(a[0].item())
 
-func<real64>()[] operations = [package_loop, checked_loop]
+func<real64>()[] operations := [package_loop, checked_loop]
 real64 parallel_result_4_0
 real64 parallel_result_4_1
-func<real64>() parallel_operation_4_0 = operations[0]
-func<real64>() parallel_operation_4_1 = operations[1]
+func<real64>() parallel_operation_4_0 := operations[0]
+func<real64>() parallel_operation_4_1 := operations[1]
 parallel
     parallel_result_4_0 = parallel_operation_4_0()
     parallel_result_4_1 = parallel_operation_4_1()
-real64[] results = [parallel_result_4_0, parallel_result_4_1]
+real64[] results := [parallel_result_4_0, parallel_result_4_1]
 print("{results[0]} {results[1]}")
 print(NL)
 QUI
@@ -2294,33 +2294,33 @@ QUI
 import package = stream_pkg
 
 real64 reader()
-    tensor<real32> base = tensor.zeros<real32>([1048576], gpu = $GPU_INDEX)
-    int stale = 0
+    tensor<real32> base := tensor.zeros<real32>([1048576], gpu = $GPU_INDEX)
+    int stale := 0
     for 0 <= nat i < 60
-        real32 step = real32(i)
-        tensor<real32> x = base + step
-        tensor<real32> y = package.slow(x, int32(200), int32(2))
-        tensor<real32> host = y.cpu()
+        real32 step := real32(i)
+        tensor<real32> x := base + step
+        tensor<real32> y := package.slow(x, int32(200), int32(2))
+        tensor<real32> host := y.cpu()
         if host[0].item() != step
             stale += 1
     return real64(stale)
 
 real64 syncer()
-    real64 total = 0.0
+    real64 total := 0.0
     for 0 <= nat i < 400000
         gpu.sync($GPU_INDEX)
         total = total + 1.0
     return total
 
-func<real64>()[] operations = [reader, syncer]
+func<real64>()[] operations := [reader, syncer]
 real64 parallel_result_5_0
 real64 parallel_result_5_1
-func<real64>() parallel_operation_5_0 = operations[0]
-func<real64>() parallel_operation_5_1 = operations[1]
+func<real64>() parallel_operation_5_0 := operations[0]
+func<real64>() parallel_operation_5_1 := operations[1]
 parallel
     parallel_result_5_0 = parallel_operation_5_0()
     parallel_result_5_1 = parallel_operation_5_1()
-real64[] results = [parallel_result_5_0, parallel_result_5_1]
+real64[] results := [parallel_result_5_0, parallel_result_5_1]
 print(results[0])
 print(NL)
 QUI
@@ -2342,11 +2342,11 @@ import package = stream_pkg
 cli args
     int mode = option(default = 0)
     int ops = option(default = 10)
-tensor<real32> a = tensor.ones<real32>([262144], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([262144], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-tensor<real32> s = package.slow(a, int32(100000), int32(0))
-int32 armed = package.arm_callback(a, int32(args.mode))
-tensor<real32> v = tensor.ones<real32>([64], gpu = $GPU_INDEX)
+tensor<real32> s := package.slow(a, int32(100000), int32(0))
+int32 armed := package.arm_callback(a, int32(args.mode))
+tensor<real32> v := tensor.ones<real32>([64], gpu = $GPU_INDEX)
 for 0 <= int i < args.ops
     v = v + 1.0
 gpu.sync($GPU_INDEX)
@@ -2377,14 +2377,14 @@ QUI
     # wait does not return before its own slow command buffer finishes.
     cat > "$TMP/stream-scope-lend.qui" <<QUI
 import package = stream_pkg
-tensor<real32> x = tensor.ones<real32>([4096], gpu = $GPU_INDEX)
-tensor<real32> z = package.scale(x, real32(3), int32(0))
+tensor<real32> x := tensor.ones<real32>([4096], gpu = $GPU_INDEX)
+tensor<real32> z := package.scale(x, real32(3), int32(0))
 gpu.sync($GPU_INDEX)
-int32 mark = package.hooks(int32(0))
+int32 mark := package.hooks(int32(0))
 z[0] = real32(5)
 print("{z[0].item()} {z[1].item()}")
 print(NL)
-int32 mark2 = package.hooks(int32(1))
+int32 mark2 := package.hooks(int32(1))
 QUI
     lend_output="$(QUIDRA_COUNTERS="$TMP/scope-lend.jsonl" QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/stream-scope-lend.qui")"
     if [[ "$lend_output" != "5.0 3.0" ]]; then
@@ -2400,7 +2400,7 @@ assert step["metal_command_buffers"] == 0 and step["host_waits"] == 0, step
 PY
     cat > "$TMP/stream-scope-queue.qui" <<QUI
 import package = stream_pkg
-tensor<real32> x = tensor.ones<real32>([16], gpu = $GPU_INDEX)
+tensor<real32> x := tensor.ones<real32>([16], gpu = $GPU_INDEX)
 print(package.scope_queue(x, int32(100000)))
 print(NL)
 QUI
@@ -2418,19 +2418,19 @@ QUI
     # The queued kernel must not overwrite the scratch ('bad 2' or 'bad 3').
     cat > "$TMP/stream-scratch.qui" <<QUI
 import package = stream_pkg
-tensor<real32> c = tensor.ones<real32>([8388608], gpu = $GPU_INDEX)
+tensor<real32> c := tensor.ones<real32>([8388608], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-int bad = 0
-int[] sizes = [3000, 12000, 48000, 196608, 786432, 3000000]
-for auto n = sizes[]
-    tensor<real32> a = tensor.ones<real32>([nat(n)], gpu = $GPU_INDEX)
-    tensor<real32> out = tensor.zeros<real32>([nat(n)], gpu = $GPU_INDEX)
+int bad := 0
+int[] sizes := [3000, 12000, 48000, 196608, 786432, 3000000]
+for n := sizes[]
+    tensor<real32> a := tensor.ones<real32>([nat(n)], gpu = $GPU_INDEX)
+    tensor<real32> out := tensor.zeros<real32>([nat(n)], gpu = $GPU_INDEX)
     gpu.sync($GPU_INDEX)
     for 0 <= nat i < 30
         c = c * 1.0001
-    tensor<real32> y = (a * 2.0) + 1.0
+    tensor<real32> y := (a * 2.0) + 1.0
     out = package.scratch_fill(out, real32(7))
-    tensor<real32> host = out.cpu()
+    tensor<real32> host := out.cpu()
     if host[0].item() != real32(7) or host[n - 1].item() != real32(7)
         bad += 1
 print("bad {bad}")
@@ -2449,10 +2449,10 @@ QUI
     # buffer completed (MTLCommandBufferStatusCompleted = 4).
     cat > "$TMP/stream-on-complete.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([262144], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([262144], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-tensor<real32> b = package.slow(a, int32(20000), int32(1))
-int32 at_call = package.slow_status()
+tensor<real32> b := package.slow(a, int32(20000), int32(1))
+int32 at_call := package.slow_status()
 gpu.sync($GPU_INDEX)
 print(at_call == int32(-1) or at_call == int32(4))
 print(NL)
@@ -2484,17 +2484,17 @@ import package = stream_pkg
 cli args
     int mode = option(default = 0)
     int n = option(default = 4096)
-int bad = 0
-int32 violations = int32(0)
+int bad := 0
+int32 violations := int32(0)
 for 0 <= nat i < 20
-    real32 step = real32(i)
-    real32 next_step = real32(i + 1)
-    real32 doubled_step = real32(2 * (i + 1))
-    tensor<real32> a = tensor.ones<real32>([nat(args.n)], gpu = $GPU_INDEX) * step
-    int32 start = package.hooks(int32(3))
-    tensor<real32> b = package.inplace(a, int32(args.mode))
+    real32 step := real32(i)
+    real32 next_step := real32(i + 1)
+    real32 doubled_step := real32(2 * (i + 1))
+    tensor<real32> a := tensor.ones<real32>([nat(args.n)], gpu = $GPU_INDEX) * step
+    int32 start := package.hooks(int32(3))
+    tensor<real32> b := package.inplace(a, int32(args.mode))
     violations = violations + package.hooks(int32(4))
-    tensor<real32> c = b * 2.0
+    tensor<real32> c := b * 2.0
     if a[0].item() != step or a[args.n - 1].item() != step
         bad += 1
     if b[0].item() != next_step or b[args.n - 1].item() != next_step
@@ -2568,19 +2568,19 @@ PY
 import package = stream_pkg
 cli args
     int kind = option(default = 0)
-tensor<real32> host = tensor.ones<real32>([65536]) * 2.0
-tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
+tensor<real32> host := tensor.ones<real32>([65536]) * 2.0
+tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
 if args.kind == 10
     a = host.gpu($GPU_INDEX)
-tensor<real32> keep = a
+tensor<real32> keep := a
 print("before {a[0].item()}")
 print(NL)
-tensor<real32> b = a
+tensor<real32> b := a
 if args.kind == 13
     b = package.violate(a[1:], int32(0))
 else
     b = package.violate(a, int32(args.kind))
-tensor<real32> c = b * 2.0
+tensor<real32> c := b * 2.0
 print("after {c[0].item()} {keep[0].item()}")
 print(NL)
 QUI
@@ -2662,16 +2662,16 @@ cli args
     int work = option(default = 0)
     int kind = option(default = 0)
     int fresh = option(default = 0)
-tensor<real32> a = (tensor.ones<real32>([4096]) * 2.0).gpu($GPU_INDEX)
+tensor<real32> a := (tensor.ones<real32>([4096]) * 2.0).gpu($GPU_INDEX)
 if args.fresh == 0
     a = a * 1.0
-tensor<real32> host = tensor.ones<real32>([16]) * 5.0
-tensor<int32> ints = tensor.ones<int32>([16], gpu = $GPU_INDEX)
+tensor<real32> host := tensor.ones<real32>([16]) * 5.0
+tensor<int32> ints := tensor.ones<int32>([16], gpu = $GPU_INDEX)
 print("before {a[0].item()}")
 print(NL)
-tensor<real32> r = a
+tensor<real32> r := a
 if args.work == 0
-    int32 s = package.leak(a, int32(args.kind))
+    int32 s := package.leak(a, int32(args.kind))
 elif args.work == 1
     r = package.leak_kernel(a, int32(args.kind))
 elif args.work == 2
@@ -2730,20 +2730,20 @@ QUI
     cat > "$TMP/stream-leak-task.qui" <<QUI
 import package = stream_pkg
 real64 leaker()
-    tensor<real32> x = tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
+    tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
     return real64(package.leak(x, int32(0)))
 real64 idle()
     return 2.0
-func<real64>()[] operations = [leaker, idle]
+func<real64>()[] operations := [leaker, idle]
 real64 parallel_result_6_0
 real64 parallel_result_6_1
-func<real64>() parallel_operation_6_0 = operations[0]
-func<real64>() parallel_operation_6_1 = operations[1]
+func<real64>() parallel_operation_6_0 := operations[0]
+func<real64>() parallel_operation_6_1 := operations[1]
 parallel
     parallel_result_6_0 = parallel_operation_6_0()
     parallel_result_6_1 = parallel_operation_6_1()
-real64[] results = [parallel_result_6_0, parallel_result_6_1]
-tensor<real32> b = tensor.ones<real32>([64], gpu = $GPU_INDEX) + 1.0
+real64[] results := [parallel_result_6_0, parallel_result_6_1]
+tensor<real32> b := tensor.ones<real32>([64], gpu = $GPU_INDEX) + 1.0
 print("after {results[1]} {b[0].item()}")
 print(NL)
 QUI
@@ -2763,22 +2763,22 @@ QUI
 import package = stream_pkg
 cli args
     int mode = option(default = 0)
-tensor<real32> a = tensor.ones<real32>([64], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([64], gpu = $GPU_INDEX)
 print("before {package.warmup_state(a, int32(5))}")
 print(NL)
 real64 violator()
-    tensor<real32> x = tensor.ones<real32>([64], gpu = $GPU_INDEX)
-    int32 s = package.task_hold(x, int32(0))
+    tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
+    int32 s := package.task_hold(x, int32(0))
     return 0.0
 real64 leaker()
-    tensor<real32> x = tensor.ones<real32>([64], gpu = $GPU_INDEX)
-    int32 s = package.task_hold(x, int32(1))
+    tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
+    int32 s := package.task_hold(x, int32(1))
     return 0.0
 real64 reader()
-    tensor<real32> v = tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
-    int32 w = package.await_hold()
-    int32 z = package.wait_report(v)
-    tensor<real32> r = v + 1.0
+    tensor<real32> v := tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
+    int32 w := package.await_hold()
+    int32 z := package.wait_report(v)
+    tensor<real32> r := v + 1.0
     print("reader {w} {z} {r[0].item()}")
     print(NL)
     return 0.0
@@ -2792,7 +2792,7 @@ else
     parallel
         parallel_result_7_0 = violator()
         parallel_result_7_1 = reader()
-real64[] results = [parallel_result_7_0, parallel_result_7_1]
+real64[] results := [parallel_result_7_0, parallel_result_7_1]
 print("after")
 print(NL)
 QUI
@@ -2822,9 +2822,9 @@ QUI
     # returns, naming the root file without a line (no statement runs).
     cat > "$TMP/stream-leak-callback.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
-int32 armed = package.arm_callback(a, int32(2))
-tensor<real32> b = a * 3.0
+tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
+int32 armed := package.arm_callback(a, int32(2))
+tensor<real32> b := a * 3.0
 print("after {armed} {b[0].item()}")
 print(NL)
 QUI
@@ -2842,9 +2842,9 @@ QUI
     # own thread's join and let the program print 0.0 for 6.0 and exit 0.
     cat > "$TMP/stream-violate-callback.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
-int32 armed = package.arm_callback(a, int32(3))
-tensor<real32> b = a * 3.0
+tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
+int32 armed := package.arm_callback(a, int32(3))
+tensor<real32> b := a * 3.0
 print("after {armed} {b[0].item()}")
 print(NL)
 QUI
@@ -2855,10 +2855,10 @@ QUI
         "Quidra runtime error[GPU_SCOPE] at $TMP/stream-violate-callback.qui" "| qcore_device_flush was requested on gpu($GPU_INDEX) while package code holds its command stream"
     cat > "$TMP/stream-violate-warmup.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
+tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * 2.0
 print("before {package.warmup_state(a, int32(3))}")
 print(NL)
-tensor<real32> b = a * 3.0
+tensor<real32> b := a * 3.0
 time.sleep(time.seconds(10.0))
 print("after {b[0].item()}")
 print(NL)
@@ -2883,11 +2883,11 @@ QUI
 import package = stream_pkg
 cli args
     int kind = option(default = 0)
-tensor<real32> a = tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
+tensor<real32> a := tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
 print("before {package.warmup_state(a, int32(4))}")
 print(NL)
-int[] values = [1, 2, 3]
-int v = values[int(package.leak(a, int32(args.kind))) + 10]
+int[] values := [1, 2, 3]
+int v := values[int(package.leak(a, int32(args.kind))) + 10]
 print("after {v}")
 print(NL)
 QUI
@@ -2915,11 +2915,11 @@ import package = stream_pkg
 cli args
     int kind = option(default = 0)
 tensor<real32> total(tensor<real32> value)
-    tensor<real32> result = value.gather([0], [])
+    tensor<real32> result := value.gather([0], [])
     result = result + value.gather([1], [])
     return result
-tensor<real32> x = (tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0).track()
-tensor<real32> y = package.break_backward(x, int32(args.kind))
+tensor<real32> x := (tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0).track()
+tensor<real32> y := package.break_backward(x, int32(args.kind))
 print("before")
 print(NL)
 total(y).backward(&x)
@@ -2959,20 +2959,20 @@ import package = stream_pkg
 cli args
     int kind = option(default = 0)
 real64 worker()
-    tensor<real32> v = tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
+    tensor<real32> v := tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
     return real64(v[0].item())
-func<real64>()[] operations = [worker, worker]
-func<real64>()[][] sets = [operations]
-tensor<real32> x = tensor.ones<real32>([64], gpu = $GPU_INDEX)
-auto parallel_result_8_operations = sets[int(package.leak(x, int32(args.kind)))]
+func<real64>()[] operations := [worker, worker]
+func<real64>()[][] sets := [operations]
+tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
+parallel_result_8_operations := sets[int(package.leak(x, int32(args.kind)))]
 real64 parallel_result_8_0
 real64 parallel_result_8_1
-func<real64>() parallel_operation_8_0 = parallel_result_8_operations[0]
-func<real64>() parallel_operation_8_1 = parallel_result_8_operations[1]
+func<real64>() parallel_operation_8_0 := parallel_result_8_operations[0]
+func<real64>() parallel_operation_8_1 := parallel_result_8_operations[1]
 parallel
     parallel_result_8_0 = parallel_operation_8_0()
     parallel_result_8_1 = parallel_operation_8_1()
-real64[] results = [parallel_result_8_0, parallel_result_8_1]
+real64[] results := [parallel_result_8_0, parallel_result_8_1]
 print("after {results[0]}")
 print(NL)
 QUI
@@ -2998,15 +2998,15 @@ QUI
 import package = stream_pkg
 cli args
     int mode = option(default = 0)
-    real64 pause = option(default = 0.0)
+    real64 pause := option(default = 0.0)
 tensor<real32> twice(tensor<real32> c)
-    tensor<real32> g = c.gpu($GPU_INDEX)
+    tensor<real32> g := c.gpu($GPU_INDEX)
     return g * 2.0
-tensor<real32> c = tensor.ones<real32>([1048576])
-tensor<real32> h = twice(c)
+tensor<real32> c := tensor.ones<real32>([1048576])
+tensor<real32> h := twice(c)
 if args.pause > 0.0
     time.sleep(time.seconds(args.pause))
-int32 s = package.cpu_borrow(h, &c, int32(args.mode))
+int32 s := package.cpu_borrow(h, &c, int32(args.mode))
 print("after {s} {h[0].item()} {c[0].item()}")
 print(NL)
 QUI
@@ -3033,53 +3033,53 @@ QUI
 import package = stream_pkg
 
 real64 inplace_loop()
-    int bad = 0
+    int bad := 0
     for 0 <= nat i < 150
-        real32 step = real32(i)
-        real32 next_step = real32(i + 1)
-        tensor<real32> a = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
-        tensor<real32> b = package.inplace(a, int32(i % 3))
+        real32 step := real32(i)
+        real32 next_step := real32(i + 1)
+        tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
+        tensor<real32> b := package.inplace(a, int32(i % 3))
         if b[4095].item() != next_step or a[0].item() != step
             bad += 1
     return real64(bad)
 
 real64 scale_loop()
-    int bad = 0
+    int bad := 0
     for 0 <= nat i < 150
-        real32 step = real32(i)
-        real32 doubled_step = real32(2 * i)
-        tensor<real32> x = tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
-        tensor<real32> y = package.scale(x, real32(2), int32(i % 5))
+        real32 step := real32(i)
+        real32 doubled_step := real32(2 * i)
+        tensor<real32> x := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
+        tensor<real32> y := package.scale(x, real32(2), int32(i % 5))
         if y[4095].item() != doubled_step
             bad += 1
     return real64(bad)
 
 real64 core_loop()
-    tensor<real32> v = tensor.ones<real32>([65536], gpu = $GPU_INDEX)
+    tensor<real32> v := tensor.ones<real32>([65536], gpu = $GPU_INDEX)
     for 0 <= nat i < 300
         v = v + 1.0
     return real64(v[65535].item())
 
-tensor<real32> warm = package.inplace(tensor.ones<real32>([64], gpu = $GPU_INDEX), int32(0))
-tensor<real32> warm2 = package.scale(tensor.ones<real32>([64], gpu = $GPU_INDEX), real32(1), int32(4))
-func<real64>()[] operations = [inplace_loop, scale_loop, inplace_loop, scale_loop, core_loop]
+tensor<real32> warm := package.inplace(tensor.ones<real32>([64], gpu = $GPU_INDEX), int32(0))
+tensor<real32> warm2 := package.scale(tensor.ones<real32>([64], gpu = $GPU_INDEX), real32(1), int32(4))
+func<real64>()[] operations := [inplace_loop, scale_loop, inplace_loop, scale_loop, core_loop]
 real64 parallel_result_9_0
 real64 parallel_result_9_1
 real64 parallel_result_9_2
 real64 parallel_result_9_3
 real64 parallel_result_9_4
-func<real64>() parallel_operation_9_0 = operations[0]
-func<real64>() parallel_operation_9_1 = operations[1]
-func<real64>() parallel_operation_9_2 = operations[2]
-func<real64>() parallel_operation_9_3 = operations[3]
-func<real64>() parallel_operation_9_4 = operations[4]
+func<real64>() parallel_operation_9_0 := operations[0]
+func<real64>() parallel_operation_9_1 := operations[1]
+func<real64>() parallel_operation_9_2 := operations[2]
+func<real64>() parallel_operation_9_3 := operations[3]
+func<real64>() parallel_operation_9_4 := operations[4]
 parallel
     parallel_result_9_0 = parallel_operation_9_0()
     parallel_result_9_1 = parallel_operation_9_1()
     parallel_result_9_2 = parallel_operation_9_2()
     parallel_result_9_3 = parallel_operation_9_3()
     parallel_result_9_4 = parallel_operation_9_4()
-real64[] results = [parallel_result_9_0, parallel_result_9_1, parallel_result_9_2, parallel_result_9_3, parallel_result_9_4]
+real64[] results := [parallel_result_9_0, parallel_result_9_1, parallel_result_9_2, parallel_result_9_3, parallel_result_9_4]
 print("{results[0]} {results[1]} {results[2]} {results[3]} {results[4]}")
 print(NL)
 QUI
@@ -3100,7 +3100,7 @@ QUI
     # waited. The failure is injected with a switch of test builds; release
     # builds skip this.
     cat > "$TMP/metal-fail-probe.qui" <<QUI
-tensor<real32> x = tensor.ones<real32>([16], gpu = $GPU_INDEX) * 2.0
+tensor<real32> x := tensor.ones<real32>([16], gpu = $GPU_INDEX) * 2.0
 print(x[0].item())
 print(NL)
 QUI
@@ -3108,10 +3108,10 @@ QUI
     if [[ "$probe_output" == *"test-only Metal command failure"* ]]; then
         cat > "$TMP/stream-wait-error.qui" <<QUI
 import package = stream_pkg
-tensor<real32> a = tensor.ones<real32>([16], gpu = $GPU_INDEX) * 2.0
+tensor<real32> a := tensor.ones<real32>([16], gpu = $GPU_INDEX) * 2.0
 print(package.device_wait(a))
 print(NL)
-tensor<real32> b = a + 1.0
+tensor<real32> b := a + 1.0
 print(b[0].item())
 print(NL)
 QUI
@@ -3135,10 +3135,10 @@ QUI
     # not run again.
     cat > "$TMP/stream-warmup.qui" <<QUI
 import package = stream_pkg
-tensor<real32> host = tensor.ones<real32>([4])
+tensor<real32> host := tensor.ones<real32>([4])
 print(package.warmup_state(host, int32(0)))
 print(NL)
-tensor<real32> a = tensor.ones<real32>([16], gpu = $GPU_INDEX)
+tensor<real32> a := tensor.ones<real32>([16], gpu = $GPU_INDEX)
 print(package.warmup_state(a, int32(1)))
 print(NL)
 print(package.warmup_state(a, int32(2)))
@@ -3281,25 +3281,25 @@ OBJCPP
 import probe = metal_probe
 
 tensor<real32> values(int seed)
-    tensor<real32> result = tensor.zeros<real32>([2, 3])
+    tensor<real32> result := tensor.zeros<real32>([2, 3])
     for 0 <= nat row < 2
         for 0 <= nat column < 3
-            real32 cell = real32((int(row) * 3 + int(column) + seed) % 5)
+            real32 cell := real32((int(row) * 3 + int(column) + seed) % 5)
             result[row, column] = cell + real32(0.5)
     return result
 
 tensor<real32> total(tensor<real32> value)
-    tensor<real32> flat = value.reshape([6])
-    tensor<real32> result = flat.gather([0], [])
+    tensor<real32> flat := value.reshape([6])
+    tensor<real32> result := flat.gather([0], [])
     for 1 <= nat index < 6
         result = result + flat.gather([int(index)], [])
     return result
 
 // d/dx sum(copy(x)^T * c) = c^T: the gradient reaching the custom node is
 // the transposed (strided) view of a dense gradient.
-tensor<real32> c = values(2).transpose(0, 1).contiguous().gpu($GPU_INDEX)
-tensor<real32> x = values(1).gpu($GPU_INDEX).track()
-tensor<real32> y = probe.copy(x)
+tensor<real32> c := values(2).transpose(0, 1).contiguous().gpu($GPU_INDEX)
+tensor<real32> x := values(1).gpu($GPU_INDEX).track()
+tensor<real32> y := probe.copy(x)
 print((y.untrack().cpu() == values(1)).all())
 print(NL)
 total(y.transpose(0, 1) * c).backward(&x)
@@ -3308,9 +3308,9 @@ print(NL)
 
 // d/du sum(copy(u * u)^T * c) = 2 u c^T, then d/du sum(2 u c^T * p) = 2 c^T p,
 // with the first derivative on the device and differentiable.
-tensor<real32> u = values(1).gpu($GPU_INDEX).track()
+tensor<real32> u := values(1).gpu($GPU_INDEX).track()
 total(probe.copy(u * u).transpose(0, 1) * c).backward(&u, track = true)
-tensor<real32> first = u.grad
+tensor<real32> first := u.grad
 print(first.device() == $GPU_INDEX and first.is_tracked())
 print(NL)
 print((first.untrack().cpu() == values(1) * values(2) * real32(2)).all())
@@ -3497,32 +3497,32 @@ extern "C" long long qtest_metal_masked_fills() {
 OBJCPP
     cat > "$TMP/metal-masked-fill.qui" <<QUI
 import masked = metal_masked
-tensor<real32> xs = tensor.zeros<real32>([3])
+tensor<real32> xs := tensor.zeros<real32>([3])
 xs[0] = real32(0.1)
 xs[1] = real32(-2.5)
 xs[2] = real32(3.7)
-tensor<real32> ys = tensor.zeros<real32>([3])
+tensor<real32> ys := tensor.zeros<real32>([3])
 ys[0] = real32(1.3)
 ys[1] = real32(0.7)
 ys[2] = real32(-0.9)
-tensor<real32> weights = tensor.zeros<real32>([3])
+tensor<real32> weights := tensor.zeros<real32>([3])
 weights[0] = real32(0.25)
 weights[1] = real32(-1.5)
 weights[2] = real32(2.125)
 
-tensor<real32> x = xs.gpu($GPU_INDEX)
-tensor<real32> y = ys.gpu($GPU_INDEX)
-int start = masked.fills()
-tensor<real32> declared = masked.mul(x.track(), y.track(), 1) * weights.gpu($GPU_INDEX)
+tensor<real32> x := xs.gpu($GPU_INDEX)
+tensor<real32> y := ys.gpu($GPU_INDEX)
+int start := masked.fills()
+tensor<real32> declared := masked.mul(x.track(), y.track(), 1) * weights.gpu($GPU_INDEX)
 (declared.gather([0], []) + declared.gather([1], []) + declared.gather([2], [])).backward(&x, &y)
-int declared_fills = masked.fills() - start
+int declared_fills := masked.fills() - start
 
-tensor<real32> u = xs.gpu($GPU_INDEX)
-tensor<real32> v = ys.gpu($GPU_INDEX)
+tensor<real32> u := xs.gpu($GPU_INDEX)
+tensor<real32> v := ys.gpu($GPU_INDEX)
 start = masked.fills()
-tensor<real32> plain = masked.mul(u.track(), v.track(), 0) * weights.gpu($GPU_INDEX)
+tensor<real32> plain := masked.mul(u.track(), v.track(), 0) * weights.gpu($GPU_INDEX)
 (plain.gather([0], []) + plain.gather([1], []) + plain.gather([2], [])).backward(&u, &v)
-int plain_fills = masked.fills() - start
+int plain_fills := masked.fills() - start
 
 print((x.grad.cpu() == u.grad.cpu()).all() and (y.grad.cpu() == v.grad.cpu()).all())
 print(NL)

@@ -109,7 +109,7 @@ ShapeConstraintLowering::BraceShape ShapeConstraintLowering::capture_brace_shape
         if (!current.variable.empty() && current.variable_index < plan.variables.size() &&
             plan.variables[current.variable_index].axis == axis &&
             plan.variables[current.variable_index].value) {
-            // `nat N = EXPR`: N is the value, which a negative nat(e) cannot be.
+            // `N := EXPR`: N is the value, which a negative nat(e) cannot be.
             shape.variables[current.variable_index] = local;
             if (bind && plan.variables[current.variable_index].read)
                 bind_shape_variable(current.variable, local, true, span);
@@ -361,7 +361,7 @@ void ShapeConstraintLowering::lower_case_shape(
 
     // The expressions over no variable of the shape, evaluated when the
     // case is tried; a case without tests evaluates only the constant
-    // `nat N = EXPR` variables its body reads.
+    // `N := EXPR` variables its body reads.
     BraceShape shape;
     if (plan.conditional) {
         shape = capture_brace_shape(plan, span, false);

@@ -24,7 +24,7 @@ using ExprPtr = std::unique_ptr<Expr>;
 // One axis of a brace shape (tensor<real32>{nat N, 3, _}), classified on
 // tokens by the parser:
 //   Declare       `nat N`         a new shape variable N, the axis's extent
-//   DeclareEqual  `nat N = EXPR`  a new shape variable N, equal to EXPR
+//   DeclareEqual  `N := EXPR`  a new shape variable N, equal to EXPR
 //   Bare          `N`             an existing shape variable or nat value
 //   Unnamed       EXPR            any other integer expression, `(n)` too
 //   Discard       `_`             an extent of any length, unnamed

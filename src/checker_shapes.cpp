@@ -1,5 +1,5 @@
 // Brace shapes (L17): the axes of `tensor<ELEM>{AXIS, ...}` in a binding or a
-// match case, checked as one scope unit. `nat N` and `nat N = EXPR` declare
+// match case, checked as one scope unit. `nat N` and `N := EXPR` declare
 // new read-only nat shape variables; a bare name refers to one of them or to
 // an existing nat value; any other expression is an unnamed nat constraint;
 // `_` is an extent of any length. The result, a ShapePlan, tells the
@@ -284,7 +284,7 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
                   axis.kind == ShapeAxisKind::Declare
                       ? std::string(discard_typed_message)
                       : std::string("'_' names nothing: write the axis expression without "
-                                    "'nat _ ='."),
+                                    "'_ :='."),
                   axis.span);
         }
         if (unit.contains(axis.name)) {
@@ -431,7 +431,7 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
         for (std::size_t axis = 0; axis < reads.size(); ++axis)
         plan.axes[axis].dependencies = reads[axis];
 
-    // 3. `nat N = EXPR` axes in dependency order: a cycle is an error.
+    // 3. `N := EXPR` axes in dependency order: a cycle is an error.
         std::vector<int> state(plan.variables.size(), 0);
         std::function<void(std::size_t)> visit = [&](std::size_t variable) {
             if (state[variable] == 2) return;
@@ -464,7 +464,7 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
         for (std::size_t v = 0; v < plan.variables.size(); ++v) visit(v);
 
         // After the initializer: every expression over the unit's own
-        // variables, a `nat N = EXPR` before the axes that read N, left to
+        // variables, a `N := EXPR` before the axes that read N, left to
         // right among independent ones.
         std::set<std::size_t> pending;
         for (std::size_t i = 0; i < axes.size(); ++i) {
@@ -635,8 +635,8 @@ void Checker::check_signature_shape(const FunctionDecl& source, FunctionType& ty
         for (const auto& axis : axes) {
             if (parameter == 0 && axis.kind == ShapeAxisKind::Declare) {
                 error("SHAPE_VARIABLE", "'" + axis.name +
-                      "' in the result shape cannot be inferred: write 'nat " +
-                      axis.name + " = EXPR', or declare it in a parameter with 'nat " +
+                      "' in the result shape cannot be inferred: write '" +
+                      axis.name + " := EXPR', or declare it in a parameter with 'nat " +
                       axis.name + "'.", axis.span);
             }
             aggregate->shape_axes.push_back(axis);
@@ -759,8 +759,8 @@ void Checker::check_function_type_shape(const TypeName& source, Type& type) {
         const auto offset = aggregate->shape_axes.size();
         for (const auto& axis : axes) {
             if (parameter == 0 && axis.kind == ShapeAxisKind::Declare)
-                error("SHAPE_VARIABLE", "'" + axis.name + "' in the result shape cannot be inferred: write 'nat " +
-                    axis.name + " = EXPR', or declare it in a parameter.", axis.span);
+                error("SHAPE_VARIABLE", "'" + axis.name + "' in the result shape cannot be inferred: write '" +
+                    axis.name + " := EXPR', or declare it in a parameter.", axis.span);
             aggregate->shape_axes.push_back(axis);
         }
         fact.tensor_shape_prefix.insert(fact.tensor_shape_prefix.end(), current.tensor_shape_prefix.begin(),

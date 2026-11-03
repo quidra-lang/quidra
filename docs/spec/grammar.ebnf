@@ -245,15 +245,15 @@ statement_end    = NEWLINE | EOF ;
      kinds: `<...>` the element type, `{...}` the shape, `[...]` an index or a slice,
      `(...)` a call; outside string literals, `{` and `}` appear only in shapes, and
      `tensor` is always followed by `<T>`. An axis is `nat N` (a new shape variable,
-     the axis's extent), `nat N = EXPR` (a new shape variable equal to EXPR), a bare
+     the axis's extent), `N := EXPR` (a new shape variable equal to EXPR), a bare
      name (an existing shape variable or nat value: the axis equals it), `_` (an
      extent of any length that binds nothing) or any other integer expression (the
-     axis equals it); only `nat` declares, only a lone identifier is a bare name, and
+     axis equals it); `nat N := EXPR` is the explicit spelling of `N := EXPR`. Only a lone identifier is a bare name, and
      `(n)` is an expression. Every extent is nat: an integer of another kind is
      written `nat(n)`. A bare name that names nothing, or a binding that is not nat,
      is an error; declaring a visible name is SHADOWING, and declaring one twice in a
      shape is an error (`{nat N, N}` is square). A shape is one scope unit: an axis may
-     use any variable of its shape whatever the textual order, `nat N = EXPR` axes are
+     use any variable of its shape whatever the textual order, `N := EXPR` axes are
      evaluated in dependency order, and a cycle is an error. Shape variables are
      read-only nat values, scoped like bindings and reused by bare name; without an
      initializer a declaration has no `nat N` axis. In bindings and match cases the

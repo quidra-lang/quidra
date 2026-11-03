@@ -69,8 +69,8 @@ static void string_templates_release_owned_inputs() {
     };
     for (const auto& test : cases) {
         const std::string source =
-            "real x = 2.0\nreal half = 0.5\ncom z = 0.5 + 0.25i\n"
-            "string text = \"{" + std::string(test.expression) + "}\"\n";
+            "real x := 2.0\nreal half := 0.5\ncom z := 0.5 + 0.25i\n"
+            "text := \"{" + std::string(test.expression) + "}\"\n";
         capture_source("string_template_ownership", source);
         const auto module = ir::lower(quidra::check(source));
         bool found = false;
@@ -682,7 +682,7 @@ static void imported_signatures_use_module_scope() {
         for (const char* module : {"own_parameter", "own_method_parameter", "own_field", "own_method"}) {
             const auto importer = std::string(module) + "_main.qui";
             write(importer.c_str(),
-                  (std::string("import ") + module + " = \"./" + module + ".qui\"\n\nint value = 1\n").c_str());
+                  (std::string("import ") + module + " = \"./" + module + ".qui\"\n\nint value := 1\n").c_str());
             bool standalone = false;
             bool imported = false;
             for (const auto& [path, rejected] :
@@ -805,7 +805,7 @@ static void imported_type_parameters_use_module_scope() {
         for (const char* module : {"own_function", "own_class", "own_enum"}) {
             const auto importer = std::string(module) + "_main.qui";
             write(importer.c_str(),
-                  (std::string("import ") + module + " = \"./" + module + ".qui\"\n\nint value = 1\n").c_str());
+                  (std::string("import ") + module + " = \"./" + module + ".qui\"\n\nint value := 1\n").c_str());
             const bool standalone =
                 compile_reports_shadowing(root / (std::string(module) + ".qui"), root);
             const bool imported = compile_reports_shadowing(root / importer, root);
@@ -1742,7 +1742,7 @@ tensor<real32>{_, 3} generic_call(tensor<real32>{_, 3} x)
 
 // L17: shapes in braces. Literal and `_` axes have their meaning everywhere;
 // in bindings and match cases every axis form does: `nat N` and
-// `nat N = EXPR` declare read-only nat shape variables, a bare name refers to
+// `N := EXPR` declare read-only nat shape variables, a bare name refers to
 // one or to an existing nat value, and any other expression is a nat
 // constraint. A shape is one scope unit.
 static void brace_shapes_and_shape_variables() {
@@ -1783,7 +1783,7 @@ static void brace_shapes_and_shape_variables() {
          "tensor<real32>{B, C, H, W} y := x\n");
     good("tensor<real32>{nat K, K} sq := tensor.zeros<real32>([2, 2])\n");
     good("nat rows := 4\nnat cols := 5\n"
-         "tensor<real32>{nat H = rows * cols, nat W} img := tensor.zeros<real32>([20, 3])\n"
+         "tensor<real32>{H := rows * cols, nat W} img := tensor.zeros<real32>([20, 3])\n"
          "print(H + W)\n");
     bad_message("tensor<real32>{N, K} a\n", "SHAPE_VARIABLE",
                 "'N' is not declared: write 'nat N' to declare a shape variable, or use an "
@@ -1796,7 +1796,7 @@ static void brace_shapes_and_shape_variables() {
     bad_message("int n := 3\ntensor<real32>{n} u := tensor.zeros<real32>([3])\n", "SHAPE_VARIABLE",
                 "'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.");
     bad_message("tensor<real32>{nat C, nat H} x := tensor.zeros<real32>([2, 3])\n"
-                "tensor<real32>{nat H = 10, nat W} z := tensor.zeros<real32>([10, 2])\n",
+                "tensor<real32>{H := 10, nat W} z := tensor.zeros<real32>([10, 2])\n",
                 "SHADOWING",
                 "'H' already names a nat value; 'nat H' would declare a new shape variable. To "
                 "require equality with it, write the bare name 'H'.");
@@ -1806,15 +1806,15 @@ static void brace_shapes_and_shape_variables() {
                 "an equal axis.");
     bad_message("tensor<real32>{nat L} make()\n    return tensor.zeros<real32>([1])\n",
                 "SHAPE_VARIABLE",
-                "'L' in the result shape cannot be inferred: write 'nat L = EXPR', or "
+                "'L' in the result shape cannot be inferred: write 'L := EXPR', or "
                 "declare it in a parameter with 'nat L'.");
 
-    // A shape is one unit: order-free, `nat N = EXPR` in dependency order.
-    good("tensor<real32>{nat M = 2 * N, nat N} x := tensor.zeros<real32>([4, 2])\nprint(M)\n");
+    // A shape is one unit: order-free, `N := EXPR` in dependency order.
+    good("tensor<real32>{M := 2 * N, nat N} x := tensor.zeros<real32>([4, 2])\nprint(M)\n");
     good("tensor<real32>{nat N, N + 1} x := tensor.zeros<real32>([2, 3])\n");
-    bad_message("tensor<real32>{nat A = B + 1, nat B = A - 1} t := tensor.zeros<real32>([2, 1])\n",
+    bad_message("tensor<real32>{A := B + 1, B := A - 1} t := tensor.zeros<real32>([2, 1])\n",
                 "SHAPE_VARIABLE", "'A' and 'B' are defined by each other.");
-    bad_message("tensor<real32>{nat A = A + 1} t := tensor.zeros<real32>([2])\n",
+    bad_message("tensor<real32>{A := A + 1} t := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'A' is defined by itself.");
     // Unnamed expressions are nat: `(n)` is an expression, `nat(n)` converts.
     good("nat n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n");
@@ -1852,7 +1852,7 @@ static void brace_shapes_and_shape_variables() {
                 "SHADOWING", "'H' already names a function");
     // `_` binds nothing and is never read.
     bad_code("tensor<real32>{nat _} x := tensor.zeros<real32>([3])\n", "DISCARD");
-    bad_code("tensor<real32>{nat _ = 3} x := tensor.zeros<real32>([3])\n", "DISCARD");
+    bad_code("tensor<real32>{_ := 3} x := tensor.zeros<real32>([3])\n", "DISCARD");
     bad_code("tensor<real32>{_, _ + 1} x := tensor.zeros<real32>([2, 3])\n", "DISCARD");
     // Shape variables are read-only nat values.
     bad_message("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nN = 4\n",
@@ -2373,8 +2373,8 @@ static void const_references_are_rejected() {
     const std::string message = "Const references do not exist; write 'const T name' for a read-only value.";
     bad_message("int first(const int[] &values)\n    return values[0]\n", "CONST_REFERENCE", message);
     bad_message("extern int32 c_text(const string &text) = \"c_text\"\n", "CONST_REFERENCE", message);
-    bad_message("int value := 1\nconst int &view = &value\n", "CONST_REFERENCE", message);
-    bad_message("int value := 1\nconst auto &view = &value\n", "CONST_REFERENCE", message);
+    bad_message("int value := 1\nconst int &view := &value\n", "CONST_REFERENCE", message);
+    bad_message("int value := 1\nconst &view := &value\n", "CONST_REFERENCE", message);
     bad_message("class Box this(local const int &v_initial)\n"
                 "    int v\n"
                 "\n"
@@ -3715,7 +3715,7 @@ product := matmul2(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
     return tensor.zeros<real32>([N + M])
 rows := join_rows(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )");
-    good(R"(tensor<real32>{nat L = N + M} join_derived(tensor<real32>{nat N} a, tensor<real32>{nat M} b)
+    good(R"(tensor<real32>{L := N + M} join_derived(tensor<real32>{nat N} a, tensor<real32>{nat M} b)
     return tensor.zeros<real32>([L])
 rows := join_derived(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )");
@@ -3723,7 +3723,7 @@ rows := join_derived(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
     print(N)
 following(tensor.ones<real32>([4]), tensor.ones<real32>([3]))
 )");
-    good(R"(void dependent(tensor<real32>{nat L = N + 1} a, tensor<real32>{nat N} b)
+    good(R"(void dependent(tensor<real32>{L := N + 1} a, tensor<real32>{nat N} b)
     print(L)
 dependent(tensor.ones<real32>([4]), tensor.ones<real32>([3]))
 )");
@@ -3745,7 +3745,7 @@ same_width(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
     bad_code(R"(tensor<real32>{nat L} missing(tensor<real32>{nat N} a)
     return a
 )", "SHAPE_VARIABLE");
-    bad_code(R"(void cycle(tensor<real32>{nat A = B} a, tensor<real32>{nat B = A} b)
+    bad_code(R"(void cycle(tensor<real32>{A := B} a, tensor<real32>{B := A} b)
     print(A)
 )", "SHAPE_VARIABLE");
     bad_code(R"(void missing(tensor<real32>{C} a)
@@ -3788,8 +3788,8 @@ static void function_values_consume_managed_parameters() {
             "void read(" + type + " value)\n    return\n"
             "void direct(" + type + " value)\n    return\n"
             "void reference(" + type + " &value)\n    return\n"
-            "func<void>(" + type + ") operation = read\n" +
-            type + " source = " + test.value + "\n"
+            "func<void>(" + type + ") operation := read\n" +
+            type + " source := " + test.value + "\n"
             "operation(source)\nread(source)\ndirect(source)\nreference(&source)\n";
         capture_source("function_value_ownership", source);
         const auto verify = [&](const quidra::Compilation& compilation) {
@@ -3899,7 +3899,7 @@ int main(){
     inspect_contains("int[] x := [1]\nint[] y := [2]\nfor int a := x[], int b := y[]\n    print(a + b)\n", "\"collection_count\":2");
     inspect_contains("int[] x := [1]\nint[] y := [2]\nfor int a := x[], int b := y[]\n    print(a + b)\n", "ForCollectionBinding");
     good("nat[2] expected_shape := [2, 3]\nparallel\n    tensor<real32>{nat N, N + 1} a := tensor.zeros<real32>([2, 3])\n    tensor<real32>{N, N + 1} b := tensor.ones<real32>()\n    print(b.shape() == expected_shape)\n");
-    good("int64 size := 2\nparallel\n    size = 3\n    tensor<real32>{nat N = nat(size)} a := tensor.zeros<real32>()\n    print(N)\n");
+    good("int64 size := 2\nparallel\n    size = 3\n    tensor<real32>{N := nat(size)} a := tensor.zeros<real32>()\n    print(N)\n");
     llvm_contains("parallel\n    tensor<real32>{nat N, N + 1} value := tensor.zeros<real32>([2, 3])\n    print(value.shape()[0])\n", "define void @quidra_drop_tensor_real32_");
     bad_code("parallel\n    print(int(1))\n    print(int(2))\n", "PARALLEL_CONFLICT");
     bad_code("void f()\n    parallel\n        return\n", "PARALLEL_CONTROL");
@@ -4479,12 +4479,12 @@ nat b := twice(nat(4))
              if (literal == "10") accepted = integer;
              else if (literal == "-10" || literal == "-0") accepted = integer && !natural;
              else if (literal == "10.0") accepted = !integer;
-             const auto source = kind + " value = " + literal + "\n";
+             const auto source = kind + " value := " + literal + "\n";
              if (accepted) good(source);
              else bad_code(source, "NUMERIC_FAMILY");
              // The same rows inside an if-expression of literals.
              const auto conditional =
-                 "bool ready := true\n" + kind + " value = (if ready then " + literal + " else " +
+                 "bool ready := true\n" + kind + " value := (if ready then " + literal + " else " +
                  literal + ")\n";
              if (accepted) good(conditional);
              else bad_code(conditional, "NUMERIC_FAMILY");
@@ -8223,8 +8223,8 @@ print(NL)
  // Every complex kind is numeric; none has relational ordering.
  for(const auto* kind:{"com16","com16b","com32","com64","com"}){
      const std::string name=kind;
-     good("T identity<T: numeric>(T value)\n    return value\n"+name+" z = 1.0 + 2.0i\n"+name+" result = identity(z)\n");
-     bad_code("T identity<T: ordered>(T value)\n    return value\n"+name+" z = 1.0 + 2.0i\n"+name+" result = identity(z)\n","GENERIC_CONSTRAINT");
+     good("T identity<T: numeric>(T value)\n    return value\n"+name+" z := 1.0 + 2.0i\n"+name+" result := identity(z)\n");
+     bad_code("T identity<T: ordered>(T value)\n    return value\n"+name+" z := 1.0 + 2.0i\n"+name+" result := identity(z)\n","GENERIC_CONSTRAINT");
  }
  good(R"(int domain<T: numeric>(T value)
     return 1
@@ -8239,10 +8239,10 @@ int real_domain := domain(real16(2.0))
      const std::string from=source;
      const auto literal=from.starts_with("real")?"1.0":"1";
      for(const auto* target:{"nat8","nat16","nat32","nat64","nat","int8","int16","int32","int64","int","real16","real16b","real32","real64","real"})
-         good(from+" source = "+literal+"\n"+target+" converted = "+target+"(source)\n");
+         good(from+" source := "+literal+"\n"+target+" converted := "+target+"(source)\n");
  }
  for(const auto* source:{"com16","com16b","com32","com64","com"})
-     bad_code(std::string(source)+" z = 1.0 + 0.0i\nreal64 scalar = real64(z)\n","NUMERIC_CAST");
+     bad_code(std::string(source)+" z := 1.0 + 0.0i\nreal64 scalar := real64(z)\n","NUMERIC_CAST");
  // Collection reference aliases use the container's binding proof; their
  // element loads still check element initialization at run time.
  good("void double_all(int[] &values)\n    for &value := &values[]\n        value = value * 2\nint[] values := [1, 2]\ndouble_all(&values)\n");

@@ -776,12 +776,12 @@ fi
 
 for uninitialized_use in 'tensor<real32> ignored := -mixed' 'real32 ignored := mixed[0].item()' 'tensor<real32> ignored := -partial[1:<5:2]'; do
     cat > "$TMP/gpu-materialize-uninitialized.qui" <<QUI
-tensor<real32> partial = tensor<real32>([6], gpu = 0)
+tensor<real32> partial := tensor<real32>([6], gpu = 0)
 partial[0] = real32(1)
 partial[2] = real32(3)
 partial[3] = real32(4)
 partial[4] = real32(5)
-tensor<real32> mixed = partial[1:<5:2].contiguous()
+tensor<real32> mixed := partial[1:<5:2].contiguous()
 $uninitialized_use
 QUI
     expect_runtime_error "$TMP/gpu-materialize-uninitialized.qui" "uninitialized"
@@ -829,11 +829,11 @@ fi
 
 for uninitialized_use in 'real32 ignored := holes[1].item()' 'tensor<real32> ignored := -holes'; do
     cat > "$TMP/gpu-gather-uninitialized.qui" <<QUI
-tensor<real32> partial = tensor<real32>([6], gpu = 0)
+tensor<real32> partial := tensor<real32>([6], gpu = 0)
 partial[0] = real32(1)
 partial[2] = real32(3)
 partial[4] = real32(5)
-tensor<real32> holes = partial.gather([0, 3], [2])
+tensor<real32> holes := partial.gather([0, 3], [2])
 $uninitialized_use
 QUI
     expect_runtime_error "$TMP/gpu-gather-uninitialized.qui" "uninitialized"

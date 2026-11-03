@@ -23,7 +23,7 @@ fails_with() {
     grep -qF "$message" "$file.err"
 }
 
-# Values: a `nat N` axis is the extent, `nat N = EXPR` its expression, and a
+# Values: a `nat N` axis is the extent, `N := EXPR` its expression, and a
 # bare name an existing value; shape variables are nat.
 cat > "$TMP/values.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
@@ -33,9 +33,9 @@ tensor<real32>{nat R, nat W} d := make(2, 3)
 print("{R} x {W}{NL}")
 nat rows := 4
 nat cols := 5
-tensor<real32>{nat H = rows * cols, nat C} img := make(20, 3)
+tensor<real32>{H := rows * cols, nat C} img := make(20, 3)
 print("{H} {C}{NL}")
-tensor<real32>{nat M = 2 * N, nat N} pair := make(4, 2)
+tensor<real32>{M := 2 * N, nat N} pair := make(4, 2)
 print("{M} {N}{NL}")
 tensor<real32>{nat K, K} square := make(3, 3)
 print(int(K) - 4)
@@ -65,7 +65,7 @@ tensor<real32> make(nat a, nat b)
 nat rows := 4
 nat cols := 5
 nat unit := nat(tensor.ones<real32>([]).item())
-tensor<real32>{nat H = rows * cols, nat W} img := make(unit * 21, 3)
+tensor<real32>{H := rows * cols, nat W} img := make(unit * 21, 3)
 QUI
 fails_with "$TMP/named.qui" SHAPE_MISMATCH "shape variable 'H' is 20, but axis 0 of 'img' is 21"
 
@@ -179,7 +179,7 @@ QUI
 
 # The formatter writes braces next to the element type and spaces axis
 # expressions as expressions.
-printf 'tensor<real32> { nat N ,nat L=N+1 , _ }  x = f()\n' > "$TMP/format.qui"
+printf 'tensor<real32> { nat N ,L:=N+1 , _ }  x:=f()\n' > "$TMP/format.qui"
 "$QUIDRA" fmt "$TMP/format.qui"
-[[ "$(cat "$TMP/format.qui")" == 'tensor<real32>{nat N, nat L = N + 1, _} x = f()' ]]
+[[ "$(cat "$TMP/format.qui")" == 'tensor<real32>{nat N, L := N + 1, _} x := f()' ]]
 "$QUIDRA" fmt "$TMP/format.qui" --check

@@ -2230,6 +2230,11 @@ status = "error:GENERIC_ARITY"
 sha256 = "5a68d88801016ed85f33e4b021cb92e68bae245872ae26f51dac2c4dec675553"
 
 [[entry]]
+name = "compiler_tests/bad_code-7e8996b384aca39c.qui"
+status = "error:SHAPE_VARIABLE"
+sha256 = "bd04bb6cdb3afb882b2710432d200f243a02d3ab4734526ff54f519a4cb887d0"
+
+[[entry]]
 name = "compiler_tests/bad_code-7ee3c3dd63ba31ab.qui"
 status = "error:WRITE_CAPABILITY"
 sha256 = "5782d28bcbe17940ce4e60a023ebf0bfc6a5b7f847e50c56c50d399734cf2eb6"
@@ -2473,11 +2478,6 @@ sha256 = "7d26b5f8251849b9aa9657de50b5d8c51edf9ac7b7ac7385b17465a3a4dbf0ac"
 name = "compiler_tests/bad_code-97b9e39423460f01.qui"
 status = "error:MATCH_EXHAUSTIVE"
 sha256 = "a8ad5b3835197ba285f2c69119d2426f83d50eb9f4e88705f155913bee07ad77"
-
-[[entry]]
-name = "compiler_tests/bad_code-97cffbbd9e83435d.qui"
-status = "error:SHAPE_VARIABLE"
-sha256 = "125df9f4cf45ed47cf37d0d2a12391eef99987c78f5f03d1cc22ec3153bf89e9"
 
 [[entry]]
 name = "compiler_tests/bad_code-97d92ab80cc80ff8.qui"
@@ -2813,11 +2813,6 @@ sha256 = "03a129c65ed1379ac9c6742a47471b0a008e38904b3660db672cc56b69c24c13"
 name = "compiler_tests/bad_code-ba8aaa61ff219cd7.qui"
 status = "error:ARRAY_COMPREHENSION"
 sha256 = "8c1719dba1cf3ccc3347af6be4a842ee4576dce526804b70288acca1ab3e0dc1"
-
-[[entry]]
-name = "compiler_tests/bad_code-bacc243c540a7e11.qui"
-status = "error:DISCARD"
-sha256 = "4c9df15d3f2ec74c4bf9dfcde9cd891d031291f94fab230ba99235f5224309ee"
 
 [[entry]]
 name = "compiler_tests/bad_code-bafffdba4db94df6.qui"
@@ -3175,6 +3170,11 @@ status = "error:TYPE_MISMATCH"
 sha256 = "6a4616c35c581aab1c59c09fb3f231adfe01dbf5f6d6f79c9ce5ffad6048b66d"
 
 [[entry]]
+name = "compiler_tests/bad_code-e409c011bc51d1b3.qui"
+status = "error:DISCARD"
+sha256 = "f9c990ac64512ffc478296536e21e14214fa22f206829287b3aa09c077b58aec"
+
+[[entry]]
 name = "compiler_tests/bad_code-e46dffacec6f1d21.qui"
 status = "error:SHAPE_VARIABLE"
 sha256 = "e7f0d754656b6b9b59f19a254584ee99ff7e20306a7436d48b35bedd4902c313"
@@ -3505,14 +3505,14 @@ status = "error:TYPE_MISMATCH"
 sha256 = "e8826673a333f08785ab0b026a4a685baec9eb115d98d3d3c36931f299052916"
 
 [[entry]]
-name = "compiler_tests/bad_message-0ef797c5d9b611ce.qui"
-status = "error:SHAPE_VARIABLE"
-sha256 = "afcdc592ebf07246e7dc6e0f7028a54d85273bae07372d83c0cd21e17ee07f7b"
-
-[[entry]]
 name = "compiler_tests/bad_message-0f94e802cd9fd5a8.qui"
 status = "error:NUMERIC_FAMILY"
 sha256 = "7685aae1912beffb9365e924ac2af0d99c039961127c54f0eb2177749ac3ee75"
+
+[[entry]]
+name = "compiler_tests/bad_message-100e60f37540f0b5.qui"
+status = "error:SHADOWING"
+sha256 = "d1a785e9dd79db25564a60e634bb654e68c43a846187a952e67921992aa2a9dc"
 
 [[entry]]
 name = "compiler_tests/bad_message-1144348530762d25.qui"
@@ -3528,11 +3528,6 @@ sha256 = "6302715280c9e08581b67ab0293ec9bd3ad7873249ad84538557de6cdfcf5d17"
 name = "compiler_tests/bad_message-124eace8ec59b09b.qui"
 status = "error:DISCARD"
 sha256 = "acd52ca0c2962dccc891f4d6f50b5f1044a5f61d7b9df83d9f256637fb88dbb3"
-
-[[entry]]
-name = "compiler_tests/bad_message-13f0cbf83079cb38.qui"
-status = "error:CONST_REFERENCE"
-sha256 = "91d665536ed9bfd8914b9587a340d5c692010d325a663117b7810a7b923ebe59"
 
 [[entry]]
 name = "compiler_tests/bad_message-1440d85d64bb9cb7.qui"
@@ -3585,6 +3580,11 @@ status = "error:CHAINED_COMPARISON"
 sha256 = "49111873d7412079918a78f3a1c408741bd41e4e5474f4c800e0dd3d2a92dd88"
 
 [[entry]]
+name = "compiler_tests/bad_message-1e664c8a38e4ad3c.qui"
+status = "error:SHAPE_VARIABLE"
+sha256 = "71f6235c1e84c574c504b2eb49a175091a1332f3b0f923a7c9eb8073a449c189"
+
+[[entry]]
 name = "compiler_tests/bad_message-1f887b4cb48108c8.qui"
 status = "error:SLICE_ASSIGNMENT"
 sha256 = "08ac53799c86ea91705e7eba7e1b78eb3677722e0cf76f433b296a7f946008cd"
@@ -3598,6 +3598,16 @@ sha256 = "c64780316c5fa35d634427dcff27bc389ccecc29f3b069f0a176d38b46c3b9a7"
 name = "compiler_tests/bad_message-20cbd4b675bfc814.qui"
 status = "error:UNINITIALIZED"
 sha256 = "33f811a802ec4bfd6c611d6882258a11468fc0e94c20bf72bb3f8fdc636089a6"
+
+[[entry]]
+name = "compiler_tests/bad_message-211b7221dbd0952c.qui"
+status = "error:CONST_REFERENCE"
+sha256 = "f26f128cd316d32befad2d80b1e42ba9e495123f13ff3280a98bf2436a339a3a"
+
+[[entry]]
+name = "compiler_tests/bad_message-236120cf5ffce517.qui"
+status = "error:CONST_REFERENCE"
+sha256 = "8322dfa025bf1b0e83ff724830aec1cd61c303513a1795868812e7efefc49f32"
 
 [[entry]]
 name = "compiler_tests/bad_message-24e0eb81959b1fe9.qui"
@@ -3715,6 +3725,11 @@ status = "error:DISCARD"
 sha256 = "950d2b11a8f297f5e97873a4976eadf3cf82d66f5af6bd4f337af3eb0a1ebe78"
 
 [[entry]]
+name = "compiler_tests/bad_message-48429944a239eb0a.qui"
+status = "error:SHAPE_VARIABLE"
+sha256 = "4f0a5c455abdfec55a18de26f7270444dcd920312412aac663a934c2611ae5c1"
+
+[[entry]]
 name = "compiler_tests/bad_message-48a427a1577b01af.qui"
 status = "error:SLICE_STEP"
 sha256 = "c93873b7c7083d448f1f9abb8ab94bd6e8fa00dadc5e1aaccc7553f96ee99396"
@@ -3813,11 +3828,6 @@ sha256 = "097364ca41bc2c2a7fd01674a2b65bdd291529a63d4ca9993d679935edbb3a2c"
 name = "compiler_tests/bad_message-61fd6931748f234e.qui"
 status = "error:MUTATION_MARKER"
 sha256 = "45c83a037c29f51d534d812ad82f66920b64ee5027b5ab160517cad3962d1249"
-
-[[entry]]
-name = "compiler_tests/bad_message-623a22b6e3217377.qui"
-status = "error:SHADOWING"
-sha256 = "6ad553ca39ae51cee4a1dac7771adc620acf652b3ff61fdd62e11831affaead3"
 
 [[entry]]
 name = "compiler_tests/bad_message-62fa1fb44f5b9eef.qui"
@@ -4240,11 +4250,6 @@ status = "error:MUTATION_MARKER"
 sha256 = "7926a9018f12c1527156e9d836127e71d40555f414f26e7a678b06a0d93ade41"
 
 [[entry]]
-name = "compiler_tests/bad_message-bf2f70626f7f8a6a.qui"
-status = "error:CONST_REFERENCE"
-sha256 = "cc02a3855c28751caa9e333395ae8cd986fcac4e4126a0d96d024da643f6790b"
-
-[[entry]]
 name = "compiler_tests/bad_message-c13d92bd1201850f.qui"
 status = "error:SHAPE_VARIABLE"
 sha256 = "992bbc0d0f8846b625db7c950f667706dbe7d8dc0ace0779ceb428ec2bd32343"
@@ -4368,11 +4373,6 @@ sha256 = "2a04f18c6d2184a6a207d36494aa524296f2105794c696ef52c9e18ac152cbf1"
 name = "compiler_tests/bad_message-e01399385df486a6.qui"
 status = "error:PROTOTYPE_MISMATCH"
 sha256 = "a790330d25ba5d07497b3b70ba87119b450e36ed078c0668bf5d82e80cba785c"
-
-[[entry]]
-name = "compiler_tests/bad_message-e03fa910ff227d7a.qui"
-status = "error:SHAPE_VARIABLE"
-sha256 = "3ef86c4cbba0908d6c22d7b43ed00ea4dcf846c1665acb12cca53ac70e2fe147"
 
 [[entry]]
 name = "compiler_tests/bad_message-e048d2cbe614e7bf.qui"
@@ -4640,6 +4640,11 @@ status = "ok"
 sha256 = "8188bc313198e17a17acd7376b90991f7d6e147b90daf2405f54492d57f6dc98"
 
 [[entry]]
+name = "compiler_tests/good-0ad412175e066d50.qui"
+status = "ok"
+sha256 = "ddffb21bbc990a55f7297a75259e8914a590594c4f887c29bb3e6fe5b6c0cd2e"
+
+[[entry]]
 name = "compiler_tests/good-0ae6f6b0b8360d4f.qui"
 status = "ok"
 sha256 = "6fc3d8374f39d8928686110feec7fec81c53a0629734d4ff3fa1dff4b179aef1"
@@ -4798,11 +4803,6 @@ sha256 = "3f4c273e77310b4f2ebbf93aec6d3ebfce9730cbced17f68dc18d2b8b551c381"
 name = "compiler_tests/good-164417ac52d2bfa2.qui"
 status = "ok"
 sha256 = "2a375b89bfe0c76d761f520dfb69cf6a8d27447a6322f1ca79559e52d5af26ed"
-
-[[entry]]
-name = "compiler_tests/good-16b7bde1cc5f21b3.qui"
-status = "ok"
-sha256 = "82eff62acf5fc3037db384c40274090eff934923e73c5491474553f9281a2e7e"
 
 [[entry]]
 name = "compiler_tests/good-17c9e708e2a0f631.qui"
@@ -5175,6 +5175,11 @@ status = "ok"
 sha256 = "d3a28c216231b20a50c1c1786128dc7c5482bdca672b0060be3c392d72fa7d4a"
 
 [[entry]]
+name = "compiler_tests/good-35c81d054e4094b1.qui"
+status = "ok"
+sha256 = "8fac92d90c4688f1906ba6ca8df7975ec354c7bf97349fc87db716a18e859353"
+
+[[entry]]
 name = "compiler_tests/good-36604eda7a61ed7f.qui"
 status = "ok"
 sha256 = "cf01d79420dfad2546db742e41de646dc995b789bdddd8a74eeeaf053bf32bff"
@@ -5195,11 +5200,6 @@ status = "ok"
 sha256 = "5f54fbd0a6fd86694768fbf47a2a91831c98afc1a8aa87c62cb651ac8789fd17"
 
 [[entry]]
-name = "compiler_tests/good-377f8d070c50f846.qui"
-status = "ok"
-sha256 = "b713ee4ddd5ed16296501e5b87404c52df0bf860513765e64e295a90ce1a232c"
-
-[[entry]]
 name = "compiler_tests/good-37b8d789fc684575.qui"
 status = "ok"
 sha256 = "41dbcb46dc33b61882ba66d68b06658b571655e8290f53d198184daef6841b47"
@@ -5218,11 +5218,6 @@ sha256 = "2c8bfa3497df522ed7e0687dade21a97a4c0bdd7f3b67200850ebc510b3ac794"
 name = "compiler_tests/good-37c875194a5ae924.qui"
 status = "ok"
 sha256 = "df413549977ee220a2df88516b1703ca2171b5cf7e27945f72fb8d1da6108715"
-
-[[entry]]
-name = "compiler_tests/good-37f85eeab026a15c.qui"
-status = "ok"
-sha256 = "68c3df37d074fcef8f1d81f1d93ec77f3ef00da55ac188a5307e68bfea602221"
 
 [[entry]]
 name = "compiler_tests/good-389b5197022b8e76.qui"
@@ -6200,11 +6195,6 @@ status = "ok"
 sha256 = "56775dec55716fcf688ee6cc204c725d0f53d4431dbb50b7658ce858200d9af7"
 
 [[entry]]
-name = "compiler_tests/good-89ab28dbb9a7ad2e.qui"
-status = "ok"
-sha256 = "a055e7959fbc6b9098057ea6b85f29344911af890c0febf9f5a8df8b9cc830af"
-
-[[entry]]
 name = "compiler_tests/good-8a33e0e337bf193e.qui"
 status = "ok"
 sha256 = "72de3ee932b5fedaae325d9c9fbf96f788eff6362b850bfdff4db760bf2fbd6c"
@@ -6590,11 +6580,6 @@ status = "ok"
 sha256 = "fb063782771ded652f64412eed751a1ba335a3c2b2ceb397f331778dda7cf068"
 
 [[entry]]
-name = "compiler_tests/good-aa0875199378c366.qui"
-status = "ok"
-sha256 = "2114d7e033da4cf9d7462689b8d6e3a8ddb382591f4b0af21362c42a0390e8cf"
-
-[[entry]]
 name = "compiler_tests/good-aa138b35c23f9307.qui"
 status = "ok"
 sha256 = "71d9b729f97f83b3848c20a7b1002a5811256fa4e6af814a8e7e941790fe8f11"
@@ -6800,6 +6785,11 @@ status = "ok"
 sha256 = "a4c7a0f22f68444e66cdd3bcec3b1d1540ab21d58c9b3ecaaeeb6300bb8096c7"
 
 [[entry]]
+name = "compiler_tests/good-bc2aec3702df4508.qui"
+status = "ok"
+sha256 = "158e960c696005fff6d93bb89065cd285cc3b88246db5f42534a5dfe642b9eaa"
+
+[[entry]]
 name = "compiler_tests/good-bcaa3f1b31cc66b3.qui"
 status = "ok"
 sha256 = "2ac524b98bc89e7714795f25d3f6ea9f82a0f20ccf07780079cf9c4743ea4547"
@@ -6903,6 +6893,11 @@ sha256 = "010594cf78d7d23ee24f16c8b23abd6811199f7b719d23ce4ba8ff5d26d5a97d"
 name = "compiler_tests/good-c22d1857708c248d.qui"
 status = "ok"
 sha256 = "0cc35abc1246038ccc34d275f8e9cdc2047409d905ba60429f11ba2296292952"
+
+[[entry]]
+name = "compiler_tests/good-c24efabd3fd63732.qui"
+status = "ok"
+sha256 = "cf9d29465eebe8b8fd02410d3bc63f1f7f9555cba53965d7ab50d46416baaad8"
 
 [[entry]]
 name = "compiler_tests/good-c253cf85c2587696.qui"
@@ -7723,6 +7718,11 @@ sha256 = "9d22647f5eb5a4fca010a102c0d5f4b6640982403fbf52b934223302fa06fc50"
 name = "compiler_tests/good-fdd1222dec36911a.qui"
 status = "ok"
 sha256 = "fe836c2c27c9abea24ce63635e56855f4c7c66bf605dc650b078d092f1b7326b"
+
+[[entry]]
+name = "compiler_tests/good-fdf12eb7dc7d2378.qui"
+status = "ok"
+sha256 = "c57f4e79869fa28714932d6a7ead02064779ae384575bb7a08dab352642bb122"
 
 [[entry]]
 name = "compiler_tests/good-fe67e7230bcf91a2.qui"
@@ -9182,7 +9182,7 @@ sha256 = "53616c6ea40593f538dc9e6c218113a5e67afb9393d993a2ada88010aa82fe66"
 [[entry]]
 name = "docs/language-49.qui"
 status = "ok"
-sha256 = "6b67950b391d4e2dc9239442acff223d176dd06744bce6f2843ca5021c951f91"
+sha256 = "ad2d1f5a6792b6a4474a9630d1f67cd8456a2537e7e1a5b03d728e734bc15a7e"
 
 [[entry]]
 name = "docs/language-5.qui"
@@ -9332,7 +9332,7 @@ sha256 = "94464115a75fdeb3c8d4eac241508e72b642791d24cbd921b8ea9d875d1e7c85"
 [[entry]]
 name = "examples/classes.qui"
 status = "ok"
-sha256 = "6204a3879d46fadd1b854b72581438b482a2945e52879fae1dbd7408b556d607"
+sha256 = "8bead5d7d09451a42b75aa2534fbf1b07f86a067a62ff391fb91f8611535c7de"
 
 [[entry]]
 name = "examples/cli.qui"
@@ -9407,7 +9407,7 @@ sha256 = "7763f925c498d4071660568e9054750119ab9c4eb9cea6820de11700577f1a09"
 [[entry]]
 name = "examples/strings.qui"
 status = "ok"
-sha256 = "029a8a4e4a7a5d989eab4863c7b16da384af38a26a0f77267058dca9c1cd75c6"
+sha256 = "5aab1fd543c115cd704276379a1afbef60751daa16053eb176741ff77e6cc01e"
 
 [[entry]]
 name = "examples/value_objects.qui"
@@ -12192,7 +12192,7 @@ sha256 = "ab2818b8ca74fbad0e73777f6d0ab925e116d67974b83a1743e83df64e12c031"
 [[entry]]
 name = "heredoc/shape_variable_tests/named.qui"
 status = "ok"
-sha256 = "e1db65321c7670832bfda15a5e823f92f643961b6132942bc31e2173277b60c4"
+sha256 = "e74506912b7a2921ade8bdb42dfed8e6894424e07f40d785c730388fc9bbd923"
 
 [[entry]]
 name = "heredoc/shape_variable_tests/negative.qui"
@@ -12227,7 +12227,7 @@ sha256 = "f2b89deeecc258289423138f26be877dcc5c48144908d38b08d37a8d909fe07f"
 [[entry]]
 name = "heredoc/shape_variable_tests/values.qui"
 status = "ok"
-sha256 = "d0254b23aad08ee8a5940421ead793a501ebefa2fcc43ebfee169d9298416247"
+sha256 = "321f42c01413cfe547fb015367e1c9eeb22c99ba03b833413837188de829325e"
 
 [[entry]]
 name = "heredoc/slice_direction_tests/direction.qui"

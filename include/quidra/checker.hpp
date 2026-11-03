@@ -147,7 +147,7 @@ struct ShapeVariable {
     std::string name;
     // The axis that declares it.
     std::size_t axis{};
-    // `nat N = EXPR`: the expression; null for `nat N`, whose value is the
+    // `N := EXPR`: the expression; null for `nat N`, whose value is the
     // axis's extent.
     const Expr* value{};
     // Something reads it (a body, an axis expression, an equality axis, a
@@ -159,7 +159,7 @@ enum class ShapeAxisCheck : std::uint8_t {
     // `_`, and the declaring axis of `nat N`: nothing to check.
     None,
     // The axis equals the value of `value`: a literal, an unnamed
-    // expression, the expression of `nat N = EXPR` or the bare name of an
+    // expression, the expression of `N := EXPR` or the bare name of an
     // existing nat value.
     Value,
     // The axis equals the shape variable `variable` of the same shape: a
@@ -179,10 +179,10 @@ struct ShapeAxisPlan {
     bool after_initializer{};
     std::vector<std::size_t> dependencies;
     // The shape variable the axis is checked against, named in the failure:
-    // the unit's own (Variable, and Value for `nat N = EXPR`) or an existing
+    // the unit's own (Variable, and Value for `N := EXPR`) or an existing
     // shape variable named bare; empty for other values.
     std::string variable;
-    // Variable, and Value for `nat N = EXPR`: the index into variables.
+    // Variable, and Value for `N := EXPR`: the index into variables.
     std::size_t variable_index{};
     // The extent is a compile-time constant (also folded into the type's
     // tensor_shape_prefix).
@@ -196,7 +196,7 @@ struct ShapePlan {
     // align with the tail. The omitted middle contains zero or more axes.
     std::optional<std::size_t> ellipsis{};
     // The axes whose expression is evaluated after the initializer (a
-    // `nat N = EXPR` or an unnamed expression over the shape's own
+    // `N := EXPR` or an unnamed expression over the shape's own
     // variables), in dependency order, left to right among independent ones.
     std::vector<std::size_t> after_order;
     // A match case whose selection depends on run-time tests (an equality

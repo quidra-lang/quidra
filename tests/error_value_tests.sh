@@ -495,7 +495,7 @@ accepts() {
 code_row() {
     local name=$1 spelled=$2
     rejects "code-$name" ERROR_CODE <<QUI
-error e = error("x", code = $spelled)
+error e := error("x", code = $spelled)
 QUI
 }
 code_row variable 'spelling'

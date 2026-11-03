@@ -486,7 +486,7 @@ for method in transpose contiguous gather scatter device is_contiguous is_tracke
     rejects "tensor-$method-collision" EXTENSION_COLLISION <<QUI
 int $method(extend tensor<real32> value)
     return 0
-tensor<real32> value = tensor.ones<real32>([2])
+tensor<real32> value := tensor.ones<real32>([2])
 print(value.$method())
 QUI
 done

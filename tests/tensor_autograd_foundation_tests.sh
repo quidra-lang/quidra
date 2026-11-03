@@ -475,7 +475,7 @@ for transform in contiguous indexing; do
             ;;
     esac
     cat > "$TMP/tracked-transform.qui" <<QUI
-tensor<real32> tracked = tensor.ones<real32>([2, 2]).track()
+tensor<real32> tracked := tensor.ones<real32>([2, 2]).track()
 $body
 QUI
     set +e
@@ -546,8 +546,8 @@ fi
 
 for removed_reduction in sum mean sum_last max_last min_last; do
     cat > "$TMP/removed-reduction.qui" <<QUI
-tensor<real32> value = tensor.ones<real32>([1, 2])
-tensor<real32> invalid = value.${removed_reduction}()
+tensor<real32> value := tensor.ones<real32>([1, 2])
+tensor<real32> invalid := value.${removed_reduction}()
 QUI
     set +e
     "$QUIDRA" check "$TMP/removed-reduction.qui" >"$TMP/removed-reduction.out" 2>"$TMP/removed-reduction.err"
@@ -787,7 +787,7 @@ for transform in contiguous index; do
             ;;
     esac
     cat > "$TMP/tracked-transform.qui" <<QUI
-tensor<real32> value = tensor.ones<real32>([1, 2]).track()
+tensor<real32> value := tensor.ones<real32>([1, 2]).track()
 $body
 print(changed.shape()[0])
 print(NL)

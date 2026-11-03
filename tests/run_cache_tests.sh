@@ -247,7 +247,7 @@ printf '#warning "replayed toolchain warning"\nlong long wp_value(void) { return
     > "$TMP/warnpk/wp/native/bridge.c"
 printf 'import wp = wp\nprint(wp.value())\nprint(NL)\n' > "$TMP/e9/main.qui"
 mkdir -p "$TMP/e10"
-printf 'int x = "text"\nprint(x)\n' > "$TMP/e10/main.qui"
+printf 'int x := "text"\nprint(x)\n' > "$TMP/e10/main.qui"
 
 # Other drivers: other wrapper directories, and two found by discovery on
 # PATH under the name discovery looks for.
@@ -334,7 +334,7 @@ native_row 5 "manifest" \
     'edit "$package/quidra.package" "s/version = 0.1.0/version = 0.1.1/"' 42
 native_row 6 "project.toml created" \
     'printf "[package]\nname = \"np\"\nimport = \"np\"\ndisplay_name = \"NP\"\nversion = \"0.1.0\"\nrepository = \"https://example.invalid/np\"\n" > "$package/project.toml"' 42
-native_row 7 "shadowing header (K12)" \
+native_row 7 "shadowing header := shadowing(K12)" \
     'mkdir -p "$package/native/quidra" && cp "$ROOT/include/quidra/native_extension.h" "$package/native/quidra/"' 42
 
 expect "K14 include tree" build a env QUIDRA_NATIVE_INCLUDE_DIR="$ROOT/include" "$QUIDRA" "$TMP/e1copy/main.qui"
@@ -474,7 +474,7 @@ set -e
 [[ "$status" == 1 && "$uncached_status" == 1 ]] || fail "a compile error exits 1"
 cmp -s "$TMP/error.err" "$TMP/error-uncached.err" || fail "a compile error prints what it prints uncached"
 [[ "$(entries)" == "$count" ]] || fail "a compile error stores nothing"
-printf 'int x = 7\nprint(x)\n' > "$TMP/e10/main.qui"
+printf 'int x := 7\nprint(x)\n' > "$TMP/e10/main.qui"
 expect "compile error fixed" build 7 "$QUIDRA" "$TMP/e10/main.qui"
 
 set +e

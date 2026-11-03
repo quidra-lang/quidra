@@ -461,13 +461,14 @@ std::string range_json(std::string_view source,SourceSpan span) {
 }
 
 std::string source_type_name(const TypeName& type,std::string_view source) {
+    if(type.name=="auto"||type.name.empty()) return "inferred type";
     const auto start=std::min(type.span.start.offset,source.size());
     const auto end=std::min(type.span.end.offset,source.size());
     if(end>start) {
         auto text=trim(std::string(source.substr(start,end-start)));
         if(!text.empty()) return text;
     }
-    return type.name.empty()?"auto":type.name;
+    return type.name;
 }
 
 std::string parameter_label(const FunctionParameterType& parameter) {
@@ -721,8 +722,10 @@ std::optional<SourceSpan> local_definition(
             if constexpr(std::is_same_v<T,BindingStmt>)if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.kind==Pattern::Kind::Declare && p.name==name)if(auto found=identifier_span(tokens,p.span,name);found && found->start.offset<=offset)result=found;});
             if constexpr(std::is_same_v<T,BindingStmt>) {
                 if(node.name==name) {
+                    const auto type_end=node.declared_type.name=="auto"
+                        ? statement->span.start.offset : node.declared_type.span.end.offset;
                     const auto found=identifier_span(
-                        tokens,statement->span,name,node.declared_type.span.end.offset);
+                        tokens,statement->span,name,type_end);
                     if(found&&found->start.offset<=offset) result=found;
                 }
             } else if constexpr(std::is_same_v<T,IfStmt>) {
@@ -740,12 +743,12 @@ std::optional<SourceSpan> local_definition(
             } else if constexpr(std::is_same_v<T,ForStmt>) {
                 if(body_contains(node.body,offset)) {
                     if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.kind==Pattern::Kind::Declare && p.name==name)if(auto found=identifier_span(tokens,p.span,name))result=found;});
-                    if(node.name==name) {
+                    if(node.declares&&node.name==name) {
                         if(auto found=identifier_span(tokens,statement->span,name))
                             result=found;
                     }
                     for(const auto& binding:node.collections)
-                        if(binding.name==name)
+                        if(binding.declares&&binding.name==name)
                             if(auto found=identifier_span(tokens,binding.span,name)) result=found;
                     if(auto nested=local_definition(node.body,name,offset,tokens)) result=nested;
                 }
@@ -856,9 +859,9 @@ void add_local_completions(
             } else if constexpr(std::is_same_v<T,ForStmt>) {
                 if(body_contains(node.body,offset)) {
                     if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.kind==Pattern::Kind::Declare)out.push_back({p.name,6,p.type?source_type_name(*p.type,source):"loop binding"});});
-                    else out.push_back({node.name,6,"loop binding"});
+                    else if(node.declares&&node.name!="_") out.push_back({node.name,6,"loop binding"});
                     for(const auto& binding:node.collections)
-                        if(binding.name!="_") out.push_back({binding.name,6,"loop binding"});
+                        if(binding.declares&&binding.name!="_") out.push_back({binding.name,6,"loop binding"});
                     add_local_completions(out,node.body,offset,source);
                 }
             } else if constexpr(std::is_same_v<T,MatchStmt>) {
@@ -1128,7 +1131,7 @@ bool valid_rename_identifier(std::string_view name) {
         ++identifiers;
     }
     if(identifiers!=1) return false;
-    if(builtin_scalar_type(name)) return false;
+    if(builtin_scalar_type(name)||name=="auto") return false;
     for(const auto& builtin:builtin_callables)
         if(builtin.name==name) return false;
     return true;
@@ -1146,6 +1149,7 @@ bool is_operator_token(TokenKind kind) {
         case TokenKind::Pipe:
         case TokenKind::Ampersand:
         case TokenKind::Assign:
+        case TokenKind::DeclareAssign:
         case TokenKind::PlusAssign:
         case TokenKind::MinusAssign:
         case TokenKind::StarAssign:
@@ -1207,7 +1211,7 @@ int identifier_semantic_type(
     const Program& program,const Token& token,
     const std::vector<Token>& tokens) {
     if(builtin_scalar_type(token.text)||
-       token.text=="auto"||token.text=="void"||token.text=="none"||
+       token.text=="void"||token.text=="none"||
        token.text=="error"||token.text=="never") return 1;
 
     if(const auto* expression=expression_at(program,token.span.start.offset)) {

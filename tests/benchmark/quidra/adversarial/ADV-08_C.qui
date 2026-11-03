@@ -1,8 +1,8 @@
 print("ADV-START")
 print(NL)
 flush()
-int a = 7
-int q = a / 0
+int a := 7
+int q := a / 0
 print("OBS=QUOT:{q}")
 print(NL)
 flush()

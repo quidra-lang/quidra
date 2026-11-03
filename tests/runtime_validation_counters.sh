@@ -10,10 +10,10 @@ export QUIDRA_TEST_FAKE_GPU_COUNT=1
 
 cat > "$TMP/reshape.qui" <<'QUI'
 extern void mark(const string label) = "qcore_counters_mark"
-tensor<real32> values = tensor.ones<real32>([4])
-nat[] shape = [5]
+tensor<real32> values := tensor.ones<real32>([4])
+nat[] shape := [5]
 mark("created")
-tensor<real32> invalid = values.reshape(shape)
+tensor<real32> invalid := values.reshape(shape)
 print("{invalid.shape()[0]}{NL}")
 QUI
 set +e
@@ -30,9 +30,9 @@ grep -Fq 'reshape cannot change the number of elements' "$TMP/reshape.err"
 
 cat > "$TMP/track.qui" <<'QUI'
 extern void mark(const string label) = "qcore_counters_mark"
-tensor<real32> values = tensor.ones<real32>([4])
+tensor<real32> values := tensor.ones<real32>([4])
 mark("created")
-tensor<real32> tracked = values.track()
+tensor<real32> tracked := values.track()
 mark("tracked")
 print("{tracked.untrack()[0].item()}{NL}")
 QUI
@@ -41,10 +41,10 @@ QUIDRA_COUNTERS="$TMP/track.jsonl" "$QUIDRA" run "$TMP/track.qui" >"$TMP/track.o
 
 cat > "$TMP/materialize.qui" <<'QUI'
 extern void mark(const string label) = "qcore_counters_mark"
-tensor<real32> values = tensor.ones<real32>([2, 2], gpu = 0)
+tensor<real32> values := tensor.ones<real32>([2, 2], gpu = 0)
 mark("created")
-tensor<real32> view = values.transpose(0, 1)
-tensor<real32> dense = view.contiguous()
+tensor<real32> view := values.transpose(0, 1)
+tensor<real32> dense := view.contiguous()
 mark("materialized")
 print("{dense.cpu()[0, 0].item()}{NL}")
 QUI

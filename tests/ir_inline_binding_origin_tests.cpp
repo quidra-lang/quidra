@@ -22,19 +22,19 @@ void continuity() {
     std::string program=R"(class Item(int value)
 class Model(Item first, Item second)
 void walk_items(Model input)
-    for auto item = reflect.each<Item>(input)[]
+    for item := reflect.each<Item>(input)[]
         print(item.value)
     return
 void relay(Model input)
     walk_items(input)
-    for auto item = reflect.each<Item>(input)[]
+    for item := reflect.each<Item>(input)[]
         print(item.value)
     return
 void drive(Model input)
     relay(input)
     relay(input)
     return
-Model model = Model(Item(1), Item(2))
+Model model := Model(Item(1), Item(2))
 drive(model)
 )";
     // Authored caller statements supply headroom for the fixed per-caller

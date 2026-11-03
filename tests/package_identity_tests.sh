@@ -10,7 +10,7 @@ IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
 NEXT_MINOR="$MAJOR.$((MINOR + 1)).0"
 
 cat > "$TMP/package/main.qui" <<'QUI'
-const int meaning = 6 * 7
+const int meaning := 6 * 7
 
 int answer()
     return 42

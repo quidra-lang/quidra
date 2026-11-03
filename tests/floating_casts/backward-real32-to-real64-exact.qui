@@ -1,5 +1,5 @@
-tensor<real64> x = tensor.ones<real64>([]).track()
-tensor<real32> y = real32(x)
+tensor<real64> x := tensor.ones<real64>([]).track()
+tensor<real32> y := real32(x)
 (y * real32(1.00000011920928955078125)).backward(&x)
 print(x.grad.item() == real64(1.00000011920928955078125))
 print(NL)

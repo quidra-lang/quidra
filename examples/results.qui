@@ -4,10 +4,10 @@ int | error value(bool valid)
     return error("invalid value")
 
 int | error doubled(bool valid)
-    auto x = try value(valid)
+    x := try value(valid)
     return x * 2
 
-auto | error r = doubled(true)
+int | error r := doubled(true)
 match r
     int
         print.line(r)

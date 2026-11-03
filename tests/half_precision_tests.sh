@@ -22,27 +22,27 @@ fails() {
 }
 
 cat > "$TMP/scalars.qui" <<'QUI'
-real16 a = 0.1
-real16b b = 0.1
+real16 a := 0.1
+real16b b := 0.1
 print("{a} {b}")
 print(NL)
-real16 third = 1.0 / 3.0
-real16b big = 3.0e38
+real16 third := 1.0 / 3.0
+real16b big := 3.0e38
 print("{third} {big} {a + a} {b * b} {-a}")
 print(NL)
-real16 h = 1.5
-real16 one = 1.0
+real16 h := 1.5
+real16 one := 1.0
 print("{h * h - one} {h / one} {h > one} {h == 1.5} {h ^ 2.0}")
 print(NL)
-real16b c = 2.0
+real16b c := 2.0
 print("{c ^ 0.5} {c - 3.0} {c != 2.0}")
 print(NL)
 print("{a:frac=4} {b:sig=3} {h:int=3,frac=1,zero}")
 print(NL)
 print(a.string())
 print(NL)
-real16 tiny = 5.96e-8
-real16 largest = 65504.0
+real16 tiny := 5.96e-8
+real16 largest := 65504.0
 print("{tiny} {largest} {real16(-0.0)}")
 print(NL)
 QUI
@@ -61,13 +61,13 @@ TXT
 
 # Every operation rounds once: the float result of the exact operands.
 cat > "$TMP/rounding.qui" <<'QUI'
-real16 x = 1.0
-real16 eps = 0.000488
-real16 sum = x + eps
+real16 x := 1.0
+real16 eps := 0.000488
+real16 sum := x + eps
 print("{sum} {real32(sum)}")
 print(NL)
-real16b y = 1.0
-real16b small = 0.00390625
+real16b y := 1.0
+real16b small := 0.00390625
 print("{y + small} {real32(y + small)}")
 print(NL)
 QUI
@@ -75,25 +75,25 @@ QUI
 
 # Conversions: exact widening, rounding and range checks when narrowing.
 cat > "$TMP/conversions.qui" <<'QUI'
-real16 h = 0.1
-real64 wide = real64(h)
-real32 single = real32(h)
+real16 h := 0.1
+real64 wide := real64(h)
+real32 single := real32(h)
 print("{wide} {single}")
 print(NL)
-real64 big = 70000.0
-real16 | error narrowed = real16(big)
+real64 big := 70000.0
+real16 | error narrowed := real16(big)
 match narrowed
     real16 value
         print(value)
     error problem
         print(problem)
 print(NL)
-real16b b = real16b(int64(1000001))
-int32 n = 300
-real16 from_int = real16(nat8(200))
+real16b b := real16b(int64(1000001))
+int32 n := 300
+real16 from_int := real16(nat8(200))
 print("{b} {from_int} {real16b(n)}")
 print(NL)
-real value = real(h)
+real value := real(h)
 print(value)
 print(NL)
 QUI
@@ -105,16 +105,16 @@ QUI
 # Exact values immediately above a half midpoint must not be rounded to
 # binary64 first: that would turn them into ties and choose the lower value.
 cat > "$TMP/exact-midpoints.qui" <<'QUI'
-real half_midpoint = 1.0 + 1.0 / 2048.0
-real bfloat_midpoint = 1.0 + 1.0 / 256.0
-real epsilon = 1.0 / (2.0 ^ 60.0)
-real16 h = real16(half_midpoint + epsilon)
-real16b b = real16b(bfloat_midpoint + epsilon)
+real half_midpoint := 1.0 + 1.0 / 2048.0
+real bfloat_midpoint := 1.0 + 1.0 / 256.0
+real epsilon := 1.0 / (2.0 ^ 60.0)
+real16 h := real16(half_midpoint + epsilon)
+real16b b := real16b(bfloat_midpoint + epsilon)
 print("{real64(h)} {real64(b)}")
 print(NL)
-com exact = com(half_midpoint + epsilon) + com(bfloat_midpoint + epsilon) * 1.0i
-com16 hc = com16(exact)
-com16b bc = com16b(exact)
+com exact := com(half_midpoint + epsilon) + com(bfloat_midpoint + epsilon) * 1.0i
+com16 hc := com16(exact)
+com16b bc := com16b(exact)
 print("{real64(hc.real)} {real64(bc.imag)}")
 print(NL)
 QUI
@@ -122,10 +122,10 @@ QUI
 
 # Parsing rounds once and rejects text beyond the range.
 cat > "$TMP/parse.qui" <<'QUI'
-string[] texts = ["0.1", "65504", "65520", "1e-9", "3.0e38", "-2.5"]
-for auto text = texts[]
-    real16 | error h = real16.parse(text)
-    real16b | error b = real16b.parse(text)
+string[] texts := ["0.1", "65504", "65520", "1e-9", "3.0e38", "-2.5"]
+for text := texts[]
+    real16 | error h := real16.parse(text)
+    real16b | error b := real16b.parse(text)
     match h
         real16 value
             print(value)
@@ -152,50 +152,50 @@ TXT
 
 # Overflow and nonzero division by zero produce infinity; NaN remains an error.
 cat > "$TMP/overflow16.qui" <<'QUI'
-real16 big = 60000.0
-real16 two = 2.0
+real16 big := 60000.0
+real16 two := 2.0
 print(big * two)
 QUI
 [[ "$("$QUIDRA" run "$TMP/overflow16.qui")" == "inf" ]]
 cat > "$TMP/divide16b.qui" <<'QUI'
-real16b one = 1.0
-real16b zero = 0.0
+real16b one := 1.0
+real16b zero := 0.0
 print(one / zero)
 QUI
 [[ "$("$QUIDRA" run "$TMP/divide16b.qui")" == "inf" ]]
 cat > "$TMP/nan16.qui" <<'QUI'
-real16 infinity = inf
-real16 zero = 0.0
+real16 infinity := inf
+real16 zero := 0.0
 print(infinity * zero)
 QUI
 fails nan16 NONFINITE_RESULT 'real16 multiplication produced NaN' '3:7'
 cat > "$TMP/nan16b.qui" <<'QUI'
-real16b zero = 0.0
+real16b zero := 0.0
 print(zero / zero)
 QUI
 fails nan16b DIVISION_BY_ZERO 'real16b division by zero' '2:7'
 cat > "$TMP/literal16.qui" <<'QUI'
-real16 bad = 70000.0
+real16 bad := 70000.0
 QUI
 if "$QUIDRA" check "$TMP/literal16.qui" >"$TMP/literal16.err" 2>&1; then exit 1; fi
 grep -q 'error\[REAL_RANGE\]' "$TMP/literal16.err"
 
 # Arrays sort and compare by value.
 cat > "$TMP/arrays.qui" <<'QUI'
-real16[] values = [2.5, -1.0, 0.0, -0.0, 0.1]
-real16[] ordered = values.sorted()
-for auto value = ordered[]
+real16[] values := [2.5, -1.0, 0.0, -0.0, 0.1]
+real16[] ordered := values.sorted()
+for value := ordered[]
     print("{value} ")
 print(NL)
-real16b[] b = [3.0, 1.0]
-real16b[] c = [3.0, 1.0]
+real16b[] b := [3.0, 1.0]
+real16b[] c := [3.0, 1.0]
 print("{b == c} {b.sorted()[0]}")
 print(NL)
-for auto value = values.sorted(descending = true)[]
+for value := values.sorted(descending = true)[]
     print("{value} ")
 print(NL)
-real16b[] signs = [-0.0, 2.0, 0.0, -1.0]
-for auto value = signs.sorted(descending = true)[]
+real16b[] signs := [-0.0, 2.0, 0.0, -1.0]
+for value := signs.sorted(descending = true)[]
     print("{value} ")
 print(NL)
 QUI
@@ -203,29 +203,29 @@ QUI
 
 # CPU tensors: creation, arithmetic per element, casts, item, gradients.
 cat > "$TMP/tensors.qui" <<'QUI'
-tensor<real16> ones = tensor.ones<real16>([3])
-tensor<real16> scaled = (ones + ones) * real16(0.1)
+tensor<real16> ones := tensor.ones<real16>([3])
+tensor<real16> scaled := (ones + ones) * real16(0.1)
 print("{scaled[0].item()} {(scaled / real16(3.0))[1].item()}")
 print(NL)
-tensor<real16b> b = tensor.ones<real16b>([2]) * real16b(0.1)
-tensor<real32> widened = real32(b)
+tensor<real16b> b := tensor.ones<real16b>([2]) * real16b(0.1)
+tensor<real32> widened := real32(b)
 print("{b[0].item()} {widened[0].item()}")
 print(NL)
-tensor<real16> x = (tensor.ones<real16>([1]) * real16(3.0)).track()
-tensor<real16> y = x * x
+tensor<real16> x := (tensor.ones<real16>([1]) * real16(3.0)).track()
+tensor<real16> y := x * x
 y.backward(&x)
 print(x.grad[0].item())
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/tensors.qui")" == "$(printf '0.2 0.06665\n0.1 0.100097656\n6.0')" ]]
 cat > "$TMP/tensor_overflow16.qui" <<'QUI'
-tensor<real16> big = tensor.ones<real16>([2]) * real16(60000.0)
-tensor<real16> twice = big + big
+tensor<real16> big := tensor.ones<real16>([2]) * real16(60000.0)
+tensor<real16> twice := big + big
 print(twice[0].item())
 QUI
 [[ "$("$QUIDRA" run "$TMP/tensor_overflow16.qui")" == "inf" ]]
 cat > "$TMP/tensor_nan16.qui" <<'QUI'
-tensor<real16> infinite = tensor.ones<real16>([2]) * real16(inf)
-tensor<real16> invalid = infinite - infinite
+tensor<real16> infinite := tensor.ones<real16>([2]) * real16(inf)
+tensor<real16> invalid := infinite - infinite
 QUI
 fails tensor_nan16 NONFINITE_RESULT 'tensor<real16> subtraction produced NaN' '2:26'

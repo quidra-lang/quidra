@@ -11,12 +11,12 @@ def main():
     with tempfile.TemporaryDirectory(prefix="quidra-ir-cli-") as directory:
         source = Path(directory) / "geometry.qui"
         source.write_text("""tensor<real32> combine(tensor<real32> first, tensor<real32> second)
-    tensor<real32>{2, 3} left = first
-    tensor<real32>{2, 3} right = second
+    tensor<real32>{2, 3} left := first
+    tensor<real32>{2, 3} right := second
     return left + right
-tensor<real32>{2, 3} first = tensor.zeros<real32>([2, 3])
-tensor<real32>{2, 3} second = tensor.zeros<real32>([2, 3])
-tensor<real32>{2, 3} result = combine(first, second)
+tensor<real32>{2, 3} first := tensor.zeros<real32>([2, 3])
+tensor<real32>{2, 3} second := tensor.zeros<real32>([2, 3])
+tensor<real32>{2, 3} result := combine(first, second)
 print(result.shape()[0])
 """)
 

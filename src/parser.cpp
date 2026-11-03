@@ -432,6 +432,11 @@ bool Parser::looks_like_declaration(bool function) const {
     std::size_t i = current_;
     if (!function && i < tokens_.size() && tokens_[i].kind == TokenKind::KwLocal) ++i;
     if (!function && i < tokens_.size() && tokens_[i].kind == TokenKind::KwConst) ++i;
+    if (!function) {
+        const auto name = i < tokens_.size() && tokens_[i].kind == TokenKind::Ampersand ? i + 1 : i;
+        if (name + 1 < tokens_.size() && tokens_[name].kind == TokenKind::Identifier &&
+            tokens_[name + 1].kind == TokenKind::DeclareAssign) return true;
+    }
     if (!scan_type_lookahead(tokens_, i, 1, max_parse_depth)) return false;
     if (i < tokens_.size() && tokens_[i].kind == TokenKind::Ampersand) ++i;
     // A definition's mutation marker: `void .update()`. A statement such as
@@ -609,6 +614,9 @@ TypeName Parser::type_name() {
         t.span.start=start;t.span.end=consume(TokenKind::RParen,"Expected ')' after tuple type.").span.end;
     } else {
         const auto first = consume(TokenKind::Identifier, "Expected an explicit type.");
+        if (first.text == "auto")
+            throw CompileError(Diagnostic{"INVALID_AUTO",
+                "Use ':=' without a type to infer a binding, or write its explicit type.", first.span});
         t.name = first.text;t.span = first.span;
     }
 
@@ -1095,12 +1103,11 @@ ClassDecl Parser::class_decl() {
     while (!at(TokenKind::RParen)) {
         const bool local = match(TokenKind::KwLocal);
         const bool is_const = match(TokenKind::KwConst);
-        auto type = type_name();
+        auto type = binding_type();
         const bool reference = match(TokenKind::Ampersand);
         reject_const_reference(is_const, reference);
         const auto parameter = consume(TokenKind::Identifier, "Expected class argument name.");
-        ExprPtr value;
-        if (match(TokenKind::Assign)) value = expression();
+        auto value = parameter_default();
         if (!local) fields.push_back(FieldDecl{parameter.text, type, parameter.span, {}, is_const, false, reference});
         parameters.push_back(Parameter{parameter.text, std::move(type), reference, parameter.span, std::move(value), is_const, local});
         if (!match(TokenKind::Comma)) break;
@@ -1159,13 +1166,15 @@ ClassDecl Parser::class_decl() {
             } else if (looks_like_declaration(false) && !at(TokenKind::KwLocal)) {
                 const auto field_start = peek().span.start;
                 const bool is_const = match(TokenKind::KwConst);
-                auto type = type_name();
+                auto type = binding_type();
                 const bool reference = match(TokenKind::Ampersand);
                 reject_const_reference(is_const, reference);
                 const auto field = consume(TokenKind::Identifier, "Expected member name.");
                 ExprPtr value;
                 bool reference_value = false;
-                if (match(TokenKind::Assign)) {
+                if (at(TokenKind::Assign))
+                    error(peek(), "Initialize a member declaration with ':='.");
+                if (match(TokenKind::DeclareAssign)) {
                     reference_value = reference && match(TokenKind::Ampersand);
                     value = expression();
                     if (reference && !reference_value) throw CompileError(Diagnostic{"REFERENCE_BINDING", "Initialize a reference member with an explicit '&' storage reference.", field.span});
@@ -1202,6 +1211,25 @@ ClassDecl Parser::class_decl() {
     return declaration;
 }
 
+TypeName Parser::binding_type() {
+    const auto name_offset = at(TokenKind::Ampersand) ? 1u : 0u;
+    const auto& name = peek(name_offset);
+    if (name.kind != TokenKind::Identifier ||
+        peek(name_offset + 1).kind != TokenKind::DeclareAssign) return type_name();
+
+    TypeName inferred;
+    inferred.name = "auto";
+    inferred.span = {name.span.start, name.span.start};
+    return inferred;
+}
+
+ExprPtr Parser::parameter_default() {
+    if (at(TokenKind::Assign))
+        error(peek(), "Declare a parameter default with ':='; use '=' for a named argument at the call.");
+    if (match(TokenKind::DeclareAssign)) return expression();
+    return {};
+}
+
 FunctionDecl Parser::function_decl() {
     const auto declaration_start = peek().span.start;
     auto result=type_name();auto start=declaration_start;
@@ -1224,10 +1252,10 @@ FunctionDecl Parser::function_decl() {
         if (extension && is_local)
             error(peek(), "An extension receiver is a value or reference, not a local class-generation parameter.");
         const bool is_const=match(TokenKind::KwConst);
-        auto type=type_name();bool write=match(TokenKind::Ampersand);
+        auto type = binding_type(); bool write = match(TokenKind::Ampersand);
         reject_const_reference(is_const,write);
         auto p=consume(TokenKind::Identifier,"Expected parameter name.");
-        ExprPtr value; if(match(TokenKind::Assign)) value=expression();
+        auto value = parameter_default();
         if(extension && value)
             error(peek(), "An extension receiver cannot have a default value.");
         Parameter parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local};
@@ -1269,12 +1297,11 @@ FunctionDecl Parser::external_function_decl() {
     while(!at(TokenKind::RParen)) {
         const bool is_local=match(TokenKind::KwLocal);
         const bool is_const=match(TokenKind::KwConst);
-        auto type=type_name();
+        auto type = binding_type();
         const bool reference=match(TokenKind::Ampersand);
         reject_const_reference(is_const,reference);
         const auto parameter=consume(TokenKind::Identifier,"Expected external parameter name.");
-        ExprPtr default_value;
-        if(match(TokenKind::Assign)) default_value=expression();
+        auto default_value = parameter_default();
         parameters.push_back(Parameter{
             parameter.text,std::move(type),reference,parameter.span,
             std::move(default_value),is_const,is_local});
@@ -1355,7 +1382,7 @@ StmtPtr Parser::statement() {
     if (looks_like_declaration(false)) return binding_stmt();
     if (at(TokenKind::KwLocal)) {
         const auto prefix = tokens_[current_++];
-        if (!pattern_followed_by_assignment()) error(prefix, "local requires a declaration.");
+        if (pattern_assignment() == TokenKind::Eof) error(prefix, "local requires a declaration.");
         auto result = destructuring_stmt();
         auto* binding = std::get_if<BindingStmt>(&result->data);
         if (!binding) error(prefix, "local requires a declaration, not an assignment.");
@@ -1363,7 +1390,7 @@ StmtPtr Parser::statement() {
         result->span.start = prefix.span.start;
         return result;
     }
-    if (pattern_followed_by_assignment()) return destructuring_stmt();
+    if (pattern_assignment() != TokenKind::Eof) return destructuring_stmt();
     if (at(TokenKind::Ampersand) &&
         ((peek(1).kind == TokenKind::Identifier &&
           peek(2).kind == TokenKind::Assign && peek(3).kind == TokenKind::Ampersand) ||
@@ -1384,24 +1411,27 @@ void Parser::reject_const_reference(bool is_const, bool reference) const {
         previous().span});
 }
 
-bool Parser::pattern_followed_by_assignment() const {
-    if(!at(TokenKind::LParen)) return false;
+TokenKind Parser::pattern_assignment() const {
+    if(!at(TokenKind::LParen)) return TokenKind::Eof;
     auto i=current_;std::vector<TokenKind> closes;bool comma=false;
     for(;i<tokens_.size();++i){const auto kind=tokens_[i].kind;
         if(kind==TokenKind::LParen)closes.push_back(TokenKind::RParen);
         else if(kind==TokenKind::LBracket)closes.push_back(TokenKind::RBracket);
         else if(kind==TokenKind::LBrace)closes.push_back(TokenKind::RBrace);
-        else if(kind==TokenKind::RParen || kind==TokenKind::RBracket || kind==TokenKind::RBrace){if(closes.empty()||closes.back()!=kind)return false;closes.pop_back();if(closes.empty()){++i;break;}}
+        else if(kind==TokenKind::RParen || kind==TokenKind::RBracket || kind==TokenKind::RBrace){if(closes.empty()||closes.back()!=kind)return TokenKind::Eof;closes.pop_back();if(closes.empty()){++i;break;}}
         else if(kind==TokenKind::Comma && closes.size()==1)comma=true;
-        else if(kind==TokenKind::Eof || kind==TokenKind::Newline)return false;
+        else if(kind==TokenKind::Eof || kind==TokenKind::Newline)return TokenKind::Eof;
     }
-    if(!comma || i>=tokens_.size()) return false;
+    if(!comma || i>=tokens_.size()) return TokenKind::Eof;
     auto next=tokens_[i].kind;
-    return next==TokenKind::Assign || next==TokenKind::PlusAssign || next==TokenKind::MinusAssign ||
-           next==TokenKind::StarAssign || next==TokenKind::SlashAssign || next==TokenKind::PercentAssign;
+    if (next == TokenKind::Assign || next == TokenKind::DeclareAssign ||
+        next == TokenKind::PlusAssign || next == TokenKind::MinusAssign ||
+        next == TokenKind::StarAssign || next == TokenKind::SlashAssign ||
+        next == TokenKind::PercentAssign) return next;
+    return TokenKind::Eof;
 }
 
-Pattern Parser::parse_pattern(bool match_case) {
+Pattern Parser::parse_pattern(bool match_case, bool infer_bindings) {
     Pattern result;result.span.start=consume(TokenKind::LParen,"Expected tuple pattern.").span.start;
     for(;;) {
         if(at(TokenKind::RParen)) throw CompileError(Diagnostic{"TUPLE","Trailing comma is not allowed in a tuple.",peek().span});
@@ -1420,10 +1450,21 @@ Pattern Parser::parse_pattern(bool match_case) {
                 reject_const_reference(item.is_const,item.reference);
                 if(at(TokenKind::Identifier)) {item.kind=Pattern::Kind::Declare;item.name=consume(TokenKind::Identifier,"Expected pattern binding name.").text;}
                 else item.kind=Pattern::Kind::TypeOnly;
+            } else if (infer_bindings &&
+                       (at(TokenKind::Identifier) || at(TokenKind::KwConst) || at(TokenKind::Ampersand))) {
+                item.is_const = match(TokenKind::KwConst);
+                item.reference = match(TokenKind::Ampersand);
+                reject_const_reference(item.is_const, item.reference);
+                const auto name = consume(TokenKind::Identifier, "Expected pattern binding name.");
+                item.kind = Pattern::Kind::Declare;
+                item.name = name.text;
+                item.type.emplace();
+                item.type->name = "auto";
+                item.type->span = {name.span.start, name.span.start};
             } else if(at(TokenKind::LParen)) {
                 auto group=current_;unsigned depth=0;bool comma=false;
                 for(;group<tokens_.size();++group) {auto k=tokens_[group].kind;if(k==TokenKind::LParen)++depth;else if(k==TokenKind::RParen && --depth==0)break;else if(k==TokenKind::Comma && depth==1)comma=true;}
-                if(comma) item=parse_pattern(match_case);else {item.kind=Pattern::Kind::Place;item.place=postfix();}
+                if(comma) item=parse_pattern(match_case, infer_bindings);else {item.kind=Pattern::Kind::Place;item.place=postfix();}
             } else {item.kind=Pattern::Kind::Place;item.place=postfix();}
             item.span.end=previous().span.end;
         }
@@ -1436,11 +1477,16 @@ Pattern Parser::parse_pattern(bool match_case) {
 }
 
 StmtPtr Parser::destructuring_stmt() {
-    auto pattern=parse_pattern();const auto start=pattern.span.start;
-    if(!match(TokenKind::Assign)) throw CompileError(Diagnostic{"TUPLE","A pattern is assigned with '='.",peek().span});
+    const bool declaration = pattern_assignment() == TokenKind::DeclareAssign;
+    auto pattern = parse_pattern(false, declaration);
+    const auto start = pattern.span.start;
+    if (!match(declaration ? TokenKind::DeclareAssign : TokenKind::Assign))
+        throw CompileError(Diagnostic{"TUPLE", "Use ':=' for a pattern declaration or '=' for assignment.", peek().span});
     const bool reference=match(TokenKind::Ampersand);auto value=expression();auto end=value->span.end;
     bool declares=false,places=false;visit_pattern(pattern,[&](const Pattern& p){declares|=p.kind==Pattern::Kind::Declare;places|=p.kind==Pattern::Kind::Place;});
     if(declares && places) throw CompileError(Diagnostic{"TUPLE","A pattern cannot mix declarations and existing places.",pattern.span});
+    if (declaration != declares)
+        throw CompileError(Diagnostic{"TUPLE", "Use ':=' for a pattern declaration or '=' for assignment.", pattern.span});
     if(reference && !declares) throw CompileError(Diagnostic{"TUPLE","A reference pattern declares references only.",pattern.span});
     auto out=std::make_unique<Stmt>();out->span={start,end};
     if(declares) {BindingStmt binding;binding.declared_type.name="auto";binding.value=std::move(value);binding.reference=reference;binding.reference_initializer=reference;binding.pattern=std::move(pattern);out->data=std::move(binding);}
@@ -1459,39 +1505,17 @@ StmtPtr Parser::binding_stmt() {
         (peek(2).kind==TokenKind::Identifier||peek(2).kind==TokenKind::Less||
          peek(2).kind==TokenKind::LBracket);
     if(literal_constant)consume(TokenKind::Identifier,"Expected literal.");
-    auto type=type_name();
-    const bool reference=match(TokenKind::Ampersand);
+    auto type = binding_type();
+    const bool reference = match(TokenKind::Ampersand);
     reject_const_reference(is_const, reference);
-    auto name=consume(TokenKind::Identifier,"Expected binding name.");
-    ExprPtr value; bool reference_initializer=false;
-    if(match(TokenKind::Assign)) {
-        reference_initializer=reference && match(TokenKind::Ampersand);
-        value=expression();
-    } else if (at(TokenKind::LParen)) {
-        if (reference || is_language_type_name(type.name) || type.array_depth || type.brace_shape)
-            error(peek(), "Direct initialization requires a class value binding; use '= expression' for other bindings.");
-        auto args = call_arguments();
-        value = std::make_unique<Expr>();
-        value->span = SourceSpan{type.span.start, previous().span.end};
-        const auto separator = type.name.rfind('.');
-        if (separator == std::string::npos) {
-            value->data = CallExpr{type.name, std::move(args), type.arguments};
-        } else {
-            auto receiver = std::make_unique<Expr>();
-            receiver->span = type.span;
-            const auto first = type.name.find('.');
-            receiver->data = NameExpr{type.name.substr(0, first)};
-            for (auto begin = first + 1; begin < separator;) {
-                const auto end = type.name.find('.', begin);
-                auto member = std::make_unique<Expr>();
-                member->span = type.span;
-                member->data = MemberExpr{std::move(receiver), type.name.substr(begin, end - begin)};
-                receiver = std::move(member);
-                begin = end + 1;
-            }
-            value->data = MethodCallExpr{std::move(receiver), type.name.substr(separator + 1),
-                                        std::move(args), type.arguments};
-        }
+    const auto name = consume(TokenKind::Identifier, "Expected binding name.");
+    ExprPtr value;
+    bool reference_initializer = false;
+    if (match(TokenKind::DeclareAssign)) {
+        reference_initializer = reference && match(TokenKind::Ampersand);
+        value = expression();
+    } else if (at(TokenKind::Assign) || at(TokenKind::LParen)) {
+        error(peek(), "Initialize a declaration with ':=' followed by a value expression.");
     }
     auto end=value?value->span.end:name.span.end;
     end_statement("binding");
@@ -1623,38 +1647,58 @@ StmtPtr Parser::for_stmt() {
     ForStmt node;
     {
         node.legacy=false;
-        auto cursor=current_;
-        const bool typed=scan_type_lookahead(tokens_,cursor,0,max_parse_depth) &&
-            ((cursor+1<tokens_.size() && tokens_[cursor].kind==TokenKind::Identifier &&
-              tokens_[cursor+1].kind==TokenKind::Assign) ||
-             (cursor+2<tokens_.size() && tokens_[cursor].kind==TokenKind::Ampersand &&
-              tokens_[cursor+1].kind==TokenKind::Identifier &&
-              tokens_[cursor+2].kind==TokenKind::Assign));
-        const bool existing=(at(TokenKind::Identifier) && peek(1).kind==TokenKind::Assign) ||
-            (at(TokenKind::Ampersand) && peek(1).kind==TokenKind::Identifier &&
-             peek(2).kind==TokenKind::Assign);
-        const bool pattern=!typed && pattern_followed_by_assignment();
-        if(typed || existing || pattern) {
-            node.declares=typed || pattern;
-            if(typed) {
-                auto type=type_name();
-                node.is_auto=type.name=="auto" && type.dimensions.empty();
-                if(!node.is_auto) node.type=std::move(type);
+        const auto assignment = [](TokenKind kind) {
+            return kind == TokenKind::Assign || kind == TokenKind::DeclareAssign;
+        };
+        auto cursor = current_;
+        const bool typed = scan_type_lookahead(tokens_, cursor, 0, max_parse_depth) &&
+            ((cursor + 1 < tokens_.size() && tokens_[cursor].kind == TokenKind::Identifier &&
+              assignment(tokens_[cursor + 1].kind)) ||
+             (cursor + 2 < tokens_.size() && tokens_[cursor].kind == TokenKind::Ampersand &&
+              tokens_[cursor + 1].kind == TokenKind::Identifier && assignment(tokens_[cursor + 2].kind)));
+        const auto name_offset = at(TokenKind::Ampersand) ? 1u : 0u;
+        const bool untyped = peek(name_offset).kind == TokenKind::Identifier &&
+                             assignment(peek(name_offset + 1).kind);
+        const auto pattern_operator = typed ? TokenKind::Eof : pattern_assignment();
+        const bool pattern = pattern_operator != TokenKind::Eof;
+        if (typed || untyped || pattern) {
+            if (typed) node.type = type_name();
+            if (pattern) {
+                node.declares = pattern_operator == TokenKind::DeclareAssign;
+                node.pattern = parse_pattern(false, node.declares);
+                bool declarations = false;
+                bool places = false;
+                visit_pattern(*node.pattern, [&](const Pattern& part) {
+                    declarations |= part.kind == Pattern::Kind::Declare;
+                    places |= part.kind == Pattern::Kind::Place;
+                    node.writable |= part.reference;
+                });
+                if (declarations && places)
+                    fail("TUPLE", "A pattern cannot mix declarations and existing places.");
+                if (declarations != node.declares)
+                    fail("TUPLE", "Use ':=' for a pattern declaration or '=' for assignment.");
+                node.name = "$for.pattern";
+            } else {
+                node.writable = match(TokenKind::Ampersand);
+                node.name = consume(TokenKind::Identifier, "Expected iteration name.").text;
+                node.declares = at(TokenKind::DeclareAssign);
+                if (typed && !node.declares)
+                    fail("FOR_HEADER", "Declare a collection binding with ':='.");
+                node.is_auto = node.declares && !typed;
             }
-            if(pattern){node.pattern=parse_pattern();bool declarations=false,places=false;visit_pattern(*node.pattern,[&](const Pattern& p){declarations|=p.kind==Pattern::Kind::Declare;places|=p.kind==Pattern::Kind::Place;node.writable|=p.reference;});if(declarations&&places)fail("TUPLE","A pattern cannot mix declarations and existing places.");node.declares=declarations;node.name="$for.pattern";}
-            else {node.writable=match(TokenKind::Ampersand);node.name=consume(TokenKind::Identifier,"Expected iteration name.").text;}
-            consume(TokenKind::Assign,"Expected '=' in collection loop.");
+            consume(node.declares ? TokenKind::DeclareAssign : TokenKind::Assign,
+                    "Expected ':=' for a new collection binding or '=' for an existing one.");
             const bool address=match(TokenKind::Ampersand);
             if(node.writable && node.name=="_")
                 fail("DISCARD","'_' binds nothing; write '_' without '&'.");
-            if(node.writable && !typed && !pattern)
-                fail("FOR_HEADER","There is no existing-variable reference form: declare 'for T &x = &values[]'.");
+            if(node.writable && !node.declares)
+                fail("FOR_HEADER","There is no existing-variable reference form: declare 'for T &x := &values[]'.");
             if(node.writable && !address)
                 fail("FOR_HEADER","A reference loop iterates storage: write '&values[]'.");
             if(!node.writable && address)
                 fail("FOR_HEADER","A value loop takes element values: remove '&'.");
             if(at(TokenKind::Dot))
-                fail("FOR_HEADER","A marked call is iterated in parentheses: write 'for auto x = (.gen.batch())[]'.");
+                fail("FOR_HEADER","A marked call is iterated in parentheses: write 'for x := (.gen.batch())[]'.");
             {
                 FlagScope header(collection_header_source_,true);
                 node.iterable=postfix();
@@ -1675,7 +1719,7 @@ StmtPtr Parser::for_stmt() {
                 const auto index=consume(TokenKind::Identifier,"Expected a new nat index name.");
                 if(index.text=="_")
                     fail("DISCARD","Write 'values[]' when the index is not used.");
-                if((type.name!="nat" && type.name!="auto") || !type.dimensions.empty())
+                if(type.name!="nat" || !type.dimensions.empty())
                     fail("FOR_HEADER","The index of a collection loop is nat: write '[nat i]' and convert in the body, e.g. int(i).");
                 node.index=ForIndexBinding{index.text,{type.span.start,index.span.end}};
             }
@@ -1688,19 +1732,19 @@ StmtPtr Parser::for_stmt() {
                 ForCollectionBinding binding;
                 const auto binding_start=peek().span.start;
                 cursor=current_;
-                binding.declares=scan_type_lookahead(tokens_,cursor,0,max_parse_depth) &&
-                    cursor+1<tokens_.size() && tokens_[cursor].kind==TokenKind::Identifier &&
-                    tokens_[cursor+1].kind==TokenKind::Assign;
-                if(binding.declares) {
-                    auto type=type_name();
-                    binding.is_auto=type.name=="auto" && type.dimensions.empty();
-                    if(!binding.is_auto) binding.type=std::move(type);
-                }
-                if(at(TokenKind::Ampersand) || at(TokenKind::LParen))
-                    fail("FOR_HEADER","Multiple collections use array value bindings, not references or patterns.");
-                binding.name=consume(TokenKind::Identifier,"Expected an array value binding.").text;
-                if(!at(TokenKind::Assign)) fail("FOR_HEADER","Each collection binding requires '=' and an array followed by '[]'.");
-                consume(TokenKind::Assign,"Expected '='.");
+                const bool typed_binding = scan_type_lookahead(tokens_, cursor, 0, max_parse_depth) &&
+                    cursor + 1 < tokens_.size() && tokens_[cursor].kind == TokenKind::Identifier &&
+                    assignment(tokens_[cursor + 1].kind);
+                if (typed_binding) binding.type = type_name();
+                if (at(TokenKind::Ampersand) || at(TokenKind::LParen))
+                    fail("FOR_HEADER", "Multiple collections use array value bindings, not references or patterns.");
+                binding.name = consume(TokenKind::Identifier, "Expected an array value binding.").text;
+                binding.declares = at(TokenKind::DeclareAssign);
+                if (typed_binding && !binding.declares)
+                    fail("FOR_HEADER", "Declare a collection binding with ':='.");
+                binding.is_auto = binding.declares && !typed_binding;
+                consume(binding.declares ? TokenKind::DeclareAssign : TokenKind::Assign,
+                        "Expected ':=' for a new collection binding or '=' for an existing one.");
                 if(at(TokenKind::Ampersand) || at(TokenKind::Dot))
                     fail("FOR_HEADER","Multiple collections take array values; parenthesize a marked call.");
                 {
@@ -1735,11 +1779,6 @@ StmtPtr Parser::for_stmt() {
                 (tokens_[cursor+1].kind==TokenKind::Less || tokens_[cursor+1].kind==TokenKind::LessEq);
             if(typed_left) {
                 node.type=type_name();
-                if(node.type->name=="auto") {
-                    if(at(TokenKind::Identifier)&&peek().text=="_")
-                        fail("DISCARD","'_' takes no type; its type is inferred.");
-                    fail("FOR_HEADER","'auto' is allowed only in collection loops.");
-                }
                 const auto variable=consume(TokenKind::Identifier,"Expected iteration name.");
                 node.name=variable.text;
                 node.declares=true;
@@ -1769,8 +1808,6 @@ StmtPtr Parser::for_stmt() {
                     node.declares=typed_right;
                     if(typed_right) {
                         node.type=type_name();
-                        if(node.type->name=="auto")
-                            fail("FOR_HEADER","'auto' is allowed only in collection loops.");
                     }
                     if(!at(TokenKind::Identifier))
                         fail("FOR_HEADER","A for range needs a variable and an upper bound.");
@@ -2786,19 +2823,22 @@ ExprPtr Parser::array_comprehension(SourcePos start) {
         throw CompileError(Diagnostic{"ARRAY_COMPREHENSION", message, peek().span});
     };
     consume(TokenKind::KwFor, "Expected for.");
-    auto cursor = current_;
-    if (!scan_type_lookahead(tokens_, cursor, 0, max_parse_depth) ||
-        cursor + 1 >= tokens_.size() || tokens_[cursor].kind != TokenKind::Identifier ||
-        tokens_[cursor + 1].kind != TokenKind::Assign)
-        fail("A generation expression declares one value binding: '[for auto x = values[] then x]'.");
     ArrayComprehensionExpr node;
-    auto type = type_name();
+    const auto binding_start = peek().span.start;
+    const bool inferred = at(TokenKind::Identifier) && peek(1).kind == TokenKind::DeclareAssign;
+    if (!inferred) {
+        auto cursor = current_;
+        if (!scan_type_lookahead(tokens_, cursor, 0, max_parse_depth) ||
+            cursor >= tokens_.size() || tokens_[cursor].kind != TokenKind::Identifier)
+            fail("A generation expression declares one value binding with ':=': '[for x := values[] then x]'.");
+        node.type = type_name();
+    }
     const auto name = consume(TokenKind::Identifier, "Expected generation binding name.");
     node.name = name.text;
-    node.binding_span = {type.span.start, name.span.end};
-    if (type.name != "auto" || !type.dimensions.empty()) node.type = std::move(type);
+    node.binding_span = {binding_start, name.span.end};
     if (node.name == "_") fail("A generation expression binds an element name.");
-    consume(TokenKind::Assign, "Expected '=' before the generation source.");
+    if (!match(TokenKind::DeclareAssign))
+        fail("A generation expression declares one value binding with ':=': '[for x := values[] then x]'.");
     if (at(TokenKind::Ampersand)) fail("A generation expression takes values, not a reference source.");
     {
         FlagScope header(collection_header_source_, true);

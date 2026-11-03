@@ -1,14 +1,14 @@
 // scan with literal text before its first target, file.list with its
 // recursive argument, a streaming file writer, and a main guard
 // whose body ends the entry block. Compiled by the golden corpus, never run.
-int width = 0
-int height = 0
-void | error read = scan("size={&width}x{&height}")
+int width := 0
+int height := 0
+void | error read := scan("size={&width}x{&height}")
 
-auto | error everything = file.list(".", recursive = true)
+string[] | error everything := file.list(".", recursive = true)
 
 void open_log()
-    file.write writer = file.write("probe-scan-and-main-guard.txt")
+    file.write writer := file.write("probe-scan-and-main-guard.txt")
     .writer("A")
 
 open_log()

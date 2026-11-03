@@ -1,7 +1,7 @@
-tensor<real32> x = (tensor.ones<real32>([]) * real32(2)).track()
-tensor<real64> y = real64(x)
+tensor<real32> x := (tensor.ones<real32>([]) * real32(2)).track()
+tensor<real64> y := real64(x)
 (y * y).backward(&x, track = true)
-tensor<real32> first = x.grad
+tensor<real32> first := x.grad
 print(first.is_tracked())
 print(NL)
 print(first.untrack().item() == real32(4))

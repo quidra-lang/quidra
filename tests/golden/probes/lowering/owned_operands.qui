@@ -3,7 +3,7 @@
 // reference or returning nothing, bin slices with an open end, error text,
 // string.repeat. Compiled by the golden corpus, never run.
 tensor<real32> make_tracked()
-    tensor<real32> value = tensor.ones<real32>([2])
+    tensor<real32> value := tensor.ones<real32>([2])
     value.track()
     return value
 
@@ -23,8 +23,8 @@ string greeting()
 print(greeting()[0] == "h")
 print(NL)
 
-int | string choice = 3
-int | string& chosen = &choice
+int | string choice := 3
+int | string& chosen := &choice
 match chosen
     int
         print(chosen + 1)
@@ -39,21 +39,21 @@ int twice(int value)
 void show(int value)
     print("{value}{NL}")
 
-func<int>(int) operation = twice
-func<int>(int)& held = &operation
+func<int>(int) operation := twice
+func<int>(int)& held := &operation
 print(held(4))
 print(NL)
-func<void>(int) shower = show
+func<void>(int) shower := show
 shower(5)
 
-bin bits = bin.fill(6, 1)
-bin head = bits[:<2]
-bin tail = bits[3:]
+bin bits := bin.fill(6, 1)
+bin head := bits[:<2]
+bin tail := bits[3:]
 print("{len(head)} {len(tail)}{NL}")
 
-error problem = error("bad")
+error problem := error("bad")
 print(problem.string())
 print(NL)
-string repeated = string.repeat("ab", 2)
+string repeated := string.repeat("ab", 2)
 print(repeated)
 print(NL)

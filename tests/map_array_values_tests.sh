@@ -7,7 +7,7 @@ export QUIDRA_CACHE_DIR="$TMP/cache"
 
 cat > "$TMP/array-values.qui" <<'QUI'
 map<string, int[]> groups
-int[] numbers = [7, 3]
+int[] numbers := [7, 3]
 .groups.set("b", numbers)
 match groups.get("b")
     int[] values
@@ -15,7 +15,7 @@ match groups.get("b")
     none
         print.line("missing")
 map<string, nat[]> counts
-nat[] amounts = [2, 5]
+nat[] amounts := [2, 5]
 .counts.set("a", amounts)
 match counts.get("a")
     nat[] values
@@ -23,7 +23,7 @@ match counts.get("a")
     none
         print.line("missing")
 map<string, int[2]> fixed
-int[2] row = [4, 9]
+int[2] row := [4, 9]
 .fixed.set("row", row)
 match fixed.get("row")
     int[2] values

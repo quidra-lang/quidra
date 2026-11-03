@@ -8,7 +8,7 @@ int | string | error pick(bool number, bool fail)
     return "one"
 
 int | string | error relay(bool number, bool fail)
-    auto value = try pick(number, fail)
+    value := try pick(number, fail)
     return value
 
 match relay(true, false)

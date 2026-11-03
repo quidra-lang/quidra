@@ -13,12 +13,12 @@ T scaled<T: floating>(T value, T factor)
 T step<T: integer>(T value, T one)
     return value + one
 
-int8 five = 5
-real64 real_value = 2.5
-real32 single = 1.5
-int seven = 7
-int three = 3
-int nine = 9
+int8 five := 5
+real64 real_value := 2.5
+real32 single := 1.5
+int seven := 7
+int three := 3
+int nine := 9
 print("{twice(five)} {twice(real_value)} {twice(single)} {twice(seven)}")
 print(NL)
 print("{largest(three, nine)} {largest(nat8(4), nat8(2))} {largest(real_value, 0.25)}")

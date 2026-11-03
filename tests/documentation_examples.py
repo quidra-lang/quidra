@@ -122,7 +122,7 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
 
     source = tmp / "patch-v2.qui"
     source.write_text(
-        'int answer = 40\nprint("drop")\nprint(answer)\n', encoding="utf-8"
+        'int answer := 40\nprint("drop")\nprint(answer)\n', encoding="utf-8"
     )
     inspection_result = run_tool("inspect", str(source), cwd=tmp)
     try:
@@ -184,7 +184,7 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
         failures.append(f"patch schema v2 structural operations failed\n{details}")
 
     kind_source = tmp / "patch-kind.qui"
-    kind_source.write_text("int value = 1\nprint(value)\n", encoding="utf-8")
+    kind_source.write_text("int value := 1\nprint(value)\n", encoding="utf-8")
     kind_inspection_result = run_tool("inspect", str(kind_source), cwd=tmp)
     try:
         kind_inspection = json.loads(kind_inspection_result.stdout)

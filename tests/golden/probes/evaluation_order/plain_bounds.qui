@@ -5,6 +5,6 @@ int noisy()
     print(NL)
     return 1
 
-int[] a = [0, 0, 0]
-int k = 5
+int[] a := [0, 0, 0]
+int k := 5
 a[k] = noisy()

@@ -256,7 +256,7 @@ void snippets_show_the_identical_file() {
     const auto directory = std::filesystem::temp_directory_path() / "quidra-runtime-location-tests";
     std::filesystem::remove_all(directory);
     std::filesystem::create_directories(directory);
-    const auto shown = report_text(directory, "int[] values = [1, 2, 3]\nprint(values[3])\n", 2, 14);
+    const auto shown = report_text(directory, "int[] values := [1, 2, 3]\nprint(values[3])\n", 2, 14);
     check(shown == "Quidra runtime error[INDEX_BOUNDS] at program.qui:2:14\n"
                    "\n"
                    "2 | print(values[3])\n"
@@ -264,7 +264,7 @@ void snippets_show_the_identical_file() {
                    "  | index 3 out of bounds for length 3\n",
           "the snippet, the caret and the message in the gutter: " + shown);
     const auto other_size =
-        report_text(directory, "int[] values = [1, 2, 3]\nprint(values[3])\n", 2, 14, 5);
+        report_text(directory, "int[] values := [1, 2, 3]\nprint(values[3])\n", 2, 14, 5);
     check(other_size == "Quidra runtime error[INDEX_BOUNDS] at program.qui:2:14\n"
                         "| index 3 out of bounds for length 3\n",
           "a file of another size: no snippet, a zero-width gutter: " + other_size);

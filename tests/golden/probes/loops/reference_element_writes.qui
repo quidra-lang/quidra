@@ -5,13 +5,13 @@ void clear_at(int[] &values, int i)
     values[i] = 0
 
 void walk(int[] &a, int[] &b)
-    int i = 0
-    for auto &x = &a[]
+    int i := 0
+    for &x := &a[]
         x = x + 1
         if i > 0
             clear_at(&b, i - 1)
         i = i + 1
 
-int[] v = [1, 2, 3]
+int[] v := [1, 2, 3]
 walk(&v, &v)
 print("{v[0]} {v[1]} {v[2]}" + NL)

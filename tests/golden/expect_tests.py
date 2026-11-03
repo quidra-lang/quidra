@@ -389,14 +389,14 @@ def main() -> int:
               must="accepted for review")
 
     # Census predicates select the covered entries.
-    census_base = "stages lowered=1 optimized=1\nalt 7:Clone 2 1\nevent regions - 3\n"
-    census_none = "stages lowered=1 optimized=1\nalt 7:Clone 0 0\nevent regions - 0\n"
+    census_base = "stages lowered:=1 optimized=1\nalt 7:Clone 2 1\nevent regions - 3\n"
+    census_none = "stages lowered:=1 optimized=1\nalt 7:Clone 0 0\nevent regions - 0\n"
     for census, expected in ((census_base, 0), (census_none, 1)):
         base = {("e.qui", "llvm"): (LLVM_BASE, "ok"), ("e.qui", "census"): (census, "ok")}
         head = {("e.qui", "llvm"): (changed, "ok"), ("e.qui", "census"): (census, "ok")}
         code, output = compare(base, head, {"rules": [{"census": ["Clone > 0", "event.regions >= 3"],
                                                        "views": ["llvm"], "classes": ["K1"]}]})
-        check(code == expected, f"census predicate ({expected}): exit {code}\n{output}")
+        check(code == expected, f"census predicate := census({expected}): exit {code}\n{output}")
     values = expect.census_values(census_base)
     check(values == {"Clone.lowered": 2, "Clone": 1, "event.regions": 3},
           f"census values: {values}")

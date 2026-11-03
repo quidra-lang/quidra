@@ -1,5 +1,5 @@
 void write_effect()
-    file.write writer = file.write("probe-effect.txt")
+    file.write writer := file.write("probe-effect.txt")
     .writer("A")
 
 write_effect()

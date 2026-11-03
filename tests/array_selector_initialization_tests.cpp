@@ -39,12 +39,12 @@ void check(const std::string& name, const std::string& source, bool should_accep
 } // namespace
 
 int main() {
-    const std::string values = "int[2] values = [10, 20]\n";
+    const std::string values = "int[2] values := [10, 20]\n";
     for (const std::string type : {"int", "nat", "bool"}) {
         const std::string first = type == "bool" ? "true" : "1";
         const std::string second = type == "bool" ? "false" : "0";
         const std::string declaration = type + "[2] selector\n";
-        const std::string select = "int[] result = values[selector]\n";
+        const std::string select = "int[] result := values[selector]\n";
         const std::string first_write = "selector[0] = " + first + "\n";
         const std::string second_write = "selector[1] = " + second + "\n";
 
@@ -56,7 +56,7 @@ int main() {
         // Escaped references use runtime initialization checks, matching
         // ordinary scalar indexing through references.
         check(type + " borrowed uninitialized runtime checked", values + declaration +
-              type + "[2] &alias = &selector\nint[] result = values[alias]\n", true);
+              type + "[2] &alias = &selector\nint[] result := values[alias]\n", true);
         check(type + " initialized through alias", values + declaration +
               type + "[2] &alias = &selector\n" +
               "alias[0] = " + first + "\nalias[1] = " + second + "\n" + select, true);
@@ -64,27 +64,27 @@ int main() {
               type + "[2] &alias = &selector\n" +
               "alias[0] = " + first + "\n" + select, true);
         check(type + " borrowed initialized", values + declaration + first_write + second_write +
-              type + "[2] &alias = &selector\nint[] result = values[alias]\n", true);
+              type + "[2] &alias = &selector\nint[] result := values[alias]\n", true);
         // Unknown caller-provided element initialization retains the existing
         // runtime check, as for scalar indexing through a reference parameter.
         check(type + " reference parameter runtime checked",
               "int[] select(int[2] values, " + type + "[2] &selector)\n"
               "    return values[selector]\n" + values + declaration +
-              "int[] result = select(values, &selector)\n", true);
+              "int[] result := select(values, &selector)\n", true);
         check(type + " reference parameter initialized",
               "int[] select(int[2] values, " + type + "[2] &selector)\n"
               "    return values[selector]\n" + values + declaration + first_write + second_write +
-              "int[] result = select(values, &selector)\n", true);
+              "int[] result := select(values, &selector)\n", true);
         // No element is read from an empty array. In particular an empty
         // boolean mask is valid only for an empty input, not for values above.
         check(type + " empty selector", "int[0] values\n" + type +
-              "[0] selector\nint[] result = values[selector]\n", true);
+              "[0] selector\nint[] result := values[selector]\n", true);
     }
     // indices() needs only allocation metadata, not initialized elements.
-    check("indices reads no elements", "int[2] values\nnat[] indices = values.indices()\n", true);
+    check("indices reads no elements", "int[2] values\nnat[] indices := values.indices()\n", true);
     // Preserve the pre-existing element read check on the selected source.
-    check("uninitialized source", "int[2] values\nint[] selector = [0]\n"
-          "int[] result = values[selector]\n", false);
+    check("uninitialized source", "int[2] values\nint[] selector := [0]\n"
+          "int[] result := values[selector]\n", false);
 
     std::cout << (cases - failures) << '/' << cases << " selector initialization contracts passed\n";
     return failures ? 1 : 0;

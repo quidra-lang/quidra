@@ -67,23 +67,23 @@ import internal = "./internal.qui"
 extern int64 c_apply(func<int64>(int64) callback, int64 value) = "location_test_apply"
 
 int pick(int[] values, int i)
-    int found = values[i]
+    int found := values[i]
     return found
 
 int via_internal(int[] values, int i)
     return internal.pick(values, i)
 
 int apply_then_fail(func<int>(int) f, int[] values)
-    int v = f(1)
+    int v := f(1)
     return values[v + 10]
 
 int apply_native_then_fail(func<int64>(int64) f, int[] values)
-    int v = int(c_apply(f, 1))
+    int v := int(c_apply(f, 1))
     return values[v + 10]
 QUI
 cat > "$TMP/packages/loc_pkg/internal.qui" <<'QUI'
 int pick(int[] values, int i)
-    int found = values[i]
+    int found := values[i]
     return found
 QUI
 cat > "$TMP/apply.c" <<'C'
@@ -103,7 +103,7 @@ C
 cat > "$TMP/package-index.qui" <<'QUI'
 import loc = loc_pkg
 
-int[] data = [1, 2, 3]
+int[] data := [1, 2, 3]
 print(loc.pick(data, 7))
 QUI
 expect_failure package-index INDEX_BOUNDS 4 1 101 --link "$TMP/apply.o"
@@ -113,8 +113,8 @@ expect_failure package-index INDEX_BOUNDS 4 1 101 --link "$TMP/apply.o"
 cat > "$TMP/package-internal.qui" <<'QUI'
 import loc = loc_pkg
 
-int[] data = [1, 2, 3]
-int r = loc.via_internal(data, 9)
+int[] data := [1, 2, 3]
+int r := loc.via_internal(data, 9)
 QUI
 expect_failure package-internal INDEX_BOUNDS 4 1 101 --link "$TMP/apply.o"
 
@@ -124,10 +124,10 @@ cat > "$TMP/package-callback.qui" <<'QUI'
 import loc = loc_pkg
 
 int one(int x)
-    int y = x + 1
+    int y := x + 1
     return y
 
-int[] data = [1, 2, 3]
+int[] data := [1, 2, 3]
 print(loc.apply_then_fail(one, data))
 QUI
 expect_failure package-callback INDEX_BOUNDS 8 1 101 --link "$TMP/apply.o"
@@ -138,10 +138,10 @@ cat > "$TMP/package-native-callback.qui" <<'QUI'
 import loc = loc_pkg
 
 int64 one(int64 x)
-    int64 y = x + 1
+    int64 y := x + 1
     return y
 
-int[] data = [1, 2, 3]
+int[] data := [1, 2, 3]
 print(loc.apply_native_then_fail(one, data))
 QUI
 expect_failure package-native-callback INDEX_BOUNDS 8 1 101 --link "$TMP/apply.o"
@@ -152,11 +152,11 @@ cat > "$TMP/nested-user-call.qui" <<'QUI'
 import loc = loc_pkg
 
 int scale(int x)
-    int y = x * 3
+    int y := x * 3
     return y
 
-int[] data = [1, 2, 3]
-int r = loc.pick(data, scale(3))
+int[] data := [1, 2, 3]
+int r := loc.pick(data, scale(3))
 QUI
 expect_failure nested-user-call INDEX_BOUNDS 8 1 101 --link "$TMP/apply.o"
 
@@ -166,10 +166,10 @@ cat > "$TMP/package-in-callee.qui" <<'QUI'
 import loc = loc_pkg
 
 int inner(int[] v)
-    int z = loc.pick(v, 9)
+    int z := loc.pick(v, 9)
     return z
 
-int[] data = [1, 2, 3]
+int[] data := [1, 2, 3]
 print(inner(data))
 QUI
 expect_failure package-in-callee INDEX_BOUNDS 4 5 101 --link "$TMP/apply.o"
@@ -182,11 +182,11 @@ import loc = loc_pkg
 extern int64 c_apply(func<int64>(int64) callback, int64 value) = "location_test_apply_user"
 
 int64 twice(int64 x)
-    int64 y = x * 2
+    int64 y := x * 2
     return y
 
-int[] data = [1, 2, 3]
-int r = loc.pick(data, int(c_apply(twice, 4)))
+int[] data := [1, 2, 3]
+int r := loc.pick(data, int(c_apply(twice, 4)))
 QUI
 expect_failure extern-callback-then-package INDEX_BOUNDS 10 1 101 --link "$TMP/apply.o"
 
@@ -194,10 +194,10 @@ expect_failure extern-callback-then-package INDEX_BOUNDS 10 1 101 --link "$TMP/a
 # call returned in the same statement: the statement.
 cat > "$TMP/allocation-after-call.qui" <<'QUI'
 int count(int x)
-    int n = x * 1537228672809129301
+    int n := x * 1537228672809129301
     return n
 
-int[] xs = array(nat(count(3)))
+int[] xs := array(nat(count(3)))
 print(len(xs))
 QUI
 expect_failure allocation-after-call INTEGER_OVERFLOW 5 1 101
@@ -206,12 +206,12 @@ expect_failure allocation-after-call INTEGER_OVERFLOW 5 1 101
 # statement, whatever user statement ran last.
 cat > "$TMP/uninitialized-after-call.qui" <<'QUI'
 int f(int x)
-    int y = x + 1
+    int y := x + 1
     return y
 
-int[] values = array(2)
-int &r = &values[1]
-int z = f(1) + r
+int[] values := array(2)
+int &r := &values[1]
+int z := f(1) + r
 QUI
 expect_failure uninitialized-after-call UNINITIALIZED 7 1 101
 
@@ -219,7 +219,7 @@ expect_failure uninitialized-after-call UNINITIALIZED 7 1 101
 # statement.
 cat > "$TMP/assertion-after-call.qui" <<'QUI'
 int add(int a, int b)
-    int s = a + b
+    int s := a + b
     return s
 
 test.check(add(1, 2) == 4)
@@ -231,7 +231,7 @@ expect_failure assertion-after-call TEST 5 1 1
 # compiler; the snippet appears only while the compiled file is present and
 # identical (its size and SHA-256 recorded at compile time).
 cat > "$TMP/snippet.qui" <<'QUI'
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 print(values[3])
 QUI
 build snippet || fail "snippet: build failed"
@@ -263,7 +263,7 @@ no_snippet() {
 }
 no_snippet deleted 'rm "$TMP/deleted.qui"'
 # The same size and line count, other bytes: a different digest.
-no_snippet edited-same-size 'printf "int[] values = [4, 5, 6]\nprint(values[3])\n" > "$TMP/edited-same-size.qui"'
+no_snippet edited-same-size 'printf "int[] values := [4, 5, 6]\nprint(values[3])\n" > "$TMP/edited-same-size.qui"'
 no_snippet edited-other-size 'printf "// changed\n" >> "$TMP/edited-other-size.qui"'
 no_snippet directory 'rm "$TMP/directory.qui"; mkdir "$TMP/directory.qui"'
 no_snippet fifo 'rm "$TMP/fifo.qui"; mkfifo "$TMP/fifo.qui"'
@@ -275,7 +275,7 @@ fi
 python3 - "$TMP/large.qui" <<'PY'
 import sys
 with open(sys.argv[1], "w") as out:
-    out.write("int[] values = [1, 2, 3]\n")
+    out.write("int[] values := [1, 2, 3]\n")
     for i in range(40000):
         out.write("// " + "x" * 76 + "\n")
     out.write("print(values[3])\n")
@@ -288,11 +288,11 @@ python3 - "$TMP" <<'PY'
 import sys
 root = sys.argv[1]
 with open(f"{root}/gutter-two.qui", "w") as out:
-    out.write("int[] data = [1, 2, 3]\n" + "\n" * 10 + "print(data[3])\n")
+    out.write("int[] data := [1, 2, 3]\n" + "\n" * 10 + "print(data[3])\n")
 with open(f"{root}/gutter-four.qui", "w") as out:
-    out.write("int[] data = [1, 2, 3]\n" + "\n" * 1000 + "print(data[3])\n")
+    out.write("int[] data := [1, 2, 3]\n" + "\n" * 1000 + "print(data[3])\n")
 with open(f"{root}/indented.qui", "w") as out:
-    out.write("int pick(int[] values, int i)\n    if i >= 0\n        return values[i]\n    return 0\n\nint[] data = [1, 2, 3]\nprint(pick(data, 5))\n")
+    out.write("int pick(int[] values, int i)\n    if i >= 0\n        return values[i]\n    return 0\n\nint[] data := [1, 2, 3]\nprint(pick(data, 5))\n")
 PY
 build gutter-two || fail "gutter-two: build failed"
 check_run gutter-two 101 line=12 column=12 snippet=yes "source=print(data[3])" caret=12
@@ -315,7 +315,7 @@ caret_row() {
 caret_row caret-tab "$(printf 'a\tb')"
 caret_row caret-japanese "日本語"
 caret_row caret-combining "$(printf 'e\xcc\x81')"
-printf 'int[] values = [1, 2, 3]\r\nprint(values[3])\r\n' > "$TMP/crlf.qui"
+printf 'int[] values := [1, 2, 3]\r\nprint(values[3])\r\n' > "$TMP/crlf.qui"
 build crlf || fail "crlf: build failed"
 check_run crlf 101 line=2 column=14 snippet=yes "source=print(values[3])" caret=14
 
@@ -323,7 +323,7 @@ check_run crlf 101 line=2 column=14 snippet=yes "source=print(values[3])" caret=
 python3 - "$TMP/long-line.qui" <<'PY'
 import sys
 with open(sys.argv[1], "w") as out:
-    out.write('void pair(string text, int value)\n    print(value)\n\nint[] values = [1, 2, 3]\n')
+    out.write('void pair(string text, int value)\n    print(value)\n\nint[] values := [1, 2, 3]\n')
     out.write('pair("' + "y" * 70000 + '", values[3])\n')
 PY
 build long-line || fail "long-line: build failed"
@@ -340,7 +340,7 @@ QUI
 cat > "$TMP/files/main.qui" <<'QUI'
 import util = "./lib/util.qui"
 
-int[] data = [1, 2, 3]
+int[] data := [1, 2, 3]
 print(util.pick(data, 9))
 QUI
 (cd "$TMP" && "$QUIDRA" build files/main.qui -o files/main > /dev/null 2>&1) || fail "files: build failed"
@@ -369,7 +369,7 @@ else
 fi
 # The REPL names <repl> and shows no snippet.
 rc=0
-printf 'int[] values = [1, 2, 3]\nprint(values[3])\n' | (cd "$TMP" && "$QUIDRA" repl) > "$TMP/repl.out" 2>&1 || rc=$?
+printf 'int[] values := [1, 2, 3]\nprint(values[3])\n' | (cd "$TMP" && "$QUIDRA" repl) > "$TMP/repl.out" 2>&1 || rc=$?
 if python3 "$HELPER" "$TMP/repl.out" code=INDEX_BOUNDS file='<repl>' snippet=no; then
     echo "ok   repl"
 else
@@ -382,14 +382,14 @@ cat > "$TMP/uncoded-split.qui" <<'QUI'
 string empty_of(string text)
     return text[0:<0]
 
-string line = "a,b"
-string[] parts = line.split(empty_of(line))
+string line := "a,b"
+string[] parts := line.split(empty_of(line))
 QUI
 build uncoded-split || fail "uncoded-split: build failed"
 check_run uncoded-split 101 code= line=5 column=1 snippet=yes "message=string split separator cannot be empty"
 cat > "$TMP/uncoded-repeat.qui" <<'QUI'
-string fill = "ab"
-string text = string.repeat(fill, 3)
+string fill := "ab"
+string text := string.repeat(fill, 3)
 QUI
 build uncoded-repeat || fail "uncoded-repeat: build failed"
 check_run uncoded-repeat 101 code= line=2 column=1 "message=string fill must contain exactly one Unicode code point"
@@ -397,7 +397,7 @@ cat > "$TMP/uncoded-bin-fill.qui" <<'QUI'
 int bit_of(string text)
     return int(len(text))
 
-bin data = bin.fill(8, bit_of("ab"))
+bin data := bin.fill(8, bit_of("ab"))
 QUI
 build uncoded-bin-fill || fail "uncoded-bin-fill: build failed"
 check_run uncoded-bin-fill 101 code= line=4 column=1 "message=bin fill must be 0 or 1"
@@ -406,12 +406,12 @@ check_run uncoded-bin-fill 101 code= line=4 column=1 "message=bin fill must be 0
 # and the output written before the failures.
 cat > "$TMP/two-tasks.qui" <<'QUI'
 void first()
-    int[] data = [1, 2, 3]
-    int invalid = data[5]
+    int[] data := [1, 2, 3]
+    int invalid := data[5]
 
 void second()
-    int[] data = [1, 2, 3]
-    int invalid = data[7]
+    int[] data := [1, 2, 3]
+    int invalid := data[7]
 
 print("before" + NL)
 parallel
@@ -429,7 +429,7 @@ fi
 # --- A failing test.check: the assertion's statement and the snippet, no
 # message; status 1.
 cat > "$TMP/assertion.qui" <<'QUI'
-int answer = 41
+int answer := 41
 test.check(answer == 42)
 QUI
 build assertion || fail "assertion: build failed"

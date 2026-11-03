@@ -1,5 +1,5 @@
-tensor<real64> x = (tensor.ones<real64>([]) * real64(1.25)).track()
-tensor<real16> y = real16(x)
+tensor<real64> x := (tensor.ones<real64>([]) * real64(1.25)).track()
+tensor<real16> y := real16(x)
 print(y.is_tracked())
 print(NL)
 print(y.untrack().item() == real16(1.25))

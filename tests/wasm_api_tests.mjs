@@ -50,8 +50,8 @@ function invoke(request) {
 }
 
 const VALID = 'int add(int a, int b)\n    return a + b\n\nprint(add(2, 3))\n';
-const INVALID = 'int x = zzz\n';
-const UNFORMATTED = 'int    x   =   1\nprint(x)\n';
+const INVALID = 'int x := zzz\n';
+const UNFORMATTED = 'int    x   :=   1\nprint(x)\n';
 
 // --- metadata -------------------------------------------------------------
 {
@@ -280,7 +280,7 @@ let inspection;
 }
 {
     // Unicode must survive the boundary in both directions.
-    const source = 'string s = "こんにちは 🌸"\nprint(s)\n';
+    const source = 'string s := "こんにちは 🌸"\nprint(s)\n';
     const response = invoke({ schema_version: 1, operation: "format", source });
     check(response.ok === true, "unicode source formats", response);
     check(response.source.includes("こんにちは 🌸"),

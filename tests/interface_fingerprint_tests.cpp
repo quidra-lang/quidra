@@ -133,10 +133,10 @@ void original_snapshots() {
     };
     const std::string source =
         "public import dep = \"./dependency.qui\"\n"
-        "private const int LIMIT = 3\n"
+        "private const int LIMIT := 3\n"
         "enum State\n    Ready\n    Value(int)\n"
-        "private class Record()\n    const int value = 7\n    private string label = \"\"\n"
-        "T identity<T>(T value, int step = LIMIT)\n    return value\n";
+        "private class Record()\n    const int value := 7\n    private string label := \"\"\n"
+        "T identity<T>(T value, int step := LIMIT)\n    return value\n";
     auto original = capture(source);
     require(original.contracts.functions.size() == 2 && original.contracts.enums.size() == 1 &&
             original.contracts.classes.size() == 1 && original.contracts.constants.size() == 1,

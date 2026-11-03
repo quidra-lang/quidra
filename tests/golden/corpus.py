@@ -222,10 +222,10 @@ def materialize_script(script: Path, destination: Path, prefix: str) -> list[tup
 
 def generated_programs() -> dict[str, str]:
     def deep_and(terms: int) -> str:
-        return "bool value = " + " and ".join(["true"] * terms) + "\nprint(value)\n"
+        return "bool value := " + " and ".join(["true"] * terms) + "\nprint(value)\n"
 
     def nested_ifs(depth: int) -> str:
-        lines = ["int value = 0"]
+        lines = ["int value := 0"]
         for level in range(depth):
             lines.append("    " * level + "if value >= 0")
         lines.append("    " * depth + "value = value + 1")
@@ -233,14 +233,14 @@ def generated_programs() -> dict[str, str]:
         return "\n".join(lines) + "\n"
 
     def flat(statements: int) -> str:
-        lines = ["int total = 0"]
+        lines = ["int total := 0"]
         lines.extend(f"total = total + {i % 7}" for i in range(statements - 2))
         lines.append("print(total)")
         return "\n".join(lines) + "\n"
 
     def method_chain(calls: int) -> str:
         return (
-            "class Builder this(local int start)\n    int total\n\n\n    this.total = start\n\n    Builder add(int amount)\n        return Builder(this.total + amount)\n\nBuilder result = Builder(0)" + "".join(f".add({i % 5})" for i in range(calls)) +
+            "class Builder this(local int start)\n    int total\n\n\n    this.total = start\n\n    Builder add(int amount)\n        return Builder(this.total + amount)\n\nBuilder result := Builder(0)" + "".join(f".add({i % 5})" for i in range(calls)) +
             "\nprint(result.total)\n"
         )
 

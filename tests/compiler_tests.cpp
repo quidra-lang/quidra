@@ -442,7 +442,7 @@ static void root_source_override_with_import() {
         }
         const std::string source =
             "import lib = \"./lib.qui\"\n"
-            "int value = lib.doubled(21)\n"
+            "int value := lib.doubled(21)\n"
             "print(value)\n";
         (void)quidra::check_file_source(main_path, source, {}, root);
         std::filesystem::remove_all(root);
@@ -487,14 +487,14 @@ static void imported_locals_use_module_scope() {
         std::filesystem::create_directories(root);
         write("lib.qui",
               "int generic_extent<T: numeric>(T value, int top)\n"
-              "    int input_height = 4\n"
-              "    int input_width = 5\n"
-              "    int Box = 0\n"
+              "    int input_height := 4\n"
+              "    int input_width := 5\n"
+              "    int Box := 0\n"
               "    return input_height * input_width + top + Box\n"
               "\n"
               "int plain_extent(int top)\n"
-              "    int input_height = 2\n"
-              "    int total = 0\n"
+              "    int input_height := 2\n"
+              "    int total := 0\n"
               "    for 0 <= nat input_width < 3\n"
               "        total = total + int(input_width)\n"
               "    match int.parse(\"7\")\n"
@@ -505,7 +505,7 @@ static void imported_locals_use_module_scope() {
               "    return input_height + total + top\n"
               "\n"
               "if main\n"
-              "    int input_height = 6\n"
+              "    int input_height := 6\n"
               "    for 0 <= nat input_width < 2\n"
               "        print(\"{input_height + int(input_width)}{NL}\")\n");
         write("main.qui",
@@ -523,7 +523,7 @@ static void imported_locals_use_module_scope() {
               "class Box()\n"
               "    int value\n"
               "\n"
-              "int total = lib.generic_extent<int>(1, 2) + lib.plain_extent(3)\n");
+              "int total := lib.generic_extent<int>(1, 2) + lib.plain_extent(3)\n");
         (void)quidra::compile_file(root / "main.qui", {}, root);
 
         // The module's own declarations stay visible to its locals, in plain
@@ -533,12 +533,12 @@ static void imported_locals_use_module_scope() {
               "    return 1\n"
               "\n"
               "int generic_shadows_own<T: numeric>(T value)\n"
-              "    int helper = 3\n"
+              "    int helper := 3\n"
               "    return helper\n");
         write("own_main.qui",
               "import own = \"./own.qui\"\n"
               "\n"
-              "int value = own.generic_shadows_own<int>(1)\n");
+              "int value := own.generic_shadows_own<int>(1)\n");
         if (!compile_reports_shadowing(root / "own_main.qui", root))
             throw std::runtime_error("own-module local shadowing was not reported");
 
@@ -549,12 +549,12 @@ static void imported_locals_use_module_scope() {
               "    return 1\n"
               "\n"
               "if main\n"
-              "    int helper = 3\n"
+              "    int helper := 3\n"
               "    print(\"{helper}{NL}\")\n");
         write("own_guard_main.qui",
               "import own_guard = \"./own_guard.qui\"\n"
               "\n"
-              "int value = own_guard.helper()\n");
+              "int value := own_guard.helper()\n");
         if (!compile_reports_shadowing(root / "own_guard.qui", root))
             throw std::runtime_error("standalone guard shadowing was not reported");
         if (!compile_reports_shadowing(root / "own_guard_main.qui", root))
@@ -627,10 +627,10 @@ static void imported_signatures_use_module_scope() {
               "    narrow\n"
               "    wide\n"
               "\n"
-              "model m = model()\n"
+              "model m := model()\n"
               "m.v = 1\n"
-              "lib.Frame f = lib.Frame(2)\n"
-              "int total = lib.scale(2, 3) + lib.generic_scale<model>(m, 4) + f.area(4) + f.depth()\n");
+              "lib.Frame f := lib.Frame(2)\n"
+              "int total := lib.scale(2, 3) + lib.generic_scale<model>(m, 4) + f.area(4) + f.depth()\n");
         (void)quidra::compile_file(root / "main.qui", {}, root);
 
         // Language-owned members (time.Duration.seconds())
@@ -642,8 +642,8 @@ static void imported_signatures_use_module_scope() {
               "class value()\n"
               "    int v\n"
               "\n"
-              "time.Duration pause = time.seconds(0.5)\n"
-              "real64 total = pause.seconds() + 3.0\n");
+              "time.Duration pause := time.seconds(0.5)\n"
+              "real64 total := pause.seconds() + 3.0\n");
         (void)quidra::compile_file(root / "std.qui", {}, root);
 
         // A module's own classes stay reserved for its parameters, method
@@ -756,7 +756,7 @@ static void imported_type_parameters_use_module_scope() {
               "    int v\n"
               "\n"
               "int through(int n)\n"
-              "    int[] values = [1, 2]\n"
+              "    int[] values := [1, 2]\n"
               "    return lib.first(values, n)\n");
         write("main.qui",
               "import lib = \"./lib.qui\"\n"
@@ -775,13 +775,13 @@ static void imported_type_parameters_use_module_scope() {
               "    low\n"
               "    high\n"
               "\n"
-              "lib.Holder<int> holder = lib.Holder<int>()\n"
+              "lib.Holder<int> holder := lib.Holder<int>()\n"
               "holder.value = 4\n"
-              "int[] values = [1, 2]\n"
-              "string key = \"k\"\n"
-              "real64 scale = 2.0\n"
-              "map<string, int> counts = map<string, int>()\n"
-              "int total = lib.first(values, 2) + lib.pick(key, scale) + outer.through(5) + holder.value + M()\n");
+              "int[] values := [1, 2]\n"
+              "string key := \"k\"\n"
+              "real64 scale := 2.0\n"
+              "map<string, int> counts := map<string, int>()\n"
+              "int total := lib.first(values, 2) + lib.pick(key, scale) + outer.through(5) + holder.value + M()\n");
         (void)quidra::compile_file(root / "main.qui", {}, root);
 
         write("own_function.qui",
@@ -873,11 +873,11 @@ static void imported_names_resolve_in_module_scope() {
               "    return 7\n"
               "\n"
               "int use()\n"
-              "    func<int>() f = helper\n"
+              "    func<int>() f := helper\n"
               "    return f()\n"
               "\n"
               "int use_generic<T>(T value)\n"
-              "    func<int>() f = helper\n"
+              "    func<int>() f := helper\n"
               "    return f()\n"
               "\n"
               "class Box this()\n"
@@ -894,9 +894,9 @@ static void imported_names_resolve_in_module_scope() {
               "int storage()\n"
               "    return 5\n"
               "\n"
-              "lib.Box b = lib.Box()\n"
+              "lib.Box b := lib.Box()\n"
               "b.storage = 4\n"
-              "int total = lib.use() + lib.use_generic<int>(1) + b.twice() + helper() + storage()\n");
+              "int total := lib.use() + lib.use_generic<int>(1) + b.twice() + helper() + storage()\n");
         const auto compiled = quidra::compile_file(root / "main.qui", {}, root);
         const auto dumped = quidra::ir::dump(compiled.ir);
         if (dumped.find("fn.ref lib.helper") == std::string::npos ||
@@ -914,7 +914,7 @@ static void imported_names_resolve_in_module_scope() {
               "int missing()\n"
               "    return 1\n"
               "\n"
-              "int value = calls.use()\n");
+              "int value := calls.use()\n");
         const bool standalone = compile_reports_code(root / "calls.qui", root, "UNKNOWN_NAME");
         const bool imported = compile_reports_code(root / "calls_main.qui", root, "UNKNOWN_NAME");
         if (!standalone || !imported)
@@ -1514,11 +1514,11 @@ static void discard_name_is_never_declared_or_read() {
     const std::string typed = "'_' takes no type";
     const std::string declared = "'_' is the discard name";
     const std::string read = "'_' discards a value";
-    bad_message("int _ = 1\n", "DISCARD", typed);
-    bad_message("int f()\n    return 1\n\nauto _ = f()\n", "DISCARD", typed);
-    bad_message("const int _ = 1\n", "DISCARD", typed);
-    bad_message("void f()\n    int _ = 1\n", "DISCARD", typed);
-    bad_message("int x = 1\nint &_ = &x\n", "DISCARD", typed);
+    bad_message("int _ := 1\n", "DISCARD", typed);
+    bad_message("int f()\n    return 1\n\n_ := f()\n", "DISCARD", typed);
+    bad_message("const int _ := 1\n", "DISCARD", typed);
+    bad_message("void f()\n    int _ := 1\n", "DISCARD", typed);
+    bad_message("int x := 1\nint &_ := &x\n", "DISCARD", typed);
     bad_message("int f(int _)\n    return 1\n", "DISCARD", declared);
     bad_message("extern int32 c_abs(int32 _) = \"abs\"\n", "DISCARD", declared);
     bad_message("class C(local int _)\n"
@@ -1555,26 +1555,26 @@ static void discard_name_is_never_declared_or_read() {
         std::cerr << "'_' as an import alias or in an imported module is not DISCARD\n";
         std::exit(1);
     }
-    good("int[] values = [1, 2]\nfor _ = values[]\n    print(int(1))\n");
-    bad_message("int | none value = 1\nmatch value\n    int _\n        print(int(1))\n    none\n        print(int(2))\n",
+    good("int[] values := [1, 2]\nfor _ = values[]\n    print(int(1))\n");
+    bad_message("int | none value := 1\nmatch value\n    int _\n        print(int(1))\n    none\n        print(int(2))\n",
                 "DISCARD", declared);
-    bad_message("int x = 1\nint y = _ + x\n", "DISCARD", read);
+    bad_message("int x := 1\nint y := _ + x\n", "DISCARD", read);
     bad_message("print(_)\n", "DISCARD", read);
     bad_message("void f(int v)\n    print(v)\n\nf(_)\n", "DISCARD", read);
     bad_message("void f(int &v)\n    v = 1\n\nf(&_)\n", "DISCARD", read);
     bad_message("print(\"{_}\")\n", "DISCARD", read);
     bad_message("_ = 1\n", "DISCARD", read);
     bad_message("_ += 1\n", "DISCARD", read);
-    bad_message("int x = 1\n&_ = &x\n", "DISCARD", read);
+    bad_message("int x := 1\n&_ = &x\n", "DISCARD", read);
     bad_message("class C()\n"
                 "    int x\n"
                 "\n"
                 "    int get()\n"
                 "        return _\n", "DISCARD", read);
     // The tensor shape wildcard keeps its meaning.
-    good("tensor<real32>{2, _} grid = tensor.zeros<real32>([2, 3])\nprint(grid.shape()[1])\nprint(NL)\n");
+    good("tensor<real32>{2, _} grid := tensor.zeros<real32>([2, 3])\nprint(grid.shape()[1])\nprint(NL)\n");
     // A name that only begins with '_' is an ordinary name.
-    good("int _count = 1\nint __total = _count + 1\nprint(__total)\nprint(NL)\n");
+    good("int _count := 1\nint __total := _count + 1\nprint(__total)\nprint(NL)\n");
 }
 
 // A class belongs to the standard library by where the compiler created it,
@@ -1587,7 +1587,7 @@ static void standard_library_classes_are_marked_by_origin() {
     bad_message("class __quidra_gc__std_box()\n"
                 "    int value\n"
                 "\n"
-                "__quidra_gc__std_box b = __quidra_gc__std_box()\n",
+                "__quidra_gc__std_box b := __quidra_gc__std_box()\n",
                 "SHADOWING", reserved);
     // A user generic class whose instance is mangled like a standard one is
     // still a user class: its required class header cannot be omitted,
@@ -1611,15 +1611,15 @@ static void standard_library_classes_are_marked_by_origin() {
          "    this.__key = key\n"
          "    this.__value = value\n"
          "\n"
-         "_std_map_Map<int, string> entry = _std_map_Map<int, string>(1, \"one\")\n"
+         "_std_map_Map<int, string> entry := _std_map_Map<int, string>(1, \"one\")\n"
          "print(entry.__value)\n"
          "print(NL)\n");
     // A standard collection's internals stay hidden.
-    bad_code("map<int, int> values = map<int, int>()\nprint(len(values.__keys))\n",
+    bad_code("map<int, int> values := map<int, int>()\nprint(len(values.__keys))\n",
              "UNKNOWN_MEMBER");
     // Every kind of declaration rejects the compiler's names.
-    bad_message("int __quidra_value = 1\n", "SHADOWING", reserved);
-    bad_message("void f()\n    int __quidra_value = 1\n", "SHADOWING", reserved);
+    bad_message("int __quidra_value := 1\n", "SHADOWING", reserved);
+    bad_message("void f()\n    int __quidra_value := 1\n", "SHADOWING", reserved);
     bad_message("int __quidra_f()\n    return 1\n", "SHADOWING", reserved);
     bad_message("int f(int __quidra_v)\n    return 1\n", "SHADOWING", reserved);
     bad_message("class C()\n"
@@ -1632,7 +1632,7 @@ static void standard_library_classes_are_marked_by_origin() {
                 "SHADOWING", reserved);
     bad_message("T f<__quidra_T>(int v)\n    return v\n", "SHADOWING", reserved);
     bad_message("enum __quidra_E\n    A\n", "SHADOWING", reserved);
-    bad_message("int[] values = [1, 2]\nfor auto __quidra_v = values[]\n    print(int(1))\n",
+    bad_message("int[] values := [1, 2]\nfor __quidra_v := values[]\n    print(int(1))\n",
                 "SHADOWING", reserved);
     const std::string lib = "int value()\n    return 1\n";
     if (imported_check_code("import __quidra_lib = \"./lib.qui\"\n", lib) != "SHADOWING" ||
@@ -1644,7 +1644,7 @@ static void standard_library_classes_are_marked_by_origin() {
         std::exit(1);
     }
     // A name that merely contains the text is an ordinary name.
-    good("int my__quidra_value = 1\nprint(my__quidra_value)\nprint(NL)\n");
+    good("int my__quidra_value := 1\nprint(my__quidra_value)\nprint(NL)\n");
 }
 
 // If expressions: typing with and without a contextual type, the
@@ -1655,14 +1655,14 @@ static void symbolic_tensor_extents() {
 tensor<real32>{_, 3} preserve(tensor<real32>{_, 3} x)
     return x.contiguous()
 tensor<real32>{_, 3} combine(tensor<real32>{_, 3} a, tensor<real32>{_, 3} b)
-    auto c = a + b
+    c := a + b
     return c + (b + a)
 tensor<real32>{_, 3} choose_first(tensor<real32>{_, 3} x, tensor<real32>{_, 3} y)
     return x
 tensor<real32>{_, 3} named(tensor<real32>{_, 3} a, tensor<real32>{_, 3} b)
     return choose_first(y = a, x = b)
 tensor<real32>{_, 3} shape_roundtrip(tensor<real32>{_, 3} x)
-    nat n = x.shape()[0]
+    nat n := x.shape()[0]
     return tensor.zeros<real32>([n, 3])
 tensor<real32>{_, 3} stable_loop(tensor<real32>{_, 3} x, bool more)
     while more
@@ -1675,14 +1675,14 @@ tensor<real32>{_, 3} growing_loop(tensor<real32>{_, 3} acc, tensor<real32>{_, 3}
         more = false
     return acc
 tensor<real32>{_, 3} equal_join(tensor<real32>{_, 3} a, tensor<real32>{_, 3} b, bool first)
-    tensor<real32>{_, 3} result = a
+    tensor<real32>{_, 3} result := a
     if first
         result = a + b
     else
         result = b + a
     return result
 tensor<real32>{_, 3} different_join(tensor<real32>{_, 3} a, tensor<real32>{_, 3} b, bool first)
-    tensor<real32>{_, 3} result = a
+    tensor<real32>{_, 3} result := a
     if first
         result = a
     else
@@ -1691,9 +1691,9 @@ tensor<real32>{_, 3} different_join(tensor<real32>{_, 3} a, tensor<real32>{_, 3}
 tensor<real32>{_, 3} local_mix(tensor<real32>{_, 3} x, nat n)
     return x + tensor.zeros<real32>([n, 3])
 tensor<real32>{_, 3} capture_version(nat n)
-    tensor<real32>{n, 3} first = tensor.zeros<real32>([n, 3])
+    tensor<real32>{n, 3} first := tensor.zeros<real32>([n, 3])
     n += 1
-    tensor<real32>{n, 3} second = tensor.zeros<real32>([n, 3])
+    tensor<real32>{n, 3} second := tensor.zeros<real32>([n, 3])
     return first + second
 tensor<T>{_, 3} generic_preserve<T: numeric>(tensor<T>{_, 3} x)
     return x.contiguous()
@@ -1749,22 +1749,22 @@ static void brace_shapes_and_shape_variables() {
     bad_message("tensor<real32><2, 3> values = tensor.zeros<real32>([2, 3])\n", "TENSOR_TYPE",
                 "Tensor shapes are written in braces");
 
-    good("tensor<real32>{2, 3} m = tensor.zeros<real32>([2, 3])\n");
+    good("tensor<real32>{2, 3} m := tensor.zeros<real32>([2, 3])\n");
     good("tensor<real32>{3, _, _} image\n");
-    good("tensor<real32>{_, _} grid = tensor.zeros<real32>([2, 3])\n");
+    good("tensor<real32>{_, _} grid := tensor.zeros<real32>([2, 3])\n");
     good("tensor<real32>{2, 3, 5} a\n");
-    good("tensor<real32> any_rank = tensor.zeros<real32>([4])\n");
-    bad_code("tensor<real32>{3, _} wrong = tensor.zeros<real32>([2, 2])\n", "TYPE_MISMATCH");
+    good("tensor<real32> any_rank := tensor.zeros<real32>([4])\n");
+    bad_code("tensor<real32>{3, _} wrong := tensor.zeros<real32>([2, 2])\n", "TYPE_MISMATCH");
     // A shape split across lines is one logical line.
-    good("tensor<real32>{nat B,\n    nat C} x = tensor.zeros<real32>([2, 3])\nprint(B + C)\n");
+    good("tensor<real32>{nat B,\n    nat C} x := tensor.zeros<real32>([2, 3])\nprint(B + C)\n");
     // Braces belong to shapes, and a tensor type names its element type.
     bad_code("tensor{2, 3} x = tensor.zeros<real32>([2, 3])\n", "TENSOR_TYPE");
-    bad_message("int x = {3}\n", "PARSE_ERROR", "Braces appear only in tensor shapes.");
+    bad_message("int x := {3}\n", "PARSE_ERROR", "Braces appear only in tensor shapes.");
     bad_message("int{3} y = 1\n", "PARSE_ERROR", "Braces appear only in tensor shapes.");
     // Braced type arguments inside interpolations stay one expression.
     good("nat count<T>(T[] values)\n"
          "    return len(values)\n"
-         "tensor<real32>[] xs = [tensor.zeros<real32>([2, 3])]\n"
+         "tensor<real32>[] xs := [tensor.zeros<real32>([2, 3])]\n"
          "print(\"{count<tensor<real32>{2, 3}>(xs)}{NL}\")\n"
          "print(\"{count<tensor<real32>{2}>(xs):int=3}{NL}\")\n");
     // Signatures take literal and `_` axes until they take shape variables.
@@ -1773,34 +1773,34 @@ static void brace_shapes_and_shape_variables() {
     good("tensor<real32>{n} f(nat n)\n    return tensor.zeros<real32>([n])\n");
 
     // The canonical snippets (L17 REVISION 2 and L17 FINAL in its spelling).
-    good("tensor<real32>{nat R, nat W} d = tensor.zeros<real32>([2, 3])\n"
+    good("tensor<real32>{nat R, nat W} d := tensor.zeros<real32>([2, 3])\n"
          "print(\"{R} x {W}{NL}\")\n");
-    good("nat n = 3\ntensor<real32>{n, _} rows = tensor.zeros<real32>([3, 7])\n");
-    good("tensor<real32>{nat B, 3, nat H, nat W} rgb = tensor.zeros<real32>([1, 3, 4, 4])\n"
+    good("nat n := 3\ntensor<real32>{n, _} rows := tensor.zeros<real32>([3, 7])\n");
+    good("tensor<real32>{nat B, 3, nat H, nat W} rgb := tensor.zeros<real32>([1, 3, 4, 4])\n"
          "print(B * H * W)\n");
-    good("nat N = 3\ntensor<real32>{N} v\n");
-    good("tensor<real32>{nat B, nat C, nat H, nat W} x = tensor.zeros<real32>([1, 2, 3, 4])\n"
-         "tensor<real32>{B, C, H, W} y = x\n");
-    good("tensor<real32>{nat K, K} sq = tensor.zeros<real32>([2, 2])\n");
-    good("nat rows = 4\nnat cols = 5\n"
-         "tensor<real32>{nat H = rows * cols, nat W} img = tensor.zeros<real32>([20, 3])\n"
+    good("nat N := 3\ntensor<real32>{N} v\n");
+    good("tensor<real32>{nat B, nat C, nat H, nat W} x := tensor.zeros<real32>([1, 2, 3, 4])\n"
+         "tensor<real32>{B, C, H, W} y := x\n");
+    good("tensor<real32>{nat K, K} sq := tensor.zeros<real32>([2, 2])\n");
+    good("nat rows := 4\nnat cols := 5\n"
+         "tensor<real32>{nat H = rows * cols, nat W} img := tensor.zeros<real32>([20, 3])\n"
          "print(H + W)\n");
     bad_message("tensor<real32>{N, K} a\n", "SHAPE_VARIABLE",
                 "'N' is not declared: write 'nat N' to declare a shape variable, or use an "
                 "existing nat value.");
-    bad_message("tensor<real32>{nat N, C} a = tensor.zeros<real32>([2, 3])\n", "SHAPE_VARIABLE",
+    bad_message("tensor<real32>{nat N, C} a := tensor.zeros<real32>([2, 3])\n", "SHAPE_VARIABLE",
                 "'C' is not declared");
     bad_message("tensor<real32>{nat B, nat H} t\n", "SHAPE_VARIABLE",
                 "'B' has no value: without an initializer, write a literal, an expression, "
                 "'nat B = ...' or an existing nat value.");
-    bad_message("int n = 3\ntensor<real32>{n} u = tensor.zeros<real32>([3])\n", "SHAPE_VARIABLE",
+    bad_message("int n := 3\ntensor<real32>{n} u := tensor.zeros<real32>([3])\n", "SHAPE_VARIABLE",
                 "'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.");
-    bad_message("tensor<real32>{nat C, nat H} x = tensor.zeros<real32>([2, 3])\n"
-                "tensor<real32>{nat H = 10, nat W} z = tensor.zeros<real32>([10, 2])\n",
+    bad_message("tensor<real32>{nat C, nat H} x := tensor.zeros<real32>([2, 3])\n"
+                "tensor<real32>{nat H = 10, nat W} z := tensor.zeros<real32>([10, 2])\n",
                 "SHADOWING",
                 "'H' already names a nat value; 'nat H' would declare a new shape variable. To "
                 "require equality with it, write the bare name 'H'.");
-    bad_message("tensor<real32>{nat N, nat N} t = tensor.zeros<real32>([2, 2])\n",
+    bad_message("tensor<real32>{nat N, nat N} t := tensor.zeros<real32>([2, 2])\n",
                 "SHAPE_VARIABLE",
                 "'N' is declared twice; declare it once with 'nat N' and write the bare 'N' for "
                 "an equal axis.");
@@ -1810,19 +1810,19 @@ static void brace_shapes_and_shape_variables() {
                 "declare it in a parameter with 'nat L'.");
 
     // A shape is one unit: order-free, `nat N = EXPR` in dependency order.
-    good("tensor<real32>{nat M = 2 * N, nat N} x = tensor.zeros<real32>([4, 2])\nprint(M)\n");
-    good("tensor<real32>{nat N, N + 1} x = tensor.zeros<real32>([2, 3])\n");
-    bad_message("tensor<real32>{nat A = B + 1, nat B = A - 1} t = tensor.zeros<real32>([2, 1])\n",
+    good("tensor<real32>{nat M = 2 * N, nat N} x := tensor.zeros<real32>([4, 2])\nprint(M)\n");
+    good("tensor<real32>{nat N, N + 1} x := tensor.zeros<real32>([2, 3])\n");
+    bad_message("tensor<real32>{nat A = B + 1, nat B = A - 1} t := tensor.zeros<real32>([2, 1])\n",
                 "SHAPE_VARIABLE", "'A' and 'B' are defined by each other.");
-    bad_message("tensor<real32>{nat A = A + 1} t = tensor.zeros<real32>([2])\n",
+    bad_message("tensor<real32>{nat A = A + 1} t := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'A' is defined by itself.");
     // Unnamed expressions are nat: `(n)` is an expression, `nat(n)` converts.
-    good("nat n = 3\ntensor<real32>{(n)} x = tensor.zeros<real32>([3])\n");
-    bad_message("int n = 3\ntensor<real32>{(n)} x = tensor.zeros<real32>([3])\n",
+    good("nat n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n");
+    bad_message("int n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n",
                 "TYPE_MISMATCH", "A tensor axis is a nat value: write 'nat(n)'.");
-    good("int n = 3\ntensor<real32>{nat(n), 2} x = tensor.zeros<real32>([3, 2])\n");
-    good("int[] v = [1, 2]\ntensor<real32>{len(v)} x = tensor.zeros<real32>([2])\n");
-    good("bool wide = true\ntensor<real32>{if wide then 4 else 2} x = tensor.zeros<real32>([4])\n");
+    good("int n := 3\ntensor<real32>{nat(n), 2} x := tensor.zeros<real32>([3, 2])\n");
+    good("int[] v := [1, 2]\ntensor<real32>{len(v)} x := tensor.zeros<real32>([2])\n");
+    good("bool wide := true\ntensor<real32>{if wide then 4 else 2} x := tensor.zeros<real32>([4])\n");
     bad_message("tensor<real32>{int N} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
                 "A shape variable is nat: write 'nat N'.");
     bad_message("tensor<real32>{auto N} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
@@ -1830,49 +1830,49 @@ static void brace_shapes_and_shape_variables() {
     bad_message("tensor<real32>{nat64 N} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
                 "A shape variable is nat: write 'nat N'.");
     // Bare names refer only to nat values.
-    bad_message("real64 r = 2.0\ntensor<real32>{r} x = tensor.zeros<real32>([2])\n",
+    bad_message("real64 r := 2.0\ntensor<real32>{r} x := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'r' is not a nat value.");
-    bad_message("nat64 w = 2\ntensor<real32>{w} x = tensor.zeros<real32>([2])\n",
+    bad_message("nat64 w := 2\ntensor<real32>{w} x := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'w' is nat64; a bare axis name refers only to a nat value");
-    bad_message("nat f()\n    return 2\ntensor<real32>{f} x = tensor.zeros<real32>([2])\n",
+    bad_message("nat f()\n    return 2\ntensor<real32>{f} x := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'f' is not a nat value.");
-    bad_message("tensor<real32>{FF} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
+    bad_message("tensor<real32>{FF} x := tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
                 "'FF' is a built-in text constant, not a nat value; choose another axis name.");
-    bad_message("void f<T>(tensor<T> x)\n    tensor<T>{nat B, T} y = x\n", "SHAPE_VARIABLE",
+    bad_message("void f<T>(tensor<T> x)\n    tensor<T>{nat B, T} y := x\n", "SHAPE_VARIABLE",
                 "'T' is a type parameter, not a nat value; choose another axis name.");
     // `nat N` over a visible name is SHADOWING, with the hint that fits.
-    bad_message("int H = 3\ntensor<real32>{nat H} x = tensor.zeros<real32>([3])\n",
+    bad_message("int H := 3\ntensor<real32>{nat H} x := tensor.zeros<real32>([3])\n",
                 "SHADOWING",
                 "'H' already names an int binding; 'nat H' would declare a new shape variable. "
                 "To require equality with its value, write 'nat(H)'.");
-    bad_message("real64 H = 3.0\ntensor<real32>{nat H} x = tensor.zeros<real32>([3])\n",
+    bad_message("real64 H := 3.0\ntensor<real32>{nat H} x := tensor.zeros<real32>([3])\n",
                 "SHADOWING", "'H' already names a real64 binding; 'nat H' would declare a new "
                              "shape variable. Choose another name.");
-    bad_message("nat H()\n    return 3\ntensor<real32>{nat H} x = tensor.zeros<real32>([3])\n",
+    bad_message("nat H()\n    return 3\ntensor<real32>{nat H} x := tensor.zeros<real32>([3])\n",
                 "SHADOWING", "'H' already names a function");
     // `_` binds nothing and is never read.
-    bad_code("tensor<real32>{nat _} x = tensor.zeros<real32>([3])\n", "DISCARD");
-    bad_code("tensor<real32>{nat _ = 3} x = tensor.zeros<real32>([3])\n", "DISCARD");
-    bad_code("tensor<real32>{_, _ + 1} x = tensor.zeros<real32>([2, 3])\n", "DISCARD");
+    bad_code("tensor<real32>{nat _} x := tensor.zeros<real32>([3])\n", "DISCARD");
+    bad_code("tensor<real32>{nat _ = 3} x := tensor.zeros<real32>([3])\n", "DISCARD");
+    bad_code("tensor<real32>{_, _ + 1} x := tensor.zeros<real32>([2, 3])\n", "DISCARD");
     // Shape variables are read-only nat values.
-    bad_message("tensor<real32>{nat N} x = tensor.zeros<real32>([3])\nN = 4\n",
+    bad_message("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nN = 4\n",
                 "INVALID_ASSIGNMENT", "Shape variable 'N' is read-only.");
-    bad_message("tensor<real32>{nat N} x = tensor.zeros<real32>([3])\nN += 1\n",
+    bad_message("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nN += 1\n",
                 "INVALID_ASSIGNMENT", "Shape variable 'N' is read-only.");
     bad_message("void grow(nat &n)\n    n += 1\n"
-                "tensor<real32>{nat N} x = tensor.zeros<real32>([3])\ngrow(&N)\n",
+                "tensor<real32>{nat N} x := tensor.zeros<real32>([3])\ngrow(&N)\n",
                 "INVALID_ASSIGNMENT", "Shape variable 'N' is read-only.");
-    bad_code("tensor<real32>{nat N} x = tensor.zeros<real32>([3])\nint i = N\n",
+    bad_code("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nint i := N\n",
              "TYPE_MISMATCH");
-    good("tensor<real32>{nat N} x = tensor.zeros<real32>([3])\nint i = int(N)\n");
+    good("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nint i := int(N)\n");
     // A repeat whose extents are known contradicts at compile time.
-    bad_message("tensor<real32>{nat K, K} sq = tensor.zeros<real32>([2, 3])\n", "TENSOR_SHAPE",
+    bad_message("tensor<real32>{nat K, K} sq := tensor.zeros<real32>([2, 3])\n", "TENSOR_SHAPE",
                 "Shape variable 'K' is 2, but axis 1 of the initializer is 3.");
     // A variable declared in a match case belongs to its body; a case with
     // an equality axis covers nothing.
     good("tensor<real32> make(nat a, nat b)\n"
          "    return tensor.zeros<real32>([a, b])\n"
-         "tensor<real32> | none value = make(2, 2)\n"
+         "tensor<real32> | none value := make(2, 2)\n"
          "match value\n"
          "    tensor<real32>{nat K, K} square\n"
          "        print(K)\n"
@@ -1880,14 +1880,14 @@ static void brace_shapes_and_shape_variables() {
          "        print(int(0))\n"
          "    none\n"
          "        print(int(1))\n");
-    bad_code("tensor<real32> | none value = tensor.zeros<real32>([2, 2])\n"
+    bad_code("tensor<real32> | none value := tensor.zeros<real32>([2, 2])\n"
              "match value\n"
              "    tensor<real32>{nat K, K} square\n"
              "        print(K)\n"
              "    none\n"
              "        print(int(1))\n",
              "MATCH_EXHAUSTIVE");
-    good("tensor<real32>{3, _} | none value = tensor.zeros<real32>([3, 4])\n"
+    good("tensor<real32>{3, _} | none value := tensor.zeros<real32>([3, 4])\n"
          "match value\n"
          "    tensor<real32>{3, nat W} rgb\n"
          "        print(W)\n"
@@ -1895,91 +1895,91 @@ static void brace_shapes_and_shape_variables() {
          "        print(int(1))\n");
 
     // Array extents are whole expressions; nat(e) captures e.
-    good("int n = 3\nint[nat(n)] values\n");
-    good("int[] v = [1, 2]\nint[len(v)] copy\n");
-    bad_message("int n = 3\nint[n] values\n", "TYPE_MISMATCH",
+    good("int n := 3\nint[nat(n)] values\n");
+    good("int[] v := [1, 2]\nint[len(v)] copy\n");
+    bad_message("int n := 3\nint[n] values\n", "TYPE_MISMATCH",
                 "An array extent is a nat value");
 }
 
 static void if_expressions_are_typed_like_initializers() {
-    const std::string ready = "bool ready = true\n";
+    const std::string ready = "bool ready := true\n";
     // With a contextual type every branch is checked as an initializer is.
-    good(ready + "real32 x = if ready then 1.0 else 2.0\nprint(x)\nprint(NL)\n");
-    good(ready + "int | error result = if ready then 1 else error(\"bad\")\n"
+    good(ready + "real32 x := if ready then 1.0 else 2.0\nprint(x)\nprint(NL)\n");
+    good(ready + "int | error result := if ready then 1 else error(\"bad\")\n"
                  "match result\n    int value\n        print(value)\n    error problem\n        print(problem)\n");
-    good(ready + "int x = 1 + (if ready then 2 else 3)\nint y = x * (if ready then 2 else 3)\nprint(y)\nprint(NL)\n");
-    good(ready + "int64 n = 5\nint64 x = n + (if ready then 1 else 2)\nprint(x)\nprint(NL)\n");
+    good(ready + "int x := 1 + (if ready then 2 else 3)\nint y := x * (if ready then 2 else 3)\nprint(y)\nprint(NL)\n");
+    good(ready + "int64 n := 5\nint64 x := n + (if ready then 1 else 2)\nprint(x)\nprint(NL)\n");
     // Without one the typed branches have one type, and a literal branch
     // materializes into it.
-    good(ready + "int64 n = 5\nauto x = if ready then n else 0\nint64 y = x\nprint(y)\nprint(NL)\n");
-    good(ready + "int64 n = 5\nauto x = if ready then n else -1\nint64 y = x\nprint(y)\nprint(NL)\n");
-    good(ready + "string a = \"a\"\nauto s = if ready then a else \"b\"\nprint(s)\nprint(NL)\n");
-    bad_code(ready + "int64 n = 5\nauto x = if ready then n else 2.5\n", "NUMERIC_FAMILY");
-    bad(ready + "auto x = if ready then 1 else 2.0\n");
-    bad_code(ready + "auto x = if ready then 1 else 2\n", "AMBIGUOUS_NUMERIC_LITERAL");
-    bad_message(ready + "int64 a = 1\nreal64 b = 2.0\nauto x = if ready then a else b\n",
+    good(ready + "int64 n := 5\nx := if ready then n else 0\nint64 y := x\nprint(y)\nprint(NL)\n");
+    good(ready + "int64 n := 5\nx := if ready then n else -1\nint64 y := x\nprint(y)\nprint(NL)\n");
+    good(ready + "string a := \"a\"\ns := if ready then a else \"b\"\nprint(s)\nprint(NL)\n");
+    bad_code(ready + "int64 n := 5\nx := if ready then n else 2.5\n", "NUMERIC_FAMILY");
+    bad(ready + "x := if ready then 1 else 2.0\n");
+    bad_code(ready + "x := if ready then 1 else 2\n", "AMBIGUOUS_NUMERIC_LITERAL");
+    bad_message(ready + "int64 a := 1\nreal64 b := 2.0\nx := if ready then a else b\n",
                 "TYPE_MISMATCH", "different types: 'int64' and 'real64'");
-    bad_message("int k = 1\nint x = if k then 1 else 2\n", "TYPE_MISMATCH",
+    bad_message("int k := 1\nint x := if k then 1 else 2\n", "TYPE_MISMATCH",
                 "An if-expression condition must be bool.");
     // An if-expression as the condition of an if-expression, parenthesized.
-    good(ready + "int x = if (if ready then false else true) then 1 else 2\nprint(x)\nprint(NL)\n");
+    good(ready + "int x := if (if ready then false else true) then 1 else 2\nprint(x)\nprint(NL)\n");
     // Strings, arrays, classes, tensors and unions as branches.
-    good(ready + "int[] a = [1, 2]\nint[] b = [3]\nint[] c = if ready then a else b\nprint(len(c))\nprint(NL)\n");
+    good(ready + "int[] a := [1, 2]\nint[] b := [3]\nint[] c := if ready then a else b\nprint(len(c))\nprint(NL)\n");
     good("class P this(local int value)\n"
          "    int v\n"
          "\n"
          "\n"
          "    this.v = value\n"
          "\n" + ready +
-         "P p = P(1)\nP q = P(2)\nP r = if ready then p else q\nprint(r.v)\nprint(NL)\n"
-         "bool same = (if ready then p else q) == p\nprint(same)\nprint(NL)\n");
-    good(ready + "tensor<real32> t = tensor.zeros<real32>([2])\n"
-                 "tensor<real32> u = tensor.ones<real32>([2])\n"
-                 "tensor<real32> w = if ready then t else u\nprint(w[0].item())\nprint(NL)\n");
-    good(ready + "int | none v = if ready then 1 else none\n"
+         "P p := P(1)\nP q := P(2)\nP r := if ready then p else q\nprint(r.v)\nprint(NL)\n"
+         "bool same := (if ready then p else q) == p\nprint(same)\nprint(NL)\n");
+    good(ready + "tensor<real32> t := tensor.zeros<real32>([2])\n"
+                 "tensor<real32> u := tensor.ones<real32>([2])\n"
+                 "tensor<real32> w := if ready then t else u\nprint(w[0].item())\nprint(NL)\n");
+    good(ready + "int | none v := if ready then 1 else none\n"
                  "match v\n    int value\n        print(value)\n    none\n        print(\"none\")\n");
     // Whole-expression positions.
-    good("int pick(bool c, int a, int b = if true then 1 else 2)\n    return if c then a elif a > b then b else a + b\n\n" +
+    good("int pick(bool c, int a, int b := if true then 1 else 2)\n    return if c then a elif a > b then b else a + b\n\n" +
          ready + "print(pick(ready, if ready then 3 else 4))\n"
                  "print(NL)\n"
-                 "int[] v = [if ready then 1 else 2, 3]\n"
+                 "int[] v := [if ready then 1 else 2, 3]\n"
                  "print(v[if ready then 0 else 1])\n"
                  "print(NL)\n"
-                 "int total = 0\n"
+                 "int total := 0\n"
                  "total += if ready then 1 else 2\n"
                  "print(\"{if ready then total else 0}\")\n"
                  "print(NL)\n"
                  "class Box()\n"
-                 "    int v = if true then 1 else 2\n");
+                 "    int v := if true then 1 else 2\n");
     // Generic inference sees the branches' type.
     good("T identity<T>(T value)\n    return value\n\n" + ready +
-         "int64 n = 1\nint64 m = identity(if ready then n else 0)\nprint(m)\nprint(NL)\n");
+         "int64 n := 1\nint64 m := identity(if ready then n else 0)\nprint(m)\nprint(NL)\n");
     // Void branches give no value.
     bad_code("void g()\n    return\n\n" + ready + "(if ready then g() else g())\n", "TYPE_MISMATCH");
     // An if-expression gives a value, never a reference.
-    const std::string storage = ready + "int a = 1\nint b = 2\n";
+    const std::string storage = ready + "int a := 1\nint b := 2\n";
     const std::string writer = "void assign(int &target)\n    target = 1\n\n";
     bad_code(writer + storage + "assign(&if ready then a else b)\n", "IF_EXPRESSION");
     bad_code(writer + storage + "assign(&(if ready then a else b))\n", "IF_EXPRESSION");
-    bad_code(storage + "int &r = if ready then &a else &b\n", "IF_EXPRESSION");
-    bad_code(storage + "bool same = (if ready then &a else &b) == &a\n", "IF_EXPRESSION");
-    bad_code(storage + "int &r = &a\n&r = &(if ready then a else b)\n", "IF_EXPRESSION");
+    bad_code(storage + "int &r := if ready then &a else &b\n", "IF_EXPRESSION");
+    bad_code(storage + "bool same := (if ready then &a else &b) == &a\n", "IF_EXPRESSION");
+    bad_code(storage + "int &r := &a\n&r = &(if ready then a else b)\n", "IF_EXPRESSION");
     // Parse errors keep their code through compile().
-    bad_code(ready + "int x = if ready then 1\n", "IF_EXPRESSION");
-    bad_code(ready + "int x = 1 + if ready then 2 else 3\n", "IF_EXPRESSION");
+    bad_code(ready + "int x := if ready then 1\n", "IF_EXPRESSION");
+    bad_code(ready + "int x := 1 + if ready then 2 else 3\n", "IF_EXPRESSION");
     // Initialization flows as through an if statement: storage a branch
     // initializes is initialized afterwards on every path only if every
     // branch does, otherwise a read of it is checked at run time, and a
     // condition always runs.
     const std::string init = "bool fill(int &target)\n    target = 1\n    return true\n\n";
-    good(init + ready + "int x\nbool done = if ready then fill(&x) else false\nprint(x)\nprint(NL)\n");
-    ir_contains(init + ready + "int x\nbool done = if ready then fill(&x) else false\nprint(x)\n",
+    good(init + ready + "int x\nbool done := if ready then fill(&x) else false\nprint(x)\nprint(NL)\n");
+    ir_contains(init + ready + "int x\nbool done := if ready then fill(&x) else false\nprint(x)\n",
                 "init.check %");
-    good(init + ready + "int x\nbool done = if fill(&x) then ready else false\nprint(x)\nprint(NL)\n");
-    good(init + ready + "int x\nbool done = if ready then fill(&x) else fill(&x)\nprint(x)\nprint(NL)\n");
+    good(init + ready + "int x\nbool done := if fill(&x) then ready else false\nprint(x)\nprint(NL)\n");
+    good(init + ready + "int x\nbool done := if ready then fill(&x) else fill(&x)\nprint(x)\nprint(NL)\n");
     // Lowering and tools.
-    ir_contains(ready + "int x = if ready then 1 else 2\nprint(x)\nprint(NL)\n", "if.result");
-    inspect_contains(ready + "int x = if ready then 1 else 2\n", "\"if_expression\"");
+    ir_contains(ready + "int x := if ready then 1 else 2\nprint(x)\nprint(NL)\n", "if.result");
+    inspect_contains(ready + "int x := if ready then 1 else 2\n", "\"if_expression\"");
 }
 
 // Checks main.qui beside the given module files and returns the first
@@ -2028,8 +2028,8 @@ static void private_declarations_stay_in_their_module() {
         "    Red\n"
         "    Blue\n"
         "\n"
-        "private const int LIMIT = 3\n"
-        "const int SIZE = 4\n"
+        "private const int LIMIT := 3\n"
+        "const int SIZE := 4\n"
         "\n"
         "T pass<T>(T value)\n"
         "    print(helper())\n"
@@ -2044,13 +2044,13 @@ static void private_declarations_stay_in_their_module() {
     // An importer cannot name them.
     expect(modules_diagnostic(head + "print(lib.helper())\n", files),
            "PRIVATE_DECLARATION: 'helper' is private to module 'lib'.");
-    expect(modules_diagnostic(head + "func<int>() f = lib.helper\n", files),
+    expect(modules_diagnostic(head + "func<int>() f := lib.helper\n", files),
            "PRIVATE_DECLARATION: 'helper' is private to module 'lib'.");
     expect(modules_diagnostic(head + "lib.Shape s\n", files),
            "PRIVATE_DECLARATION: 'Shape' is private to module 'lib'.");
-    expect(modules_diagnostic(head + "auto s = lib.Shape()\n", files),
+    expect(modules_diagnostic(head + "s := lib.Shape()\n", files),
            "PRIVATE_DECLARATION: 'Shape' is private to module 'lib'.");
-    expect(modules_diagnostic(head + "lib.Color c = lib.Color.Red\n", files),
+    expect(modules_diagnostic(head + "lib.Color c := lib.Color.Red\n", files),
            "PRIVATE_DECLARATION: 'Color' is private to module 'lib'.");
     expect(modules_diagnostic(head + "print(lib.LIMIT)\n", files),
            "PRIVATE_DECLARATION: 'LIMIT' is private to module 'lib'.");
@@ -2065,7 +2065,7 @@ static void private_declarations_stay_in_their_module() {
     const std::string shape = "private class Shape()\n"
                               "    int sides\n"
                               "\n";
-    bad_message(shape + "Shape make()\n    Shape s = Shape()\n    s.sides = 3\n    return s\n",
+    bad_message(shape + "Shape make()\n    Shape s := Shape()\n    s.sides = 3\n    return s\n",
                 "PRIVATE_DECLARATION", "Public function 'make' exposes private class 'Shape'.");
     bad_message(shape + "int sides(Shape s)\n    return s.sides\n", "PRIVATE_DECLARATION",
                 "Public function 'sides' exposes private class 'Shape'.");
@@ -2074,10 +2074,10 @@ static void private_declarations_stay_in_their_module() {
                 "Public field 'shapes' of class 'Drawing' exposes private class 'Shape'.");
     bad_message("private enum Color\n    Red\n\nenum Paint\n    Solid(Color)\n", "PRIVATE_DECLARATION",
                 "Public enum 'Paint' exposes private enum 'Color'.");
-    bad_message("private enum Color\n    Red\n\nconst Color DEFAULT = Color.Red\n", "PRIVATE_DECLARATION",
+    bad_message("private enum Color\n    Red\n\nconst Color DEFAULT := Color.Red\n", "PRIVATE_DECLARATION",
                 "Public constant 'DEFAULT' exposes private enum 'Color'.");
     good(shape + "private Shape make()\n"
-                 "    Shape s = Shape()\n"
+                 "    Shape s := Shape()\n"
                  "    s.sides = 3\n"
                  "    return s\n"
                  "\n"
@@ -2106,16 +2106,16 @@ static void private_declarations_stay_in_their_module() {
 // and before a call's postfix chain.
 static void mutation_markers_parse() {
     const std::string counter =
-        "class Counter this(local int start)\n    int value = 0\n    this.value = start\n\n"
+        "class Counter this(local int start)\n    int value := 0\n    this.value = start\n\n"
         "    void .increment()\n        this.value += 1\n\n";
-    good(counter + "Counter c = Counter(1)\n.c.increment()\nprint(c.value)\nprint(NL)\n");
-    good("int64 .twice(int64 v)\n    return v * 2\n\nint64 x = .twice(2)\nprint(x + .twice(3))\nprint(NL)\n");
+    good(counter + "Counter c := Counter(1)\n.c.increment()\nprint(c.value)\nprint(NL)\n");
+    good("int64 .twice(int64 v)\n    return v * 2\n\nint64 x := .twice(2)\nprint(x + .twice(3))\nprint(NL)\n");
     good("int64 .twice(int64 v);\n\nprint(.twice(1))\nprint(NL)\n\nint64 .twice(int64 v)\n    return v * 2\n");
     good("extern int32 .c_abs(int32 value) = \"abs\"\nprint(.c_abs(int32(-3)))\nprint(NL)\n");
     good("class Box this(local int initial) | error\n    int v\n    this.v = initial\n\n"
-         "auto made = Box(1)\n");
+         "made := Box(1)\n");
     good("class Inner this()\n"
-         "    int v = 0\n"
+         "    int v := 0\n"
          "\n"
          "    void .bump()\n"
          "        this.v += 1\n"
@@ -2124,38 +2124,38 @@ static void mutation_markers_parse() {
          "    Inner inner\n"
          "\n"
          "\n"
-         "    local Inner fresh = Inner()\n"
+         "    local Inner fresh := Inner()\n"
          "    this.inner = fresh\n"
          "\n"
          "    void .touch()\n"
          "        .this.inner.bump()\n"
          "\n"
-         "Outer o = Outer()\n"
+         "Outer o := Outer()\n"
          ".o.touch()\n"
          "print(o.inner.v)\n"
          "print(NL)\n");
     // The marker covers the chain of a call, and marks only calls.
-    bad_message("int x = 1\nint y = .x\n", "PARSE_ERROR", "'.' marks a call.");
+    bad_message("int x := 1\nint y := .x\n", "PARSE_ERROR", "'.' marks a call.");
     bad_message("class P()\n"
                 "    int v\n"
                 "\n"
                 "P p\n"
-                "int y = .p.v\n", "PARSE_ERROR", "'.' marks a call.");
+                "int y := .p.v\n", "PARSE_ERROR", "'.' marks a call.");
     // A qualified type keeps its touching dots; a dot after a gap is a marker.
     good("class model.Point()\n"
-         "    int x = 0\n"
+         "    int x := 0\n"
          "\n"
          "model.Point .make()\n"
-         "    model.Point p = model.Point()\n"
+         "    model.Point p := model.Point()\n"
          "    return p\n"
          "\n"
-         "model.Point q = .make()\n"
+         "model.Point q := .make()\n"
          "print(q.x)\n"
          "print(NL)\n");
-    inspect_contains(counter + "Counter c = Counter(1)\n.c.increment()\n", "\"mutation_marker\":true");
+    inspect_contains(counter + "Counter c := Counter(1)\n.c.increment()\n", "\"mutation_marker\":true");
     // A member call written with a space before its '.' stays a statement.
     good("class C this()\n"
-         "    int v = 0\n"
+         "    int v := 0\n"
          "\n"
          "    void show()\n"
          "        print(this.v)\n"
@@ -2164,7 +2164,7 @@ static void mutation_markers_parse() {
          "    c .show()\n"
          "    print(NL)\n"
          "\n"
-         "C c = C()\n"
+         "C c := C()\n"
          "run(c)\n");
 }
 
@@ -2174,14 +2174,14 @@ static void mutation_markers_parse() {
 static void mutation_markers_are_required() {
     const std::string counter =
         "class Counter this()\n"
-        "    int value = 0\n"
+        "    int value := 0\n"
         "\n"
         "    void .increment()\n"
         "        this.value += 1\n"
         "\n";
     // R1: receiver fields, runtime state, shared state of a by-value value.
     bad_message("class Counter this()\n"
-                "    int value = 0\n"
+                "    int value := 0\n"
                 "\n"
                 "    void increment()\n"
                 "        this.value += 1\n",
@@ -2194,8 +2194,8 @@ static void mutation_markers_are_required() {
     // R2: a declaration may promise more than its body does.
     good("int64 .zero()\n    return 0\n\nprint(.zero())\nprint(NL)\n");
     // R3: the call of a `.` callee is marked, and a marker needs one.
-    good(counter + "Counter c = Counter()\n.c.increment()\nprint(c.value)\nprint(NL)\n");
-    bad_message(counter + "Counter c = Counter()\nc.increment()\n", "MUTATION_MARKER",
+    good(counter + "Counter c := Counter()\n.c.increment()\nprint(c.value)\nprint(NL)\n");
+    bad_message(counter + "Counter c := Counter()\nc.increment()\n", "MUTATION_MARKER",
                 "This call may change existing state through '.increment'; write '.c.increment()'.");
     bad_message("int64 zero()\n    return 0\n\nprint(.zero())\n", "MUTATION_MARKER",
                 "'.' marks a call that changes no existing state.");
@@ -2205,14 +2205,14 @@ static void mutation_markers_are_required() {
                    "    Counter counter\n"
                    "\n"
                    "\n"
-                   "    local Counter fresh = Counter()\n"
+                   "    local Counter fresh := Counter()\n"
                    "    this.counter = fresh\n"
                    "\n"
                    "    Counter .take()\n"
                    "        .this.counter.increment()\n"
                    "        return this.counter\n"
                    "\n"
-                   "Box box = Box()\n"
+                   "Box box := Box()\n"
                    ".box.take().increment()\n"
                    "print(box.counter.value)\n"
                    "print(NL)\n");
@@ -2220,13 +2220,13 @@ static void mutation_markers_are_required() {
                 "MUTATION_MARKER", "write '.zero()'");
     // R5: transitive unless the state is exposed with & or fresh.
     good(counter + "void bump(Counter &c)\n    .c.increment()\n\n"
-                   "int64 count()\n    Counter fresh = Counter()\n    .fresh.increment()\n    return int64(fresh.value)\n\n"
-                   "Counter c = Counter()\nbump(&c)\nprint(count())\nprint(NL)\n");
+                   "int64 count()\n    Counter fresh := Counter()\n    .fresh.increment()\n    return int64(fresh.value)\n\n"
+                   "Counter c := Counter()\nbump(&c)\nprint(count())\nprint(NL)\n");
     bad_message(counter + "class Outer this()\n"
                           "    Counter inner\n"
                           "\n"
                           "\n"
-                          "    local Counter fresh = Counter()\n"
+                          "    local Counter fresh := Counter()\n"
                           "    this.inner = fresh\n"
                           "\n"
                           "    void touch()\n"
@@ -2241,15 +2241,15 @@ static void mutation_markers_are_required() {
     // A built-in collection may read its own private fields, including through
     // another instance of the same specialized type. Public code may not.
     good("distinct<int> a\ndistinct<int> b\n.a.add(1)\n.b.add(1)\n"
-         "auto intersection = a.intersection(b)\n"
-         "auto difference = a.difference(b)\n"
-         "auto symmetric = a.symmetric_difference(b)\n"
-         "auto united = a.union(b)\n"
+         "intersection := a.intersection(b)\n"
+         "difference := a.difference(b)\n"
+         "symmetric := a.symmetric_difference(b)\n"
+         "united := a.union(b)\n"
          "print.line(intersection.has(1))\n");
     bad_message("distinct<int> a\nprint(a.__values)\n", "UNKNOWN_MEMBER",
                 "Standard collection internals are not source-visible.");
     good("distinct<int> a\n.a.add(4)\n"
-         "const distinct<int> b = a\n"
+         "const distinct<int> b := a\n"
          "print.line(b.has(4))\n");
     good("int set(int value)\n    return value + 1\nmap<string, int> counts\n.counts.set(\"apple\", set(2))\ndistinct<string> tags\n.tags.add(\"apple\")\nprint(counts.has(\"apple\"))\n");
     // Legacy set collection types must remain invalid without reserving set as a function.
@@ -2259,15 +2259,15 @@ static void mutation_markers_are_required() {
     bad("map.Map<int, int>()\n");
     bad("distinct.Distinct<int> old_distinct\n");
     bad("distinct.Distinct<int>()\n");
-    good("random.Generator generator = random.generator(7)\nint roll = .generator.int(1, 6)\nprint(roll > 0)\nprint(NL)\n");
-    bad_message("random.Generator generator = random.generator(7)\nint roll = generator.int(1, 6)\n",
+    good("random.Generator generator := random.generator(7)\nint roll := .generator.int(1, 6)\nprint(roll > 0)\nprint(NL)\n");
+    bad_message("random.Generator generator := random.generator(7)\nint roll := generator.int(1, 6)\n",
                 "MUTATION_MARKER", "through '.int'");
-    bad_message("tensor<real32> t = tensor.ones<real32>([2]).track()\nt.clear_grad()\n", "MUTATION_MARKER",
+    bad_message("tensor<real32> t := tensor.ones<real32>([2]).track()\nt.clear_grad()\n", "MUTATION_MARKER",
                 "write '.t.clear_grad()'");
-    good("tensor<real32> t = tensor.ones<real32>([2])\ntensor<real32> u = t.track()\nprint(t.is_tracked())\nprint(NL)\n");
+    good("tensor<real32> t := tensor.ones<real32>([2])\ntensor<real32> u := t.track()\nprint(t.is_tracked())\nprint(NL)\n");
     // A class whose methods only read its map needs no marker.
     good("class Index this()\n"
-         "    map<string, int> entries = map<string, int>()\n"
+         "    map<string, int> entries := map<string, int>()\n"
          "\n"
          "    bool has(string key)\n"
          "        return this.entries.has(key)\n"
@@ -2275,38 +2275,38 @@ static void mutation_markers_are_required() {
          "    nat count()\n"
          "        return len(this.entries.keys())\n"
          "\n"
-         "Index index = Index()\n"
+         "Index index := Index()\n"
          "print(index.has(\"a\"))\n"
          "print(index.count())\n"
          "print(NL)\n");
     // R6: a `.` function is not an fn value.
-    bad_message("int64 .twice(int64 v)\n    return v * 2\n\nfn<int64>(int64) f = twice\n",
+    bad_message("int64 .twice(int64 v)\n    return v * 2\n\nfn<int64>(int64) f := twice\n",
                 "FUNCTION_REFERENCE_SIGNATURE", "fn values cannot refer to '.' functions");
     // Hidden mutation in ordered initialization is inferred at creation calls.
-    const std::string clock = "extern void .tick() = \"tick\"\n\nclass Clock()\n    int ticks = 0\n    .tick()\n\n";
-    good(clock + "Clock c = .Clock()\nClock plain = .Clock()\nprint(plain.ticks)\nprint(NL)\n");
-    bad_message(clock + "Clock c = Clock()\n", "MUTATION_MARKER",
+    const std::string clock = "extern void .tick() = \"tick\"\n\nclass Clock()\n    int ticks := 0\n    .tick()\n\n";
+    good(clock + "Clock c := .Clock()\nClock plain := .Clock()\nprint(plain.ticks)\nprint(NL)\n");
+    bad_message(clock + "Clock c := Clock()\n", "MUTATION_MARKER",
                 "This constructor call may change existing state; write '.Clock()'.");
     // construct is an ordinary method name and follows the method marker rule.
-    bad_message("class Builder()\n    int value = 0\n    void construct()\n        value += 1\n",
+    bad_message("class Builder()\n    int value := 0\n    void construct()\n        value += 1\n",
                 "MUTATION_MARKER", "declare it as '.construct'");
-    good("class Builder()\n    int value = 0\n    void .construct()\n        value += 1\nBuilder builder = Builder()\n.builder.construct()\n");
+    good("class Builder()\n    int value := 0\n    void .construct()\n        value += 1\nBuilder builder := Builder()\n.builder.construct()\n");
     good("class Widget(local int &registry)\n"
-         "    int n = 0\n"
+         "    int n := 0\n"
          "\n"
          "\n"
          "    registry += 1\n"
          "\n"
-         "int registry = 0\n"
-         "Widget w = Widget(&registry)\n"
+         "int registry := 0\n"
+         "Widget w := Widget(&registry)\n"
          "print(registry)\n"
          "print(NL)\n");
     // Ordinary parameter defaults change no existing state.
     const std::string ids = "extern int64 .next_id() = \"next_id\"\n\n";
-    good(ids + "class Item()\n    int64 id = .next_id()\nItem item = .Item()\n");
-    bad_message(ids + "class Item()\n    int64 id = .next_id()\nItem item = Item()\n",
+    good(ids + "class Item()\n    int64 id := .next_id()\nItem item := .Item()\n");
+    bad_message(ids + "class Item()\n    int64 id := .next_id()\nItem item := Item()\n",
                 "MUTATION_MARKER", "write '.Item()'");
-    bad_message(ids + "void make(int64 id = .next_id())\n    print(id)\n", "MUTATION_MARKER",
+    bad_message(ids + "void make(int64 id := .next_id())\n    print(id)\n", "MUTATION_MARKER",
                 "A parameter default cannot change existing state: 'id' calls '.next_id'");
     // L7: a family agrees on the marker; a prototype agrees with its definition.
     bad_message("T pick<T>(T value)\n    return value\n\nint64 .pick(int64 value)\n    return value\n",
@@ -2314,18 +2314,18 @@ static void mutation_markers_are_required() {
     bad_message("void .f();\n\nvoid f()\n    return\n", "PROTOTYPE_MISMATCH", "agree on the '.' marker");
     // Option A: a call through a const value may not change it, but may
     // change other hidden state.
-    bad_message(counter + "Counter base = Counter()\nconst Counter c = base\n.c.increment()\n", "WRITE_CAPABILITY",
+    bad_message(counter + "Counter base := Counter()\nconst Counter c := base\n.c.increment()\n", "WRITE_CAPABILITY",
                 "'.c.increment()' may change const 'c' (field 'value').");
     good("extern void .tick() = \"tick\"\n"
          "\n"
          "class Logger()\n"
-         "    int lines = 0\n"
+         "    int lines := 0\n"
          "\n"
          "    void .note()\n"
          "        .tick()\n"
          "\n"
-         "Logger base = Logger()\n"
-         "const Logger logger = base\n"
+         "Logger base := Logger()\n"
+         "const Logger logger := base\n"
          ".logger.note()\n"
          "print(logger.lines)\n"
          "print(NL)\n");
@@ -2344,20 +2344,20 @@ static void const_values_cross_the_c_boundary_as_borrows() {
     llvm_contains(bytes, "declare i32 @c_bin(ptr nocapture nonnull readonly, i64)");
     llvm_contains(tensors, "declare i32 @c_tensor(ptr nocapture nonnull readonly, ptr nocapture nonnull)");
     // A variable, a field and an element pass their storage by address.
-    llvm_contains(text + "string value = \"abc\"\nint32 result = c_text(value)\nprint(result)\n",
+    llvm_contains(text + "string value := \"abc\"\nint32 result := c_text(value)\nprint(result)\n",
                   "ffi.borrowed.value");
-    llvm_contains(bytes + "bin[] values = [bin.fill(24, 1)]\nint32 result = c_bin(values[0])\nprint(result)\n",
+    llvm_contains(bytes + "bin[] values := [bin.fill(24, 1)]\nint32 result := c_bin(values[0])\nprint(result)\n",
                   "ffi.bin.length");
     // Any other value is held for the call.
-    llvm_contains(text + "string value = \"abc\"\nint32 result = c_text(value + \"d\")\nprint(result)\n",
+    llvm_contains(text + "string value := \"abc\"\nint32 result := c_text(value + \"d\")\nprint(result)\n",
                   "call i64 @strlen(ptr");
-    ir_contains(text + "int32 result = c_text(\"literal\")\nprint(result)\n", "ffi.borrow");
-    ir_contains(bytes + "int32 result = c_bin(bin.fill(8, 1))\nprint(result)\n", "ffi.borrow");
+    ir_contains(text + "int32 result := c_text(\"literal\")\nprint(result)\n", "ffi.borrow");
+    ir_contains(bytes + "int32 result := c_bin(bin.fill(8, 1))\nprint(result)\n", "ffi.borrow");
     // A const parameter takes a value.
-    bad_message(text + "string value = \"abc\"\nint32 result = c_text(&value)\n", "WRITE_CAPABILITY",
+    bad_message(text + "string value := \"abc\"\nint32 result := c_text(&value)\n", "WRITE_CAPABILITY",
                 "Const parameters take values; remove '&' from '&value'.");
     bad_message("int64 first(const int64[] values)\n    return values[0]\n\n"
-                "int64[] data = [1]\nprint(first(&data))\n",
+                "int64[] data := [1]\nprint(first(&data))\n",
                 "WRITE_CAPABILITY", "Const parameters take values; remove '&' from '&data'.");
     // By-value managed parameters without const stay rejected; a string
     // borrow is read-only.
@@ -2373,8 +2373,8 @@ static void const_references_are_rejected() {
     const std::string message = "Const references do not exist; write 'const T name' for a read-only value.";
     bad_message("int first(const int[] &values)\n    return values[0]\n", "CONST_REFERENCE", message);
     bad_message("extern int32 c_text(const string &text) = \"c_text\"\n", "CONST_REFERENCE", message);
-    bad_message("int value = 1\nconst int &view = &value\n", "CONST_REFERENCE", message);
-    bad_message("int value = 1\nconst auto &view = &value\n", "CONST_REFERENCE", message);
+    bad_message("int value := 1\nconst int &view = &value\n", "CONST_REFERENCE", message);
+    bad_message("int value := 1\nconst auto &view = &value\n", "CONST_REFERENCE", message);
     bad_message("class Box this(local const int &v_initial)\n"
                 "    int v\n"
                 "\n"
@@ -2382,33 +2382,33 @@ static void const_references_are_rejected() {
                 "    this.v = v_initial\n", "CONST_REFERENCE",
                 message);
     // A const local is a snapshot with its own identity.
-    good("int[] values = [1, 2]\nconst int[] kept = values\nvalues[0] = 5\nprint(kept[0])\nprint(NL)\n"
+    good("int[] values := [1, 2]\nconst int[] kept := values\nvalues[0] = 5\nprint(kept[0])\nprint(NL)\n"
          "print(&kept == &values)\nprint(NL)\n");
 }
 
 // sorted(descending = true) (L4): a named bool, constant or run-time.
 static void sorted_takes_a_descending_flag() {
-    const std::string values = "int64[] a = [3, 1, 2]\n";
-    good(values + "int64[] d = a.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
-    good(values + "bool flag = len(a) > 2\nint64[] d = a.sorted(descending = flag)\nprint(d[0])\nprint(NL)\n");
-    good("int64[3] f = [3, 1, 2]\nint64[] d = f.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
-    bad_message(values + "auto d = a.sorted(true)\n", "ARGUMENT_MISMATCH",
+    const std::string values = "int64[] a := [3, 1, 2]\n";
+    good(values + "int64[] d := a.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
+    good(values + "bool flag := len(a) > 2\nint64[] d := a.sorted(descending = flag)\nprint(d[0])\nprint(NL)\n");
+    good("int64[3] f := [3, 1, 2]\nint64[] d := f.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
+    bad_message(values + "d := a.sorted(true)\n", "ARGUMENT_MISMATCH",
                 "sorted accepts only named 'by' and 'descending' arguments.");
-    bad_message(values + "auto d = a.sorted(order = true)\n", "ARGUMENT_MISMATCH",
+    bad_message(values + "d := a.sorted(order = true)\n", "ARGUMENT_MISMATCH",
                 "Unknown sorted argument 'order'.");
-    bad_message(values + "auto d = a.sorted(descending = true, descending = false)\n",
+    bad_message(values + "d := a.sorted(descending = true, descending = false)\n",
                 "ARGUMENT_MISMATCH", "Duplicate sorted(descending=...).");
-    bad_message(values + "int64 one = 1\nauto d = a.sorted(descending = one)\n", "TYPE_MISMATCH",
+    bad_message(values + "int64 one := 1\nd := a.sorted(descending = one)\n", "TYPE_MISMATCH",
                 "descending must be bool.");
     // Ascending (no argument or a constant false) is today's instruction;
     // a constant true calls the descending entry, a flag branches.
-    ir_contains(values + "auto d = a.sorted(descending = false)\nprint(d[0])\n", "= array.sorted %");
-    ir_contains(values + "auto d = a.sorted(descending = true)\nprint(d[0])\n", " descending : ");
-    ir_contains(values + "bool flag = true\nauto d = a.sorted(descending = flag)\nprint(d[0])\n",
+    ir_contains(values + "d := a.sorted(descending = false)\nprint(d[0])\n", "= array.sorted %");
+    ir_contains(values + "d := a.sorted(descending = true)\nprint(d[0])\n", " descending : ");
+    ir_contains(values + "bool flag := true\nd := a.sorted(descending = flag)\nprint(d[0])\n",
                 " descending %");
-    llvm_contains(values + "auto d = a.sorted(descending = true)\nprint(d[0])\n",
+    llvm_contains(values + "d := a.sorted(descending = true)\nprint(d[0])\n",
                   "call ptr @quidra_array_sorted_desc(");
-    llvm_contains(values + "bool flag = len(a) > 2\nauto d = a.sorted(descending = flag)\nprint(d[0])\n",
+    llvm_contains(values + "bool flag := len(a) > 2\nd := a.sorted(descending = flag)\nprint(d[0])\n",
                   "array.sorted.descending");
 }
 
@@ -2416,14 +2416,14 @@ static void sorted_takes_a_descending_flag() {
 // direction, {<, <=}, {>, >=} or only '=='; '!=' never chains, and a
 // relational comparison next to '==' or '!=' must be parenthesized.
 static void comparison_chains_keep_one_direction() {
-    const std::string values = "int64 a = 1\nint64 b = 2\nint64 c = 3\n";
-    good(values + "bool x = 0 <= a < 10\nprint(x)\nprint(NL)\n");
-    good(values + "bool x = c >= b > a\nprint(x)\nprint(NL)\n");
-    good(values + "bool x = a < b <= c < 10\nprint(x)\nprint(NL)\n");
-    good(values + "bool x = a == b == c\nprint(x)\nprint(NL)\n");
-    good("bool p = false\nbool q = false\nbool r = true\nprint(p == q == r)\nprint(NL)\n");
-    good("string s = \"a\"\nstring t = \"a\"\nstring u = \"a\"\nprint(s == t == u)\nprint(NL)\n");
-    bad_message("int[] p = [1]\nint[] q = [1]\nint[] r = [1]\nprint(p == q == r)\n",
+    const std::string values = "int64 a := 1\nint64 b := 2\nint64 c := 3\n";
+    good(values + "bool x := 0 <= a < 10\nprint(x)\nprint(NL)\n");
+    good(values + "bool x := c >= b > a\nprint(x)\nprint(NL)\n");
+    good(values + "bool x := a < b <= c < 10\nprint(x)\nprint(NL)\n");
+    good(values + "bool x := a == b == c\nprint(x)\nprint(NL)\n");
+    good("bool p := false\nbool q := false\nbool r := true\nprint(p == q == r)\nprint(NL)\n");
+    good("string s := \"a\"\nstring t := \"a\"\nstring u := \"a\"\nprint(s == t == u)\nprint(NL)\n");
+    bad_message("int[] p := [1]\nint[] q := [1]\nint[] r := [1]\nprint(p == q == r)\n",
                 "CHAINED_COMPARISON",
                 "Arrays and tensors cannot be compared in a chain; combine the comparisons explicitly.");
     good("class P this(local int value)\n"
@@ -2434,46 +2434,46 @@ static void comparison_chains_keep_one_direction() {
          "\n"
          "print(P(1) == P(1) == P(1))\n"
          "print(NL)\n");
-    good(values + "int64 &ra = &a\nint64 &rb = &a\nprint(&ra == &rb == &a)\nprint(NL)\n");
+    good(values + "int64 &ra := &a\nint64 &rb := &a\nprint(&ra == &rb == &a)\nprint(NL)\n");
     // A chain is a condition like any bool.
     good(values + "if 0 <= a < 10\n    print(a)\nwhile 0 < a < 0\n    print(a)\n"
-                  "int64 y = if 0 < a <= 2 then a else b\nprint(y)\nprint(NL)\n");
+                  "int64 y := if 0 < a <= 2 then a else b\nprint(y)\nprint(NL)\n");
     // A parenthesized comparison is an operand.
-    good(values + "bool x = (a < b) == (b < c)\nbool y = (a < b) == true\nprint(x == y)\nprint(NL)\n");
+    good(values + "bool x := (a < b) == (b < c)\nbool y := (a < b) == true\nprint(x == y)\nprint(NL)\n");
     // Directions, '!=' and mixed levels.
-    bad_message(values + "bool x = a < b > c\n", "CHAINED_COMPARISON",
+    bad_message(values + "bool x := a < b > c\n", "CHAINED_COMPARISON",
                 "A comparison chain must keep one direction: '<' and '<=', or '>' and '>=', or only '=='.");
-    bad_message(values + "bool x = a >= b <= c\n", "CHAINED_COMPARISON", "keep one direction");
-    bad_message(values + "bool x = a != b != c\n", "CHAINED_COMPARISON", "'!=' cannot be chained.");
-    bad_message(values + "bool x = a == b != c\n", "CHAINED_COMPARISON", "'!=' cannot be chained.");
-    bad_message(values + "bool x = a < b == true\n", "CHAINED_COMPARISON",
+    bad_message(values + "bool x := a >= b <= c\n", "CHAINED_COMPARISON", "keep one direction");
+    bad_message(values + "bool x := a != b != c\n", "CHAINED_COMPARISON", "'!=' cannot be chained.");
+    bad_message(values + "bool x := a == b != c\n", "CHAINED_COMPARISON", "'!=' cannot be chained.");
+    bad_message(values + "bool x := a < b == true\n", "CHAINED_COMPARISON",
                 "'<' and '==' cannot share a chain; to compare the result of 'a < b', "
                 "write '(a < b) == true'.");
-    bad_message(values + "bool x = true == a < b\n", "CHAINED_COMPARISON",
+    bad_message(values + "bool x := true == a < b\n", "CHAINED_COMPARISON",
                 "'==' and '<' cannot share a chain; to compare with the result of 'a < b', "
                 "write 'true == (a < b)'.");
-    bad_message(values + "bool x = true != a < b\n", "CHAINED_COMPARISON",
+    bad_message(values + "bool x := true != a < b\n", "CHAINED_COMPARISON",
                 "'!=' and '<' cannot share a chain");
     // Tensors give masks, which a chain cannot join.
-    bad_message("tensor<real32> t = tensor.zeros<real32>([2])\nauto m = t < t <= t\n",
+    bad_message("tensor<real32> t := tensor.zeros<real32>([2])\nm := t < t <= t\n",
                 "CHAINED_COMPARISON", "Arrays and tensors cannot be compared in a chain");
     // `a < b < c > (d)` reads as the generic call `b<c>(d)`.
-    bad_message(values + "int64 d = 4\nbool x = a < b < c > (d)\n", "CHAINED_COMPARISON",
+    bad_message(values + "int64 d := 4\nbool x := a < b < c > (d)\n", "CHAINED_COMPARISON",
                 "write '(c > d)' if '>' starts a new comparison");
     // Each link follows the single comparison's rules.
-    bad_code("int64 a = 1\nint32 b = 2\nbool x = 0 <= a < b\n", "TYPE_MISMATCH");
-    bad_code("bool p = true\nbool x = p < p < p\n", "TYPE_MISMATCH");
-    bad_code("bool x = 1 < 2 < 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
+    bad_code("int64 a := 1\nint32 b := 2\nbool x := 0 <= a < b\n", "TYPE_MISMATCH");
+    bad_code("bool p := true\nbool x := p < p < p\n", "TYPE_MISMATCH");
+    bad_code("bool x := 1 < 2 < 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
     // Lowering and tools.
-    ir_contains(values + "bool x = a < b < c\nprint(x)\n", "chain.result");
-    inspect_contains(values + "bool x = a < b < c\n", "\"comparison_chain\"");
+    ir_contains(values + "bool x := a < b < c\nprint(x)\n", "chain.result");
+    inspect_contains(values + "bool x := a < b < c\n", "\"comparison_chain\"");
 }
 
 // Initialization checking (L13): a read that no path initializes is a
 // compile error, a read that some paths initialize is checked at run time,
 // and a read that every path initializes has no check.
 static void initialization_is_checked_by_path() {
-    const std::string ready = "bool ready = len(\"ab\") > 1\n";
+    const std::string ready = "bool ready := len(\"ab\") > 1\n";
     // Every path: no flag, no check.
     good("int x\nif true\n    x = 1\nelse\n    x = 2\nprint(x)\nprint(NL)\n");
     ir_function_not_contains("int both(bool c)\n    int x\n    if c\n        x = 1\n    else\n        x = 2\n"
@@ -2497,14 +2497,14 @@ class Counter this(local int value)
     int increment(int value)
         value += 1
         return value
-Counter counter = Counter(0)
+Counter counter := Counter(0)
 for int value < 3
     print(increment(value))
     print(counter.increment(value))
-    Counter copy = Counter(value)
+    Counter copy := Counter(value)
     print(copy.total)
-nat[] values = [0, 1]
-for nat value = values[nat index]
+nat[] values := [0, 1]
+for nat value := values[nat index]
     print(index)
 )");
     good("int x\nif true\n    x = 1\nprint(x)\nprint(NL)\n");
@@ -2520,7 +2520,7 @@ for nat value = values[nat index]
                          "pick", "init.check %");
     // A read later in a loop body than the write it depends on, on a later
     // iteration.
-    ir_function_contains("int carried(int n)\n    int x\n    int total = 0\n    for 0 <= int i < n\n"
+    ir_function_contains("int carried(int n)\n    int x\n    int total := 0\n    for 0 <= int i < n\n"
                          "        if i > 0\n            total += x\n        x = i\n    return total\n",
                          "carried", "init.check %");
     // A loop that runs at least once and has no break or continue
@@ -2528,9 +2528,9 @@ for nat value = values[nat index]
     // literal.
     ir_function_not_contains("int counted()\n    int x\n    for 0 <= nat i < 3\n        x = int(i)\n    return x\n",
                              "counted", "init.check");
-    ir_function_not_contains("int fixed(int[3] values)\n    int x\n    for auto v = values[]\n        x = v\n"
+    ir_function_not_contains("int fixed(int[3] values)\n    int x\n    for v := values[]\n        x = v\n"
                              "    return x\n", "fixed", "init.check");
-    ir_function_not_contains("string listed()\n    string x\n    for auto v = [\"a\", \"b\"][]\n        x = v\n"
+    ir_function_not_contains("string listed()\n    string x\n    for v := [\"a\", \"b\"][]\n        x = v\n"
                              "    return x\n", "listed", "init.check");
     ir_function_contains("int stopped()\n    int x\n    for 0 <= nat i < 3\n        if i == 1\n            break\n"
                          "        x = int(i)\n    return x\n", "stopped", "init.check %");
@@ -2539,10 +2539,10 @@ for nat value = values[nat index]
     // Past a checked read the binding is initialized: one check.
     good(ready + "int x\nif ready\n    x = 1\nprint(x)\nprint(x + 1)\nprint(NL)\n");
     // A reference whose target is known reads its target's flag.
-    ir_function_contains("int through(bool c)\n    int x\n    if c\n        x = 1\n    int &r = &x\n"
+    ir_function_contains("int through(bool c)\n    int x\n    if c\n        x = 1\n    int &r := &x\n"
                          "    return r\n", "through", "init.check %");
     // A reference whose target is not known after a join stays an error.
-    bad_message("int left = 1\nint right\nint &slot = &left\nbool choose = true\nif choose\n"
+    bad_message("int left := 1\nint right\nint &slot := &left\nbool choose := true\nif choose\n"
                 "    &slot = &right\nprint(slot)\nprint(NL)\n", "UNINITIALIZED",
                 "may be uninitialized through a reference whose target is not known");
     // A callee that writes on some paths only leaves the binding untracked:
@@ -2566,11 +2566,11 @@ for nat value = values[nat index]
 static void array_element_reads_need_an_initializing_path() {
     bad_message("int[3] a\nprint(a[1])\n", "UNINITIALIZED",
                 "'a[1]' is read before it is initialized on every path.");
-    bad_message("int[] b = array(4)\nprint(b[0])\n", "UNINITIALIZED",
+    bad_message("int[] b := array(4)\nprint(b[0])\n", "UNINITIALIZED",
                 "'b[0]' is read before it is initialized on every path.");
-    bad_message("int[3] a\nint i = int(len(a) - 1)\nprint(a[i])\n", "UNINITIALIZED",
+    bad_message("int[3] a\nint i := int(len(a) - 1)\nprint(a[i])\n", "UNINITIALIZED",
                 "'a[i]' is read before it is initialized on every path.");
-    bad_message("int[2] a\nint[2] b = [1, 2]\na[0] = 1\nprint(a == b)\n", "UNINITIALIZED",
+    bad_message("int[2] a\nint[2] b := [1, 2]\na[0] = 1\nprint(a == b)\n", "UNINITIALIZED",
                 "'a[1]' is read before it is initialized on every path.");
     bad_message("int[3] a\na[0] = 5\nprint(a[1])\n", "UNINITIALIZED", "'a[1]'");
     good("int[3] a\na[0] = 5\nprint(a[0])\nprint(NL)\n");
@@ -2578,13 +2578,13 @@ static void array_element_reads_need_an_initializing_path() {
     // loop leaves the element to the run-time check.
     good("int[3] a\nif len(a) > 1\n    a[1] = 5\nprint(a[1])\nprint(NL)\n");
     good("void fill(int[3] &values)\n    values[2] = 1\n\nint[3] a\nfill(&a)\nprint(a[2])\nprint(NL)\n");
-    good("int[3] a\nint i = int(len(a) - 1)\na[i] = 1\nprint(a[0])\nprint(NL)\n");
-    good("int[] b = array(3)\nfor 0 <= nat i < len(b)\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
-    good("int[] b = array(len(\"ab\"))\nb[0] = 1\nprint(b[1])\nprint(NL)\n");
-    good("int[3] a\nint &slot = &a[1]\nslot = 4\nprint(a[1])\nprint(NL)\n");
+    good("int[3] a\nint i := int(len(a) - 1)\na[i] = 1\nprint(a[0])\nprint(NL)\n");
+    good("int[] b := array(3)\nfor 0 <= nat i < len(b)\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
+    good("int[] b := array(len(\"ab\"))\nb[0] = 1\nprint(b[1])\nprint(NL)\n");
+    good("int[3] a\nint &slot := &a[1]\nslot = 4\nprint(a[1])\nprint(NL)\n");
     // Whole assignment initializes every element; tensors stay run-time.
     good("int[3] a\na = [1, 2, 3]\nprint(a[2])\nprint(NL)\n");
-    good("tensor<real32> t = tensor<real32>([2])\nt[0] = 1.0\nprint(t[1].item())\nprint(NL)\n");
+    good("tensor<real32> t := tensor<real32>([2])\nt[0] = 1.0\nprint(t[1].item())\nprint(NL)\n");
 }
 
 // Initialization checking of class fields (L13): a field of a local value or
@@ -2601,23 +2601,23 @@ static void field_initialization_is_checked_by_path() {
         none
             return
 
-Box box = Box(9)
+Box box := Box(9)
 print(box.value)
 )", "init.check.fail");
     // Never-written ordinary fields do not become Maybe merely through generation.
     bad_code("class NeverGenerated()\n    int value\n"
-             "NeverGenerated box = NeverGenerated()\nprint(box.value)\n",
+             "NeverGenerated box := NeverGenerated()\nprint(box.value)\n",
              "UNINITIALIZED");
     const std::string point = "class Point()\n"
                               "    int x\n"
-                              "    int y = 0\n"
+                              "    int y := 0\n"
                               "\n";
-    ir_function_contains(point + "int pick(bool c)\n    Point p = Point()\n    if c\n        p.x = 1\n    return p.x\n",
+    ir_function_contains(point + "int pick(bool c)\n    Point p := Point()\n    if c\n        p.x = 1\n    return p.x\n",
                          "pick", "init.check %");
-    ir_contains(point + "bool c = len(\"ab\") > 1\nPoint p = Point()\nif c\n    p.x = 1\nprint(p.x)\n", "field 'p.x'");
-    ir_function_not_contains(point + "int both(bool c)\n    Point p = Point()\n    if c\n        p.x = 1\n    else\n"
+    ir_contains(point + "bool c := len(\"ab\") > 1\nPoint p := Point()\nif c\n    p.x = 1\nprint(p.x)\n", "field 'p.x'");
+    ir_function_not_contains(point + "int both(bool c)\n    Point p := Point()\n    if c\n        p.x = 1\n    else\n"
                              "        p.x = 2\n    return p.x\n", "both", "init.check");
-    bad_message(point + "Point p = Point()\nprint(p.x)\n", "UNINITIALIZED",
+    bad_message(point + "Point p := Point()\nprint(p.x)\n", "UNINITIALIZED",
                 "'p.x' is read before it is initialized on every path.");
     // Whole-binding generation has the same fresh-field tracking as a declaration.
     ir_function_contains(point + "int assigned(bool c)\n    Point p\n    p = Point()\n    if c\n        p.x = 1\n    return p.x\n",
@@ -2625,24 +2625,24 @@ print(box.value)
     // A generation body that writes a field through a callee has no reliable bit.
     bad_message("void fill(int &value, bool ok)\n    if ok\n        value = 1\n"
                 "class Indirect this(local bool open)\n    int x\n    fill(&this.x, open)\n"
-                "int read(bool c)\n    Indirect p = Indirect(c)\n    if c\n        p.x = 2\n    return p.x\n",
+                "int read(bool c)\n    Indirect p := Indirect(c)\n    if c\n        p.x = 2\n    return p.x\n",
                 "UNINITIALIZED", "may be uninitialized");
     // A local reference alias must not hide a constructor's untracked field write.
     bad_message("void fill(int &value, bool ok)\n    if ok\n        value = 1\n"
-                "class Aliased this(local bool open)\n    int x\n    local int &alias = &this.x\n    fill(&alias, open)\n"
-                "int read(bool open, bool c)\n    Aliased p = Aliased(open)\n    if c\n        p.x = 2\n    return p.x\n",
+                "class Aliased this(local bool open)\n    int x\n    local int &alias := &this.x\n    fill(&alias, open)\n"
+                "int read(bool open, bool c)\n    Aliased p := Aliased(open)\n    if c\n        p.x = 2\n    return p.x\n",
                 "UNINITIALIZED", "may be uninitialized");
     // A value from elsewhere keeps today's rule: its bits are not known.
-    bad_message(point + "Point make()\n    Point p = Point()\n    p.x = 1\n    return p\n\nbool c = len(\"ab\") > 1\n"
-                "Point q = make()\nPoint r\nif c\n    r = q\nprint(r.y)\nprint(q.y)\nPoint s = Point()\nif c\n    s.y = 1\n"
-                "Point t = s\nprint(t.x)\n", "UNINITIALIZED", "may be uninitialized");
+    bad_message(point + "Point make()\n    Point p := Point()\n    p.x = 1\n    return p\n\nbool c := len(\"ab\") > 1\n"
+                "Point q := make()\nPoint r\nif c\n    r = q\nprint(r.y)\nprint(q.y)\nPoint s := Point()\nif c\n    s.y = 1\n"
+                "Point t := s\nprint(t.x)\n", "UNINITIALIZED", "may be uninitialized");
     // A field written through a reference or by a callee is not tracked.
-    bad_message(point + "void fill(int &value, bool ok)\n    if ok\n        value = 1\n\nPoint p = Point()\n"
+    bad_message(point + "void fill(int &value, bool ok)\n    if ok\n        value = 1\n\nPoint p := Point()\n"
                 "fill(&p.x, true)\nprint(p.x)\n", "UNINITIALIZED", "may be uninitialized");
     // The receiver in its constructor.
     ir_function_contains("class Gate this(local bool open)\n"
                          "    int value\n"
-                         "    int seen = 0\n"
+                         "    int seen := 0\n"
                          "\n"
                          "\n"
                          "    if open\n"
@@ -2656,12 +2656,12 @@ print(box.value)
                 "    print(this.value)\n", "UNINITIALIZED",
                 "is read before the constructor initializes it");
     // Initialization locals remain distinct from the member facts.
-    const std::string gate = "class Gate this(local bool open)\n    int value\n    int seen = 0\n\n";
+    const std::string gate = "class Gate this(local bool open)\n    int value\n    int seen := 0\n\n";
     const std::string local_maybe = gate + "    local int temporary\n    if open\n"
         "        temporary = 1\n    this.value = 2\n    this.seen = temporary\n";
     ir_function_contains(local_maybe, "$construct.Gate", "binding 'temporary'");
     ir_function_not_contains(local_maybe, "$construct.Gate", "field 'this.value'");
-    const std::string field_maybe = gate + "    local int temporary = 1\n    if open\n"
+    const std::string field_maybe = gate + "    local int temporary := 1\n    if open\n"
         "        this.value = temporary\n    this.seen = this.value\n";
     ir_function_contains(field_maybe, "$construct.Gate", "field 'this.value'");
     ir_function_not_contains(field_maybe, "$construct.Gate", "binding 'temporary'");
@@ -2672,12 +2672,12 @@ print(box.value)
                              "$construct.Gate", "init.check");
     bad_message(gate + "    local int temporary\n    this.value = 1\n    this.seen = temporary\n",
                 "UNINITIALIZED", "'temporary' is read before it is initialized on every path.");
-    bad_message(gate + "    local int temporary = 1\n    this.seen = this.value\n",
+    bad_message(gate + "    local int temporary := 1\n    this.seen = this.value\n",
                 "UNINITIALIZED", "is read before the constructor initializes it");
-    bad_code(gate + "    local int value = 1\n", "SHADOWING");
+    bad_code(gate + "    local int value := 1\n", "SHADOWING");
     // Equality and display skip the mask; copies keep it.
-    good(point + "bool c = len(\"ab\") > 1\nPoint p = Point()\np.x = 1\nPoint q = Point()\nif c\n    q.x = 1\nprint(q.x)\n"
-         "Point r = Point()\nr.x = 1\nprint(\"{p == r}\")\nprint(NL)\n");
+    good(point + "bool c := len(\"ab\") > 1\nPoint p := Point()\np.x = 1\nPoint q := Point()\nif c\n    q.x = 1\nprint(q.x)\n"
+         "Point r := Point()\nr.x = 1\nprint(\"{p == r}\")\nprint(NL)\n");
     // Core gap G-d: an element of an initialized array of class values is a
     // whole value inside a method too.
     good(R"(class Slot this(local int storage_initial)
@@ -2698,7 +2698,7 @@ class Shelf this()
     int second()
         return this.items[1].value() + this.items[0].storage
 
-Shelf shelf = Shelf()
+Shelf shelf := Shelf()
 print(shelf.second())
 print(NL)
 )");
@@ -2711,7 +2711,7 @@ class Shelf this()
     int first()
         return this.items[0].storage
 
-Shelf shelf = Shelf()
+Shelf shelf := Shelf()
 print(shelf.first())
 )", "UNINITIALIZED");
 }
@@ -2721,24 +2721,24 @@ print(shelf.first())
 // mutations, resources, address observations and result provenance.
 static void effect_summaries_describe_functions() {
     namespace semantics = quidra::semantics;
-    bad_code("class UnboundCopy()\n    int &value\n\nUnboundCopy original = UnboundCopy()\nUnboundCopy copy = original\nprint(copy.value)\n",
+    bad_code("class UnboundCopy()\n    int &value\n\nUnboundCopy original := UnboundCopy()\nUnboundCopy copy := original\nprint(copy.value)\n",
              "UNBOUND_REFERENCE");
     // Whole assignment and literal-tuple transfer keep known Never descriptors.
-    bad_code("class UnboundAssign()\n    int &value\n\nUnboundAssign original = UnboundAssign()\n"
-             "UnboundAssign copy = UnboundAssign()\ncopy = original\nprint(copy.value)\n",
+    bad_code("class UnboundAssign()\n    int &value\n\nUnboundAssign original := UnboundAssign()\n"
+             "UnboundAssign copy := UnboundAssign()\ncopy = original\nprint(copy.value)\n",
              "UNBOUND_REFERENCE");
-    bad_code("class UnboundTuple()\n    int &value\n\n(UnboundTuple, int) values = (UnboundTuple(), 1)\n"
-             "(UnboundTuple copy, int ignored) = values\nprint(copy.value)\n",
+    bad_code("class UnboundTuple()\n    int &value\n\n(UnboundTuple, int) values := (UnboundTuple(), 1)\n"
+             "(UnboundTuple copy, int ignored) := values\nprint(copy.value)\n",
              "UNBOUND_REFERENCE");
     // A may-write in generation retains the runtime descriptor guard after copying.
     ir_contains("class MaybeBound(local int &input, local bool open)\n    int &value\n"
                 "    if open\n        &value = &input\n"
-                "int read(int &input, bool open)\n    MaybeBound original = MaybeBound(&input, open)\n"
-                "    MaybeBound copy = original\n    return copy.value\n",
+                "int read(int &input, bool open)\n    MaybeBound original := MaybeBound(&input, open)\n"
+                "    MaybeBound copy := original\n    return copy.value\n",
                 "reference.check_bound");
     const auto source = R"(class Counter this()
-    int count = 0
-    int[] items = []
+    int count := 0
+    int[] items := []
 
     void .bump()
         this.count += 1
@@ -2753,7 +2753,7 @@ void forward(int[] &values)
     set_first(&values)
 
 void through_alias(int[] &values)
-    int &slot = &values[2]
+    int &slot := &values[2]
     slot = 4
 
 void local_copy(int[] values)
@@ -2772,12 +2772,12 @@ void .put(SharedInt holder)
     holder.value = 3
 
 void put_fresh()
-    int value = 1
-    SharedInt holder = SharedInt(&value)
+    int value := 1
+    SharedInt holder := SharedInt(&value)
     holder.value = 2
 
 void .put_copy(SharedInt holder)
-    SharedInt copy = holder
+    SharedInt copy := holder
     copy.value = 5
 
 void bump_counter(Counter &counter)
@@ -2805,16 +2805,16 @@ int bump_first(int[] &values)
 int choose(int[] &values, bool flag)
     return if flag then bump_first(&values) else 0
 
-int[] v = [1, 2, 3]
+int[] v := [1, 2, 3]
 forward(&v)
 through_alias(&v)
 local_copy(v)
 say("x")
-int shared = 1
+int shared := 1
 .put(SharedInt(&shared))
 put_fresh()
 .put_copy(SharedInt(&shared))
-Counter c = Counter()
+Counter c := Counter()
 bump_counter(&c)
 print(c.total())
 print(same(v, &v))
@@ -2917,8 +2917,8 @@ void keep(const int[] values, int[] &other)
     other[0] = values[0]
 
 class Box this()
-    int[] items = [1, 2]
-    int count = 0
+    int[] items := [1, 2]
+    int count := 0
 
     void .note(const int[] values)
         this.count = int(len(values))
@@ -2928,23 +2928,23 @@ class Box this()
 
 )");
     ir_function_not_contains(calls + R"(void separate()
-    int[] a = [1, 2, 3]
-    int[] b = [4]
+    int[] a := [1, 2, 3]
+    int[] b := [4]
     show(a)
     keep(a, &b)
-    Box box = Box()
+    Box box := Box()
     .box.note(box.items)
 
 separate()
 )", "function separate", "= clone %");
     ir_function_contains(calls + R"(void aliased()
-    int[] a = [1, 2, 3]
+    int[] a := [1, 2, 3]
     keep(a, &a)
 
 aliased()
 )", "function aliased", "= clone %");
     ir_function_contains(calls + R"(void receiver()
-    Box box = Box()
+    Box box := Box()
     .box.reset(box.items)
 
 receiver()
@@ -3030,14 +3030,14 @@ static void package_code_reports_at_the_user_statement() {
               "int64 scale(int64 x)\n"
               "    return x * 3\n"
               "\n"
-              "int[] data = [1, 2, 3]\n"
-              "int a = loc.pick(data, int(scale(1)))\n"
-              "int b = loc.pick(data, int(c_twice(scale, 1)))\n"
-              "int c = lib.lib_pick(data, 1)\n"
-              "int d = loc.deep(data)\n"
-              "int[] slots = array(2)\n"
-              "int &r = &slots[1]\n"
-              "int e = int(scale(1)) + r\n");
+              "int[] data := [1, 2, 3]\n"
+              "int a := loc.pick(data, int(scale(1)))\n"
+              "int b := loc.pick(data, int(c_twice(scale, 1)))\n"
+              "int c := lib.lib_pick(data, 1)\n"
+              "int d := loc.deep(data)\n"
+              "int[] slots := array(2)\n"
+              "int &r := &slots[1]\n"
+              "int e := int(scale(1)) + r\n");
         write("quiet.qui",
               "import loc = loc_pkg\n"
               "\n"
@@ -3047,11 +3047,11 @@ static void package_code_reports_at_the_user_statement() {
               "int g(int x)\n"
               "    return x * 2\n"
               "\n"
-              "int[] data = [1, 2, 3]\n"
-              "int y = loc.pick(data, 1)\n"
-              "int total = 1\n"
+              "int[] data := [1, 2, 3]\n"
+              "int y := loc.pick(data, 1)\n"
+              "int total := 1\n"
               "total = total + f(2)\n"
-              "int z = g(f(3))\n");
+              "int z := g(f(3))\n");
         if (!set_package_path((root / "packages").string()))
             throw std::runtime_error("cannot set QUIDRA_PACKAGE_PATH");
         const auto compilation = quidra::compile_file(root / "main.qui", {}, root);
@@ -3135,7 +3135,7 @@ static void source_table_names_every_user_file() {
                            "int pick_root(int[] values, int i)\n"
                            "    return values[i]\n"
                            "\n"
-                           "int[] data = [1, 2, 3]\n"
+                           "int[] data := [1, 2, 3]\n"
                            "print(lib.pick(data, 1) + pick_root(data, 2))\n";
         write("lib/pick.qui", lib);
         write("main.qui", main);
@@ -3205,7 +3205,7 @@ static void source_table_names_every_user_file() {
         const auto root_pick = body("pick_root");
         require(root_pick.find("i64 4, i64 19)") != std::string::npos,
                 "the root's immediates are its lines", root_pick);
-        const auto memory = quidra::compile("int[] values = [1]\nprint(values[0])\n").llvm;
+        const auto memory = quidra::compile("int[] values := [1]\nprint(values[0])\n").llvm;
         require(memory.find("c\"<memory>\\00\"") != std::string::npos &&
                     memory.find("@.quidra.sources = private constant { i64, [1 x") != std::string::npos,
                 "string input is <memory>", memory);
@@ -3240,8 +3240,8 @@ static void c_export_declarations_are_checked() {
     good("export \"C\" int64 fact(int64 n)\n    if n <= 1\n        return 1\n    return n * fact(n - 1)\n");
     good("extern int32 c_abs(int32 value) = \"abs\"\n"
          "export \"C\" int32 magnitude(int32 value)\n    return c_abs(value)\n");
-    good(add2 + "int32 inside = add2(1, 2)\nfn<int32>(int32, int32) f = add2\nint32 through = f(3, 4)\n");
-    good("int export = 3\nexport = export + 1\nprint(export)\n");
+    good(add2 + "int32 inside := add2(1, 2)\nfn<int32>(int32, int32) f := add2\nint32 through := f(3, 4)\n");
+    good("int export := 3\nexport = export + 1\nprint(export)\n");
     // Targets and the ABI string.
     bad_message("export \"C\" T same<T>(T value)\n    return value\n", "FFI_EXPORT",
                 "Generic functions cannot be exported");
@@ -3292,7 +3292,7 @@ static void c_export_declarations_are_checked() {
     // Forms.
     bad_code("export \"C\" int32 take(int32 &value)\n    return value\n", "FFI_REFERENCE");
     bad_code("export \"C\" int32 take(const string value)\n    return 0\n", "FFI_TYPE");
-    bad_code("export \"C\" int32 take(int32 value = 1)\n    return value\n", "FFI_DEFAULT");
+    bad_code("export \"C\" int32 take(int32 value := 1)\n    return value\n", "FFI_DEFAULT");
     // Symbols.
     bad_code(add2 + add2, "DUPLICATE_NAME");
     bad_message(add2 + "extern int32 other(int32 a, int32 b) = \"add2\"\n", "FFI_SYMBOL_CONFLICT",
@@ -3414,7 +3414,7 @@ static void c_export_entry_points_are_emitted() {
         "define i64 @fact(i64 %n)", {"call i64 @n_fact(i64 %n)"}, {".depth"});
     // Device work, or a call to C, gets the boundary hook.
     require_llvm_function(
-        "export \"C\" void make()\n    tensor<real32> t = tensor.zeros<real32>([1])\n",
+        "export \"C\" void make()\n    tensor<real32> t := tensor.zeros<real32>([1])\n",
         "define void @make()", {"call void @quidra_runtime_export_leave()"}, {});
     require_llvm_function(
         "extern int32 c_abs(int32 value) = \"abs\"\n"
@@ -3422,11 +3422,11 @@ static void c_export_entry_points_are_emitted() {
         "define i32 @magnitude(i32 %value)", {"call void @quidra_runtime_export_leave()"}, {});
     // Through a Quidra helper too.
     require_llvm_function(
-        "void work()\n    tensor<real32> t = tensor.zeros<real32>([1])\n"
+        "void work()\n    tensor<real32> t := tensor.zeros<real32>([1])\n"
         "export \"C\" void outer()\n    work()\n",
         "define void @outer()", {"call void @quidra_runtime_export_leave()"}, {});
     // Quidra callers call the function itself.
-    llvm_contains(add2 + "int32 inside = add2(1, 2)\n", "call i32 @n_add2(");
+    llvm_contains(add2 + "int32 inside := add2(1, 2)\n", "call i32 @n_add2(");
     ir_contains(add2, "function add2(int32 a, int32 b) -> int32 export \"C\" add2");
 
     // Marker invariance: with and without the prefix, the program's LLVM
@@ -3508,7 +3508,7 @@ static void library_builds_check_their_root() {
         std::exit(1);
     };
     const std::string accepted =
-        "const int64 limit = 3\n"
+        "const int64 limit := 3\n"
         "export \"C\" int32 one()\n    return 1\n\n"
         "if main\n    print(one())\n";
     const auto compiled = quidra::compile(accepted, library);
@@ -3524,7 +3524,7 @@ static void library_builds_check_their_root() {
         std::exit(1);
     }
     expect_code("export \"C\" int32 one()\n    return 1\n\nprint(one())\n", "LIBRARY_TOP_LEVEL");
-    expect_code("export \"C\" int32 one()\n    return 1\n\nint64 counter = 0\n", "LIBRARY_TOP_LEVEL");
+    expect_code("export \"C\" int32 one()\n    return 1\n\nint64 counter := 0\n", "LIBRARY_TOP_LEVEL");
     expect_code("cli Options\n    int64 count = option(default = 1)\n\n"
                 "export \"C\" int32 one()\n    return 1\n", "LIBRARY_TOP_LEVEL");
     expect_code("int32 one()\n    return 1\n", "FFI_EXPORT");
@@ -3554,8 +3554,8 @@ static void index_failures_report_the_index_operand() {
                 return true;
         return false;
     };
-    const auto bin = quidra::compile("bin b = bin.fill(8, 0)\n"
-                                     "nat at = len(b) + 2\n"
+    const auto bin = quidra::compile("bin b := bin.fill(8, 0)\n"
+                                     "nat at := len(b) + 2\n"
                                      "print(b[at])\n"
                                      "b[ at ] = bin.fill(1, 1)\n"
                                      "print(b[1:<at])\n").llvm;
@@ -3564,17 +3564,17 @@ static void index_failures_report_the_index_operand() {
     require(line_with(bin, "@quidra_bin_slice(ptr ", ", i64 5, i64 7)"), "bin slice", bin);
     require(bin.find("declare ptr @quidra_bin_index(ptr, i64, i64, i64)") != std::string::npos,
             "the bin entries take a position", bin);
-    const auto text = quidra::compile("string word = \"quidra\"\n"
-                                      "nat at = len(word)\n"
+    const auto text = quidra::compile("string word := \"quidra\"\n"
+                                      "nat at := len(word)\n"
                                       "print(word[1:<int(at) + 3])\n"
                                       "print(word[at])\n").llvm;
     require(line_with(text, "@quidra_string_slice(ptr ", ", i64 3, i64 7)"), "string slice", text);
     require(line_with(text, "@quidra_string_index(ptr ", ", i64 4, i64 12)"), "string index", text);
-    const auto array = quidra::compile("int[] values = [1, 2, 3]\n"
-                                       "nat at = len(values)\n"
+    const auto array = quidra::compile("int[] values := [1, 2, 3]\n"
+                                       "nat at := len(values)\n"
                                        "print(values[ at ])\n").llvm;
     require(line_with(array, "@quidra_array_slot(", ", i64 3, i64 15)"), "array element", array);
-    bad_message("int[2] xs = [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS",
+    bad_message("int[2] xs := [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS",
                 "Index 2 out of bounds for length 2.");
 }
 
@@ -3595,7 +3595,7 @@ static void recursion_limit_message_names_the_limit() {
 static void native_call_sites_follow_the_artifact() {
     const std::string source =
         "int32 twice(int32 value)\n    return value * 2\n"
-        "int32 value = twice(3)\n";
+        "int32 value := twice(3)\n";
     const auto require = [](bool condition, const char* message) {
         if (condition) return;
         std::cerr << "native call-site contract failed: " << message << "\n";
@@ -3709,15 +3709,15 @@ static void native_tail_records_are_scoped() {
 static void signature_shapes_share_one_scope() {
     good(R"(tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)
     return tensor.zeros<real32>([N, M])
-auto product = matmul2(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
+product := matmul2(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
 )");
     good(R"(tensor<real32>{N + M} join_rows(tensor<real32>{nat N} a, tensor<real32>{nat M} b)
     return tensor.zeros<real32>([N + M])
-auto rows = join_rows(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
+rows := join_rows(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )");
     good(R"(tensor<real32>{nat L = N + M} join_derived(tensor<real32>{nat N} a, tensor<real32>{nat M} b)
     return tensor.zeros<real32>([L])
-auto rows = join_derived(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
+rows := join_derived(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )");
     good(R"(void following(tensor<real32>{N + 1} a, tensor<real32>{nat N} b)
     print(N)
@@ -3733,7 +3733,7 @@ captured(3, tensor.ones<real32>([3]))
 )");
     good(R"(tensor<real32>{nat(n), 2} keep_shape(int n, tensor<real32>{nat(n), 2} value)
     return value
-auto kept = keep_shape(3, tensor.ones<real32>([3, 2]))
+kept := keep_shape(3, tensor.ones<real32>([3, 2]))
 )");
     bad_code(R"(void same_width(tensor<real32>{nat N} a, tensor<real32>{N} b)
     print(N)
@@ -3759,12 +3759,12 @@ same_width(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )", "SHADOWING");
     good(R"(tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)
     return tensor.zeros<real32>([N, M])
-func<tensor<real32>{I, J}>(tensor<real32>{nat I, nat K}, tensor<real32>{K, nat J}) operation = matmul2
-auto result = operation(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
+func<tensor<real32>{I, J}>(tensor<real32>{nat I, nat K}, tensor<real32>{K, nat J}) operation := matmul2
+result := operation(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
 )");
     bad_code(R"(tensor<real32>{N, N} square(tensor<real32>{nat N, N} value)
     return value
-func<tensor<real32>{A, B}>(tensor<real32>{nat A, nat B}) operation = square
+func<tensor<real32>{A, B}>(tensor<real32>{nat A, nat B}) operation := square
 )", "FUNCTION_REFERENCE_SIGNATURE");
 }
 
@@ -3850,9 +3850,9 @@ static void shape_entries_preserve_call_paths() {
     return value
 tensor<real32> relay(tensor<real32> value)
     return square(value)
-func<tensor<real32>{A, A}>(tensor<real32>{nat A, A}) operation = square
-auto direct = square(tensor.ones<real32>([2, 2]))
-auto indirect = operation(tensor.ones<real32>([2, 2]))
+func<tensor<real32>{A, A}>(tensor<real32>{nat A, A}) operation := square
+direct := square(tensor.ones<real32>([2, 2]))
+indirect := operation(tensor.ones<real32>([2, 2]))
 )";
     const auto require = [&](bool condition, const char* message) {
         if (!condition) {
@@ -3896,11 +3896,11 @@ auto indirect = operation(tensor.ones<real32>([2, 2]))
 int main(){
     string_templates_release_owned_inputs();
     function_values_consume_managed_parameters();
-    inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "\"collection_count\":2");
-    inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "ForCollectionBinding");
-    good("nat[2] expected_shape = [2, 3]\nparallel\n    tensor<real32>{nat N, N + 1} a = tensor.zeros<real32>([2, 3])\n    tensor<real32>{N, N + 1} b = tensor.ones<real32>()\n    print(b.shape() == expected_shape)\n");
-    good("int64 size = 2\nparallel\n    size = 3\n    tensor<real32>{nat N = nat(size)} a = tensor.zeros<real32>()\n    print(N)\n");
-    llvm_contains("parallel\n    tensor<real32>{nat N, N + 1} value = tensor.zeros<real32>([2, 3])\n    print(value.shape()[0])\n", "define void @quidra_drop_tensor_real32_");
+    inspect_contains("int[] x := [1]\nint[] y := [2]\nfor int a := x[], int b := y[]\n    print(a + b)\n", "\"collection_count\":2");
+    inspect_contains("int[] x := [1]\nint[] y := [2]\nfor int a := x[], int b := y[]\n    print(a + b)\n", "ForCollectionBinding");
+    good("nat[2] expected_shape := [2, 3]\nparallel\n    tensor<real32>{nat N, N + 1} a := tensor.zeros<real32>([2, 3])\n    tensor<real32>{N, N + 1} b := tensor.ones<real32>()\n    print(b.shape() == expected_shape)\n");
+    good("int64 size := 2\nparallel\n    size = 3\n    tensor<real32>{nat N = nat(size)} a := tensor.zeros<real32>()\n    print(N)\n");
+    llvm_contains("parallel\n    tensor<real32>{nat N, N + 1} value := tensor.zeros<real32>([2, 3])\n    print(value.shape()[0])\n", "define void @quidra_drop_tensor_real32_");
     bad_code("parallel\n    print(int(1))\n    print(int(2))\n", "PARALLEL_CONFLICT");
     bad_code("void f()\n    parallel\n        return\n", "PARALLEL_CONTROL");
     shape_entries_preserve_call_paths();
@@ -3909,113 +3909,113 @@ int main(){
     native_tail_records_are_scoped();
     // Slice markers and a statically known step must agree.
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[0:<5:-1]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[0:<5:-1]\n",
         "SLICE_STEP", "Slice step -1 cannot be used with ':<'.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[5>:0:1]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[5>:0:1]\n",
         "SLICE_STEP", "Slice step 1 cannot be used with '>:'.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[0:<5:0]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[0:<5:0]\n",
         "SLICE_STEP", "Slice step 0 is invalid.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[0<:>5]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[0<:>5]\n",
         "SLICE_STEP",
         "Slice markers point one way: '<:' and ':<' ascend, '>:' and ':>' descend.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[5>:>0:2]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[5>:>0:2]\n",
         "SLICE_STEP", "Slice step 2 cannot be used with '>:'.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[0:>5:3]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[0:>5:3]\n",
         "SLICE_STEP", "Slice step 3 cannot be used with ':>'.");
     bad_message(
-        "string text = \"abcdef\"\n"
-        "auto section = text[0<:5:-2]\n",
+        "string text := \"abcdef\"\n"
+        "section := text[0<:5:-2]\n",
         "SLICE_STEP", "Slice step -2 cannot be used with '<:'.");
     // Array slices: a T[] of copies, T[n] included; constant operands over a
     // fixed array are checked against its length.
-    good("int[] values = [1, 2, 3]\nint[] part = values[0<:2]\nint[] whole = values[:]\n"
-         "int[] back = values[len(values)>:0]\nint8 a = 0\nint[] small = values[a:<int8(2)]\n");
-    good("int[3] fixed = [1, 2, 3]\nint[] part = fixed[1:]\nint[] rest = fixed[3:]\n"
-         "int[] reversed = fixed[3>:0]\nint[] empty = fixed[3>:3]\n");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[1:3]\n",
+    good("int[] values := [1, 2, 3]\nint[] part := values[0<:2]\nint[] whole := values[:]\n"
+         "int[] back := values[len(values)>:0]\nint8 a := 0\nint[] small := values[a:<int8(2)]\n");
+    good("int[3] fixed := [1, 2, 3]\nint[] part := fixed[1:]\nint[] rest := fixed[3:]\n"
+         "int[] reversed := fixed[3>:0]\nint[] empty := fixed[3>:3]\n");
+    bad_message("int[3] fixed := [1, 2, 3]\nint[] part := fixed[1:3]\n",
                 "INDEX_BOUNDS", "Slice 1:3 out of bounds for length 3.");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[4>:0]\n",
+    bad_message("int[3] fixed := [1, 2, 3]\nint[] part := fixed[4>:0]\n",
                 "INDEX_BOUNDS", "Slice 4>:0 out of bounds for length 3.");
-    good("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0]\n");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0:1]\n",
+    good("int[3] fixed := [1, 2, 3]\nint[] part := fixed[2:0]\n");
+    bad_message("int[3] fixed := [1, 2, 3]\nint[] part := fixed[2:0:1]\n",
                 "INDEX_BOUNDS", "Slice 2:0:1 out of bounds for length 3.");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[-1<:-1]\n",
+    bad_message("int[3] fixed := [1, 2, 3]\nint[] part := fixed[-1<:-1]\n",
                 "INDEX_BOUNDS", "Slice -1<:-1 out of bounds for length 3.");
-    bad_message("int[] values = [1, 2, 3]\nint[] part = values[0:1, 1:2]\n",
+    bad_message("int[] values := [1, 2, 3]\nint[] part := values[0:1, 1:2]\n",
                 "INDEX_ARITY", "Arrays and strings take one index or one slice.");
-    good("string text = \"abc\"\nstring a = text[1:]\nstring b = text[::-1]\n"
-         "string c = text[len(text)>:0]\nstring d = text[0:<1]\nstring e = \"abc\"[3:]\n");
-    bad_message("string part = \"abc\"[1:5]\n", "INDEX_BOUNDS",
+    good("string text := \"abc\"\nstring a := text[1:]\nstring b := text[::-1]\n"
+         "string c := text[len(text)>:0]\nstring d := text[0:<1]\nstring e := \"abc\"[3:]\n");
+    bad_message("string part := \"abc\"[1:5]\n", "INDEX_BOUNDS",
                 "Slice 1:5 out of bounds for length 3.");
-    bad_message("string part = \"a\xc3\xa9\"[0:2]\n", "INDEX_BOUNDS",
+    bad_message("string part := \"a\xc3\xa9\"[0:2]\n", "INDEX_BOUNDS",
                 "Slice 0:2 out of bounds for length 2.");
-    bad_message("int[] values = [1, 2, 3]\nint part = values[0:1]\n",
+    bad_message("int[] values := [1, 2, 3]\nint part := values[0:1]\n",
                 "TYPE_MISMATCH", "");
     // Slice assignment (L6).
-    good("int[] values = [1, 2, 3, 4]\nvalues[1:2] = [7, 8]\nvalues[len(values)>:0] = values[:]\n"
-         "int[4] fixed = [0, 0, 0, 0]\nfixed[0:<4:2] = [1, 2]\n");
-    bad_message("int[] values = [1, 2, 3, 4]\nint[2] two = [5, 6]\nvalues[0:2] = two\n",
+    good("int[] values := [1, 2, 3, 4]\nvalues[1:2] = [7, 8]\nvalues[len(values)>:0] = values[:]\n"
+         "int[4] fixed := [0, 0, 0, 0]\nfixed[0:<4:2] = [1, 2]\n");
+    bad_message("int[] values := [1, 2, 3, 4]\nint[2] two := [5, 6]\nvalues[0:2] = two\n",
                 "SLICE_ASSIGNMENT", "Slice assignment needs 3 values, got 2.");
-    bad_message("int[] values = [1, 2, 3, 4]\nvalues[0:2] = 5\n",
+    bad_message("int[] values := [1, 2, 3, 4]\nvalues[0:2] = 5\n",
                 "TYPE_MISMATCH", "Slice assignment needs an array.");
-    bad_message("string text = \"abc\"\ntext[0:1] = \"xy\"\n",
+    bad_message("string text := \"abc\"\ntext[0:1] = \"xy\"\n",
                 "INVALID_ASSIGNMENT", "A string slice cannot be assigned");
-    bad_message("const int[] values = [1, 2, 3]\nvalues[0:1] = [4, 5]\n",
+    bad_message("const int[] values := [1, 2, 3]\nvalues[0:1] = [4, 5]\n",
                 "WRITE_CAPABILITY", "");
     // text.slice is gone: strings are sliced with text[a:<b].
-    bad_message("string text = \"abc\"\nstring part = text.slice(0, 1)\n", "UNKNOWN_MEMBER",
+    bad_message("string text := \"abc\"\nstring part := text.slice(0, 1)\n", "UNKNOWN_MEMBER",
                 "Type 'string' has no method 'slice'.");
     // Tensor and bin slices take ':<' with the meaning of their ':'.
-    good("bin data = bin.fill(8, 0)\nbin head = data[0:<4]\nbin same = data[0:4]\nbin tail = data[:<8]\n");
-    good("tensor<real32> t = tensor.zeros<real32>([4, 3])\nauto part = t[0:<2, 1:<3]\n"
-         "auto stepped = t[0:<4:2]\n");
-    good("bin data = bin.fill(8, 0)\nbin a = data[1<:4]\nbin b = data[len(data)>:0]\n"
-         "bin c = data[5:>1]\nbin d = data[1:3]\n");
-    good("tensor<real32> t = tensor.zeros<real32>([4])\nauto a = t[0<:3]\nauto b = t[0:3]\n"
-         "auto c = t[1<:<3:2]\n");
-    bad_message("tensor<real32> t = tensor.zeros<real32>([4])\nauto part = t[3:>0]\n",
+    good("bin data := bin.fill(8, 0)\nbin head := data[0:<4]\nbin same := data[0:4]\nbin tail := data[:<8]\n");
+    good("tensor<real32> t := tensor.zeros<real32>([4, 3])\npart := t[0:<2, 1:<3]\n"
+         "stepped := t[0:<4:2]\n");
+    good("bin data := bin.fill(8, 0)\nbin a := data[1<:4]\nbin b := data[len(data)>:0]\n"
+         "bin c := data[5:>1]\nbin d := data[1:3]\n");
+    good("tensor<real32> t := tensor.zeros<real32>([4])\na := t[0<:3]\nb := t[0:3]\n"
+         "c := t[1<:<3:2]\n");
+    bad_message("tensor<real32> t := tensor.zeros<real32>([4])\npart := t[3:>0]\n",
                 "SLICE_STEP", "Tensor slices ascend");
-    bad_message("tensor<real32> t = tensor.zeros<real32>([4])\nauto part = t[3>:0]\n",
+    bad_message("tensor<real32> t := tensor.zeros<real32>([4])\npart := t[3>:0]\n",
                 "SLICE_STEP", "Tensor slices ascend");
-    bad_message("bin data = bin.fill(8, 0)\nbin part = data[0:4:2]\n",
+    bad_message("bin data := bin.fill(8, 0)\nbin part := data[0:4:2]\n",
                 "SLICE_STEP", "bin slices do not take a step.");
-    bad_message("bin data = bin.fill(8, 0)\nbin part = data[0<:>4]\n",
+    bad_message("bin data := bin.fill(8, 0)\nbin part := data[0<:>4]\n",
                 "SLICE_STEP", "Slice markers point one way");
     // quidra fmt never separates a slice marker from its colon. (A negative
     // operand gets the space every '-' after a colon or a comparison token
     // gets; the marker stays next to its colon.)
     {
         const std::string marked =
-            "int[] values = [1, 2, 3, 4, 5]\n"
-            "int n = 5\n"
-            "int[] a = values[0<:5]\n"
-            "int[] b = values[n>:0]\n"
-            "int[] c = values[0:<n]\n"
-            "int[] d = values[4:>0: -2]\n"
-            "int[] e = values[0<:<n:2]\n"
-            "int[] f = values[n>:> -1]\n"
-            "int[] g = values[0 <:5]\n"
-            "int[] h = values[0<: 5]\n"
-            "int[] i = values[if n > 2 then 0 else n>:0]\n"
-            "int[] j = values[-1<:2]\n";
+            "int[] values := [1, 2, 3, 4, 5]\n"
+            "int n := 5\n"
+            "int[] a := values[0<:5]\n"
+            "int[] b := values[n>:0]\n"
+            "int[] c := values[0:<n]\n"
+            "int[] d := values[4:>0: -2]\n"
+            "int[] e := values[0<:<n:2]\n"
+            "int[] f := values[n>:> -1]\n"
+            "int[] g := values[0 <:5]\n"
+            "int[] h := values[0<: 5]\n"
+            "int[] i := values[if n > 2 then 0 else n>:0]\n"
+            "int[] j := values[-1<:2]\n";
         const auto formatted = quidra::format_source(marked);
         if (formatted != marked) {
             std::cerr << "quidra fmt changed slice markers:\n" << formatted;
             std::exit(1);
         }
-        const auto respaced = quidra::format_source("int[] d = values[4:>0:-2]\nint[] f = values[n>:>-1]\n");
-        if (respaced != "int[] d = values[4:>0: -2]\nint[] f = values[n>:> -1]\n") {
+        const auto respaced = quidra::format_source("int[] d := values[4:>0:-2]\nint[] f := values[n>:>-1]\n");
+        if (respaced != "int[] d := values[4:>0: -2]\nint[] f := values[n>:> -1]\n") {
             std::cerr << "quidra fmt moved a slice marker:\n" << respaced;
             std::exit(1);
         }
@@ -4055,21 +4055,21 @@ int main(){
     package_extension_conditional_replacement_preserves_owned_argument_lifetime();
     package_extension_conditional_replacement_clones_borrowed_argument();
     package_extension_backend_selection_tracks_transfer_layout();
- good(R"(int huge = 12345678901234567890123456789012345678901234567890
-int one = 1
-int sum = huge + one
+ good(R"(int huge := 12345678901234567890123456789012345678901234567890
+int one := 1
+int sum := huge + one
 print(sum)
 print(NL)
 )");
- good(R"(real ratio = real(1) / real(3)
+ good(R"(real ratio := real(1) / real(3)
 print(ratio)
 print(NL)
 )");
  good(R"(T identity<T>(T value)
     return value
 
-int large = identity<int>(123456789012345678901234567890)
-real exact_value = identity<real>(real(1) / real(3))
+int large := identity<int>(123456789012345678901234567890)
+real exact_value := identity<real>(real(1) / real(3))
 print(large)
 print(NL)
 print(exact_value)
@@ -4078,74 +4078,74 @@ print(NL)
  good(R"(tensor<T> preserve<T: floating>(tensor<T> value)
     return value
 
-tensor<real32> left = tensor.ones<real32>([2])
-tensor<real32> right = tensor.ones<real32>([2])
-tensor<real32> product = preserve(left * right)
-tensor<real32> scaled = preserve(product * real32(2))
+tensor<real32> left := tensor.ones<real32>([2])
+tensor<real32> right := tensor.ones<real32>([2])
+tensor<real32> product := preserve(left * right)
+tensor<real32> scaled := preserve(product * real32(2))
 print(scaled[0].item())
 print(NL)
 )");
  good(R"(tensor<T> preserve_grad<T: floating>(tensor<T> value)
     return value
 
-tensor<real32> root = tensor.ones<real32>([1]).track()
+tensor<real32> root := tensor.ones<real32>([1]).track()
 (root * root).backward(&root)
-tensor<real32> gradient = preserve_grad(root.grad)
+tensor<real32> gradient := preserve_grad(root.grad)
 print(gradient[0].item())
 print(NL)
 )");
- good(R"(tensor<real32> tracked = tensor.ones<real32>([2]).track()
-tensor<real64> converted = real64(tracked)
+ good(R"(tensor<real32> tracked := tensor.ones<real32>([2]).track()
+tensor<real64> converted := real64(tracked)
 (converted.gather([0], []) * real64(2)).backward(&tracked)
-tensor<real32> gradient = tracked.grad
+tensor<real32> gradient := tracked.grad
 print(gradient[0].item())
 print(NL)
 )");
- bad_code(R"(tensor<real32> loss = tensor.ones<real32>([]).track()
-tensor<int32> target = tensor.ones<int32>([])
+ bad_code(R"(tensor<real32> loss := tensor.ones<real32>([]).track()
+tensor<int32> target := tensor.ones<int32>([])
 loss.backward(&target)
 )", "TYPE_MISMATCH");
- good(R"(int[] values = [
+ good(R"(int[] values := [
     123456789012345678901234567890,
     2,
 ]
-real[] reals = real(values)
+real[] reals := real(values)
 print(values[0])
 print(NL)
 print(reals[1])
 print(NL)
 )");
  llvm_contains(
-     "int x = 123456789012345678901234567890\n",
+     "int x := 123456789012345678901234567890\n",
      "call i64 @quidra.int.literal");
- bad_code("tensor<int> x = tensor<int>([1])\n", "INVALID_TYPE");
- bad_code("map<real, int> values = map<real, int>()\n", "STANDARD_KEY_TYPE");
- bad_code("distinct<real> values = distinct<real>()\n", "STANDARD_KEY_TYPE");
+ bad_code("tensor<int> x := tensor<int>([1])\n", "INVALID_TYPE");
+ bad_code("map<real, int> values := map<real, int>()\n", "STANDARD_KEY_TYPE");
+ bad_code("distinct<real> values := distinct<real>()\n", "STANDARD_KEY_TYPE");
  llvm_not_contains(
-     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
+     "map<int, int> values := map<int, int>()\n.values.set(1, 2)\nvalue := values.get(1)\n",
      "call ptr @quidra_format_signed");
  llvm_not_contains(
-     "distinct<nat64> values = distinct<nat64>()\nnat64 key = nat64(7)\n.values.add(key)\nbool present = values.has(key)\n",
+     "distinct<nat64> values := distinct<nat64>()\nnat64 key := nat64(7)\n.values.add(key)\nbool present := values.has(key)\n",
      "call ptr @quidra_format_unsigned");
  llvm_not_contains(
-     "map<int, int> values = map<int, int>()\nint key = int(7)\n.values.set(key, 2)\nauto value = values.get(key)\n",
+     "map<int, int> values := map<int, int>()\nint key := int(7)\n.values.set(key, 2)\nvalue := values.get(key)\n",
      "call ptr @quidra.int.text");
  // Standard map/set slot capacities are compiler-owned powers of two, so hot
  // probing uses masking rather than signed remainder and branchy wraparound.
  llvm_function_not_contains(
-     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\nauto value = values.get(1)\n",
+     "map<int, int> values := map<int, int>()\n.values.set(1, 2)\nvalue := values.get(1)\n",
      "___slot_of(", "srem i64");
  llvm_function_not_contains(
-     "distinct<int> values = distinct<int>()\n.values.add(1)\nbool present = values.has(1)\n",
+     "distinct<int> values := distinct<int>()\n.values.add(1)\nbool present := values.has(1)\n",
      "___slot_of(", "srem i64");
  // Map/Set scalar fields have compiler-owned initializers. Array-copy paths
  // inside these methods may still need element initialization checks, so scope
  // this regression to the typed-IR address path used by scalar compound updates.
  ir_function_not_contains(
-     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\n",
+     "map<int, int> values := map<int, int>()\n.values.set(1, 2)\n",
      ".set(", "address.load");
  ir_function_not_contains(
-     "map<int, int> values = map<int, int>()\n.values.set(1, 2)\n",
+     "map<int, int> values := map<int, int>()\n.values.set(1, 2)\n",
      ".set(", "address.store");
 
  // Compiler-owned +1 induction variables are bounded by their loop
@@ -4158,11 +4158,11 @@ print(NL)
 walk_range()
 )", "@n_walk_range(", "@llvm.sadd.with.overflow.i64");
  llvm_function_not_contains(R"(void walk_array(const int[] values)
-    for auto value = values[]
+    for value := values[]
         print(value)
         print(NL)
 
-int[] values = array(8, fill = 1)
+int[] values := array(8, fill = 1)
 walk_array(values)
 )", "@n_walk_array(", "@llvm.sadd.with.overflow.i64");
 
@@ -4186,91 +4186,91 @@ walk_array(values)
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
  ir_contains(R"(for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", NL]
+    string line := fields.join("")
     print(line)
     print(NL)
 )", "string.build");
- llvm_contains(R"(string content = ""
-int written = 0
+ llvm_contains(R"(string content := ""
+int written := 0
 for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", i.string(), NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", i.string(), NL]
+    string line := fields.join("")
     content = content + line
     written += int(len(line))
 print(written)
 print(NL)
 )", "@quidra_string_build_append_move");
- ir_contains(R"(string content = ""
-int written = 0
+ ir_contains(R"(string content := ""
+int written := 0
 for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", i.string(), NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", i.string(), NL]
+    string line := fields.join("")
     content = content + line
     written += int(len(line))
 print(written)
 print(NL)
 )", "string.build_append");
- llvm_contains(R"(string content = ""
-int written = 0
+ llvm_contains(R"(string content := ""
+int written := 0
 for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", i.string(), NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", i.string(), NL]
+    string line := fields.join("")
     content = content + line
     written += int(len(line))
 print(written)
 print(NL)
 )", "call ptr @quidra_string_build_append_move_unique_direct");
- llvm_contains(R"(string content = ""
-int written = 0
+ llvm_contains(R"(string content := ""
+int written := 0
 for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", i.string(), NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", i.string(), NL]
+    string line := fields.join("")
     content = content + line
     written += int(len(line))
 print(written)
 print(NL)
 )", "store i8 4");
- llvm_not_contains(R"(string content = ""
-int written = 0
+ llvm_not_contains(R"(string content := ""
+int written := 0
 for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", i.string(), NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", i.string(), NL]
+    string line := fields.join("")
     content = content + line
     written += int(len(line))
 print(written)
 print(NL)
 )", "call i64 @quidra_string_build_append_last_length");
  llvm_contains(R"(for 0 <= nat i < 2
-    string[] fields = [i.string(), " ", NL]
-    string line = fields.join("")
+    string[] fields := [i.string(), " ", NL]
+    string line := fields.join("")
     print(line)
     print(NL)
 )", "@quidra_string_build");
- ir_contains(R"(string text = "a b"
+ ir_contains(R"(string text := "a b"
 for 0 <= nat i < len(text)
     if text[i] == " "
         print(i)
         print(NL)
 )", "string.index_ascii_compare");
- ir_contains(R"(string text = "a b a"
-int64 spaces = 0
+ ir_contains(R"(string text := "a b a"
+int64 spaces := 0
 for 0 <= nat i < len(text)
     if text[i] == " "
         spaces += 1
 print(spaces)
 print(NL)
 )", "string.ascii_count_prefix");
- llvm_contains(R"(string text = "a b a"
-int64 spaces = 0
+ llvm_contains(R"(string text := "a b a"
+int64 spaces := 0
 for 0 <= nat i < len(text)
     if text[i] == " "
         spaces += 1
 print(spaces)
 print(NL)
 )", "call i64 @quidra_string_count_ascii_prefix");
- ir_contains(R"(string source = "ab"
-nat8[] data = nat8[](source.utf8())
+ ir_contains(R"(string source := "ab"
+nat8[] data := nat8[](source.utf8())
 match string.from_utf8(bin(data))
     string decoded
         print(decoded)
@@ -4314,11 +4314,11 @@ match string.from_utf8(bin(data))
         error problem
             process.exit(1)
 
-string line = "12 34"
+string line := "12 34"
 for 0 <= nat i < 1
-    string[] fields = line.split(" ")
-    int64 left = parse_decimal(fields[0])
-    int64 right = parse_decimal(fields[1])
+    string[] fields := line.split(" ")
+    int64 left := parse_decimal(fields[0])
+    int64 right := parse_decimal(fields[1])
     print(left + right)
     print(NL)
 )", "string.parse_two_signed");
@@ -4329,27 +4329,27 @@ for 0 <= nat i < 1
         error problem
             process.exit(1)
 
-string line = "12 34"
+string line := "12 34"
 for 0 <= nat i < 1
-    string[] fields = line.split(" ")
-    int64 left = parse_decimal(fields[0])
-    int64 right = parse_decimal(fields[1])
+    string[] fields := line.split(" ")
+    int64 left := parse_decimal(fields[0])
+    int64 right := parse_decimal(fields[1])
     print(left + right)
     print(NL)
 )", "call i1 @__quidra_string_parse_two_signed_fast");
- ir_contains(R"(string line = "12 34"
+ ir_contains(R"(string line := "12 34"
 for 0 <= nat i < 1
-    string[] fields = line.split(" ")
-    int64 left = int64.parse(fields[0])
-    int64 right = int64.parse(fields[1])
+    string[] fields := line.split(" ")
+    int64 left := int64.parse(fields[0])
+    int64 right := int64.parse(fields[1])
     print(left + right)
     print(NL)
 )", "string.parse_two_signed");
- llvm_contains(R"(string line = "12 34"
+ llvm_contains(R"(string line := "12 34"
 for 0 <= nat i < 1
-    string[] fields = line.split(" ")
-    int64 left = int64.parse(fields[0])
-    int64 right = int64.parse(fields[1])
+    string[] fields := line.split(" ")
+    int64 left := int64.parse(fields[0])
+    int64 right := int64.parse(fields[1])
     print(left + right)
     print(NL)
 )", "call i1 @__quidra_string_parse_two_signed_fast");
@@ -4360,37 +4360,37 @@ for 0 <= nat i < 1
         error problem
             process.exit(1)
 
-string line = "12 34"
+string line := "12 34"
 for 0 <= nat i < 1
-    string[] fields = line.split(" ")
-    int64 left = parse_decimal(fields[0])
-    int64 right = parse_decimal(fields[1])
+    string[] fields := line.split(" ")
+    int64 left := parse_decimal(fields[0])
+    int64 right := parse_decimal(fields[1])
     print(left + right)
     print(NL)
 )", "call i1 @quidra_string_parse_two_signed(");
- ir_contains(R"(string text = "a b"
-for auto part = text.split(" ")[]
+ ir_contains(R"(string text := "a b"
+for part := text.split(" ")[]
     print(part)
     print(NL)
 )", "string.split_iter.begin");
- ir_contains(R"(string text = "a b"
+ ir_contains(R"(string text := "a b"
 for 0 <= nat outer < 1
-    string[] parts = text.split(" ")
-    int index = 0
-    for auto part = parts[]
+    string[] parts := text.split(" ")
+    int index := 0
+    for part := parts[]
         print(part)
         print(NL)
         index += 1
 )", "string.split_iter.begin");
- llvm_contains(R"(string text = "a b"
-string[] parts = text.split(" ")
-for auto part = parts[]
+ llvm_contains(R"(string text := "a b"
+string[] parts := text.split(" ")
+for part := parts[]
     print(part)
     print(NL)
 )", "call ptr @quidra_string_split_iter_begin_move");
- llvm_not_contains(R"(string text = "a b"
-string[] parts = text.split(" ")
-for auto part = parts[]
+ llvm_not_contains(R"(string text := "a b"
+string[] parts := text.split(" ")
+for part := parts[]
     print(part)
     print(NL)
 print(text)
@@ -4400,13 +4400,13 @@ print(NL)
  // Nonnegative modulo invariants prove hot integer arithmetic safe without
  // weakening the default overflow semantics.
  ir_contains(R"(int bounded_hash(const nat8[] data, int size)
-    int h = 0
+    int h := 0
     for 0 <= int i < size
         h = (h * 131 + int(data[i])) % 1000000007
     return h
 )", "no-overflow");
  llvm_contains(R"(int bounded_hash(const nat8[] data, int size)
-    int h = 0
+    int h := 0
     for 0 <= int i < size
         h = (h * 131 + int(data[i])) % 1000000007
     return h
@@ -4435,32 +4435,32 @@ print(NL)
  llvm_contains(R"(int grow(int value)
     return value + 1
 )", "call i64 @quidra.int.add");
- ir_contains("int negative = -12345678901234567890123\n", "-12345678901234567890123");
+ ir_contains("int negative := -12345678901234567890123\n", "-12345678901234567890123");
  // `int` and `nat` are arbitrary-precision integers: bit operations, shifts,
  // bin conversions, tensor elements and C signatures need a fixed width, a
  // negative literal does not materialize as nat, and the generic constraint
  // `integer` covers both.
- bad_message("int a = 6\nint b = a AND 3\n", "TYPE_MISMATCH",
+ bad_message("int a := 6\nint b := a AND 3\n", "TYPE_MISMATCH",
              "Bitwise operations require nat8..nat64 or int8..int64.");
- bad_code("nat a = 6\nnat b = a << 1\n", "TYPE_MISMATCH");
- bad_code("int a = 6\nbin bits = bin(a)\n", "TYPE_MISMATCH");
- bad_message("tensor<int> t = tensor.zeros<int>([2])\n", "INVALID_TYPE", "use tensor<int64>");
- bad_code("tensor<nat> t = tensor.zeros<nat>([2])\n", "INVALID_TYPE");
+ bad_code("nat a := 6\nnat b := a << 1\n", "TYPE_MISMATCH");
+ bad_code("int a := 6\nbin bits := bin(a)\n", "TYPE_MISMATCH");
+ bad_message("tensor<int> t := tensor.zeros<int>([2])\n", "INVALID_TYPE", "use tensor<int64>");
+ bad_code("tensor<nat> t := tensor.zeros<nat>([2])\n", "INVALID_TYPE");
  bad_code("extern int c_abs(int value) = \"llabs\"\n", "FFI_TYPE");
  bad_code("extern int64 c_abs(nat value) = \"llabs\"\n", "FFI_TYPE");
- bad_code("nat n = -1\n", "NUMERIC_FAMILY");
- bad_code("int a = 3\nnat n = a\n", "TYPE_MISMATCH");
+ bad_code("nat n := -1\n", "NUMERIC_FAMILY");
+ bad_code("int a := 3\nnat n := a\n", "TYPE_MISMATCH");
  good(R"(T twice<T: integer>(T value)
     return value * 2
 
-int a = twice(int(3))
-nat b = twice(nat(4))
+int a := twice(int(3))
+nat b := twice(nat(4))
 )");
- good("int big = 123456789012345678901234567890 * 10\nnat count = 18446744073709551616\n");
+ good("int big := 123456789012345678901234567890 * 10\nnat count := 18446744073709551616\n");
  // `bigint` and json.Value.bigint() are released: bigint is an ordinary
  // identifier again.
- bad_code("bigint value = 1\n", "UNKNOWN_TYPE");
- good("int bigint = 1\nint copy = bigint\n");
+ bad_code("bigint value := 1\n", "UNKNOWN_TYPE");
+ good("int bigint := 1\nint copy := bigint\n");
  // nat subtraction checks its sign; int64 keeps the overflow branch.
  llvm_contains("nat f(nat a, nat b)\n    return a - b\n", "call i64 @quidra.nat.sub");
  llvm_contains("int64 g(int64 a, int64 b)\n    return a + b\n", "@llvm.sadd.with.overflow.i64");
@@ -4484,39 +4484,39 @@ nat b = twice(nat(4))
              else bad_code(source, "NUMERIC_FAMILY");
              // The same rows inside an if-expression of literals.
              const auto conditional =
-                 "bool ready = true\n" + kind + " value = (if ready then " + literal + " else " +
+                 "bool ready := true\n" + kind + " value = (if ready then " + literal + " else " +
                  literal + ")\n";
              if (accepted) good(conditional);
              else bad_code(conditional, "NUMERIC_FAMILY");
          }
      }
  }
- bad_message("real32 x = 7\n", "NUMERIC_FAMILY",
+ bad_message("real32 x := 7\n", "NUMERIC_FAMILY",
              "An integer literal cannot materialize as real32: write 7.0 or real32(7).");
- bad_message("int32 x = 1.5\n", "NUMERIC_FAMILY", "A real literal cannot materialize as int32.");
- bad_message("nat8 x = -1\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
- bad_message("nat8 x = 5 + -3\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
- bad_message("real64 z = 2i\n", "NUMERIC_FAMILY", "An imaginary literal requires real form: write 2.0i.");
- bad_message("real64 z = 1.0 + 2.0i\n", "NUMERIC_FAMILY", "A complex literal cannot materialize as real64.");
- bad_message("real64 z = 1 + 2.0i\n", "NUMERIC_FAMILY", "Complex literal parts require real form: write 1.0 + 2.0i.");
- bad_code("auto z = 2.0i\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("auto x = 10\n", "AMBIGUOUS_NUMERIC_LITERAL");
- good("real32 x = real32(10)\nint8 y = -128\nint8 z = 100 - 101\n");
+ bad_message("int32 x := 1.5\n", "NUMERIC_FAMILY", "A real literal cannot materialize as int32.");
+ bad_message("nat8 x := -1\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
+ bad_message("nat8 x := 5 + -3\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
+ bad_message("real64 z := 2i\n", "NUMERIC_FAMILY", "An imaginary literal requires real form: write 2.0i.");
+ bad_message("real64 z := 1.0 + 2.0i\n", "NUMERIC_FAMILY", "A complex literal cannot materialize as real64.");
+ bad_message("real64 z := 1 + 2.0i\n", "NUMERIC_FAMILY", "Complex literal parts require real form: write 1.0 + 2.0i.");
+ bad_code("z := 2.0i\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("x := 10\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("real32 x := real32(10)\nint8 y := -128\nint8 z := 100 - 101\n");
  // A compound literal expression computes in its context type, with checked
  // arithmetic at every step.
- bad_code("nat8 x = 3 - 5\n", "INTEGER_RANGE");
- bad_code("nat8 x = 300 - 100\n", "INTEGER_RANGE");
- bad_code("int8 x = 100 + 100 - 100\n", "INTEGER_RANGE");
- bad_code("nat x = 3 - 5\n", "INTEGER_RANGE");
- bad_code("int64 x = 9223372036854775807 + 1\n", "INTEGER_RANGE");
- good("int x = 9223372036854775807 + 1\nnat y = 18446744073709551615 + 1\n");
+ bad_code("nat8 x := 3 - 5\n", "INTEGER_RANGE");
+ bad_code("nat8 x := 300 - 100\n", "INTEGER_RANGE");
+ bad_code("int8 x := 100 + 100 - 100\n", "INTEGER_RANGE");
+ bad_code("nat x := 3 - 5\n", "INTEGER_RANGE");
+ bad_code("int64 x := 9223372036854775807 + 1\n", "INTEGER_RANGE");
+ good("int x := 9223372036854775807 + 1\nnat y := 18446744073709551615 + 1\n");
  // Undefined literal powers are compile-time errors; zero to a negative
  // real exponent now produces positive infinity.
- bad_message("int64 x = 0 ^ 0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
- bad_message("real64 x = 0.0 ^ 0.0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
- good("real64 x = 0.0 ^ -1.0\n");
- bad_message("real64 x = (-2.0) ^ 0.5\n", "POWER_DOMAIN", "A negative base requires an integer exponent.");
- good("real64 x = (-2.0) ^ 3.0\nint64 y = 0 ^ 2\n");
+ bad_message("int64 x := 0 ^ 0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
+ bad_message("real64 x := 0.0 ^ 0.0\n", "POWER_DOMAIN", "0 ^ 0 is undefined.");
+ good("real64 x := 0.0 ^ -1.0\n");
+ bad_message("real64 x := (-2.0) ^ 0.5\n", "POWER_DOMAIN", "A negative base requires an integer exponent.");
+ good("real64 x := (-2.0) ^ 3.0\nint64 y := 0 ^ 2\n");
  llvm_contains("real64 f(real64 a, real64 b)\n    return a ^ b\n", "call double @quidra.power.real64(");
  // Arithmetic produces a fixed-width real before its return is boxed as a
  // success case of T | error. The finite check must retain that real dtype.
@@ -4530,9 +4530,9 @@ nat b = twice(nat(4))
 
  // Proven dynamic-array loop bounds remove runtime slot checks only when the
  // array length relation is statically preserved.
- llvm_not_contains(R"(int[] data = array(8, fill = 0)
-int size = int(len(data))
-int total = 0
+ llvm_not_contains(R"(int[] data := array(8, fill = 0)
+int size := int(len(data))
+int total := 0
 for 0 <= int i < size
     total += data[i]
 for 0 <= int i < size - 1
@@ -4542,36 +4542,36 @@ for 0 <= int i < size
 print(total)
 print(NL)
 )", "call ptr @quidra_array_slot(ptr");
- llvm_contains(R"(int[] data = array(8, fill = 0)
-int size = int(len(data))
+ llvm_contains(R"(int[] data := array(8, fill = 0)
+int size := int(len(data))
 size = 4
 print(data[size])
 print(NL)
 )", "call ptr @quidra_array_slot(ptr");
- llvm_contains(R"(int[] data = array(8, fill = 0)
-int size = int(len(data))
+ llvm_contains(R"(int[] data := array(8, fill = 0)
+int size := int(len(data))
 for 0 <= int i < size
     data = array(0, fill = 0)
     print(data[i])
     print(NL)
 )", "call ptr @quidra_array_slot(ptr");
  good("tensor<T> stored<T: floating>(tensor<real32> value)\n    return T(value)\n"
-      "tensor<real32> source = tensor.ones<real32>([1])\n"
-      "tensor<real16> a = stored<real16>(source)\n"
-      "tensor<real16b> b = stored<real16b>(source)\n");
+      "tensor<real32> source := tensor.ones<real32>([1])\n"
+      "tensor<real16> a := stored<real16>(source)\n"
+      "tensor<real16b> b := stored<real16b>(source)\n");
  good("T stored<T: floating>(real32 value)\n    return T(value)\n"
-      "real16 a = stored<real16>(real32(1))\n"
-      "real16b b = stored<real16b>(real32(1))\n");
+      "real16 a := stored<real16>(real32(1))\n"
+      "real16b b := stored<real16b>(real32(1))\n");
  // User-class bindings require generation before any instance access.
- good("class Point(int x)\n    int y = 2\nPoint a(5)\nprint(a.x + a.y)\n");
- good("class Point(int x)\n    int y = 2\nPoint a\na = Point(5)\nprint(a.x + a.y)\n");
- good("class Point(int x)\nPoint original = Point(5)\nPoint copy = original\nprint(copy.x)\n");
+ good("class Point(int x)\n    int y := 2\nPoint a := Point(5)\nprint(a.x + a.y)\n");
+ good("class Point(int x)\n    int y := 2\nPoint a\na = Point(5)\nprint(a.x + a.y)\n");
+ good("class Point(int x)\nPoint original := Point(5)\nPoint copy := original\nprint(copy.x)\n");
  bad_code("class Point(int x)\nPoint a\nprint(a.x)\n", "UNINITIALIZED");
  bad_code("class Point(int x)\nPoint a\na.x = 5\n", "UNINITIALIZED");
  bad_code("class Point(int x)\n    int sum()\n        return x\nPoint a\nprint(a.sum())\n", "UNINITIALIZED");
- bad_code("class Point(int x)\nPoint a\nPoint &alias = &a\n", "UNINITIALIZED");
- good("class Empty()\nEmpty value()\n    return Empty()\nEmpty a()\nEmpty b = value()\n");
- good("class Box<T>(T value)\nBox<int> a(5)\nprint(a.value)\n");
+ bad_code("class Point(int x)\nPoint a\nPoint &alias := &a\n", "UNINITIALIZED");
+ good("class Empty()\nEmpty value()\n    return Empty()\nEmpty a := Empty()\nEmpty b := value()\n");
+ good("class Box<T>(T value)\nBox<int> a := Box<int>(5)\nprint(a.value)\n");
  // Joining parallel work invalidates proofs without unbalancing enclosing loops.
  good(R"(int identity(int value)
     return value
@@ -4582,9 +4582,9 @@ void first()
         parallel
             left = identity(1)
             right = identity(2)
-        int sum = left + right
+        int sum := left + right
 void second()
-    int value = 0
+    int value := 0
 first()
 second()
 )");
@@ -4594,14 +4594,14 @@ second()
         parallel for index < 2
             data[index] = index
 void after()
-    int value = 0
+    int value := 0
 fill()
 after()
 )");
  llvm_contains(R"(int identity(int value)
     return value
-int[] data = array(8, fill = 0)
-int size = int(len(data))
+int[] data := array(8, fill = 0)
+int size := int(len(data))
 for 0 <= int index < size
     int value
     parallel
@@ -4613,51 +4613,51 @@ for 0 <= int index < size
 int value
 parallel
     value = identity(1)
-int[] data = array(8, fill = 0)
-int size = int(len(data))
+int[] data := array(8, fill = 0)
+int size := int(len(data))
 for 0 <= int index < size
     print(data[index])
 )", "call ptr @quidra_array_slot(ptr");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
 while true
     parallel
         data = partial
     break
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
 if main
     parallel
         data = partial
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
 while true
     data = partial
     break
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
-bool stop = true
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
+bool stop := true
 while stop
     if stop
         data = partial
         break
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_not_contains(R"(int[] data = array(1, fill = 7)
+ llvm_not_contains(R"(int[] data := array(1, fill = 7)
 while true
     break
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
  // dynamic array loop bounds lower to proven slots only while the length relation
  // is loop invariant; replacing the array inside the loop keeps the checked path.
- ir_contains(R"(string[] values = ["a", "b", "c"]
-for auto value = values[]
+ ir_contains(R"(string[] values := ["a", "b", "c"]
+for value := values[]
     print(value)
     print(NL)
 )", "store.borrow $local.value.");
@@ -4685,22 +4685,22 @@ print(NL)
     if n < 2
         return n
     return fib(n - 1) + fib(n - 2)
-func<int>(int) callback = fib
+func<int>(int) callback := fib
 print(callback(10))
 print(NL)
 )", "@n_fib.depth");
  // depth-parameter self recursion
 
- good(R"(nat8 a = 240
-nat8 b = 204
-nat8 both = a AND b
-nat8 either = a OR b
-nat8 different = a XOR b
-nat8 inverted = NOT a
-nat8 left = a << 1
-nat8 right = a >> 2
-int8 signed_value = -8
-int8 signed_right = signed_value >> 2
+ good(R"(nat8 a := 240
+nat8 b := 204
+nat8 both := a AND b
+nat8 either := a OR b
+nat8 different := a XOR b
+nat8 inverted := NOT a
+nat8 left := a << 1
+nat8 right := a >> 2
+int8 signed_value := -8
+int8 signed_right := signed_value >> 2
 print(both)
 print(NL)
 print(either)
@@ -4716,15 +4716,15 @@ print(NL)
 print(signed_right)
 print(NL)
 )");
- llvm_contains("nat8 a = 3\nnat8 b = a << 2\n", "shl i8");
- llvm_contains("nat8 a = 3\nnat8 b = NOT a\n", "xor i8");
- good("nat8 inverted = NOT 1\n");
- good("nat8 flags = 12\nnat8 mask = 10\nbool selected = flags AND mask == 8\n");
- good("nat8 flags = 1\nnat8 mask = 2\nbool selected = flags OR mask == 3\n");
- bad_code("bool a = true\nbool b = false\nbool c = a AND b\n", "TYPE_MISMATCH");
- bad_code("real64 a = 1.0\nreal64 b = 2.0\nreal64 c = a OR b\n", "TYPE_MISMATCH");
- bad_code("int a = 1\nint b = 2\nint c = a XOR b\n", "TYPE_MISMATCH");
- bad_code("nat8 a = 1\nnat8 b = a << 8\n", "SHIFT_COUNT");
+ llvm_contains("nat8 a := 3\nnat8 b := a << 2\n", "shl i8");
+ llvm_contains("nat8 a := 3\nnat8 b := NOT a\n", "xor i8");
+ good("nat8 inverted := NOT 1\n");
+ good("nat8 flags := 12\nnat8 mask := 10\nbool selected := flags AND mask == 8\n");
+ good("nat8 flags := 1\nnat8 mask := 2\nbool selected := flags OR mask == 3\n");
+ bad_code("bool a := true\nbool b := false\nbool c := a AND b\n", "TYPE_MISMATCH");
+ bad_code("real64 a := 1.0\nreal64 b := 2.0\nreal64 c := a OR b\n", "TYPE_MISMATCH");
+ bad_code("int a := 1\nint b := 2\nint c := a XOR b\n", "TYPE_MISMATCH");
+ bad_code("nat8 a := 1\nnat8 b := a << 8\n", "SHIFT_COUNT");
  good(R"(class TensorState()
     tensor<real32> value
 
@@ -4738,7 +4738,7 @@ class NestedState()
  llvm_contains("extern int16 c_i16(int16 value) = \"c_i16\"\n", "declare signext i16 @c_i16(i16 signext)");
  llvm_contains("extern nat8 c_u8(nat8 value) = \"c_u8\"\n", "declare zeroext i8 @c_u8(i8 zeroext)");
  llvm_contains("extern nat16 c_u16(nat16 value) = \"c_u16\"\n", "declare zeroext i16 @c_u16(i16 zeroext)");
- llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\nint8 x = 1\nint8 y = c_i8(x)\n", "call signext i8 @c_i8(i8 signext");
+ llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\nint8 x := 1\nint8 y := c_i8(x)\n", "call signext i8 @c_i8(i8 signext");
  good("extern int32 c_text(const string text) = \"c_text\"\n");
  good("extern int32 c_bin(const bin data) = \"c_bin\"\n");
  ir_contains("extern int32 c_text(const string text) = \"c_text\"\n", "function c_text(const string &text) -> int32 = \"c_text\"");
@@ -4748,20 +4748,20 @@ class NestedState()
  good("extern int32 c_tensor(const tensor<real32> input, tensor<real32> &output) = \"c_tensor\"\n");
  llvm_contains(
      "extern int32 c_tensor(const tensor<real32> input, tensor<real32> &output) = \"c_tensor\"\n"
-     "tensor<real32> input = tensor.ones<real32>([1])\n"
-     "tensor<real32> output = tensor.zeros<real32>([1])\n"
-     "int32 status = c_tensor(input, &output)\n",
+     "tensor<real32> input := tensor.ones<real32>([1])\n"
+     "tensor<real32> output := tensor.zeros<real32>([1])\n"
+     "int32 status := c_tensor(input, &output)\n",
      "call i32 @c_tensor(ptr");
  good("extern int32 c_tensor_array(const tensor<real32>[] input, tensor<real32>[] &output) = \"c_tensor_array\"\n");
  llvm_contains(
      "extern int32 c_tensor_array(const tensor<real32>[] input, tensor<real32>[] &output) = \"c_tensor_array\"\n"
-     "tensor<real32>[] input = [tensor.ones<real32>([1])]\n"
-     "tensor<real32>[] output = [tensor.zeros<real32>([1])]\n"
-     "int32 status = c_tensor_array(input, &output)\n",
+     "tensor<real32>[] input := [tensor.ones<real32>([1])]\n"
+     "tensor<real32>[] output := [tensor.zeros<real32>([1])]\n"
+     "int32 status := c_tensor_array(input, &output)\n",
      "@quidra_tensor_array_borrow_begin");
  llvm_contains(
      "extern int32 c_tensor_array(tensor<real32>[] &output) = \"c_tensor_array\"\n"
-     "tensor<real32>[] output = []\nint32 status = c_tensor_array(&output)\n",
+     "tensor<real32>[] output := []\nint32 status := c_tensor_array(&output)\n",
      "@quidra_tensor_array_validate_package");
  llvm_contains("extern int32 c_tensor_array(const tensor<real32>[] input) = \"c_tensor_array\"\n",
                "declare i32 @c_tensor_array(ptr nocapture nonnull readonly)");
@@ -4771,17 +4771,17 @@ class NestedState()
  bad_code("extern int32 c_tensor_array(const tensor<real32>[][] input) = \"c_tensor_array\"\n", "FFI_TYPE");
  bad_code("extern int32 c_other_array(const int32[] input) = \"c_other_array\"\n", "FFI_TYPE");
  bad_code("extern int32 c_tensor_value(tensor<real32> input) = \"c_tensor_value\"\n", "FFI_REFERENCE");
- llvm_contains("extern int32 c_text(const string text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(value)\n", "ffi.borrowed.value");
- llvm_contains("extern int32 c_text(const string text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(value)\n", "call i64 @strlen(ptr");
- llvm_contains("extern int32 c_bin(const bin data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(value)\n", "ffi.bin.length");
- llvm_contains("extern int32 c_bin(const bin data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
- llvm_contains("extern int32 c_bin_mut(bin &data) = \"c_bin_mut\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin_mut(&value)\n", "call i32 @c_bin_mut(ptr nocapture nonnull");
- good("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n");
- llvm_contains("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n", "@quidra_bin_try_utf8");
- bad_code("auto text = string.from_utf8(\"not bin\")\n", "TYPE_MISMATCH");
- llvm_file_contains("tensor<real64> source = tensor.ones<real64>([1])\ntensor<real64> value = source.track()\ntensor<real64> next = value + 1.0\n", "@quidra_tensor_binary");
- llvm_file_contains("tensor<real32> source = tensor.ones<real32>([1])\ntensor<real32> value = source.track()\nnat8 scalar = 255\ntensor<real32> next = value + real32(scalar)\n", "uitofp i8");
- llvm_file_contains("tensor<real32> source = tensor.ones<real32>([1])\ntensor<real32> value = source.track()\nint8 scalar = -1\ntensor<real32> next = value + real32(scalar)\n", "sitofp i8");
+ llvm_contains("extern int32 c_text(const string text) = \"c_text\"\nstring value := \"abc\"\nint32 result := c_text(value)\n", "ffi.borrowed.value");
+ llvm_contains("extern int32 c_text(const string text) = \"c_text\"\nstring value := \"abc\"\nint32 result := c_text(value)\n", "call i64 @strlen(ptr");
+ llvm_contains("extern int32 c_bin(const bin data) = \"c_bin\"\nbin value := bin.fill(24, 1)\nint32 result := c_bin(value)\n", "ffi.bin.length");
+ llvm_contains("extern int32 c_bin(const bin data) = \"c_bin\"\nbin value := bin.fill(24, 1)\nint32 result := c_bin(value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
+ llvm_contains("extern int32 c_bin_mut(bin &data) = \"c_bin_mut\"\nbin value := bin.fill(24, 1)\nint32 result := c_bin_mut(&value)\n", "call i32 @c_bin_mut(ptr nocapture nonnull");
+ good("bin data := \"ok\".utf8()\ntext := string.from_utf8(data)\n");
+ llvm_contains("bin data := \"ok\".utf8()\ntext := string.from_utf8(data)\n", "@quidra_bin_try_utf8");
+ bad_code("text := string.from_utf8(\"not bin\")\n", "TYPE_MISMATCH");
+ llvm_file_contains("tensor<real64> source := tensor.ones<real64>([1])\ntensor<real64> value := source.track()\ntensor<real64> next := value + 1.0\n", "@quidra_tensor_binary");
+ llvm_file_contains("tensor<real32> source := tensor.ones<real32>([1])\ntensor<real32> value := source.track()\nnat8 scalar := 255\ntensor<real32> next := value + real32(scalar)\n", "uitofp i8");
+ llvm_file_contains("tensor<real32> source := tensor.ones<real32>([1])\ntensor<real32> value := source.track()\nint8 scalar := -1\ntensor<real32> next := value + real32(scalar)\n", "sitofp i8");
 
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
@@ -4791,7 +4791,7 @@ class NestedState()
  llvm_contains(R"(int64 twice(int64 value)
     return value * 2
 extern int64 c_apply(func<int64>(int64) callback, int64 value) = "c_apply"
-int result = int(c_apply(twice, 21))
+int result := int(c_apply(twice, 21))
 )", "call i64 @c_apply(ptr");
  bad_code("extern int64 unsafe_callback(func<int8>(int8) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
  bad_code("extern int64 unsafe_callback(func<string>(int64) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
@@ -4804,30 +4804,30 @@ int result = int(c_apply(twice, 21))
  bad_code("extern int32 c_internal(int32 value) = \"__quidra_internal_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern int32 first(int32 value) = \"shared_symbol\"\nextern int32 second(int32 value) = \"shared_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  good(R"(extern int32 generic_tensor_bridge<T: numeric>(tensor<T> &value) = "generic_tensor_bridge"
-tensor<nat8> a = tensor.zeros<nat8>([1])
-tensor<real32> b = tensor.zeros<real32>([1])
-int32 first_result = generic_tensor_bridge(&a)
-int32 second_result = generic_tensor_bridge(&b)
+tensor<nat8> a := tensor.zeros<nat8>([1])
+tensor<real32> b := tensor.zeros<real32>([1])
+int32 first_result := generic_tensor_bridge(&a)
+int32 second_result := generic_tensor_bridge(&b)
 )");
  bad_code("extern string unsafe(int64 value) = \"unsafe_symbol\"\n", "FFI_TYPE");
  bad_code("extern bin unsafe_bin(int64 value) = \"unsafe_symbol\"\n", "FFI_TYPE");
  bad_code("extern int64 unsafe(int64 &value) = \"unsafe_symbol\"\n", "FFI_REFERENCE");
- bad_code("extern int64 unsafe(int64 value = 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
+ bad_code("extern int64 unsafe(int64 value := 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
  bad_code("extern int64 unsafe(int64 value) = \"bad-symbol\"\n", "FFI_SYMBOL");
 
  good("int identity(int value)\n    return value\n"
-      "fn<int>(int) legacy = identity\n"
-      "func<int>(int) current = legacy\n"
-      "int result = current(3)\n");
+      "fn<int>(int) legacy := identity\n"
+      "func<int>(int) current := legacy\n"
+      "int result := current(3)\n");
  good(R"(int twice(int value)
     return value * 2
 
 int apply(func<int>(int) operation, int value)
     return operation(value)
 
-func<int>(int) operation = twice
-int a = operation(3)
-int b = apply(operation, 4)
+func<int>(int) operation := twice
+int a := operation(3)
+int b := apply(operation, 4)
 print(a)
 print(NL)
 print(b)
@@ -4835,18 +4835,18 @@ print(NL)
 )");
  ir_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation = twice
-int result = operation(3)
+func<int>(int) operation := twice
+int result := operation(3)
 )", "fn.ref twice");
  ir_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation = twice
-int result = operation(3)
+func<int>(int) operation := twice
+int result := operation(3)
 )", "call.indirect");
  llvm_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation = twice
-int result = operation(3)
+func<int>(int) operation := twice
+int result := operation(3)
 )", "select i1 true, ptr @n_twice, ptr null");
  ir_contains(R"(R apply<T, R>(T value, func<R>(T) operation)
     return operation(value)
@@ -4859,9 +4859,9 @@ class Entry<T>(T value)
 (int, bool) key(Entry<int> item)
     return (item.value, true)
 
-Entry<int> item(3)
-(int, bool) direct = apply(item, key)
-(int, bool) extension = item.apply_to(key)
+Entry<int> item := Entry<int>(3)
+(int, bool) direct := apply(item, key)
+(int, bool) extension := item.apply_to(key)
 )", "call.indirect");
  if (imported_check_code(R"(import lib = "./lib.qui"
 
@@ -4883,25 +4883,25 @@ int run()
  }
  bad_code(R"(int twice(int value)
     return value * 2
-func<real64>(int) operation = twice
+func<real64>(int) operation := twice
 )", "FUNCTION_REFERENCE_SIGNATURE");
  bad_code(R"(int mutate(int &value)
     value = value + 1
     return value
-func<int>(int) operation = mutate
+func<int>(int) operation := mutate
 )", "FUNCTION_REFERENCE_SIGNATURE");
  bad_code(R"(extern int32 foreign(int32 value) = "foreign"
-func<int32>(int32) operation = foreign
+func<int32>(int32) operation := foreign
 )", "FUNCTION_REFERENCE_EXTERN");
  bad_code(R"(int twice(int value)
     return value * 2
-auto operation = twice
+operation := twice
 )", "FUNCTION_REFERENCE_CONTEXT");
  bad_code(R"(int twice(int value)
     return value * 2
-func<int>(int) left = twice
-func<int>(int) right = twice
-bool same = left == right
+func<int>(int) left := twice
+func<int>(int) right := twice
+bool same := left == right
 )", "TYPE_MISMATCH");
  bad_code(R"(void first()
     print("first")
@@ -4920,7 +4920,7 @@ int second
 parallel
     first = first_value()
     second = second_value()
-int sum = first + second
+int sum := first + second
 )", "@quidra_parallel_block");
  llvm_contains(R"(int echo(int value)
     return value
@@ -4950,37 +4950,37 @@ real result
 parallel
     result = echo(0.000000000000000000000000000000000000000000001)
 )", "@quidra_parallel_call_begin");
- llvm_contains(R"(nat[] input = [1, 2]
+ llvm_contains(R"(nat[] input := [1, 2]
 int[] output
 parallel
     output = int(input)
 print(output[0])
 print(NL)
 )", "@quidra_array_cast_");
- llvm_contains(R"(nat[2] input = [1, 2]
+ llvm_contains(R"(nat[2] input := [1, 2]
 int[2] output
 parallel
     output = int(input)
 print(output[0])
 print(NL)
 )", "@quidra_array_cast_");
- llvm_contains(R"(nat[2][2] input = [[1, 2], [3, 4]]
+ llvm_contains(R"(nat[2][2] input := [[1, 2], [3, 4]]
 int[2][2] output
 parallel
     output = int(input)
 print(output[0][0])
 print(NL)
 )", "@quidra_array_cast_");
- llvm_contains(R"(int[] input = [1, 2]
+ llvm_contains(R"(int[] input := [1, 2]
 nat[] output
 parallel
     output = nat(input)
 print(output[0])
 print(NL)
 )", "@quidra_array_cast_");
- good(R"(int task = 1
-int atomic = 2
-int value = task + atomic
+ good(R"(int task := 1
+int atomic := 2
+int value := task + atomic
 )");
  bad_code(R"(task.all([])
 )", "UNKNOWN_NAME");
@@ -4990,13 +4990,13 @@ int value = task + atomic
     int32 &value
 
     &this.value = &value_initial
-int32 storage = 5
-Holder first = Holder(&storage)
-Holder[] holders = [first]
-Holder second = holders[0]
-bool same = &first.value == &second.value
+int32 storage := 5
+Holder first := Holder(&storage)
+Holder[] holders := [first]
+Holder second := holders[0]
+bool same := &first.value == &second.value
 second.value = int32(9)
-int32 observed = first.value
+int32 observed := first.value
 )");
  good(R"(class Holder this(local int &source)
     int &value
@@ -5008,40 +5008,40 @@ int read(Holder holder)
     return holder.value
 void .write(Holder holder)
     .holder.replace(17)
-int source = 1
-Holder holder = Holder(&source)
-int observed = read(holder)
+int source := 1
+Holder holder := Holder(&source)
+int observed := read(holder)
 .write(holder)
 )");
  bad_code(R"(class Holder()
     int &value
-Holder holder = Holder()
-int observed = holder.value
+Holder holder := Holder()
+int observed := holder.value
 )", "UNBOUND_REFERENCE");
  good(R"(class Holder()
     int &value
 int read(Holder holder)
     return holder.value
-Holder holder = Holder()
-int observed = read(holder)
+Holder holder := Holder()
+int observed := read(holder)
 )");
  good(R"(class Cell()
     int value
-int ref = 1
-Cell cell = Cell()
+int ref := 1
+Cell cell := Cell()
 cell.value = ref
 )");
  bad_code(R"(ref.Cell<int> removed
 )", "UNKNOWN_GENERIC");
  bad_code(R"(func<int>(int) operation
-int result = operation(1)
+int result := operation(1)
 )", "UNINITIALIZED");
  good(R"(int twice(int value)
     return value * 2
 int apply_ref(const func<int>(int) operation, int value)
     return operation(value)
-func<int>(int) operation = twice
-int result = apply_ref(operation, 4)
+func<int>(int) operation := twice
+int result := apply_ref(operation, 4)
 print(result)
 print(NL)
 )");
@@ -5076,23 +5076,23 @@ print(NL)
     std::exit(1);
    }
   };
-  compile_chain("string scalar_chain = \"x\"","\"x\"");
+  compile_chain("string scalar_chain := \"x\"","\"x\"");
   compile_chain(
-      "tensor<real32> tensor_value = tensor<real32>([1])\n"
+      "tensor<real32> tensor_value := tensor<real32>([1])\n"
       "tensor_value[0] = 1.0\n"
-      "tensor<real32> tensor_chain = tensor_value",
+      "tensor<real32> tensor_chain := tensor_value",
       "tensor_value");
   compile_chain(
-      "tensor<real32> tracked_source = tensor<real32>([1])\n"
+      "tensor<real32> tracked_source := tensor<real32>([1])\n"
       "tracked_source[0] = 1.0\n"
-      "tensor<real32> tracked_value = tracked_source.track()\n"
-      "tensor<real32> tracked_chain = tracked_value",
+      "tensor<real32> tracked_value := tracked_source.track()\n"
+      "tensor<real32> tracked_chain := tracked_value",
       "tracked_value");
  }
  for(const auto& s:std::vector<std::string>{
- R"(void replace(int[] &x, int count = 3)
+ R"(void replace(int[] &x, int count := 3)
     x = array(nat(count), fill = 7)
-int[] y = []
+int[] y := []
 replace(&x = &y)
 print(y[2])
 print(NL)
@@ -5102,9 +5102,9 @@ print(NL)
         return 1
     return error("bad")
 string | int | error use(bool ok)
-    auto x = try read(ok)
+    x := try read(ok)
     return x + 1
-int | error value = read(true)
+int | error value := read(true)
 match value
     int
         print(value + 1)
@@ -5118,7 +5118,7 @@ match value
 void | error g()
     try f()
     return
-int | none x = none
+int | none x := none
 match x
     none
         print("none")
@@ -5134,8 +5134,8 @@ else
     x = 2
 print(x)
 print(NL)
-int[2][2] matrix = [[1, 2], [3, 4]]
-int[][] copy = matrix
+int[2][2] matrix := [[1, 2], [3, 4]]
+int[][] copy := matrix
 copy[0][0] = 9
 )",
  R"(int f(bool yes)
@@ -5145,21 +5145,21 @@ copy[0][0] = 9
     else
         x = 2
     return x
-int[] a = [
+int[] a := [
   1,
   2,
 ]
 print(f(yes = true,))
 print(NL)
 )",
- R"(int[] values = array(2, fill = 0)
-for auto &value = &values[]
+ R"(int[] values := array(2, fill = 0)
+for &value := &values[]
     value = 7
 for 0 <= nat i < 3 step 1
     print(i)
     print(NL)
 )",
- R"(int f(int[] a = [1])
+ R"(int f(int[] a := [1])
     a[0] = a[0] + 1
     return a[0]
 print(f())
@@ -5167,17 +5167,17 @@ print(NL)
 print(f())
 print(NL)
 )",
- R"(auto path = "C:\Users\data\image.png"
-auto raw = "\n\t\r\b\f\v\a\u3042"
-auto controls = NL + HT + CR + DQ + BS + FF + VT + BL
-string separator = HT
+ R"(path := "C:\Users\data\image.png"
+raw := "\n\t\r\b\f\v\a\u3042"
+controls := NL + HT + CR + DQ + BS + FF + VT + BL
+string separator := HT
 print("A{separator}B")
 print(NL)
 print("nested {error("ok")}")
 print(NL)
 )",
  R"(class PrivateCounter this()
-    private int value = 0
+    private int value := 0
 
     private void .increment_raw()
         this.value = this.value + 1
@@ -5188,7 +5188,7 @@ print(NL)
     int get()
         return this.value
 
-PrivateCounter counter = PrivateCounter()
+PrivateCounter counter := PrivateCounter()
 .counter.increment()
 print(counter.get())
 print(NL)
@@ -5232,15 +5232,15 @@ class Box this(local Point point_value)
 
     this.point = point_value
 
-Point a = Point(1, 2)
-Point b = a
+Point a := Point(1, 2)
+Point b := a
 b.x = 9
-Point &alias = &a
+Point &alias := &a
 alias.y = 5
-LabeledPoint labeled = LabeledPoint(Point(3, 4), "p")
-OffsetPoint offset = OffsetPoint(Point(3, 4), 10)
-Box box = Box(a)
-Box copy = box
+LabeledPoint labeled := LabeledPoint(Point(3, 4), "p")
+OffsetPoint offset := OffsetPoint(Point(3, 4), 10)
+Box box := Box(a)
+Box copy := box
 copy.point.x = 99
 print(a.sum())
 print(NL)
@@ -5252,7 +5252,7 @@ print(box.point.x)
 print(NL)
 )",
  R"(int x
-int &y = &x
+int &y := &x
 y = 10
 print(x)
 print(NL)
@@ -5269,9 +5269,9 @@ print(NL)
 int x
 accept_address(&x)
 )",
- R"(int a = 1
-int c = 2
-int &b = &a
+ R"(int a := 1
+int c := 2
+int &b := &a
 b = 5
 &b = &c
 b = 8
@@ -5284,11 +5284,11 @@ print(NL)
     int x
     int y
 
-PartialPoint p = PartialPoint()
+PartialPoint p := PartialPoint()
 p.x = 1
 print(p.x)
 print(NL)
-PartialPoint q = p
+PartialPoint q := p
 q.y = 5
 print(q.x)
 print(NL)
@@ -5296,10 +5296,10 @@ print(q.y)
 print(NL)
 )",
  R"(int local_scope_value()
-    int x = 5
+    int x := 5
     return x
 
-int x = 7
+int x := 7
 print(local_scope_value())
 print(NL)
 print(x)
@@ -5314,7 +5314,7 @@ print(NL)
     void .increment()
         this.value = this.value + 1
 
-ResetCounter counter = ResetCounter()
+ResetCounter counter := ResetCounter()
 .counter.reset()
 .counter.increment()
 print(counter.value)
@@ -5327,14 +5327,14 @@ print(NL)
 
     this.x = x_value
 
-RefPoint p = RefPoint(1)
-int &field = &p.y
+RefPoint p := RefPoint(1)
+int &field := &p.y
 field = 5
 print(p.y)
 print(NL)
 )",
- R"(int[] values = [1, 2, 3]
-int &first = &values[0]
+ R"(int[] values := [1, 2, 3]
+int &first := &values[0]
 first = 9
 values = [4, 5]
 print(first)
@@ -5342,9 +5342,9 @@ print(NL)
 print(values[0])
 print(NL)
 )",
- R"(class DefaultPoint this(local int x_value = 1)
-    int x = 1
-    int y = 2
+ R"(class DefaultPoint this(local int x_value := 1)
+    int x := 1
+    int y := 2
 
 
     this.x = x_value
@@ -5353,21 +5353,21 @@ print(NL)
         return this.x + this.y
 
 class DefaultOffset this()
-    DefaultPoint point = DefaultPoint()
-    int offset = 1
+    DefaultPoint point := DefaultPoint()
+    int offset := 1
 
     int sum()
         return this.point.sum() + this.offset
 
-DefaultPoint a = DefaultPoint()
+DefaultPoint a := DefaultPoint()
 a.x = 1
 a.y = 2
-DefaultPoint b = DefaultPoint(1)
-bool same = a == b
-int[] left = [1, 2, 3]
-int[] right = [1, 2, 3]
-bool arrays_same = left == right
-DefaultOffset shifted = DefaultOffset()
+DefaultPoint b := DefaultPoint(1)
+bool same := a == b
+int[] left := [1, 2, 3]
+int[] right := [1, 2, 3]
+bool arrays_same := left == right
+DefaultOffset shifted := DefaultOffset()
 print(a.sum())
 print(NL)
 print(shifted.sum())
@@ -5385,24 +5385,24 @@ print(NL)
     this.x = x_value
     this.y = y_value
 
-ArrayEqualityPoint[] left = [
+ArrayEqualityPoint[] left := [
     ArrayEqualityPoint(1, 2),
     ArrayEqualityPoint(3, 4),
 ]
-ArrayEqualityPoint[] right = left
-bool same = left == right
+ArrayEqualityPoint[] right := left
+bool same := left == right
 right[1] = ArrayEqualityPoint(3, 5)
-bool different = left != right
+bool different := left != right
 print(same)
 print(NL)
 print(different)
 print(NL)
 )",
  R"(class DefaultBag()
-    int[] values = [1]
+    int[] values := [1]
 
-DefaultBag a = DefaultBag()
-DefaultBag b = DefaultBag()
+DefaultBag a := DefaultBag()
+DefaultBag b := DefaultBag()
 a.values[0] = 9
 print(b.values[0])
 print(NL)
@@ -5419,7 +5419,7 @@ print(NL)
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box = Box<int>(7)
+Box<int> box := Box<int>(7)
 print(box.get())
 print(NL)
 print(first<int>([4, 5]))
@@ -5443,7 +5443,7 @@ class GenericHolder<T> this(local GenericBase<T> base_value)
     T read()
         return this.base.read()
 
-GenericHolder<int> child = GenericHolder<int>(GenericBase<int>(9))
+GenericHolder<int> child := GenericHolder<int>(GenericBase<int>(9))
 print(child.read())
 print(NL)
 )",
@@ -5451,7 +5451,7 @@ print(NL)
     T identity<T>(T value)
         return value
 
-GenericMethod g = GenericMethod()
+GenericMethod g := GenericMethod()
 print(g.identity<int>(8))
 print(NL)
 )",
@@ -5471,7 +5471,7 @@ class GenericChild this(local GenericParent parent_value)
     T echo<T>(T value)
         return this.parent.echo<T>(value)
 
-GenericChild child = GenericChild(GenericParent())
+GenericChild child := GenericChild(GenericParent())
 print(child.echo<int>(11))
 print(NL)
 )",
@@ -5481,7 +5481,7 @@ print(NL)
 
     this.value = value_value
 
-NestedBox<NestedBox<int>> outer = NestedBox<NestedBox<int>>(NestedBox<int>(12))
+NestedBox<NestedBox<int>> outer := NestedBox<NestedBox<int>>(NestedBox<int>(12))
 print(outer.value.value)
 print(NL)
 )",
@@ -5493,7 +5493,7 @@ class TwoArgMethod()
     T choose<T, U>(T value, U ignored)
         return value
 
-OneArgMethod one = OneArgMethod()
+OneArgMethod one := OneArgMethod()
 print(one.choose<int>(13))
 print(NL)
 )",
@@ -5505,7 +5505,7 @@ class UnusedGenericMethod()
     T route<T>(T value)
         return value + 1
 
-GoodGenericMethod good = GoodGenericMethod()
+GoodGenericMethod good := GoodGenericMethod()
 print(good.route<string>("ok"))
 print(NL)
 )",
@@ -5532,8 +5532,8 @@ GenericRouter make_router()
 string use_router()
     return make_router().pass<string>("function")
 
-auto router = GenericRouter()
-GenericRouter[] routers = [GenericRouter()]
+router := GenericRouter()
+GenericRouter[] routers := [GenericRouter()]
 print(router.pass<string>("auto"))
 print(NL)
 print(routers[0].pass<int>(14))
@@ -5552,11 +5552,11 @@ print(NL)
 ReturnModel build_model()
     return ReturnModel(2.0)
 
-ReturnModel model = build_model()
+ReturnModel model := build_model()
 print(model.bb)
 print(NL)
 )",
- R"(class ReturnPoint this(local int x_value, local int y_value = 0)
+ R"(class ReturnPoint this(local int x_value, local int y_value := 0)
     int x
     int y
 
@@ -5569,7 +5569,7 @@ ReturnPoint choose_point(bool full)
         return ReturnPoint(1, 2)
     return ReturnPoint(3)
 
-ReturnPoint point = choose_point(true)
+ReturnPoint point := choose_point(true)
 print(point.x)
 print(NL)
 )",
@@ -5587,7 +5587,7 @@ ForwardProduct outer_build()
 ForwardProduct inner_build()
     return ForwardProduct(8)
 
-ForwardProduct forward = outer_build()
+ForwardProduct forward := outer_build()
 print(forward.value)
 print(NL)
 )",
@@ -5604,8 +5604,8 @@ class MethodFactory()
     MethodProduct inner()
         return MethodProduct(9)
 
-MethodFactory factory = MethodFactory()
-MethodProduct product = factory.outer()
+MethodFactory factory := MethodFactory()
+MethodProduct product := factory.outer()
 print(product.value)
 print(NL)
 )",
@@ -5622,8 +5622,8 @@ class NestedOwner this()
     void .initialize()
         this.data.ys = [4.0]
 
-NestedData empty = NestedData()
-NestedOwner owner = NestedOwner()
+NestedData empty := NestedData()
+NestedOwner owner := NestedOwner()
 owner.data = empty
 print(.owner.first())
 print(NL)
@@ -5646,10 +5646,10 @@ class ReplaceOuter this(local ReplaceInner inner_value)
     this.inner = inner_value
 
     void .reset()
-        ReplaceInner replacement = ReplaceInner(5, 6)
+        ReplaceInner replacement := ReplaceInner(5, 6)
         this.inner = replacement
 
-ReplaceOuter outer = ReplaceOuter(ReplaceInner(1, 2))
+ReplaceOuter outer := ReplaceOuter(ReplaceInner(1, 2))
 .outer.reset()
 print(outer.inner.x)
 print(NL)
@@ -5670,10 +5670,10 @@ class ConditionalOuter this(local ConditionalInner inner_value)
 
     void .maybe_reset(bool replace)
         if replace
-            ConditionalInner replacement = ConditionalInner(5, 6)
+            ConditionalInner replacement := ConditionalInner(5, 6)
             this.inner = replacement
 
-ConditionalOuter outer = ConditionalOuter(ConditionalInner(1, 2))
+ConditionalOuter outer := ConditionalOuter(ConditionalInner(1, 2))
 .outer.maybe_reset(false)
 print(outer.inner.x)
 print(NL)
@@ -5693,59 +5693,59 @@ class RepairOuter this(local RepairInner inner_value)
     this.inner = inner_value
 
     void .reset()
-        RepairInner replacement = RepairInner(5, 6)
+        RepairInner replacement := RepairInner(5, 6)
         this.inner = replacement
 
-RepairOuter outer = RepairOuter(RepairInner(1, 2))
+RepairOuter outer := RepairOuter(RepairInner(1, 2))
 .outer.reset()
 print(outer.inner.y)
 print(NL)
 )",
- R"(int denominator = 0
-int result = 10 / denominator
+ R"(int denominator := 0
+int result := 10 / denominator
 )",
- R"(int8 small = 127
-int16 wider = int16(small)
-nat8 byte_value = 255
-nat32 count = 100
-int total = int(count)
-real64 exact_float = 1.0
-real32 exact_small_float = 1.5
-int8 casted = int8(100)
-int exact_from_float = 3
-string small_text = small.string()
-string flag_text = true.string()
-int | error parsed = int.parse("123")
-real32 | error parsed_float = real32.parse("1.5")
-bin allocated = bin.fill(8, 0)
-string repeated = string.repeat("a", 3)
-bin data = bin.fill(16, 0)
-bin first = data[0]
-bin slice = data[0:<8]
-nat8[] decoded = nat8[](data)
-bin copy = data
+ R"(int8 small := 127
+int16 wider := int16(small)
+nat8 byte_value := 255
+nat32 count := 100
+int total := int(count)
+real64 exact_float := 1.0
+real32 exact_small_float := 1.5
+int8 casted := int8(100)
+int exact_from_float := 3
+string small_text := small.string()
+string flag_text := true.string()
+int | error parsed := int.parse("123")
+real32 | error parsed_float := real32.parse("1.5")
+bin allocated := bin.fill(8, 0)
+string repeated := string.repeat("a", 3)
+bin data := bin.fill(16, 0)
+bin first := data[0]
+bin slice := data[0:<8]
+nat8[] decoded := nat8[](data)
+bin copy := data
 copy[0] = bin.fill(1, 1)
-bool same = data == copy
-for auto value = data[]
-    bin x = value
-for auto &value = &copy[]
+bool same := data == copy
+for value := data[]
+    bin x := value
+for &value := &copy[]
     value = value
 print(small_text)
 )",
  R"(int local_name()
-    int x = 5
+    int x := 5
     return x
 
-int x = 7
+int x := 7
 print(local_name())
 print(NL)
 print(x)
 print(NL)
 )",
- "int x\nx = 4\nprint(x)\n", "auto x = int(41)\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
- good("int exit = 7\nprint(exit)\n");
- good(R"(int wide = 300
-auto | error narrowed = int8(wide)
+ "int x\nx = 4\nprint(x)\n", "x := int(41)\nprint(x)\n", "int end := 7\nprint(end)\n", "// comment only\nint x := 1 // trailing comment\nprint(x)\n"}) good(s);
+ good("int exit := 7\nprint(exit)\n");
+ good(R"(int wide := 300
+int8 | error narrowed := int8(wide)
 match narrowed
     int8 value
         print(value)
@@ -5754,16 +5754,16 @@ match narrowed
         print(problem)
         print(NL)
 )");
- good(R"(int wide = 100
-int8 narrowed = int8(wide)
+ good(R"(int wide := 100
+int8 narrowed := int8(wide)
 print(narrowed)
 print(NL)
 )");
- llvm_contains(R"(int wide = 100
-int8 narrowed = int8(wide)
+ llvm_contains(R"(int wide := 100
+int8 narrowed := int8(wide)
 )", "@quidra_managed_release");
- llvm_contains(R"(int wide = 300
-auto | error narrowed = int8(wide)
+ llvm_contains(R"(int wide := 300
+int8 | error narrowed := int8(wide)
 match narrowed
     int8 value
         print(value)
@@ -5772,8 +5772,8 @@ match narrowed
         print(problem)
         print(NL)
 )", "cast.error");
- good(R"(int wide = 300
-auto | error narrowed = int8(wide)
+ good(R"(int wide := 300
+int8 | error narrowed := int8(wide)
 match narrowed
     int8 value
         print(value)
@@ -5782,8 +5782,8 @@ match narrowed
         print(problem)
         print(NL)
 )");
- good(R"(real fraction = 1.5
-auto | error exact_value = int(fraction)
+ good(R"(real fraction := 1.5
+int | error exact_value := int(fraction)
 match exact_value
     int value
         print(value)
@@ -5792,8 +5792,8 @@ match exact_value
         print(problem)
         print(NL)
 )");
- llvm_contains(R"(int wide = 300
-auto | error narrowed = int8(wide)
+ llvm_contains(R"(int wide := 300
+int8 | error narrowed := int8(wide)
 match narrowed
     int8 value
         print(value)
@@ -5802,8 +5802,8 @@ match narrowed
         print(problem)
         print(NL)
 )", "@quidra.int.try_i64");
- llvm_contains(R"(real fraction = 1.5
-auto | error exact_value = int(fraction)
+ llvm_contains(R"(real fraction := 1.5
+int | error exact_value := int(fraction)
 match exact_value
     int value
         print(value)
@@ -5812,8 +5812,8 @@ match exact_value
         print(problem)
         print(NL)
 )", "@quidra_bigreal_try_bigint");
- good(R"(int huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-auto | error rounded = real64(huge)
+ good(R"(int huge := 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+real64 | error rounded := real64(huge)
 match rounded
     real64 value
         print(value)
@@ -5822,8 +5822,8 @@ match rounded
         print(problem)
         print(NL)
 )");
- llvm_contains(R"(int huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-auto | error rounded = real64(huge)
+ llvm_contains(R"(int huge := 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+real64 | error rounded := real64(huge)
 match rounded
     real64 value
         print(value)
@@ -5835,7 +5835,7 @@ match rounded
 
  ir_contains(R"(bin | error parse_bits()
     return bin.parse("01")
-auto | error parsed = parse_bits()
+bin | error parsed := parse_bits()
 match parsed
     bin bits
         print(bits[0])
@@ -5845,9 +5845,9 @@ match parsed
         print(NL)
 )", "release %");
  ir_contains(R"(bool | error parse_flag()
-    bin bits = try bin.parse("1")
+    bin bits := try bin.parse("1")
     return bool(bits)
-auto | error parsed = parse_flag()
+bool | error parsed := parse_flag()
 match parsed
     bool flag
         print(flag)
@@ -5857,11 +5857,11 @@ match parsed
         print(NL)
 )", "release %");
  ir_contains(R"(bin | error update_bits()
-    bin bits = bin.fill(1, 0)
-    bin one = try bin.parse("1")
+    bin bits := bin.fill(1, 0)
+    bin one := try bin.parse("1")
     bits[0] = one
     return bits
-auto | error parsed = update_bits()
+bin | error parsed := update_bits()
 match parsed
     bin bits
         print(bits)
@@ -5872,10 +5872,10 @@ match parsed
 )", "release %");
  ir_contains(R"(bin | error parse_bits()
     return bin.parse("01")
-auto | error parsed = parse_bits()
+bin | error parsed := parse_bits()
 match parsed
     bin bits
-        for auto bit = bits[]
+        for bit := bits[]
             print(bit)
             print(NL)
     error problem
@@ -5883,16 +5883,16 @@ match parsed
         print(NL)
 )", "bin.get");
 
- good(R"(bin | error literal = bin.parse("0101")
-string text = "0101"
-bin | error dynamic = bin.parse(text)
+ good(R"(bin | error literal := bin.parse("0101")
+string text := "0101"
+bin | error dynamic := bin.parse(text)
 )");
- good("bin direct = bin.parse(\"0101\")\n");
- good(R"(string text = "0101"
-bin direct = bin.parse(text)
+ good("bin direct := bin.parse(\"0101\")\n");
+ good(R"(string text := "0101"
+bin direct := bin.parse(text)
 )");
- bad_code("auto invalid = bin.parse(\"0102\")\n", "BIN_PARSE");
- llvm_not_contains(R"(auto | error parsed = bin.parse("0101")
+ bad_code("invalid := bin.parse(\"0102\")\n", "BIN_PARSE");
+ llvm_not_contains(R"(bin | error parsed := bin.parse("0101")
 match parsed
     bin bits
         print(bits)
@@ -5901,8 +5901,8 @@ match parsed
         print(problem)
         print(NL)
 )", "bin.parse.fail");
- llvm_contains(R"(string text = "0101"
-auto | error parsed = bin.parse(text)
+ llvm_contains(R"(string text := "0101"
+bin | error parsed := bin.parse(text)
 match parsed
     bin bits
         print(bits)
@@ -5912,18 +5912,18 @@ match parsed
         print(NL)
 )", "bin.parse.fail");
 
- good(R"(real64 scalar = 3.0
-real32 scalar32 = 2.0
-real64[] values = [1.0, 2.0, 3.0]
+ good(R"(real64 scalar := 3.0
+real32 scalar32 := 2.0
+real64[] values := [1.0, 2.0, 3.0]
 
 real64 half(real64 value)
     return value / 2.0
 
-real64 negative = -3.0
-real64 product = 2.0 * 3.0
-real64 argument = half(3.0)
-int8 small = 5
-int8 sum = small + 100
+real64 negative := -3.0
+real64 product := 2.0 * 3.0
+real64 argument := half(3.0)
+int8 small := 5
+int8 sum := small + 100
 
 print(scalar)
 print(NL)
@@ -5955,10 +5955,10 @@ Pair | error make_pair(bool ok)
     return Pair(2, 3)
 
 int | error pair_sum(bool ok)
-    Pair pair = try make_pair(ok)
+    Pair pair := try make_pair(ok)
     return pair.a + pair.b
 
-auto | error result = pair_sum(true)
+int | error result := pair_sum(true)
 match result
     int value
         print(value)
@@ -5983,7 +5983,7 @@ match result
 void modify(int &value)
     value = 1
 
-int data = 0
+int data := 0
 inspect(data)
 modify(&data)
 )";
@@ -5992,10 +5992,10 @@ modify(&data)
  llvm_contains(const_ir_surface, "define void @n_inspect(i64 %arg.value)");
  llvm_contains(const_ir_surface, "define void @n_modify(ptr nocapture nonnull %arg.value)");
 
- const std::string local_const_reference_ir = R"(int data = 1
-const int view = data
-int &writer = &data
-const int frozen = 3
+ const std::string local_const_reference_ir = R"(int data := 1
+const int view := data
+int &writer := &data
+const int frozen := 3
 print(view)
 print(NL)
 writer = 2
@@ -6016,31 +6016,31 @@ print(NL)
  inspect_no_source_contains(
      const_ir_surface,
      "\"parameter_authority\":{\"value\":\"read_write_reference\"}");
- bad_code(R"(int data = 1
-const int view = data
-int &writer = &view
+ bad_code(R"(int data := 1
+const int view := data
+int &writer := &view
 )", "REFERENCE_BINDING");
- bad_code(R"(int data = 1
-const int view = data
+ bad_code(R"(int data := 1
+const int view := data
 view = 2
 )", "WRITE_CAPABILITY");
- bad_code(R"(int data = 1
-int other = 2
-const int view = data
+ bad_code(R"(int data := 1
+int other := 2
+const int view := data
 &view = &other
 )", "WRITE_CAPABILITY");
 
- tensor_region_at_least(R"(tensor<real32> x = tensor.ones<real32>([]).track()
+ tensor_region_at_least(R"(tensor<real32> x := tensor.ones<real32>([]).track()
 ((x * x + x) * x).backward(&x)
 )", 3, true);
 
- const std::string ir_surface = R"(int source = 1
-int &alias = &source
+ const std::string ir_surface = R"(int source := 1
+int &alias := &source
 alias = 2
-tensor<real32> a = tensor.zeros<real32>([2, 2])
-tensor<real32> b = tensor.ones<real32>([2, 2])
-tensor<real32> c = a + b
-auto row = c[0, :]
+tensor<real32> a := tensor.zeros<real32>([2, 2])
+tensor<real32> b := tensor.ones<real32>([2, 2])
+tensor<real32> c := a + b
+row := c[0, :]
 )";
  for (const auto& fragment : std::vector<std::string>{
           "reference ", "reference.bind", "reference.store",
@@ -6050,10 +6050,10 @@ auto row = c[0, :]
  for(const auto& s:std::vector<std::string>{
  "break\n", "continue\n",
  "int x\nprint(x)\n",
- "int x = 10 / 0\n",
- "int x = 10 % (3 - 3)\n",
- "nat8 x = 10\nprint(x / nat8(0))\n",
- "real64 x = .5\n",
+ "int x := 10 / 0\n",
+ "int x := 10 % (3 - 3)\n",
+ "nat8 x := 10\nprint(x / nat8(0))\n",
+ "real64 x := .5\n",
  R"(class PartialReturn this(local int x_value)
     int x
     int y
@@ -6064,7 +6064,7 @@ auto row = c[0, :]
 PartialReturn make_partial()
     return PartialReturn(1)
 
-PartialReturn p = make_partial()
+PartialReturn p := make_partial()
 print(p.y)
 print(NL)
 )",
@@ -6087,7 +6087,7 @@ class ReplaceOuterBad this(local ReplaceInnerBad inner_value)
         replacement.x = 5
         this.inner = replacement
 
-ReplaceOuterBad outer = ReplaceOuterBad(ReplaceInnerBad(1, 2))
+ReplaceOuterBad outer := ReplaceOuterBad(ReplaceInnerBad(1, 2))
 outer.reset()
 print(outer.inner.y)
 print(NL)
@@ -6112,26 +6112,26 @@ class ConditionalOuterBad this(local ConditionalInnerBad inner_value)
             replacement.x = 5
             this.inner = replacement
 
-ConditionalOuterBad outer = ConditionalOuterBad(ConditionalInnerBad(1, 2))
+ConditionalOuterBad outer := ConditionalOuterBad(ConditionalInnerBad(1, 2))
 outer.maybe_reset(false)
 print(outer.inner.y)
 print(NL)
 )",
- "auto x\n", "none x = none\n", "auto x = none\n", "none f()\n    return none\n", "never x\n", "void[] x = []\n", "unit f()\n    return\n", "auto x = unit\n",
- "int[2] x = [1]\n", "int[] x = [1]\nint[2] y = x\n", "int[-1] x\n", "int x[2]\n",
+ "auto x\n", "none x := none\n", "x := none\n", "none f()\n    return none\n", "never x\n", "void[] x := []\n", "unit f()\n    return\n", "x := unit\n",
+ "int[2] x := [1]\n", "int[] x := [1]\nint[2] y := x\n", "int[-1] x\n", "int x[2]\n",
  "int f()\n    return\n", "int f(auto x)\n    return 1\n", "int main()\n    return 0\n",
  "void f()\n  return\n", "void f()\n\treturn\n", "void f()\n        return\n",
- "auto x = some(1)\n", "result<int, error> x = success(1)\n", "auto x = array(3)\n",
- "void f(int &x)\n    x = 2\nint x = 1\nf(x)\n", "void f(int x)\n    return\nint x = 1\nf(&x)\n",
- "int f(int x = 1, int y)\n    return y\n", "void f(int &x = 1)\n    return\n", "int f(int x, int y = x)\n    return y\n",
+ "x := some(1)\n", "result<int, error> x := success(1)\n", "x := array(3)\n",
+ "void f(int &x)\n    x = 2\nint x := 1\nf(x)\n", "void f(int x)\n    return\nint x := 1\nf(&x)\n",
+ "int f(int x := 1, int y)\n    return y\n", "void f(int &x := 1)\n    return\n", "int f(int x, int y := x)\n    return y\n",
  "int f(int x)\n    return x\nprint(f(x: 1))\n", "int f(int x, int y)\n    return x\nprint(f(x = 1, 2))\n",
- "int | none x = 1\nmatch x\n    int\n        print(x)\n", "int | none x = 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
- "int | none x = 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
- "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
- "int8 x = 128\n", "nat8 x = -1\n", "int8 x = int8(300)\n",
- "bin x = bin(2, fill = 0)\n", "bin x = bin.fill(-1, 0)\n", "bin x = bin.fill(2, 2)\n", "string x = string(2, fill = \"a\")\n", "string x = string.repeat(\"a\", -1)\n",
- "string HT = \"x\"\n", "void f(string NL)\n    return\n",
- "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
+ "int | none x := 1\nmatch x\n    int\n        print(x)\n", "int | none x := 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
+ "int | none x := 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
+ "x := 9223372036854775808\n", "x := []\n", "x := range(3)\n",
+ "int8 x := 128\n", "nat8 x := -1\n", "int8 x := int8(300)\n",
+ "bin x := bin(2, fill = 0)\n", "bin x := bin.fill(-1, 0)\n", "bin x := bin.fill(2, 2)\n", "string x := string(2, fill = \"a\")\n", "string x := string.repeat(\"a\", -1)\n",
+ "string HT := \"x\"\n", "void f(string NL)\n    return\n",
+ "int x := 1\nif true\n    int x := 2\n", "int x := 1\nint x := 2\n",
  "class A()\n"
  "    int x\n"
  "    int x\n",
@@ -6141,25 +6141,25 @@ print(NL)
  "    int x\n"
  "\n"
  "    this.x = start\n"
- "A a = A(1)\n"
- "A &b = a\n",
+ "A a := A(1)\n"
+ "A &b := a\n",
  "class A this(local int start)\n"
  "    int x\n"
  "    int y\n"
  "\n"
  "    this.x = start\n"
- "A a = A(1)\n"
+ "A a := A(1)\n"
  "print(a.y)\n",
  "class Counter this()\n"
  "    int value\n"
  "    void increment()\n"
  "        this.value = this.value + 1\n"
- "Counter c = Counter()\n"
+ "Counter c := Counter()\n"
  "c.increment()\n",
- "int x\nint &y = &x\nprint(y)\n",
- "int a = 1\nint b = 2\nint &r = &a\nr = &b\n",
- "int a = 1\nint b = 2\nint &r = &a\n&r = b\n",
- "int &x = &5\n",
+ "int x\nint &y := &x\nprint(y)\n",
+ "int a := 1\nint b := 2\nint &r := &a\nr = &b\n",
+ "int a := 1\nint b := 2\nint &r := &a\n&r = b\n",
+ "int &x := &5\n",
  R"(class EqPartial this(local int x_value)
     int x
     int y
@@ -6167,9 +6167,9 @@ print(NL)
 
     this.x = x_value
 
-EqPartial a = EqPartial(1)
-EqPartial b = EqPartial(1)
-bool same = a == b
+EqPartial a := EqPartial(1)
+EqPartial b := EqPartial(1)
+bool same := a == b
 )",
  R"(import x = "./x.qui"
 )",
@@ -6188,17 +6188,17 @@ print(NL)
 GenericOnly value
 )",
  "#if DEBUG\nprint(int(1))\n", "# comment\nprint(int(1))\n"}) bad(s);
- bad_message("int a = 1\nint b = 2\nint &r = &a\n&r = b\n",
+ bad_message("int a := 1\nint b := 2\nint &r := &a\n&r = b\n",
              "REFERENCE_BINDING", "write '&r = &x' for a local reference");
- good(R"(int super = 1
-int override = 2
+ good(R"(int super := 1
+int override := 2
 print(super + override)
 print(NL)
 )");
  good(R"(class Linear()
-    int unused = 0
+    int unused := 0
 class Rbf()
-    real64 gamma = 1.0
+    real64 gamma := 1.0
 
 
     return
@@ -6217,15 +6217,15 @@ print(NL)
 
 
     this.x = x_value
-Partial value = Partial(1)
-Partial | none maybe = value
+Partial value := Partial(1)
+Partial | none maybe := value
 )", "UNINITIALIZED_UNION_PAYLOAD");
  bad_code(R"(class Partial(local int value)
     int x
     int y
     x = value
-Partial item = Partial(1)
-(Partial, int) | none result = (item, 2)
+Partial item := Partial(1)
+(Partial, int) | none result := (item, 2)
 )", "UNINITIALIZED_UNION_PAYLOAD");
  good(R"(class Box(int value)
 (Box, int) | none make()
@@ -6241,7 +6241,7 @@ match make()
     void .reset()
         this.value = 0
 void run()
-    LocalReset item = LocalReset()
+    LocalReset item := LocalReset()
     .item.reset()
     print(item.value)
     print(NL)
@@ -6254,8 +6254,8 @@ run()
             return error("bad")
         this.values = array(count, fill = 0.0)
         return
-EarlyReceiver item = EarlyReceiver()
-auto result = item.initialize(-1)
+EarlyReceiver item := EarlyReceiver()
+result := item.initialize(-1)
 print(item.values[0])
 print(NL)
 )", "UNINITIALIZED");
@@ -6265,7 +6265,7 @@ print(NL)
         if not ok
             return
         this.value = 1
-EarlyUnit item = EarlyUnit()
+EarlyUnit item := EarlyUnit()
 item.reset(false)
 print(item.value)
 print(NL)
@@ -6290,15 +6290,15 @@ print(NL)
  // Nested whole-self publication requires the generated child binding and
  // every ordinary child field, without inventing a "$complete" field.
  good(R"(class Leaf leaf()
-    int value = 7
+    int value := 7
     Leaf copy()
         return leaf
 class Holder()
-    Leaf child = Leaf()
+    Leaf child := Leaf()
     Leaf copy_child()
         return child.copy()
-Holder holder = Holder()
-Leaf copied = holder.copy_child()
+Holder holder := Holder()
+Leaf copied := holder.copy_child()
 print(copied.value)
 print(NL)
 )");
@@ -6309,19 +6309,19 @@ class Holder()
     EmptyLeaf child
     EmptyLeaf copy_child()
         return child.copy()
-Holder holder = Holder()
-EmptyLeaf copied = holder.copy_child()
+Holder holder := Holder()
+EmptyLeaf copied := holder.copy_child()
 )", "UNINITIALIZED");
  bad_code(R"(class PartialLeaf leaf()
     int value
     PartialLeaf copy()
         return leaf
 class Holder()
-    PartialLeaf child = PartialLeaf()
+    PartialLeaf child := PartialLeaf()
     PartialLeaf copy_child()
         return child.copy()
-Holder holder = Holder()
-PartialLeaf copied = holder.copy_child()
+Holder holder := Holder()
+PartialLeaf copied := holder.copy_child()
 )", "UNINITIALIZED");
 
  // Aliased reference preconditions are all checked against call-entry state.
@@ -6356,7 +6356,7 @@ initialize_then_read_writable(&value, &value)
         print(observation)
         print(NL)
 
-AliasReceiver item = AliasReceiver()
+AliasReceiver item := AliasReceiver()
 item.initialize_then_read(&item.value)
 )", "UNINITIALIZED");
 
@@ -6366,7 +6366,7 @@ item.initialize_then_read(&item.value)
     print(NL)
     destination = observation + 1
 
-int value = 4
+int value := 4
 observe_and_update(value, &value)
 print(value)
 print(NL)
@@ -6374,9 +6374,9 @@ print(NL)
 
  // Const authority is path-local and one-way: a readonly path may observe a
  // writable alias, but it cannot be promoted back into write authority.
- bad_code(R"(int value = 1
-const int view = value
-int &writer = &view
+ bad_code(R"(int value := 1
+const int view := value
+int &writer := &view
 )", "REFERENCE_BINDING");
 
  bad_code(R"(class ConstNested this(local int[] values_value)
@@ -6385,7 +6385,7 @@ int &writer = &view
 
     this.values = values_value
 
-const ConstNested item = ConstNested([1, 2])
+const ConstNested item := ConstNested([1, 2])
 item.values[0] = 3
 )", "WRITE_CAPABILITY");
 
@@ -6398,14 +6398,14 @@ item.values[0] = 3
     void change_value()
         this.value = 2
 
-const ConstMethod item = ConstMethod(1)
+const ConstMethod item := ConstMethod(1)
 item.change_value()
 )", "WRITE_CAPABILITY");
 
  good(R"(T observe_generic<T>(const T value)
     return value
 
-int source = 7
+int source := 7
 print(observe_generic(source))
 print(NL)
 )");
@@ -6415,34 +6415,34 @@ print(NL)
  good(R"(tensor<T> keep_tensor<T: floating>(tensor<T> value)
     return value
 
-tensor<real32>[] values = [tensor.ones<real32>([1])]
-tensor<real32> result = keep_tensor(values[0])
+tensor<real32>[] values := [tensor.ones<real32>([1])]
+tensor<real32> result := keep_tensor(values[0])
 )");
  good(R"(tensor<T> keep_tensor<T: floating>(tensor<T> value)
     return value
 
 class Moments(local tensor<real32>[] incoming)
-    private tensor<real32>[] values = incoming
+    private tensor<real32>[] values := incoming
 
     tensor<real32> first()
         return keep_tensor(values[0])
 
-Moments moments = Moments([tensor.ones<real32>([1])])
-tensor<real32> result = moments.first()
+Moments moments := Moments([tensor.ones<real32>([1])])
+tensor<real32> result := moments.first()
 )");
  // A tensor without an Array dimension still projects its tensor axes.
  good(R"(tensor<T>{3} keep_row<T: floating>(tensor<T>{3} value)
     return value
 
-tensor<real32>{2, 3} grid = tensor.ones<real32>([2, 3])
-tensor<real32>{3} row = keep_row(grid[0])
+tensor<real32>{2, 3} grid := tensor.ones<real32>([2, 3])
+tensor<real32>{3} row := keep_row(grid[0])
 )");
  bad_code(R"(tensor<T> choose_tensor<T: floating>(tensor<T> left, tensor<T> right)
     return left
 
-tensor<real32>[] first = [tensor.ones<real32>([1])]
-tensor<real64>[] second = [tensor.ones<real64>([1])]
-tensor<real32> result = choose_tensor(first[0], second[0])
+tensor<real32>[] first := [tensor.ones<real32>([1])]
+tensor<real64>[] second := [tensor.ones<real64>([1])]
+tensor<real32> result := choose_tensor(first[0], second[0])
 )", "GENERIC_INFERENCE");
  // Inferring a field's type does not initialize its storage.
  bad_code(R"(tensor<T> keep_tensor<T: floating>(tensor<T> value)
@@ -6450,15 +6450,15 @@ tensor<real32> result = choose_tensor(first[0], second[0])
 
 class Unready()
     tensor<real32>[] values
-    tensor<real32> seen = keep_tensor(values[0])
+    tensor<real32> seen := keep_tensor(values[0])
 )", "UNINITIALIZED");
 
  // Model and already-materialized generic-class arguments share one inference.
  good(R"(class Model()
-    int value = 1
+    int value := 1
 
 class State<T>(local T seed)
-    T value = seed
+    T value := seed
 
 void checkpoint<M>(M &model, State<M> state)
     return
@@ -6466,44 +6466,44 @@ void checkpoint<M>(M &model, State<M> state)
 void forward(Model &model, State<Model> state)
     checkpoint(&model, state)
 
-Model model = Model()
-State<Model> state = State<Model>(model)
+Model model := Model()
+State<Model> state := State<Model>(model)
 forward(&model, state)
 )");
  // The class argument alone also determines the function's type parameter.
  good(R"(class Box<T>(local T seed)
-    T value = seed
+    T value := seed
 
 T unwrap<T>(Box<T> box)
     return box.value
 
-Box<int> box = Box<int>(7)
-int result = unwrap(box)
+Box<int> box := Box<int>(7)
+int result := unwrap(box)
 )");
  bad_code(R"(class Model()
-    int value = 1
+    int value := 1
 
 class Other()
-    int value = 2
+    int value := 2
 
 class State<T>(local T seed)
-    T value = seed
+    T value := seed
 
 void checkpoint<M>(M &model, State<M> state)
     return
 
-Model model = Model()
-State<Model> matching = State<Model>(model)
-State<Other> different = State<Other>(Other())
+Model model := Model()
+State<Model> matching := State<Model>(model)
+State<Other> different := State<Other>(Other())
 checkpoint(&model, different)
 )", "GENERIC_INFERENCE");
 
  // A control-flow-dependent rebind must never let a later write be credited to
  // the pre-branch target.
  bad_code(R"(int left
-int right = 2
-int &slot = &left
-bool choose = true
+int right := 2
+int &slot := &left
+bool choose := true
 if choose
     &slot = &right
 slot = 9
@@ -6513,10 +6513,10 @@ print(NL)
 
  // Rebinding to possibly-uninitialized storage also invalidates the reference's
  // own read proof after the join.
- bad_code(R"(int left = 1
+ bad_code(R"(int left := 1
 int right
-int &slot = &left
-bool choose = true
+int &slot := &left
+bool choose := true
 if choose
     &slot = &right
 print(slot)
@@ -6524,10 +6524,10 @@ print(NL)
 )", "UNINITIALIZED");
 
  // When every continuing path resolves to the same storage, precision is kept.
- good(R"(int left = 1
-int right = 2
-int &slot = &left
-bool choose = true
+ good(R"(int left := 1
+int right := 2
+int &slot := &left
+bool choose := true
 if choose
     &slot = &right
 else
@@ -6539,10 +6539,10 @@ print(NL)
 
  // A write through an ambiguous target initializes the reference path itself,
  // but still must not initialize either possible concrete root.
- good(R"(int left = 1
-int right = 2
-int &slot = &left
-bool choose = true
+ good(R"(int left := 1
+int right := 2
+int &slot := &left
+bool choose := true
 if choose
     &slot = &right
 slot = 9
@@ -6552,19 +6552,19 @@ print(NL)
 
  // A loop may execute zero or many times. Any escaping rebind therefore loses
  // target identity and previous read proofs until an explicit write/rebind.
- bad_code(R"(int left = 1
+ bad_code(R"(int left := 1
 int right
-int &slot = &left
+int &slot := &left
 for 0 <= nat i < 1
     &slot = &right
 print(slot)
 print(NL)
 )", "UNINITIALIZED");
 
- bad_code(R"(int left = 1
+ bad_code(R"(int left := 1
 int right
-int &slot = &left
-bool choose = true
+int &slot := &left
+bool choose := true
 while choose
     &slot = &right
     break
@@ -6572,10 +6572,10 @@ print(slot)
 print(NL)
 )", "UNINITIALIZED");
 
- bad_code(R"(int | none choice = 1
+ bad_code(R"(int | none choice := 1
 int left
-int right = 2
-int &slot = &left
+int right := 2
+int &slot := &left
 match choice
     int value
         &slot = &right
@@ -6587,10 +6587,10 @@ print(left)
 print(NL)
 )", "UNINITIALIZED");
 
- good(R"(int left = 1
-int right = 2
-int &slot = &left
-bool choose = true
+ good(R"(int left := 1
+int right := 2
+int &slot := &left
+bool choose := true
 if choose
     &slot = &right
 &slot = &right
@@ -6599,80 +6599,80 @@ print(NL)
 )");
  bad_code(R"(int square(int x)
     return x * x
-auto f = square
+f := square
 )", "FUNCTION_REFERENCE_CONTEXT");
- bad_code("int[0] xs = []\nprint(xs[0])\n", "INDEX_BOUNDS");
- bad_code("int[2] xs = [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS");
+ bad_code("int[0] xs := []\nprint(xs[0])\n", "INDEX_BOUNDS");
+ bad_code("int[2] xs := [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS");
  llvm_contains(
-     "int[2] xs = [1, 2]\nprint(xs[1])\n",
+     "int[2] xs := [1, 2]\nprint(xs[1])\n",
      "call ptr @quidra_fixed_array_slot_proven");
  llvm_contains(R"(int sum_values(const int[] values, int n)
-    int total = 0
+    int total := 0
     for 0 <= int i < n
         total += values[i]
     return total
 
-int[] values = array(8, fill = 1)
+int[] values := array(8, fill = 1)
 print(sum_values(values, int(len(values))))
 print(NL)
 )", "call i1 @quidra_array_initialization_complete");
  llvm_contains(R"(int sum_values(const int[] values, int n)
-    int total = 0
+    int total := 0
     for 0 <= int i < n
         total += values[i]
     return total
 
-int[] values = array(8, fill = 1)
+int[] values := array(8, fill = 1)
 print(sum_values(values, int(len(values))))
 print(NL)
 )", "call ptr @quidra_array_slot_proven");
  llvm_contains(R"(int sum_values(const int[] values, int n)
-    int total = 0
+    int total := 0
     for 0 <= int i < n
         total += values[i]
     return total
 
-int[] values = array(8, fill = 1)
+int[] values := array(8, fill = 1)
 print(sum_values(values, int(len(values))))
 print(NL)
 )", "phi ptr [ %array.bounds.proven.slot.");
- bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
- bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
+ bad_code("int | none x := 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
+ bad_code("values := []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine(first = 1, 2))
 print(NL)
 )", "ARGUMENT_MISMATCH", "Positional argument cannot follow named arguments");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine(first = 1, first = 2))
 print(NL)
 )", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine(third = 1))
 print(NL)
 )", "ARGUMENT_MISMATCH", "Unknown argument 'third'");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine())
 print(NL)
 )", "ARGUMENT_MISMATCH", "Missing required argument 'first'");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine(1, 2, 3))
 print(NL)
 )", "ARGUMENT_MISMATCH", "Too many positional arguments");
- bad_message(R"(int combine(int first, int second = 2)
+ bad_message(R"(int combine(int first, int second := 2)
     return first + second
 print(combine(1, first = 2))
 print(NL)
 )", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
- bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
+ bad_code("int[2] values := [1]\n", "ARRAY_SHAPE");
  bad_code(R"(class Secret()
-    private int value = 1
-Secret secret = Secret()
+    private int value := 1
+Secret secret := Secret()
 print(secret.value)
 print(NL)
 )", "PRIVATE_MEMBER");
@@ -6681,35 +6681,35 @@ print(NL)
 
 
     this.value = value_value
-Secret secret = Secret(1)
+Secret secret := Secret(1)
 )");
  bad_code(R"(class Secret()
     private void hidden()
         return
-Secret secret = Secret()
+Secret secret := Secret()
 secret.hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret()
-    private int value = 1
-Secret secret = Secret()
+    private int value := 1
+Secret secret := Secret()
 secret.value = 2
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret()
-    private int value = 1
-Secret secret = Secret()
-int &alias = &secret.value
+    private int value := 1
+Secret secret := Secret()
+int &alias := &secret.value
 )", "PRIVATE_MEMBER");
  good(R"(class Secret this()
-    private int value = 1
+    private int value := 1
 
     void .copy_from(Secret other)
         this.value = other.value
 )");
  good(R"(class Secret()
-    private int value = 1
+    private int value := 1
 
     void update_other(Secret other)
-        int &alias = &other.value
+        int &alias := &other.value
         alias = 2
 )");
  good(R"(class Secret()
@@ -6724,20 +6724,20 @@ int &alias = &secret.value
 
 
     this.value = value_value
-Box<int> box = Box<int>(1)
+Box<int> box := Box<int>(1)
 print(box.value)
 print(NL)
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Box<T>()
     private void hidden()
         return
-Box<int> box = Box<int>()
+Box<int> box := Box<int>()
 box.hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret()
     private T echo<T>(T value)
         return value
-Secret secret = Secret()
+Secret secret := Secret()
 print(secret.echo<int>(1))
 print(NL)
 )", "PRIVATE_MEMBER");
@@ -6745,12 +6745,12 @@ print(NL)
           "    private private int value\n", "PARSE_ERROR");
  bad_code("private int value = 1\n", "PARSE_ERROR");
  good(R"(class SecretRef()
-    private int value = 1
+    private int value := 1
     int read_other(SecretRef other)
-        const int alias = other.value
+        const int alias := other.value
         return alias
-SecretRef a = SecretRef()
-SecretRef b = SecretRef()
+SecretRef a := SecretRef()
+SecretRef b := SecretRef()
 print(a.read_other(b))
 print(NL)
 )");
@@ -6761,7 +6761,7 @@ print(NL)
     this.value = value_value
     int read()
         return this.value
-PrivateInit item = PrivateInit(9)
+PrivateInit item := PrivateInit(9)
 print(item.read())
 print(NL)
 )");
@@ -6770,7 +6770,7 @@ print(NL)
 
 
     this.value = start
-PrivateInit item = PrivateInit(other = 9)
+PrivateInit item := PrivateInit(other = 9)
 )", "ARGUMENT_MISMATCH");
  bad_code("class A()\n"
           "    int x\n"
@@ -6779,7 +6779,7 @@ PrivateInit item = PrivateInit(other = 9)
  bad("write(\"legacy console output\")\n");
  bad("io.flush()\n");
  good("flush()\n");
- good("int io = 1\nprint(io)\n");
+ good("int io := 1\nprint(io)\n");
  good(R"(int write(int value)
     return value
 print(write(7))
@@ -6806,17 +6806,17 @@ print(NL)
 )");
  // A concrete primitive member outside every constrained generic domain
  // may retain a different cross-argument relationship, with no implicit cast.
- good(R"(string select<T: floating, K: floating>(tensor<T> pixels, tensor<K> kernel, K divisor = 1.0, K offset = 0.0)
+ good(R"(string select<T: floating, K: floating>(tensor<T> pixels, tensor<K> kernel, K divisor := 1.0, K offset := 0.0)
     return "floating"
-string select(tensor<nat8> pixels, tensor<int64> kernel, int divisor = 1, int offset = 0)
+string select(tensor<nat8> pixels, tensor<int64> kernel, int divisor := 1, int offset := 0)
     return "integer"
-tensor<nat8> pixels = tensor.ones<nat8>([1])
-tensor<int64> kernel = tensor.ones<int64>([1])
-int divisor = 1
+tensor<nat8> pixels := tensor.ones<nat8>([1])
+tensor<int64> kernel := tensor.ones<int64>([1])
+int divisor := 1
 print(select(pixels, kernel, divisor))
 print(NL)
-tensor<real32> floating_pixels = tensor.ones<real32>([1])
-tensor<real64> floating_kernel = tensor.ones<real64>([1])
+tensor<real32> floating_pixels := tensor.ones<real32>([1])
+tensor<real64> floating_kernel := tensor.ones<real64>([1])
 print(select(floating_pixels, floating_kernel, real64(2.0)))
 print(NL)
 )");
@@ -6868,9 +6868,9 @@ string select(nat8[2] pixels, int64 second, int divisor)
     return "floating"
 string select(tensor<nat8> pixels, tensor<int64> kernel, int divisor)
     return "integer"
-tensor<real32> pixels = tensor.ones<real32>([1])
-tensor<int64> kernel = tensor.ones<int64>([1])
-int divisor = 1
+tensor<real32> pixels := tensor.ones<real32>([1])
+tensor<int64> kernel := tensor.ones<int64>([1])
+int divisor := 1
 print(select(pixels, kernel, divisor))
 )", "SPECIALIZATION_NO_MATCH");
  good(R"(int domain<T: numeric>(T value)
@@ -6889,8 +6889,8 @@ T ambiguous<T: equatable>(T value)
 )", "AMBIGUOUS_SPECIALIZATION");
  good(R"(T exact_cast_family<T: numeric>(T value)
     return value
-int exact_integer = exact_cast_family(int(2))
-real exact_real = exact_cast_family(real(2))
+int exact_integer := exact_cast_family(int(2))
+real exact_real := exact_cast_family(real(2))
 print(exact_integer)
 print(NL)
 print(exact_real)
@@ -6900,14 +6900,14 @@ print(NL)
     return left
 T1 pair_domain<T1: floating, T2: integer>(T1 left, T2 right)
     return left
-real32 narrow = pair_domain(real32(2.0), int(1))
-int broad = pair_domain(int(2), int(1))
+real32 narrow := pair_domain(real32(2.0), int(1))
+int broad := pair_domain(int(2), int(1))
 print(narrow)
 print(NL)
 print(broad)
 print(NL)
 )");
- bad_code(R"(T default_shape<T: numeric>(T value, int mode = 0)
+ bad_code(R"(T default_shape<T: numeric>(T value, int mode := 0)
     return value
 T default_shape<T: floating>(T value, int mode)
     return value
@@ -6927,20 +6927,20 @@ int unrelated_pattern<T: floating>(tensor<T> value)
 T concrete_relation<T: numeric>(T left, T right)
     return left
 )", "DUPLICATE_NAME");
- good(R"(int radius_mode(tensor<nat8> value, int radius = 1)
+ good(R"(int radius_mode(tensor<nat8> value, int radius := 1)
     return radius
-T radius_mode<T: floating>(tensor<T> value, int radius = 1)
+T radius_mode<T: floating>(tensor<T> value, int radius := 1)
     return value[0].item()
-tensor<nat8> pixels = tensor.zeros<nat8>([1])
+tensor<nat8> pixels := tensor.zeros<nat8>([1])
 print(radius_mode(pixels, radius = 1))
 print(NL)
 )");
 
- good(R"(int signed_radius(tensor<nat8> value, int radius = 1)
+ good(R"(int signed_radius(tensor<nat8> value, int radius := 1)
     return radius
-T signed_radius<T: floating>(tensor<T> value, int radius = 1)
+T signed_radius<T: floating>(tensor<T> value, int radius := 1)
     return value[0].item()
-tensor<nat8> pixels = tensor.zeros<nat8>([1])
+tensor<nat8> pixels := tensor.zeros<nat8>([1])
 print(signed_radius(pixels, radius = -1))
 print(NL)
 )");
@@ -6949,8 +6949,8 @@ print(NL)
     return 1
 T kernel_device<T: floating, K: floating>(tensor<T> value, tensor<K> kernel)
     return value[0].item()
-tensor<nat8> pixels = tensor.zeros<nat8>([1])
-tensor<int64> kernel = tensor.ones<int64>([1])
+tensor<nat8> pixels := tensor.zeros<nat8>([1])
+tensor<int64> kernel := tensor.ones<int64>([1])
 print(kernel_device(pixels, kernel.gpu(0)))
 print(NL)
 )");
@@ -6959,7 +6959,7 @@ print(NL)
     return "byte"
 string shaped_specialization<T: floating>(tensor<T> value)
     return "floating"
-tensor<nat8>{1, 2, 2} pixels = tensor.ones<nat8>([1, 2, 2])
+tensor<nat8>{1, 2, 2} pixels := tensor.ones<nat8>([1, 2, 2])
 print(shaped_specialization(pixels))
 print(NL)
 )");
@@ -6974,9 +6974,9 @@ tensor<real32> transformed_specialization(
     tensor<real32> right
 )
     return right
-tensor<real32> specialization_left = tensor.ones<real32>([1, 2])
-tensor<real32> specialization_right = tensor.ones<real32>([1, 2])
-tensor<real32> specialization_result = transformed_specialization(
+tensor<real32> specialization_left := tensor.ones<real32>([1, 2])
+tensor<real32> specialization_right := tensor.ones<real32>([1, 2])
+tensor<real32> specialization_result := transformed_specialization(
     specialization_left,
     specialization_right.transpose(0, 1)
 )
@@ -7003,7 +7003,7 @@ print(NL)
     string classify<T: floating>(T value)
         return "floating"
 
-MethodDomain domain = MethodDomain()
+MethodDomain domain := MethodDomain()
 print(domain.classify(nat8(1)))
 print(NL)
 print(domain.classify(real32(1.0)))
@@ -7016,7 +7016,7 @@ print(NL)
     T choose<T: floating>(T value)
         return value
 
-MethodPriority priority = MethodPriority()
+MethodPriority priority := MethodPriority()
 print(priority.choose(int(2)))
 print(NL)
 print(priority.choose(real32(3.0)))
@@ -7037,9 +7037,9 @@ print(NL)
     T1 combine<T1: floating, T2: integer>(T1 left, T2 right)
         return left
 
-MethodPairDomain domain = MethodPairDomain()
-real32 narrow = domain.combine(real32(2.0), int(1))
-int broad = domain.combine(int(2), int(1))
+MethodPairDomain domain := MethodPairDomain()
+real32 narrow := domain.combine(real32(2.0), int(1))
+int broad := domain.combine(int(2), int(1))
 print(narrow)
 print(NL)
 print(broad)
@@ -7054,7 +7054,7 @@ print(NL)
 )", "AMBIGUOUS_SPECIALIZATION");
 
  bad_code(R"(class MethodDefaultShape()
-    T choose<T: numeric>(T value, int mode = 0)
+    T choose<T: numeric>(T value, int mode := 0)
         return value
     T choose<T: floating>(T value, int mode)
         return value
@@ -7074,21 +7074,21 @@ print(NL)
     void .construct(int value_value)
         value = value_value
 )", "DUPLICATE_NAME");
- good(R"(class DefaultConstructorParameter this(local int value_value = 7)
+ good(R"(class DefaultConstructorParameter this(local int value_value := 7)
     int value
 
     this.value = value_value
-DefaultConstructorParameter item = DefaultConstructorParameter()
+DefaultConstructorParameter item := DefaultConstructorParameter()
 print(item.value)
 print(NL)
 )");
  bad_code(R"(T identity<T>(T value)
     return value
-auto result = identity(1)
+result := identity(1)
 )", "GENERIC_INFERENCE");
  good(R"(T identity<T>(T value)
     return value
-auto result = identity(int32(1))
+result := identity(int32(1))
 print(result)
 print(NL)
 )");
@@ -7097,13 +7097,13 @@ print(NL)
 print(identity<int, int>(1))
 print(NL)
 )", "GENERIC_ARITY");
- good(R"(file.read reader("sample.txt")
+ good(R"(file.read reader := file.read("sample.txt")
 while .reader(string &line)
     print(line)
 )");
- good(R"(file.write writer("out.txt")
+ good(R"(file.write writer := file.write("out.txt")
 .writer("hello")
-file.append extra("out.txt")
+file.append extra := file.append("out.txt")
 .extra("world")
 )");
  good(R"(file.read reader
@@ -7111,29 +7111,29 @@ reader = file.read("sample.txt")
 while .reader(string &line)
     print(line)
 )");
- bad_code(R"(file.write writer = file.append("log.txt")
+ bad_code(R"(file.write writer := file.append("log.txt")
 )", "TYPE_MISMATCH");
  bad_code(R"(file.Reader reader
 )", "UNKNOWN_TYPE");
  bad_code(R"(file.Writer writer
 )", "UNKNOWN_TYPE");
- bad_code(R"(file stream = file.read("sample.txt")
+ bad_code(R"(file stream := file.read("sample.txt")
 )", "FILE_TYPE");
  good(R"(void | error read_open_file(string path)
-    file.read reader = try file.read(path)
-    string text = ""
-    bool read = try .reader(&text)
+    file.read reader := try file.read(path)
+    string text := ""
+    bool read := try .reader(&text)
     return void
 )");
  good(R"(void | error read_open_bin(string path)
-    bin data = try file.read_bin(path)
+    bin data := try file.read_bin(path)
     return void
 )");
  good(R"(int | error fallible_value(bool ok)
     if ok
         return 7
     return error("bad")
-int value = fallible_value(true)
+int value := fallible_value(true)
 print(value)
 print(NL)
 )");
@@ -7141,7 +7141,7 @@ print(NL)
     if ok
         return 7
     return error("bad")
-auto value = fallible_value(true)
+value := fallible_value(true)
 print(value)
 print(NL)
 )");
@@ -7151,7 +7151,7 @@ print(NL)
     if mode == 0
         return none
     return 7
-auto value = maybe_value(0)
+value := maybe_value(0)
 match value
     int number
         print(number)
@@ -7160,21 +7160,21 @@ match value
         print("none")
         print(NL)
 )");
- bad_code(R"(int value = 7
-auto | error preserved = value
+ bad_code(R"(int value := 7
+auto | error preserved := value
 )", "INVALID_AUTO");
- bad_code(R"(int value = 7
-auto | error &preserved = &value
+ bad_code(R"(int value := 7
+auto | error &preserved := &value
 )", "INVALID_AUTO");
  bad_code(R"(int | error fallible_value()
     return 7
-auto | none invalid = fallible_value()
+auto | none invalid := fallible_value()
 )", "INVALID_AUTO");
  good(R"(int | error fallible_value(bool ok)
     if ok
         return 7
     return error("bad")
-auto | error result = fallible_value(true)
+int | error result := fallible_value(true)
 match result
     int value
         print(value)
@@ -7187,7 +7187,7 @@ match result
     if ok
         return 7
     return error("bad")
-int value = fallible_value(true)
+int value := fallible_value(true)
 print(value)
 print(NL)
 )", "fail.error");
@@ -7195,36 +7195,36 @@ print(NL)
     if ok
         return 7
     return error("bad")
-int value = fallible_value(true)
+int value := fallible_value(true)
 print(value)
 print(NL)
 )", "call void @quidra_runtime_fail_error(");
  // Error sites of user code: a constant record with detail slots (a scan
  // literal), the record of a user error's literal, and a conversion site's
  // record array indexed by the reason recorded at run time.
- llvm_contains(R"(int n = 0
+ llvm_contains(R"(int n := 0
 scan("n={&n}")
 )", "x i8] c\"MISSING_TEXT\\00\"");
- llvm_contains(R"(int n = 0
+ llvm_contains(R"(int n := 0
 scan("n={&n}")
 )", "{ ptr, ptr, i32, i32, ptr, i64, ptr, ptr, ptr, ptr, ptr, ptr }");
- llvm_contains(R"(error e = error("plain")
+ llvm_contains(R"(error e := error("plain")
 )", "= getelementptr inbounds i8, ptr @.quidra.err.");
- llvm_contains(R"(real value = 2.5
-int | error converted = int(value)
+ llvm_contains(R"(real value := 2.5
+int | error converted := int(value)
 )", "= getelementptr inbounds [80 x i8], ptr @.quidra.err.");
- llvm_contains(R"(real value = 2.5
-int | error converted = int(value)
+ llvm_contains(R"(real value := 2.5
+int | error converted := int(value)
 )", "call i32 @quidra_runtime_last_reason()");
  // A parse site's two records, indexed by the reason; a file error made by
  // the runtime with the operation's code and FILE_OPEN's mode (APPEND).
- llvm_contains(R"(string text = "12"
-int64 | error parsed = int64.parse(text)
+ llvm_contains(R"(string text := "12"
+int64 | error parsed := int64.parse(text)
 )", "= getelementptr inbounds [72 x i8], ptr @.quidra.err.");
- llvm_contains(R"(file.append | error handle = file.append("log.txt")
+ llvm_contains(R"(file.append | error handle := file.append("log.txt")
 )", "@quidra_error_file(i32 3, i32 2, ptr ");
- bad_code(R"(int | real64 value = 5
-real64 narrowed = value
+ bad_code(R"(int | real64 value := 5
+real64 narrowed := value
 )", "TYPE_MISMATCH");
  bad("never stop()\n    process.exit(1)\n");
  good(R"(void stop()
@@ -7244,22 +7244,22 @@ int still_returns()
         print(NL)
 )", "MISSING_RETURN");
  llvm_contains(R"(void | error read_open_file(string path)
-    file.read reader = try file.read(path)
-    string text = ""
-    bool read = try .reader(&text)
+    file.read reader := try file.read(path)
+    string text := ""
+    bool read := try .reader(&text)
     return void
 )", "ptr @quidra_file_handle_drop)");
  llvm_contains(R"(void | error copy_handle(string path)
-    file.read first = try file.read(path)
-    file.read second = first
+    file.read first := try file.read(path)
+    file.read second := first
     return void
 )", "call ptr @quidra_file_handle_clone");
  bad_code(R"(void close_obsolete(file.read handle)
     .handle.close()
 )", "UNKNOWN_METHOD");
  bad_code(R"(void read_readonly(const file.read handle)
-    string line = ""
-    bool read = .handle(&line)
+    string line := ""
+    bool read := .handle(&line)
 )", "WRITE_CAPABILITY");
  bad_code(R"(void read_bin_obsolete(file.read handle)
     .handle.read_bin()
@@ -7273,7 +7273,7 @@ int still_returns()
     Plus
     End
 
-Token token = Token.Number(3.0)
+Token token := Token.Number(3.0)
 match token
     Token.Number(value)
         print(value)
@@ -7289,7 +7289,7 @@ match token
  good(R"(enum State
     First(int)
     Second(int)
-State state = State.Second(2)
+State state := State.Second(2)
 match state
     State.First(value)
         print(value)
@@ -7301,7 +7301,7 @@ match state
  bad_code(R"(enum Token
     Number(real64)
     End
-Token token = Token.End
+Token token := Token.End
 match token
     Token.Number(value)
         print(value)
@@ -7309,7 +7309,7 @@ match token
 )", "MATCH_EXHAUSTIVE");
  bad_code(R"(enum Token
     Number(real64)
-Token token = Token.Number
+Token token := Token.Number
 )", "ARGUMENT_MISMATCH");
  good(R"(T maximum<T: ordered>(T a, T b)
     if a > b
@@ -7328,7 +7328,7 @@ print(NL)
 
 
     this.value = value_value
-Box<string> box = Box<string>("ok")
+Box<string> box := Box<string>("ok")
 print(box.value)
 print(NL)
 )");
@@ -7343,7 +7343,7 @@ Box<CallbackHolder> box
 T same<T: equatable>(T value)
     return value
 ResourceHolder holder
-auto copy = same<ResourceHolder>(holder)
+copy := same<ResourceHolder>(holder)
 )", "GENERIC_CONSTRAINT");
  bad_code(R"(T square<T: numeric>(T value)
     return value
@@ -7363,41 +7363,41 @@ print(NL)
  bad_code("void f()\n\treturn\n", "INDENTATION");
  bad_code("auto x\n", "INVALID_AUTO");
  bad_code("break\n", "LOOP_CONTROL_CONTEXT");
- bad_code("int | none x = 1\nmatch x\n    int\n        print(int(1))\n    int y\n        print(y)\n    none\n        print(int(0))\n", "MATCH_CASE");
+ bad_code("int | none x := 1\nmatch x\n    int\n        print(int(1))\n    int y\n        print(y)\n    none\n        print(int(0))\n", "MATCH_CASE");
  bad_code("int f(bool yes)\n    if yes\n        return 1\n", "MISSING_RETURN");
- bad_code("int8 x = int8(300)\n", "NUMERIC_CAST");
- bad_code("int x = int(3.5)\n", "NUMERIC_CAST");
- good("int8 minimum = -128\nint minimum64 = -9223372036854775808\n");
- bad_code("int8 too_small = -129\n", "INTEGER_RANGE");
- good("int8 minimum = int8(-128)\n");
- bad_code("int8 too_small = int8(-129)\n", "NUMERIC_CAST");
+ bad_code("int8 x := int8(300)\n", "NUMERIC_CAST");
+ bad_code("int x := int(3.5)\n", "NUMERIC_CAST");
+ good("int8 minimum := -128\nint minimum64 := -9223372036854775808\n");
+ bad_code("int8 too_small := -129\n", "INTEGER_RANGE");
+ good("int8 minimum := int8(-128)\n");
+ bad_code("int8 too_small := int8(-129)\n", "NUMERIC_CAST");
 
  // Numeric literals carry families, not default concrete types.
- good("int32 x = 3\nreal32 y = 3.0\nreal32 z = 0.1\n");
- bad_code("auto x = 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("auto x = 1.5\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("int32 x := 3\nreal32 y := 3.0\nreal32 z := 0.1\n");
+ bad_code("x := 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("x := 1.5\n", "AMBIGUOUS_NUMERIC_LITERAL");
  bad_code("print(1)\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("real64 x = 3\n", "NUMERIC_FAMILY");
- bad_code("int x = 3.0\n", "NUMERIC_FAMILY");
- bad_code("auto x = [1, 2, 3]\n", "AMBIGUOUS_NUMERIC_LITERAL");
- good(R"(int32 seed = 1
-auto values = [2, seed, 3]
+ bad_code("real64 x := 3\n", "NUMERIC_FAMILY");
+ bad_code("int x := 3.0\n", "NUMERIC_FAMILY");
+ bad_code("x := [1, 2, 3]\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good(R"(int32 seed := 1
+values := [2, seed, 3]
 print(values[0])
 print(NL)
 )");
  good(R"(int32 fixed_identity(int32 value)
     return value
-auto result = fixed_identity(3)
+result := fixed_identity(3)
 print(result)
 print(NL)
 )");
- bad_code("bin raw = bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
- good("bin raw = bin(int32(3567446))\nprint(raw)\n");
- bad_code("int value = 1\nbin raw = bin(value)\n", "TYPE_MISMATCH");
- bad_code("real value = 1.0\nbin raw = bin(value)\n", "TYPE_MISMATCH");
- good("real32 rounded = real32(16777217)\n");
- bad_code("real32 too_large = 1.0e100\n", "REAL_RANGE");
- bad_code("real32 too_large = real32(1.0e100)\n", "NUMERIC_CAST");
+ bad_code("bin raw := bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("bin raw := bin(int32(3567446))\nprint(raw)\n");
+ bad_code("int value := 1\nbin raw := bin(value)\n", "TYPE_MISMATCH");
+ bad_code("real value := 1.0\nbin raw := bin(value)\n", "TYPE_MISMATCH");
+ good("real32 rounded := real32(16777217)\n");
+ bad_code("real32 too_large := 1.0e100\n", "REAL_RANGE");
+ bad_code("real32 too_large := real32(1.0e100)\n", "NUMERIC_CAST");
  // A literal is rounded once, from its decimal value, to the target
  // format. 1.00000005960464477550 lies just above the binary32 midpoint
  // 1 + 2^-24 and its binary64 value is that midpoint, so rounding through
@@ -7405,47 +7405,47 @@ print(NL)
  // binary32 midpoint. Just below the binary32 overflow threshold a literal
  // rounds to the largest finite value, although its binary64 value is the
  // threshold.
- llvm_contains("real32 x = 1.00000005960464477550\nprint(x)\n", "0x3FF0000020000000");
- llvm_contains("real32 x = real32(1152921573326323713)\nprint(x)\n", "0x43B0000020000000");
- llvm_contains("real32 x = 3.4028235677973366e38\nprint(x)\n", "0x47EFFFFFE0000000");
- bad_code("real32 too_large = 3.4028235677973367e38\n", "REAL_RANGE");
+ llvm_contains("real32 x := 1.00000005960464477550\nprint(x)\n", "0x3FF0000020000000");
+ llvm_contains("real32 x := real32(1152921573326323713)\nprint(x)\n", "0x43B0000020000000");
+ llvm_contains("real32 x := 3.4028235677973366e38\nprint(x)\n", "0x47EFFFFFE0000000");
+ bad_code("real32 too_large := 3.4028235677973367e38\n", "REAL_RANGE");
  // An integer literal beyond 64 bits converts from its digits.
- llvm_contains("real32 x = real32(100000000000000000000000)\nprint(x)\n", "0x44B52D02C0000000");
- bad_code("real32 too_large = real32(1000000000000000000000000000000000000000)\n", "NUMERIC_CAST");
+ llvm_contains("real32 x := real32(100000000000000000000000)\nprint(x)\n", "0x44B52D02C0000000");
+ bad_code("real32 too_large := real32(1000000000000000000000000000000000000000)\n", "NUMERIC_CAST");
 
  // Numeric spelling has one integer radix; exponent notation is visibly floating.
  bad_code("real64 x = 1e8\n", "LEX_ERROR");
- good("real64 x = 1.0e8\n");
+ good("real64 x := 1.0e8\n");
 
  // '^' is a Core basic operator. Scalar power preserves the concrete
  // numeric family, and tensor power is deliberately one-way: tensor ^ scalar.
  // Matrix multiplication has no '@' syntax.
- good("int base = 2\nint powered = base ^ 10\nprint(powered)\n");
- good("real64 base = 4.0\nreal64 powered = base ^ 0.5\nprint(powered)\n");
- good(R"(tensor<int64> base = tensor.ones<int64>([2]) * 2
-tensor<int64> powered = base ^ 3
+ good("int base := 2\nint powered := base ^ 10\nprint(powered)\n");
+ good("real64 base := 4.0\nreal64 powered := base ^ 0.5\nprint(powered)\n");
+ good(R"(tensor<int64> base := tensor.ones<int64>([2]) * 2
+tensor<int64> powered := base ^ 3
 print(powered[0].item())
 print(NL)
 )");
- good(R"(tensor<real64> base = tensor.ones<real64>([2]) * 2.0
-tensor<real64> powered = base ^ 0.5
+ good(R"(tensor<real64> base := tensor.ones<real64>([2]) * 2.0
+tensor<real64> powered := base ^ 0.5
 print(powered[0].item())
 print(NL)
 )");
- bad_code(R"(tensor<int64> base = tensor.ones<int64>([1])
-tensor<int64> exponent = tensor.ones<int64>([1])
-tensor<int64> powered = base ^ exponent
+ bad_code(R"(tensor<int64> base := tensor.ones<int64>([1])
+tensor<int64> exponent := tensor.ones<int64>([1])
+tensor<int64> powered := base ^ exponent
 )", "TYPE_MISMATCH");
- bad_code(R"(tensor<int64> base = tensor.ones<int64>([1])
-tensor<int64> powered = 2 ^ base
+ bad_code(R"(tensor<int64> base := tensor.ones<int64>([1])
+tensor<int64> powered := 2 ^ base
 )", "TYPE_MISMATCH");
- bad_code(R"(tensor<int64> base = tensor.ones<int64>([1])
-tensor<int64> powered = base ^ -1
+ bad_code(R"(tensor<int64> base := tensor.ones<int64>([1])
+tensor<int64> powered := base ^ -1
 )", "POWER_DOMAIN");
  bad_code("int a = 2\nint b = 3\nint c = a @ b\n", "LEX_ERROR");
  bad_code("int x = 0x10\n", "LEX_ERROR");
- bad_code("int array = 1\n", "SHADOWING");
- good("int math = 1\n");
+ bad_code("int array := 1\n", "SHADOWING");
+ good("int math := 1\n");
  bad_code("class ReservedBuiltinField()\n"
           "    int array\n", "SHADOWING");
  bad_code("class ReservedBuiltinMethod()\n"
@@ -7455,8 +7455,8 @@ tensor<int64> powered = base ^ -1
           "    int tensor()\n"
           "        return 1\n", "SHADOWING");
  
- bad_code("int scan = 1\n", "SHADOWING");
- bad_code("int len = 1\n", "SHADOWING");
+ bad_code("int scan := 1\n", "SHADOWING");
+ bad_code("int len := 1\n", "SHADOWING");
  bad_code("void use(int print)\n    return\n", "SHADOWING");
   bad_code("range(3)\n", "UNKNOWN_NAME");
  bad_code("int main()\n    return 0\n", "RESERVED_MAIN");
@@ -7474,7 +7474,7 @@ int use()
     this.x = x_value
 int read_y(P value)
     return value.y
-P value = P(1)
+P value := P(1)
 print(read_y(value))
 print(NL)
 )", "UNINITIALIZED_ARGUMENT");
@@ -7484,37 +7484,37 @@ print(NL)
 
 
     this.x = x_value
-P a = P(1)
-P b = P(1)
-bool same = a == b
+P a := P(1)
+P b := P(1)
+bool same := a == b
 )", "UNINITIALIZED_FIELD_EQUALITY");
  good(R"(class DefaultLeaf()
-    int value = 7
+    int value := 7
 
     return
 class DefaultTree()
-    DefaultLeaf[] leaves = [DefaultLeaf(), DefaultLeaf()]
+    DefaultLeaf[] leaves := [DefaultLeaf(), DefaultLeaf()]
 
     return
-DefaultTree tree = DefaultTree()
+DefaultTree tree := DefaultTree()
 print(tree.leaves[0].value)
 )");
  bad_code(R"(class LaterDefaultTree()
-    LaterDefaultLeaf[] leaves = [LaterDefaultLeaf()]
+    LaterDefaultLeaf[] leaves := [LaterDefaultLeaf()]
 
     return
 class LaterDefaultLeaf()
-    int value = 11
+    int value := 11
 
     return
-LaterDefaultTree tree = LaterDefaultTree()
+LaterDefaultTree tree := LaterDefaultTree()
 print(tree.leaves[0].value)
 )", "SOURCE_ORDER");
  good(R"(class DefaultArgumentLeaf()
-    int value = 13
+    int value := 13
 
     return
-int use_default(DefaultArgumentLeaf value = DefaultArgumentLeaf())
+int use_default(DefaultArgumentLeaf value := DefaultArgumentLeaf())
     return value.value
 print(use_default())
 )");
@@ -7523,7 +7523,7 @@ print(use_default())
 
     return
 class PartialDefaultTree()
-    PartialDefaultLeaf[] leaves = [PartialDefaultLeaf()]
+    PartialDefaultLeaf[] leaves := [PartialDefaultLeaf()]
 
     return
 )", "UNINITIALIZED_ARGUMENT");
@@ -7531,7 +7531,7 @@ class PartialDefaultTree()
     int value
 
     return
-int use_partial_default(PartialDefaultArgument value = PartialDefaultArgument())
+int use_partial_default(PartialDefaultArgument value := PartialDefaultArgument())
     return value.value
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialLiteral this(local int x_value)
@@ -7540,8 +7540,8 @@ int use_partial_default(PartialDefaultArgument value = PartialDefaultArgument())
 
 
     this.x = x_value
-ArrayPartialLiteral partial = ArrayPartialLiteral(1)
-ArrayPartialLiteral[] values = [partial]
+ArrayPartialLiteral partial := ArrayPartialLiteral(1)
+ArrayPartialLiteral[] values := [partial]
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialFill this(local int x_value)
     int x
@@ -7549,8 +7549,8 @@ ArrayPartialLiteral[] values = [partial]
 
 
     this.x = x_value
-ArrayPartialFill partial = ArrayPartialFill(1)
-ArrayPartialFill[] values = array(2, fill = partial)
+ArrayPartialFill partial := ArrayPartialFill(1)
+ArrayPartialFill[] values := array(2, fill = partial)
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialAppend this(local int x_value)
     int x
@@ -7558,8 +7558,8 @@ ArrayPartialFill[] values = array(2, fill = partial)
 
 
     this.x = x_value
-ArrayPartialAppend partial = ArrayPartialAppend(1)
-ArrayPartialAppend[] values = []
+ArrayPartialAppend partial := ArrayPartialAppend(1)
+ArrayPartialAppend[] values := []
 values = values.append(partial)
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialAssign this(local int x_value)
@@ -7568,8 +7568,8 @@ values = values.append(partial)
 
 
     this.x = x_value
-ArrayPartialAssign partial = ArrayPartialAssign(1)
-ArrayPartialAssign[] values = array(1)
+ArrayPartialAssign partial := ArrayPartialAssign(1)
+ArrayPartialAssign[] values := array(1)
 values[0] = partial
 )", "UNINITIALIZED_ARGUMENT");
  good(R"(class IndexedPoint this(local int x_value, local int y_value)
@@ -7583,8 +7583,8 @@ values[0] = partial
     int sum()
         return this.x + this.y
 
-IndexedPoint[] dynamic_points = [IndexedPoint(1, 2), IndexedPoint(3, 4)]
-int dynamic_index = 1
+IndexedPoint[] dynamic_points := [IndexedPoint(1, 2), IndexedPoint(3, 4)]
+int dynamic_index := 1
 print(dynamic_points[dynamic_index].x)
 print(NL)
 print(dynamic_points[0].sum())
@@ -7605,25 +7605,25 @@ print(NL)
 
     this.x = x_value
 
-IndexedPartialPoint partial = IndexedPartialPoint(1)
-IndexedPartialPoint[] values = array(1)
+IndexedPartialPoint partial := IndexedPartialPoint(1)
+IndexedPartialPoint[] values := array(1)
 values[0] = partial
 )", "UNINITIALIZED_ARGUMENT");
  bad_code("class A this(local int start)\n"
           "    int x\n"
           "\n"
           "    this.x = start\n"
-          "A a = A(1)\n"
+          "A a := A(1)\n"
           "print(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
  // The text constants are two-letter capitals only; lowercase spellings are
  // ordinary identifiers, with the diagnostic naming the constant meant.
- bad_code("string s = ht\n", "UNKNOWN_NAME");
- (void)quidra::compile("string ht = \"x\"\nstring nl = ht\nprint(nl)\n");
- bad_code("string s = \"A{nl}B\"\n", "UNKNOWN_NAME");
+ bad_code("string s := ht\n", "UNKNOWN_NAME");
+ (void)quidra::compile("string ht := \"x\"\nstring nl := ht\nprint(nl)\n");
+ bad_code("string s := \"A{nl}B\"\n", "UNKNOWN_NAME");
  {
      bool hinted = false;
-     try { (void)quidra::compile("string s = bs\n"); }
+     try { (void)quidra::compile("string s := bs\n"); }
      catch (const quidra::CompileErrors& errors) {
          for (const auto& d : errors.diagnostics())
              if (d.code == "UNKNOWN_NAME" && d.message.find("spelled 'BS'") != std::string::npos) hinted = true;
@@ -7633,121 +7633,121 @@ values[0] = partial
  bad_code("Missing value\n", "UNKNOWN_TYPE");
  // The spellings that the numeric families replaced are released: they name
  // no type or namespace any more and are ordinary identifiers again.
- bad_code("uint8 value = 1\n", "UNKNOWN_TYPE");
- bad_code("uint64 value = 1\n", "UNKNOWN_TYPE");
- bad_code("float value = 1.0\n", "UNKNOWN_TYPE");
- bad_code("float32 value = 1.0\n", "UNKNOWN_TYPE");
- bad_code("float64 value = 1.0\n", "UNKNOWN_TYPE");
- bad_code("bigreal value = 1.0\n", "UNKNOWN_TYPE");
- bad_code("real value = exact.atom(\"test-provider\", 1)\n", "UNKNOWN_NAME");
- bad_code("auto generator = random.generator(1)\nreal64 value = generator.float()\n", "UNKNOWN_MEMBER");
- good("int float = 3\nint uint8 = 4\nint bigreal = float + uint8\nprint(bigreal)\n");
- good("int exact = 1\nprint(exact)\n");
- bad_code("real64 value = 1.0e9999\n", "REAL_RANGE");
+ bad_code("uint8 value := 1\n", "UNKNOWN_TYPE");
+ bad_code("uint64 value := 1\n", "UNKNOWN_TYPE");
+ bad_code("float value := 1.0\n", "UNKNOWN_TYPE");
+ bad_code("float32 value := 1.0\n", "UNKNOWN_TYPE");
+ bad_code("float64 value := 1.0\n", "UNKNOWN_TYPE");
+ bad_code("bigreal value := 1.0\n", "UNKNOWN_TYPE");
+ bad_code("real value := exact.atom(\"test-provider\", 1)\n", "UNKNOWN_NAME");
+ bad_code("generator := random.generator(1)\nreal64 value := generator.float()\n", "UNKNOWN_MEMBER");
+ good("int float := 3\nint uint8 := 4\nint bigreal := float + uint8\nprint(bigreal)\n");
+ good("int exact := 1\nprint(exact)\n");
+ bad_code("real64 value := 1.0e9999\n", "REAL_RANGE");
  bad_code("import math\n", "IMPORT_CONTEXT");
- bad_code("auto loaded = vision.read<nat8>(\"input.png\")\n", "GENERIC_RECEIVER");
- bad_code("auto loaded = vision.read(\"input.png\")\n", "UNKNOWN_NAME");
+ bad_code("loaded := vision.read<nat8>(\"input.png\")\n", "GENERIC_RECEIVER");
+ bad_code("loaded := vision.read(\"input.png\")\n", "UNKNOWN_NAME");
  bad_code("print(math.sqrt(real64(16.0)))\n", "UNKNOWN_NAME");
- good("tensor<real32> grid = tensor.zeros<real32>([2, 2])\nprint(grid.shape()[0])\n");
- bad_code("tensor<real64> x = tensor.ones<real64>([1])\nauto y = x.abs()\n", "UNKNOWN_MEMBER");
- bad_code("tensor<real64> x = tensor.ones<real64>([1])\nauto y = x.exp()\n", "UNKNOWN_MEMBER");
- bad_code("tensor<real64> x = tensor.ones<real64>([1])\nauto y = x.log()\n", "UNKNOWN_MEMBER");
- bad_code("tensor<real64> x = tensor.ones<real64>([1])\nauto y = x.sqrt()\n", "UNKNOWN_MEMBER");
+ good("tensor<real32> grid := tensor.zeros<real32>([2, 2])\nprint(grid.shape()[0])\n");
+ bad_code("tensor<real64> x := tensor.ones<real64>([1])\ny := x.abs()\n", "UNKNOWN_MEMBER");
+ bad_code("tensor<real64> x := tensor.ones<real64>([1])\ny := x.exp()\n", "UNKNOWN_MEMBER");
+ bad_code("tensor<real64> x := tensor.ones<real64>([1])\ny := x.log()\n", "UNKNOWN_MEMBER");
+ bad_code("tensor<real64> x := tensor.ones<real64>([1])\ny := x.sqrt()\n", "UNKNOWN_MEMBER");
 
  // exact.* is a package-neutral Core mechanism. Providers and opcodes are
  // opaque to Core; packages own the mathematical meaning.
- good(R"(real input = real(2)
-real result = real.unary("test-provider", 7, input)
+ good(R"(real input := real(2)
+real result := real.unary("test-provider", 7, input)
 print(result.string())
 print(NL)
 )");
- llvm_contains(R"(real input = real(2)
-real result = real.unary("test-provider", 7, input)
+ llvm_contains(R"(real input := real(2)
+real result := real.unary("test-provider", 7, input)
 )", "@qcore_exact_real_unary");
- bad_code(R"(string provider = "test-provider"
-real input = real(2)
-real result = real.unary(provider, 7, input)
+ bad_code(R"(string provider := "test-provider"
+real input := real(2)
+real result := real.unary(provider, 7, input)
 )", "EXACT_PROVIDER");
- bad_code(R"(int opcode = 7
-real input = real(2)
-real result = real.unary("test-provider", opcode, input)
+ bad_code(R"(int opcode := 7
+real input := real(2)
+real result := real.unary("test-provider", opcode, input)
 )", "EXACT_PROVIDER");
- good(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-tensor<int64>{2} b = tensor.ones<int64>([2])
-tensor<bool>{2} eq = a == b
-tensor<bool>{2} ne = a != b
-tensor<bool>{2} lt = a < b
-tensor<bool>{2} le = a <= b
-tensor<bool>{2} gt = a > b
-tensor<bool>{2} ge = a >= b
-bool same = eq.all()
-bool different = ne.any()
-tensor<bool>{2} scalar_left = 1 < a
-tensor<bool>{2} scalar_right = a >= 1
+ good(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<int64>{2} b := tensor.ones<int64>([2])
+tensor<bool>{2} eq := a == b
+tensor<bool>{2} ne := a != b
+tensor<bool>{2} lt := a < b
+tensor<bool>{2} le := a <= b
+tensor<bool>{2} gt := a > b
+tensor<bool>{2} ge := a >= b
+bool same := eq.all()
+bool different := ne.any()
+tensor<bool>{2} scalar_left := 1 < a
+tensor<bool>{2} scalar_right := a >= 1
 )");
- llvm_contains(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-tensor<int64>{2} b = tensor.ones<int64>([2])
-tensor<bool>{2} mask = a == b
-bool same = mask.all()
+ llvm_contains(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<int64>{2} b := tensor.ones<int64>([2])
+tensor<bool>{2} mask := a == b
+bool same := mask.all()
 )", "@quidra_tensor_compare");
- llvm_contains(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-bool any = (a != 1).any()
+ llvm_contains(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+bool any := (a != 1).any()
 )", "@quidra_tensor_bool_reduce");
- bad_code(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-tensor<int64>{3} b = tensor.ones<int64>([3])
-tensor<bool> same = a == b
+ bad_code(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<int64>{3} b := tensor.ones<int64>([3])
+tensor<bool> same := a == b
 )", "TENSOR_SHAPE");
- good(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-tensor<bool>{2} same = a == 1
-tensor<bool>{2} reverse = 1 == a
+ good(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<bool>{2} same := a == 1
+tensor<bool>{2} reverse := 1 == a
 )");
- bad_code(R"(tensor<int64>{2} a = tensor.ones<int64>([2])
-tensor<bool> bad = a == int32(1)
+ bad_code(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<bool> bad := a == int32(1)
 )", "TYPE_MISMATCH");
- good(R"(tensor<bool> empty = tensor.zeros<bool>([0])
-bool all_empty = empty.all()
-bool any_empty = empty.any()
+ good(R"(tensor<bool> empty := tensor.zeros<bool>([0])
+bool all_empty := empty.all()
+bool any_empty := empty.any()
 )");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
- bad_code("void[] values = []\n", "INVALID_TYPE");
+ bad_code("void[] values := []\n", "INVALID_TYPE");
  bad_code("auto value = 1e\n", "LEX_ERROR");
  bad_code("Missing<int> value\n", "UNKNOWN_GENERIC");
  bad_code(R"(class A()
-    int x = 0
-A value = A()
+    int x := 0
+A value := A()
 print(value.missing<int>(1))
 print(NL)
 )", "UNKNOWN_GENERIC_METHOD");
- bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
+ bad_code("int[] values := [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
 
  // Tensor shape patterns fix rank exactly; '_' keeps only that extent unconstrained.
- good(R"(tensor<real32>{2, 3} matrix = tensor.zeros<real32>([2, 3])
-nat[2] dimensions = matrix.shape()
-tensor<real32> erased = matrix
-nat[2] inferred_dimensions = erased.shape()
-tensor<real32>{3} row = matrix[0]
-tensor<real32>{2} column = matrix[:, 0]
-tensor<real32> cell = matrix[0, 0]
-real32 value = cell.item()
-tensor<real32>{6} reshaped = matrix.reshape([6])
-tensor<real32>{2, 3} contiguous = matrix.contiguous()
-tensor<real64>{2, 3} converted = real64(matrix)
+ good(R"(tensor<real32>{2, 3} matrix := tensor.zeros<real32>([2, 3])
+nat[2] dimensions := matrix.shape()
+tensor<real32> erased := matrix
+nat[2] inferred_dimensions := erased.shape()
+tensor<real32>{3} row := matrix[0]
+tensor<real32>{2} column := matrix[:, 0]
+tensor<real32> cell := matrix[0, 0]
+real32 value := cell.item()
+tensor<real32>{6} reshaped := matrix.reshape([6])
+tensor<real32>{2, 3} contiguous := matrix.contiguous()
+tensor<real64>{2, 3} converted := real64(matrix)
 )");
  good(R"(tensor<T>{3, _} first_three<T>(tensor<T>{3, _} value)
     return value
-tensor<real32> source = tensor.ones<real32>([3, 2])
-tensor<real32>{3, _} constrained = first_three(source)
+tensor<real32> source := tensor.ones<real32>([3, 2])
+tensor<real32>{3, _} constrained := first_three(source)
 )");
  // Generic dtype inference may proceed through an unknown shape, but the
  // specialized call still enforces the exact-rank shape pattern.
  bad_code(R"(tensor<T>{3, _} first_three<T>(tensor<T>{3, _} value)
     return value
-tensor<real32> source = tensor.ones<real32>([2, 2])
-tensor<real32>{3, _} constrained = first_three(source)
+tensor<real32> source := tensor.ones<real32>([2, 2])
+tensor<real32>{3, _} constrained := first_three(source)
 )", "TYPE_MISMATCH");
- good(R"(tensor<real32> | error direct = tensor.zeros<real32>([2, 2])
-tensor<real32>{2, _} | error constrained = tensor.ones<real32>([2, 2])
-tensor<real32> | error widened = constrained
+ good(R"(tensor<real32> | error direct := tensor.zeros<real32>([2, 2])
+tensor<real32>{2, _} | error constrained := tensor.ones<real32>([2, 2])
+tensor<real32> | error widened := constrained
 match widened
     tensor<real32> pixels
         print(pixels.shape()[0])
@@ -7756,77 +7756,77 @@ match widened
         print(problem)
         print(NL)
 )");
- bad_code("tensor<real32>{3, _} wrong = tensor.zeros<real32>([2, 2])\n", "TYPE_MISMATCH");
- bad_code("tensor<real32>{2, 4} wrong = tensor.zeros<real32>([2, 3])\n", "TYPE_MISMATCH");
- bad_code("tensor<real32>{3, _} wrong_rank = tensor.zeros<real32>([3, 4, 5])\n", "TYPE_MISMATCH");
- good("tensor<real32>{3, _, _} exact_rank = tensor.zeros<real32>([3, 4, 5])\n");
- good(R"(tensor<real32> contextual_dtype = tensor.zeros([2, 3])
-nat[2] contextual_shape = contextual_dtype.shape()
-tensor<real32>{2, 3} contextual_exact = tensor.ones([2, 3])
+ bad_code("tensor<real32>{3, _} wrong := tensor.zeros<real32>([2, 2])\n", "TYPE_MISMATCH");
+ bad_code("tensor<real32>{2, 4} wrong := tensor.zeros<real32>([2, 3])\n", "TYPE_MISMATCH");
+ bad_code("tensor<real32>{3, _} wrong_rank := tensor.zeros<real32>([3, 4, 5])\n", "TYPE_MISMATCH");
+ good("tensor<real32>{3, _, _} exact_rank := tensor.zeros<real32>([3, 4, 5])\n");
+ good(R"(tensor<real32> contextual_dtype := tensor.zeros([2, 3])
+nat[2] contextual_shape := contextual_dtype.shape()
+tensor<real32>{2, 3} contextual_exact := tensor.ones([2, 3])
 )");
- bad_code("auto missing_dtype = tensor.zeros([2, 3])\n", "GENERIC_ARITY");
- good(R"(auto generated = tensor.zeros<real32>([2, 3])
-nat[2] generated_shape = generated.shape()
+ bad_code("missing_dtype := tensor.zeros([2, 3])\n", "GENERIC_ARITY");
+ good(R"(generated := tensor.zeros<real32>([2, 3])
+nat[2] generated_shape := generated.shape()
 )");
- bad_code(R"(auto generated = tensor.zeros<real32>([2, 3])
-tensor<real32>{2, 4} impossible = generated
+ bad_code(R"(generated := tensor.zeros<real32>([2, 3])
+tensor<real32>{2, 4} impossible := generated
 )", "TYPE_MISMATCH");
- bad_code(R"(tensor<real32>{2, 3} source = tensor.zeros<real32>([2, 3])
-auto transposed = source.transpose(0, 1)
-tensor<real32>{2, 3} impossible = transposed
+ bad_code(R"(tensor<real32>{2, 3} source := tensor.zeros<real32>([2, 3])
+transposed := source.transpose(0, 1)
+tensor<real32>{2, 3} impossible := transposed
 )", "TYPE_MISMATCH");
- good(R"(tensor<real32>{2, 3} source = tensor.zeros<real32>([2, 3])
-auto transposed = source.transpose(0, 1)
-tensor<real32>{3, 2} exact_shape = transposed
-auto reshaped = source.reshape([3, 2])
-tensor<real32>{3, 2} reshaped_exact = reshaped
+ good(R"(tensor<real32>{2, 3} source := tensor.zeros<real32>([2, 3])
+transposed := source.transpose(0, 1)
+tensor<real32>{3, 2} exact_shape := transposed
+reshaped := source.reshape([3, 2])
+tensor<real32>{3, 2} reshaped_exact := reshaped
 )");
- bad_code(R"(tensor<real32>{2, 3} source = tensor.zeros<real32>([2, 3])
-auto reshaped = source.reshape([3, 2])
-tensor<real32>{2, 3} impossible = reshaped
+ bad_code(R"(tensor<real32>{2, 3} source := tensor.zeros<real32>([2, 3])
+reshaped := source.reshape([3, 2])
+tensor<real32>{2, 3} impossible := reshaped
 )", "TYPE_MISMATCH");
  ir_contains(R"(tensor<real32> erase_shape(tensor<real32> value)
     return value
-auto unknown = erase_shape(tensor.zeros<real32>([2, 3]))
-tensor<real32>{2, 4} checked_at_runtime = unknown
+unknown := erase_shape(tensor.zeros<real32>([2, 3]))
+tensor<real32>{2, 4} checked_at_runtime := unknown
 )", "shape.constraint");
- bad_code(R"(tensor<real32>{2, 3} source = tensor.zeros<real32>([2, 3])
-auto invalid = source.transpose(0, 2)
+ bad_code(R"(tensor<real32>{2, 3} source := tensor.zeros<real32>([2, 3])
+invalid := source.transpose(0, 2)
 )", "ARGUMENT_MISMATCH");
  // The static shape of tensor arithmetic follows the broadcast rule: a 1
  // takes the other side's extent, 0 included, in either operand order, so
  // these results are known exactly (and shapes cannot be misreported as the
  // left operand's).
- good(R"(tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-tensor<real32>{0, 3} empty = tensor.zeros<real32>([0, 3])
-tensor<real32>{2, 3} two = tensor.ones<real32>([2, 3])
-tensor<real32>{0, 3} one_empty = one + empty
-tensor<real32>{0, 3} empty_one = empty * one
-tensor<real32>{2, 3} one_two = one - two
-tensor<real32>{2, 3} two_one = two / one
-tensor<real32>{1, 3} one_one = one + one
-tensor<real32>{0, 3} scalar = empty + real32(2)
+ good(R"(tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+tensor<real32>{0, 3} empty := tensor.zeros<real32>([0, 3])
+tensor<real32>{2, 3} two := tensor.ones<real32>([2, 3])
+tensor<real32>{0, 3} one_empty := one + empty
+tensor<real32>{0, 3} empty_one := empty * one
+tensor<real32>{2, 3} one_two := one - two
+tensor<real32>{2, 3} two_one := two / one
+tensor<real32>{1, 3} one_one := one + one
+tensor<real32>{0, 3} scalar := empty + real32(2)
 )");
- good(R"(tensor<real32> one = tensor.ones<real32>([1, 3])
-tensor<real32> empty = tensor.zeros<real32>([0, 3])
-tensor<real32> flow = one + empty
-tensor<real32>{0, 3} refined = flow
+ good(R"(tensor<real32> one := tensor.ones<real32>([1, 3])
+tensor<real32> empty := tensor.zeros<real32>([0, 3])
+tensor<real32> flow := one + empty
+tensor<real32>{0, 3} refined := flow
 )");
- bad_code(R"(tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-tensor<real32>{0, 3} empty = tensor.zeros<real32>([0, 3])
-tensor<real32>{1, 3} stale = one + empty
+ bad_code(R"(tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+tensor<real32>{0, 3} empty := tensor.zeros<real32>([0, 3])
+tensor<real32>{1, 3} stale := one + empty
 )", "TYPE_MISMATCH");
- bad_code(R"(tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-tensor<real32>{2, 3} two = tensor.ones<real32>([2, 3])
-tensor<real32>{1, 3} stale = one * two
+ bad_code(R"(tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+tensor<real32>{2, 3} two := tensor.ones<real32>([2, 3])
+tensor<real32>{1, 3} stale := one * two
 )", "TYPE_MISMATCH");
  // A 1 against an unknown extent leaves the result extent open: checked at
  // runtime, not rejected.
  ir_contains(R"(tensor<real32> erase_shape(tensor<real32> value)
     return value
-tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-auto unknown = erase_shape(tensor.zeros<real32>([4, 3]))
-tensor<real32>{4, 3} checked_at_runtime = one + unknown
+tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+unknown := erase_shape(tensor.zeros<real32>([4, 3]))
+tensor<real32>{4, 3} checked_at_runtime := one + unknown
 )", "shape.constraint");
  // A 1 against an extent known to be 1 keeps the 1 in the result's source
  // pattern, whether the right operand's 1 comes from its pattern, a `_`
@@ -7839,21 +7839,21 @@ real32 first(const tensor<real32>{1, 3} x)
     return x[0, 0].item()
 T pick<T>(T first_value, T second_value)
     return first_value
-tensor<real32>{1, 3} a = tensor.ones<real32>([1, 3])
-tensor<real32>{1, 3} patterned = tensor.ones<real32>([1, 3])
-tensor<real32>{_, 3} wildcard = tensor.ones<real32>([1, 3])
-tensor<real32> flow = tensor.ones<real32>([1, 3])
-auto from_pattern = a + patterned
+tensor<real32>{1, 3} a := tensor.ones<real32>([1, 3])
+tensor<real32>{1, 3} patterned := tensor.ones<real32>([1, 3])
+tensor<real32>{_, 3} wildcard := tensor.ones<real32>([1, 3])
+tensor<real32> flow := tensor.ones<real32>([1, 3])
+from_pattern := a + patterned
 bump(&from_pattern)
-auto from_wildcard = a - wildcard
+from_wildcard := a - wildcard
 bump(&from_wildcard)
-auto from_flow = a * flow
+from_flow := a * flow
 bump(&from_flow)
-auto from_constructor = a / tensor.ones<real32>([1, 3])
+from_constructor := a / tensor.ones<real32>([1, 3])
 bump(&from_constructor)
-real32 value = first(from_flow)
-auto picked = pick(a + flow, a)
-auto items = [a + flow, a]
+real32 value := first(from_flow)
+picked := pick(a + flow, a)
+items := [a + flow, a]
 )");
  // Against an unknown extent the result axis is a wildcard, so its type is
  // no longer the left operand's: a reference argument needs a binding
@@ -7862,18 +7862,18 @@ auto items = [a + flow, a]
     return value
 void bump(tensor<real32>{1, 3} &x)
     x = x * real32(2)
-tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-auto unknown = erase_shape(tensor.ones<real32>([1, 3]))
-auto result = one + unknown
+tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+unknown := erase_shape(tensor.ones<real32>([1, 3]))
+result := one + unknown
 bump(&result)
 )", "TYPE_MISMATCH", "Reference arguments require identical declared types");
  good(R"(tensor<real32> erase_shape(tensor<real32> value)
     return value
 void bump(tensor<real32>{1, 3} &x)
     x = x * real32(2)
-tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-auto unknown = erase_shape(tensor.ones<real32>([1, 3]))
-tensor<real32>{1, 3} result = one + unknown
+tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+unknown := erase_shape(tensor.ones<real32>([1, 3]))
+tensor<real32>{1, 3} result := one + unknown
 bump(&result)
 )");
  // The wildcard also keeps facts derived from the result honest: keeping
@@ -7882,33 +7882,33 @@ bump(&result)
  // Each one is checked at runtime instead.
  good(R"(tensor<real32> erase_shape(tensor<real32> value)
     return value
-tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-auto unknown = erase_shape(tensor.ones<real32>([2, 3]))
-auto turned = (one + unknown).transpose(0, 1)
-tensor<real32>{3, 2} wide = turned
-tensor<real32>{3, 0} empty = turned
-tensor<real32>{3, 1} narrow = turned
+tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+unknown := erase_shape(tensor.ones<real32>([2, 3]))
+turned := (one + unknown).transpose(0, 1)
+tensor<real32>{3, 2} wide := turned
+tensor<real32>{3, 0} empty := turned
+tensor<real32>{3, 1} narrow := turned
 )");
  ir_contains(R"(tensor<real32> erase_shape(tensor<real32> value)
     return value
-tensor<real32>{1, 3} one = tensor.ones<real32>([1, 3])
-auto unknown = erase_shape(tensor.ones<real32>([0, 3]))
-tensor<real32>{3, 0} empty = (one + unknown).transpose(0, 1)
+tensor<real32>{1, 3} one := tensor.ones<real32>([1, 3])
+unknown := erase_shape(tensor.ones<real32>([0, 3]))
+tensor<real32>{3, 0} empty := (one + unknown).transpose(0, 1)
 )", "shape.constraint");
  good(R"(T identity<T>(T value)
     return value
-int integer_value = 1
-real64 float_value = 1.0
-int integer_result = identity(integer_value)
-real64 float_result = identity(float_value)
+int integer_value := 1
+real64 float_value := 1.0
+int integer_result := identity(integer_value)
+real64 float_result := identity(float_value)
 )");
- bad_code("tensor<real32>{2, 3} value = tensor.ones<real32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
+ bad_code("tensor<real32>{2, 3} value := tensor.ones<real32>([2, 3])\nint[3] wrong_shape := value.shape()\n", "TYPE_MISMATCH");
  good(R"(tensor<real32> erase(tensor<real32> value)
     return value
-tensor<real32>{2, _} known = erase(tensor.zeros<real32>([2, 2]))
+tensor<real32>{2, _} known := erase(tensor.zeros<real32>([2, 2]))
 )");
- bad_code("tensor<real32> value = tensor.ones<real32>([1])\nreal32 scalar = value.item()\n", "TYPE_MISMATCH");
- bad_code("tensor<real32>{2, 2} value = tensor.ones<real32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
+ bad_code("tensor<real32> value := tensor.ones<real32>([1])\nreal32 scalar := value.item()\n", "TYPE_MISMATCH");
+ bad_code("tensor<real32>{2, 2} value := tensor.ones<real32>([2, 2])\nbad := value[0, 0, 0]\n", "INDEX_ARITY");
 
  // Shape-pattern match cases select only exact-rank compatible tensor alternatives.
  good(R"(void classify(tensor<real32>{3, 4} | tensor<real32>{1, 4} value)
@@ -7934,58 +7934,58 @@ tensor<real32>{2, _} known = erase(tensor.zeros<real32>([2, 2]))
 )", "MATCH_CASE");
 
  // Tracking preserves the tensor's exact shape contract.
- good(R"(tensor<real32> source = tensor.ones<real32>([3, 8, 8])
-tensor<real32>{3, _, _} value = source.track()
-tensor<real32>{3, _, _} restored = value.untrack()
+ good(R"(tensor<real32> source := tensor.ones<real32>([3, 8, 8])
+tensor<real32>{3, _, _} value := source.track()
+tensor<real32>{3, _, _} restored := value.untrack()
 )");
- good(R"(tensor<real64> source = tensor.ones<real64>([2, 4])
-tensor<real64>{2, _} value = source.track()
-tensor<real64>{2, _} restored = value.untrack()
+ good(R"(tensor<real64> source := tensor.ones<real64>([2, 4])
+tensor<real64>{2, _} value := source.track()
+tensor<real64>{2, _} restored := value.untrack()
 )");
- bad_code(R"(tensor<real32> source = tensor.ones<real32>([3, 8, 8])
-tensor<real32>{3, _} wrong = source.track()
+ bad_code(R"(tensor<real32> source := tensor.ones<real32>([3, 8, 8])
+tensor<real32>{3, _} wrong := source.track()
 )", "TYPE_MISMATCH");
 
  // Dependent shape expressions in function signatures are checked at the boundary.
  good(R"(tensor<real64>{nat(n), 2} keep_shape(int n, tensor<real64>{nat(n), 2} value)
     return value
-tensor<real64> unknown = tensor.ones<real64>([3, 2])
-tensor<real64>{3, 2} checked = keep_shape(3, unknown)
+tensor<real64> unknown := tensor.ones<real64>([3, 2])
+tensor<real64>{3, 2} checked := keep_shape(3, unknown)
 )");
  good(R"(int[][nat(n)] keep_rows(int n, int[][nat(n)] rows)
     return rows
-int[][] dynamic_rows = [[1, 2], [3, 4]]
-int[][] checked_rows = keep_rows(2, dynamic_rows)
+int[][] dynamic_rows := [[1, 2], [3, 4]]
+int[][] checked_rows := keep_rows(2, dynamic_rows)
 )");
 
  // Runtime extent expressions are captured per binding; mutable sources remain legal.
- good(R"(int n = 3
-int m = 4
-tensor<real64>{nat(n * 2 + 1), 224} captured = tensor.ones<real64>([7, 224])
+ good(R"(int n := 3
+int m := 4
+tensor<real64>{nat(n * 2 + 1), 224} captured := tensor.ones<real64>([7, 224])
 n = 10
-tensor<real64>{nat(n), 224} later = tensor.ones<real64>([10, 224])
+tensor<real64>{nat(n), 224} later := tensor.ones<real64>([10, 224])
 real64[nat(n * m)] dynamic_fixed
 dynamic_fixed[0] = 1.0
-tensor<real64>{3, 224} contextual = tensor.zeros()
-tensor<real64>{_, 224} explicit_shape = tensor.zeros([3, 224])
+tensor<real64>{3, 224} contextual := tensor.zeros()
+tensor<real64>{_, 224} explicit_shape := tensor.zeros([3, 224])
 )");
- bad_code(R"(int n = 3
-tensor<real64>{nat(n), 224} wrong = tensor.ones<real64>([3, 224, 1])
+ bad_code(R"(int n := 3
+tensor<real64>{nat(n), 224} wrong := tensor.ones<real64>([3, 224, 1])
 )", "TYPE_MISMATCH");
 
  // Numeric container casts preserve array structure and tensor shape facts.
- good(R"(int[][] values = [[1, 2], [3, 4]]
-real64[][] converted = real64(values)
-int[2][2] fixed = [[1, 2], [3, 4]]
-real64[2][2] fixed_converted = real64(fixed)
-tensor<int64>{2, 2} matrix = tensor.ones<int64>([2, 2])
-tensor<real64>{2, 2} tensor_converted = real64(matrix)
-tensor<real32>{2, 2} tracked_source = tensor.ones<real32>([2, 2])
-tensor<real32>{2, 2} tracked = tracked_source.track()
-tensor<real64>{2, 2} tracked_converted = real64(tracked.untrack())
+ good(R"(int[][] values := [[1, 2], [3, 4]]
+real64[][] converted := real64(values)
+int[2][2] fixed := [[1, 2], [3, 4]]
+real64[2][2] fixed_converted := real64(fixed)
+tensor<int64>{2, 2} matrix := tensor.ones<int64>([2, 2])
+tensor<real64>{2, 2} tensor_converted := real64(matrix)
+tensor<real32>{2, 2} tracked_source := tensor.ones<real32>([2, 2])
+tensor<real32>{2, 2} tracked := tracked_source.track()
+tensor<real64>{2, 2} tracked_converted := real64(tracked.untrack())
 )");
- good(R"(int[] values = [1, 300]
-auto | error narrowed = int8(values)
+ good(R"(int[] values := [1, 300]
+int8 | error narrowed := int8(values)
 match narrowed
     int8[] converted
         print(converted[0])
@@ -7993,8 +7993,8 @@ match narrowed
     error problem
         print(problem)
         print(NL)
-tensor<int64>{2, 2} matrix = tensor.ones<int64>([2, 2])
-auto | error tensor_narrowed = int8(matrix)
+tensor<int64>{2, 2} matrix := tensor.ones<int64>([2, 2])
+tensor<int8>{2, 2} | error tensor_narrowed := int8(matrix)
 match tensor_narrowed
     tensor<int8>{2, 2} converted
         print(converted[0, 0].item())
@@ -8003,8 +8003,8 @@ match tensor_narrowed
         print(problem)
         print(NL)
 )");
- llvm_contains(R"(int[] values = [1, 300]
-auto | error narrowed = int8(values)
+ llvm_contains(R"(int[] values := [1, 300]
+int8 | error narrowed := int8(values)
 match narrowed
     int8[] converted
         print(converted[0])
@@ -8013,8 +8013,8 @@ match narrowed
         print(problem)
         print(NL)
 )", "@quidra_array_cast_validate_");
- llvm_contains(R"(tensor<int64> values = tensor.ones<int64>([2])
-auto | error narrowed = int8(values)
+ llvm_contains(R"(tensor<int64> values := tensor.ones<int64>([2])
+int8 | error narrowed := int8(values)
 match narrowed
     tensor<int8> converted
         print(converted[0].item())
@@ -8023,54 +8023,54 @@ match narrowed
         print(problem)
         print(NL)
 )", "@quidra_tensor_try_cast");
- bad_code("int[] values = [1, 2]\nreal64[] converted = values\n", "TYPE_MISMATCH");
- good("real64[] values = [1.0, 2.0]\nint[] converted = int(values)\n");
- bad_code("tensor<real64> values = tensor.ones<real64>([2])\nauto converted = int(values)\n", "NUMERIC_CAST");
- bad_code("tensor<int64> values = tensor.ones<int64>([2])\nauto converted = values.cast<real64>()\n", "UNKNOWN_MEMBER");
+ bad_code("int[] values := [1, 2]\nreal64[] converted := values\n", "TYPE_MISMATCH");
+ good("real64[] values := [1.0, 2.0]\nint[] converted := int(values)\n");
+ bad_code("tensor<real64> values := tensor.ones<real64>([2])\nconverted := int(values)\n", "NUMERIC_CAST");
+ bad_code("tensor<int64> values := tensor.ones<int64>([2])\nconverted := values.cast<real64>()\n", "UNKNOWN_MEMBER");
 
  // Tensor flow facts weaken at joins. A later exact-shape binding accepts the
  // unknown fact set and emits a runtime constraint check.
  good(R"(void branch_shape(bool flag)
-    tensor<real32> value = tensor.zeros<real32>([3, 4])
+    tensor<real32> value := tensor.zeros<real32>([3, 4])
     if flag
         value = tensor.zeros<real32>([3, 5])
-    tensor<real32>{3, 4} exact_shape = value
+    tensor<real32>{3, 4} exact_shape := value
 )");
  bad_code(R"(void branch_rank(bool flag)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
     if flag
         value = tensor.zeros<real32>([2, 2, 2])
-    int[2] dimensions = value.shape()
+    int[2] dimensions := value.shape()
 )", "TYPE_MISMATCH");
  bad_code(R"(void while_rank(bool flag)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
     while flag
         value = tensor.zeros<real32>([2, 2, 2])
         flag = false
-    int[2] dimensions = value.shape()
+    int[2] dimensions := value.shape()
 )", "TYPE_MISMATCH");
  bad_code(R"(void for_rank(int[] items)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
-    for auto item = items[]
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
+    for item := items[]
         value = tensor.zeros<real32>([2, 2, 2])
-    int[2] dimensions = value.shape()
+    int[2] dimensions := value.shape()
 )", "TYPE_MISMATCH");
  bad_code(R"(void match_rank(int | string choice)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
     match choice
         int
             value = tensor.zeros<real32>([2, 2, 2])
         string
             value = tensor.zeros<real32>([2, 2])
-    int[2] dimensions = value.shape()
+    int[2] dimensions := value.shape()
 )", "TYPE_MISMATCH");
 
  // Device placement is runtime/compiler metadata, not part of the nominal tensor type.
- good(R"(tensor<real32> cpu = tensor.zeros<real32>([2])
-tensor<real32> direct_gpu = tensor.zeros<real32>([2], gpu = 0)
-tensor<real32>{2} contextual_gpu = tensor.ones(gpu = 1)
-tensor<real32> copied = cpu.gpu(0)
-tensor<real32> returned = copied.cpu()
+ good(R"(tensor<real32> cpu := tensor.zeros<real32>([2])
+tensor<real32> direct_gpu := tensor.zeros<real32>([2], gpu = 0)
+tensor<real32>{2} contextual_gpu := tensor.ones(gpu = 1)
+tensor<real32> copied := cpu.gpu(0)
+tensor<real32> returned := copied.cpu()
 )");
  good("gpu.sync(0)\ngpu.sync(index = 1)\n");
  bad_message("gpu.sync(-1)\n",
@@ -8079,94 +8079,94 @@ tensor<real32> returned = copied.cpu()
  bad_code("gpu.sync(0, 1)\n", "ARGUMENT_MISMATCH");
  bad_code("gpu.sync(1.0)\n", "NUMERIC_FAMILY");
  llvm_contains("gpu.sync(0)\n", "@quidra_gpu_sync");
- bad_message("auto value = tensor.zeros<real32>([1], gpu = -1)\n",
+ bad_message("value := tensor.zeros<real32>([1], gpu = -1)\n",
              "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat.");
- bad_message("auto value = tensor.zeros<real32>([1], gpu = 1.5)\n",
+ bad_message("value := tensor.zeros<real32>([1], gpu = 1.5)\n",
              "NUMERIC_FAMILY", "A real literal cannot materialize as nat.");
- bad_code("auto value = tensor.zeros<real32>([1], device = 0)\n",
+ bad_code("value := tensor.zeros<real32>([1], device = 0)\n",
           "ARGUMENT_MISMATCH");
- bad_message("auto value = tensor.zeros<real32>([1])\nauto moved = value.gpu()\n",
+ bad_message("value := tensor.zeros<real32>([1])\nmoved := value.gpu()\n",
              "ARGUMENT_MISMATCH", "requires exactly one positional integer GPU index");
- bad_message("auto value = tensor.zeros<real32>([1])\nauto moved = value.gpu(-1)\n",
+ bad_message("value := tensor.zeros<real32>([1])\nmoved := value.gpu(-1)\n",
              "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat.");
- bad_message("auto value = tensor.zeros<real32>([1])\nauto moved = value.cpu(0)\n",
+ bad_message("value := tensor.zeros<real32>([1])\nmoved := value.cpu(0)\n",
              "ARGUMENT_MISMATCH", "takes no arguments");
 
  // Explicit transfer remains an observable IR boundary; it must not be folded
  // into the preceding allocation or relocate earlier arithmetic.
- const std::string explicit_gpu_transfer = R"(tensor<real32> source = tensor.zeros<real32>([2])
-tensor<real32> moved = source.gpu(0)
+ const std::string explicit_gpu_transfer = R"(tensor<real32> source := tensor.zeros<real32>([2])
+tensor<real32> moved := source.gpu(0)
 )";
  ir_contains(explicit_gpu_transfer, "tensor.create");
  ir_contains(explicit_gpu_transfer, " cpu");
  ir_contains(explicit_gpu_transfer, "tensor.gpu");
- const std::string post_compute_transfer = R"(tensor<real32> left = tensor.ones<real32>([2])
-tensor<real32> right = tensor.ones<real32>([2])
-tensor<real32> sum = left + right
-tensor<real32> moved = sum.gpu(0)
+ const std::string post_compute_transfer = R"(tensor<real32> left := tensor.ones<real32>([2])
+tensor<real32> right := tensor.ones<real32>([2])
+tensor<real32> sum := left + right
+tensor<real32> moved := sum.gpu(0)
 )";
  ir_contains(post_compute_transfer, "tensor.binary");
  ir_contains(post_compute_transfer, "tensor.gpu");
  llvm_contains(
-     "auto value = tensor.zeros<real32>([1], gpu = 0)\n",
+     "value := tensor.zeros<real32>([1], gpu = 0)\n",
      "@quidra_tensor_create");
  llvm_contains(
-     "auto value = tensor.zeros<real32>([1])\nauto moved = value.gpu(0)\n",
+     "value := tensor.zeros<real32>([1])\nmoved := value.gpu(0)\n",
      "@quidra_tensor_to_gpu");
  llvm_contains(
-     "auto value = tensor.zeros<real32>([1])\nauto moved = value.cpu()\n",
+     "value := tensor.zeros<real32>([1])\nmoved := value.cpu()\n",
      "@quidra_tensor_to_cpu");
 
  // Loop-carried tensor facts must be weakened before checking the loop body.
  good(R"(void loop_backedge(bool flag)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
     while flag
-        auto product = value + value
+        product := value + value
         value = tensor.zeros<real32>([2, 2, 2])
         flag = false
 )");
  good(R"(void for_backedge(int[] items)
-    tensor<real32> value = tensor.zeros<real32>([2, 2])
-    for auto item = items[]
-        auto product = value + value
+    tensor<real32> value := tensor.zeros<real32>([2, 2])
+    for item := items[]
+        product := value + value
         value = tensor.zeros<real32>([2, 2, 2])
 )");
 
  // Storage addresses are observable only through print and identity equality.
- good(R"(int x = 1
-int &alias = &x
-int other = 1
+ good(R"(int x := 1
+int &alias := &x
+int other := 1
 print(&x)
 print(NL)
 print(&x)
 print(NL)
 print(&alias)
 print(NL)
-bool same = &x == &alias
-bool different = &x != &other
+bool same := &x == &alias
+bool different := &x != &other
 print(same)
 print(NL)
 print(different)
 print(NL)
-string text = "hello"
+string text := "hello"
 print(&text)
 print(NL)
 )");
- llvm_contains("int x = 1\nprint(&x)\n", "@.fmt.address");
- llvm_contains(R"(int x = 1
-int &alias = &x
-bool same = &x == &alias
+ llvm_contains("int x := 1\nprint(&x)\n", "@.fmt.address");
+ llvm_contains(R"(int x := 1
+int &alias := &x
+bool same := &x == &alias
 print(same)
 print(NL)
 )", "icmp eq ptr");
- bad_code("int x = 1\nint y = 2\nbool ordered = &x < &y\n", "TYPE_MISMATCH");
- bad_code("int x = 1\nint y = 2\nprint(&x + &y)\n", "TYPE_MISMATCH");
- bad_code("int x = 1\nauto saved = &x\n", "INVALID_TYPE");
+ bad_code("int x := 1\nint y := 2\nbool ordered := &x < &y\n", "TYPE_MISMATCH");
+ bad_code("int x := 1\nint y := 2\nprint(&x + &y)\n", "TYPE_MISMATCH");
+ bad_code("int x := 1\nsaved := &x\n", "INVALID_TYPE");
 
  // Existing call-site '&' remains reference-argument syntax outside print.
  good(R"(void touch(int &value)
     value = 2
-int x = 1
+int x := 1
 touch(&x)
 print(x)
 print(NL)
@@ -8181,14 +8181,14 @@ print(NL)
 
  // Nesting budgets. Each of these segfaulted the compiler before the budgets
  // existed; the source stays small because the cost is depth, not size.
- std::string eager = "int x = 1";
+ std::string eager = "int x := 1";
  for (int i = 0; i < 200; ++i) eager += " + 1";
  eager += "\n";
  bad_code(eager, "NESTING_DEPTH");
 
  // Short-circuit operands are excluded from the iterative eager-binary
  // worklist, so this shape reaches IR lowering's own expression recursion.
- std::string shortcircuit = "bool b = true\nbool c = b";
+ std::string shortcircuit = "bool b := true\nbool c := b";
  for (int i = 0; i < 200; ++i) shortcircuit += " and b";
  shortcircuit += "\n";
  bad_code(shortcircuit, "NESTING_DEPTH");
@@ -8203,8 +8203,8 @@ print(NL)
                        "    P grow()\n"
                        "        return P(this.v + 1)\n"
                        "\n"
-                       "P p = P(1)\n"
-                       "P q = p";
+                       "P p := P(1)\n"
+                       "P q := p";
  for (int i = 0; i < 100; ++i) postfix += ".grow()";
  postfix += "\n";
  bad_code(postfix, "NESTING_DEPTH");
@@ -8215,7 +8215,7 @@ print(NL)
  bad_code(nested, "NESTING_DEPTH");
 
  // elif recurses without passing through Parser::statement().
- std::string elifs = "void f()\n    int x = 0\n    if x == 0\n        print(\"a\")\n";
+ std::string elifs = "void f()\n    int x := 0\n    if x == 0\n        print(\"a\")\n";
  for (int i = 0; i < 300; ++i)
      elifs += "    elif x == " + std::to_string(i + 1) + "\n        print(\"b\")\n";
  bad_code(elifs, "NESTING_DEPTH");
@@ -8230,9 +8230,9 @@ print(NL)
     return 1
 int domain<T: ordered>(T value)
     return 2
-com32 z = 1.0 + 2.0i
-int complex_domain = domain(z)
-int real_domain = domain(real16(2.0))
+com32 z := 1.0 + 2.0i
+int complex_domain := domain(z)
+int real_domain := domain(real16(2.0))
 )");
  // Every ordered numeric pair admits an explicit conversion.
  for(const auto* source:{"nat8","nat16","nat32","nat64","nat","int8","int16","int32","int64","int","real16","real16b","real32","real64","real"}){
@@ -8245,12 +8245,12 @@ int real_domain = domain(real16(2.0))
      bad_code(std::string(source)+" z = 1.0 + 0.0i\nreal64 scalar = real64(z)\n","NUMERIC_CAST");
  // Collection reference aliases use the container's binding proof; their
  // element loads still check element initialization at run time.
- good("void double_all(int[] &values)\n    for auto &value = &values[]\n        value = value * 2\nint[] values = [1, 2]\ndouble_all(&values)\n");
- good("int[] values = [1, 2]\nfor auto &value = &values[]\n    value = value + 1\n");
- good("int[] values = array(2)\nfor auto &value = &values[]\n    print(value)\n");
- good("(int, int)[] values = array(2)\nfor (int &left, int &right) = &values[]\n    print(left)\n");
- good("int root = 1\nfor int &value = &reflect.each<int>(&root)[]\n    print(value)\n");
- bad_code("int[] values\nfor auto &value = &values[]\n    print(value)\n", "UNINITIALIZED");
+ good("void double_all(int[] &values)\n    for &value := &values[]\n        value = value * 2\nint[] values := [1, 2]\ndouble_all(&values)\n");
+ good("int[] values := [1, 2]\nfor &value := &values[]\n    value = value + 1\n");
+ good("int[] values := array(2)\nfor &value := &values[]\n    print(value)\n");
+ good("(int, int)[] values := array(2)\nfor (int &left, int &right) := &values[]\n    print(left)\n");
+ good("int root := 1\nfor int &value := &reflect.each<int>(&root)[]\n    print(value)\n");
+ bad_code("int[] values\nfor &value := &values[]\n    print(value)\n", "UNINITIALIZED");
  // Class visits retain only the fields initialized in every visited value.
  bad_code(R"(class Slot()
     int value
@@ -8260,16 +8260,16 @@ class Model this()
     Slot first
 
     this.first = Slot()
-Model model = Model()
-for Slot &slot = &reflect.each<Slot>(&model)[]
+Model model := Model()
+for Slot &slot := &reflect.each<Slot>(&model)[]
     print(slot.value)
 )", "UNINITIALIZED");
 
  // Large tuple returns keep pointer attributes separated from their type.
  llvm_contains(R"((tensor<real32>, tensor<real32>, tensor<real32>) triple(tensor<real32> value)
     return (value, value, value)
-tensor<real32> value = tensor.ones<real32>([1])
-(tensor<real32> output, _, _) = triple(value)
+tensor<real32> value := tensor.ones<real32>([1])
+(tensor<real32> output, _, _) := triple(value)
 print(output.item())
 )", "ptr noalias sret({ ptr, ptr, ptr }) %quidra.result");
 
@@ -8277,54 +8277,54 @@ print(output.item())
  good(R"((tensor<real32>, tensor<real32>, tensor<real32>) normalize_value(tensor<real32> value, bool training)
     return (value, value, value)
 tensor<real32> infer(tensor<real32> value)
-    (tensor<real32> output, _, _) = normalize_value(value, false)
+    (tensor<real32> output, _, _) := normalize_value(value, false)
     return output
-tensor<real32> value = tensor.ones<real32>([1])
+tensor<real32> value := tensor.ones<real32>([1])
 print(infer(value).item())
 )");
  good(R"(((int, string), bool) make()
     return ((7, "x"), true)
-((auto count, _), auto flag) = make()
+((count, _), flag) := make()
 print("{count} {flag}")
 )");
  good(R"((int, string) make()
     return (7, "x")
-int count = 0
+int count := 0
 (count, _) = make()
 print(count)
 )");
  good(R"((int, string) | error make()
     return (7, "x")
 int | error read()
-    (auto count, _) = try make()
+    (count, _) := try make()
     return count
-int count = read()
+int count := read()
 print(count)
 )");
  bad_code(R"((real64, string) make()
     return (7.0, "x")
-(int count, _) = make()
+(int count, _) := make()
 )", "TYPE_MISMATCH");
- bad_code(R"((int count, _) = (7, 2)
+ bad_code(R"((int count, _) := (7, 2)
 )", "DISCARD");
  bad_code(R"((int, string) make()
     return (7, "x")
 (int, bool) other()
     return (7, true)
-(int count, _) = if true then make() else other()
+(int count, _) := if true then make() else other()
 )", "TYPE_MISMATCH");
  // Explicit local bindings use ordinary block scope and cannot be captured by definitions.
- good("local (int count, string label) = (7, \"x\")\nprint(count)\n");
- good("int identity(local int value)\n    local int result = value\n    return result\nlocal int value = 7\nint copy = identity(value)\nif true\n    local int inner = value\n    for int i < 2\n        local int next = inner + i\n        print(next)\n");
- good("int identity(int value);\nint identity(local int value)\n    return value\nint result = identity(7)\n");
- good("T identity<T>(local T value)\n    local T result = value\n    return result\nlocal int value = 7\nint copy = identity(value)\n");
- inspect_contains("local int value = 7\nprint(value)\n", "\"local\":true");
- bad_code("print(value)\nlocal int value = 7\n", "UNKNOWN_NAME");
- bad_code("if true\n    local int inner = 7\nprint(inner)\n", "UNKNOWN_NAME");
- bad_code("if true\n    local int inner = 7\nelse\n    print(inner)\n", "UNKNOWN_NAME");
- bad_code("local int outer = 7\nint read()\n    return outer\n", "UNKNOWN_NAME");
- bad_code("local const literal real unit = 1.0\nreal read()\n    return unit\n", "UNKNOWN_NAME");
- bad_code("local int outer = 7\nclass Box()\n    int read()\n        return outer\n", "UNKNOWN_NAME");
+ good("local (int count, string label) := (7, \"x\")\nprint(count)\n");
+ good("int identity(local int value)\n    local int result := value\n    return result\nlocal int value := 7\nint copy := identity(value)\nif true\n    local int inner := value\n    for int i < 2\n        local int next := inner + i\n        print(next)\n");
+ good("int identity(int value);\nint identity(local int value)\n    return value\nint result := identity(7)\n");
+ good("T identity<T>(local T value)\n    local T result := value\n    return result\nlocal int value := 7\nint copy := identity(value)\n");
+ inspect_contains("local int value := 7\nprint(value)\n", "\"local\":true");
+ bad_code("print(value)\nlocal int value := 7\n", "UNKNOWN_NAME");
+ bad_code("if true\n    local int inner := 7\nprint(inner)\n", "UNKNOWN_NAME");
+ bad_code("if true\n    local int inner := 7\nelse\n    print(inner)\n", "UNKNOWN_NAME");
+ bad_code("local int outer := 7\nint read()\n    return outer\n", "UNKNOWN_NAME");
+ bad_code("local const literal real unit := 1.0\nreal read()\n    return unit\n", "UNKNOWN_NAME");
+ bad_code("local int outer := 7\nclass Box()\n    int read()\n        return outer\n", "UNKNOWN_NAME");
 
  // Proxy writes invalidate the actual target; tuple slots do not prove class fields.
  bad_code(R"(class Child()
@@ -8336,8 +8336,8 @@ class Parent this()
 
     this.child = Child()
     this.child.value = 7
-Parent root = Parent()
-for Parent &visit = &reflect.each<Parent>(&root)[]
+Parent root := Parent()
+for Parent &visit := &reflect.each<Parent>(&root)[]
     visit.child = Child()
 print(root.child.value)
 )", "UNINITIALIZED");
@@ -8349,41 +8349,41 @@ class Model this()
     (Child, int) pair
 
     this.pair = (Child(), int(0))
-Model root = Model()
-for Child &visit = &reflect.each<Child>(&root)[]
+Model root := Model()
+for Child &visit := &reflect.each<Child>(&root)[]
     print(visit.value)
 )", "UNINITIALIZED");
 
  // A traversal names visits and has no storable or callable value.
- good("int root = 1\nfor int &value = &reflect.each<int>(&root)[]\n    value = 2\n");
- good("int[][] root = [[1], [2]]\nfor auto value = reflect.each<int>(root)[nat i]\n    print(i)\n");
- bad_code("int root = 1\nauto saved = reflect.each<int>(root)\n","TRAVERSAL");
- bad_code("int root = 1\nfor auto value = reflect.each(root)[]\n    print(value)\n","TRAVERSAL");
+ good("int root := 1\nfor int &value := &reflect.each<int>(&root)[]\n    value = 2\n");
+ good("int[][] root := [[1], [2]]\nfor value := reflect.each<int>(root)[nat i]\n    print(i)\n");
+ bad_code("int root := 1\nsaved := reflect.each<int>(root)\n","TRAVERSAL");
+ bad_code("int root := 1\nfor value := reflect.each(root)[]\n    print(value)\n","TRAVERSAL");
  bad_code("reflect.Each<int> saved\n","TRAVERSAL");
  bad_code("void consume(reflect.Each<int> value)\n    return\n","TRAVERSAL");
- bad_code("reflect.Each<int> walk(int &root)\n    int local_value = 0\n    return reflect.each<int>(&root)\n","TRAVERSAL");
+ bad_code("reflect.Each<int> walk(int &root)\n    int local_value := 0\n    return reflect.each<int>(&root)\n","TRAVERSAL");
  bad_code("reflect.Each<int> walk(int &root)\n    return walk(&root)\n","TRAVERSAL");
  bad_code(""
           "class Model()\n"
-          "    const int fixed = 1\n"
+          "    const int fixed := 1\n"
           "\n"
           "    return\n"
-          "Model model = Model()\n"
-          "for int &value = &reflect.each<int>(&model)[]\n"
+          "Model model := Model()\n"
+          "for int &value := &reflect.each<int>(&model)[]\n"
           "    value = 2\n","TRAVERSAL");
  bad_code(""
           "class Model()\n"
-          "    int[] values = [1]\n"
+          "    int[] values := [1]\n"
           "\n"
           "    return\n"
-          "Model model = Model()\n"
-          "for int &value = &reflect.each<int>(&model)[]\n"
+          "Model model := Model()\n"
+          "for int &value := &reflect.each<int>(&model)[]\n"
           "    model.values = [2]\n","WRITE_CAPABILITY");
- bad_code("reflect.Each<int> walk(int root)\n    return reflect.each<int>(root)\nint root = 1\nfor int &value = &walk(root)[]\n    value = 2\n","TRAVERSAL");
+ bad_code("reflect.Each<int> walk(int root)\n    return reflect.each<int>(root)\nint root := 1\nfor int &value := &walk(root)[]\n    value = 2\n","TRAVERSAL");
  // A holder's bound reference proves target completeness, including opaque
  // nested state; it does not store the target's fields inside the holder.
  const std::string nested_reference_holder = R"(class Leaf()
-    private autograd.Target state = autograd.target()
+    private autograd.Target state := autograd.target()
 
     void .clear()
         .state.clear_grad()
@@ -8398,16 +8398,16 @@ class Holder this(local Model &model_initial)
     void .clear()
         clear_model(&model)
 )";
- good(nested_reference_holder + R"(Model model = Model()
+ good(nested_reference_holder + R"(Model model := Model()
 model.leaf = Leaf()
-Holder holder = Holder(&model)
+Holder holder := Holder(&model)
 .holder.clear()
 )");
- bad_code(nested_reference_holder + R"(Model model = Model()
-Holder holder = Holder(&model)
+ bad_code(nested_reference_holder + R"(Model model := Model()
+Holder holder := Holder(&model)
 )", "UNINITIALIZED");
  bad_code(R"(class Leaf()
-    private autograd.Target state = autograd.target()
+    private autograd.Target state := autograd.target()
 
     void .clear()
         .state.clear_grad()
@@ -8420,14 +8420,14 @@ class Holder()
 
     void .clear()
         clear_model(&model)
-Holder holder = Holder()
+Holder holder := Holder()
 .holder.clear()
 )", "UNINITIALIZED");
  bad_code(R"(class Value()
     int item
 void overwrite(Value &value)
     value = Value()
-Value value = Value()
+Value value := Value()
 value.item = 7
 overwrite(&value)
 print(value.item)
@@ -8443,9 +8443,9 @@ class Holder this(local Model &model_initial)
     private Model &model
 
     &model = &model_initial
-Model model = Model()
+Model model := Model()
 model.leaf = Leaf()
-Holder holder = Holder(&model)
+Holder holder := Holder(&model)
 )", "UNINITIALIZED");
  bad_code(R"(class Value()
     int item
@@ -8454,9 +8454,9 @@ class Holder(local Value &value)
     &target = &value
     int read()
         return target.item
-Value value = Value()
+Value value := Value()
 value.item = 7
-Holder holder = Holder(&value)
+Holder holder := Holder(&value)
 value = Value()
 print(holder.read())
 )", "REFERENCE_TARGET");
@@ -8470,25 +8470,25 @@ class Holder this(local Value &value)
     int read()
         return this.target.item
 )";
- good(stored_reference_holder + R"(Value value = Value()
+ good(stored_reference_holder + R"(Value value := Value()
 value.item = 7
-Holder holder = Holder(&value)
+Holder holder := Holder(&value)
 print("{holder.read()}{NL}")
 )");
  good(stored_reference_holder + R"(Holder forward(Value &value)
     return Holder(&value)
-Value value = Value()
+Value value := Value()
 value.item = 11
-Holder holder = forward(&value)
+Holder holder := forward(&value)
 print("{holder.read()}{NL}")
 )");
- bad_code(stored_reference_holder + R"(Value value = Value()
-Holder holder = Holder(&value)
+ bad_code(stored_reference_holder + R"(Value value := Value()
+Holder holder := Holder(&value)
 )", "UNINITIALIZED");
  bad_code(stored_reference_holder + R"(Holder forward(Value &value)
     return Holder(&value)
-Value value = Value()
-Holder holder = forward(&value)
+Value value := Value()
+Holder holder := forward(&value)
 )", "UNINITIALIZED");
  good(R"(class Value()
     int item
@@ -8498,29 +8498,29 @@ class Holder this(local Value &value) | error
     &this.target = &value
     int read()
         return this.target.item
-Value value = Value()
+Value value := Value()
 value.item = 17
-auto holder = Holder(&value)
+holder := Holder(&value)
 print("{holder.read()}{NL}")
 )");
- good("int[] values = [-2, 0, 3, 4]\nauto output = [for int x = values[] if x > 0 then x * x]\nfor int value = output[]\n    print(value)\n");
- good("int[] values = []\nauto output = [for auto x = values[] then x]\nint[] contextual = [for int x = values[] then 1]\nstring[] labels = [for int x = values[] then \"item\"]\n");
- good("int[] values = [1, 2]\nauto output = [for int x = values[] then (x, \"tag\")]\n");
- good("int[] values = [1, 2]\nint[] first\nint[] second\nparallel\n    first = [for int x = values[] then x]\n    second = [for int x = values[] then x * x]\nfor int value = first[]\n    print(value)\nfor int value = second[]\n    print(value)\n");
- bad_code("void consume(int value)\n    return\nint[] values = []\nauto output = [for int x = values[] then consume(x)]\n", "TYPE_MISMATCH");
- good("int identity(int value)\n    return value\nint[] values = [1, 2]\nauto output = [for int x = values[] then identity(x)]\n");
- good("T identity<T>(T value)\n    return value\nint[] values = [1, 2]\nauto output = [for auto x = values[] then identity(x)]\nauto copied = identity([for int item = values[] then item])\n");
- good("int change(int &value)\n    value = value + 1\n    return value\nint[] values = [1, 2]\nauto output = [for int x = values[] then change(&x)]\n");
- bad_code("int[] values = []\nauto output = [for int x = values[] then x]\nprint(x)\n", "UNKNOWN_NAME");
- bad_code("int[] values = []\nauto output = [for int x = values[] if x then x]\n", "TYPE_MISMATCH");
- bad_code("int[] values = []\nauto output = [for real32 x = values[] then x]\n", "TYPE_MISMATCH");
- bad_code("string value = \"abc\"\nauto output = [for auto x = value[] then x]\n", "ARRAY_COMPREHENSION");
- bad_code("int[] values = []\nint x = 3\nauto output = [for int x = values[] then x]\n", "SHADOWING");
+ good("int[] values := [-2, 0, 3, 4]\noutput := [for int x := values[] if x > 0 then x * x]\nfor int value := output[]\n    print(value)\n");
+ good("int[] values := []\noutput := [for x := values[] then x]\nint[] contextual := [for int x := values[] then 1]\nstring[] labels := [for int x := values[] then \"item\"]\n");
+ good("int[] values := [1, 2]\noutput := [for int x := values[] then (x, \"tag\")]\n");
+ good("int[] values := [1, 2]\nint[] first\nint[] second\nparallel\n    first = [for int x := values[] then x]\n    second = [for int x := values[] then x * x]\nfor int value := first[]\n    print(value)\nfor int value := second[]\n    print(value)\n");
+ bad_code("void consume(int value)\n    return\nint[] values := []\noutput := [for int x := values[] then consume(x)]\n", "TYPE_MISMATCH");
+ good("int identity(int value)\n    return value\nint[] values := [1, 2]\noutput := [for int x := values[] then identity(x)]\n");
+ good("T identity<T>(T value)\n    return value\nint[] values := [1, 2]\noutput := [for x := values[] then identity(x)]\ncopied := identity([for int item := values[] then item])\n");
+ good("int change(int &value)\n    value = value + 1\n    return value\nint[] values := [1, 2]\noutput := [for int x := values[] then change(&x)]\n");
+ bad_code("int[] values := []\noutput := [for int x := values[] then x]\nprint(x)\n", "UNKNOWN_NAME");
+ bad_code("int[] values := []\noutput := [for int x := values[] if x then x]\n", "TYPE_MISMATCH");
+ bad_code("int[] values := []\noutput := [for real32 x := values[] then x]\n", "TYPE_MISMATCH");
+ bad_code("string value := \"abc\"\noutput := [for x := value[] then x]\n", "ARRAY_COMPREHENSION");
+ bad_code("int[] values := []\nint x := 3\noutput := [for int x := values[] then x]\n", "SHADOWING");
  {
      const auto require = [](bool condition, const char* message) {
          if (!condition) { std::cerr << message << "\n"; std::exit(1); }
      };
-     const auto source = std::string("int[] values = [1, 2]\nauto output = [for int x = values[] if x > 0 then x * x]\n");
+     const auto source = std::string("int[] values := [1, 2]\noutput := [for int x := values[] if x > 0 then x * x]\n");
      const auto formatted = quidra::format_source(source);
      require(formatted == quidra::format_source(formatted), "generation formatting is stable");
      const auto compiled = quidra::compile(formatted);
@@ -8533,20 +8533,20 @@ print("{holder.read()}{NL}")
  good(R"(class Capture(local int &input)
     local int &temporary
     &temporary = &input
-    int captured = temporary
-int original = 5
-Capture value = Capture(&original)
+    int captured := temporary
+int original := 5
+Capture value := Capture(&original)
 print(value.captured)
 )");
  good(R"(int read_alias(int &input)
-    int &first = &input
-    int &second = &first
+    int &first := &input
+    int &second := &first
     return second
-int value = 7
+int value := 7
 print(read_alias(&value))
 )");
  good(R"(void initialize_alias(int &input)
-    int &target = &input
+    int &target := &input
     target = 9
 int value
 initialize_alias(&value)
@@ -8556,24 +8556,24 @@ print(value)
     int first
     int second
 int read_first(Pair &input)
-    int &target = &input.first
+    int &target := &input.first
     return target
-Pair value = Pair()
+Pair value := Pair()
 value.first = 4
 print(read_first(&value))
 )");
  good(R"(int read_element(int[] &input)
-    int &target = &input[0]
+    int &target := &input[0]
     return target
-int[] values = [6]
+int[] values := [6]
 print(read_element(&values))
 )");
  llvm_contains(R"(int read_rebound_element(int[] &input)
     int &target
     &target = &input[0]
-    int &alias = &target
+    int &alias := &target
     return alias
-int[] values = array(1)
+int[] values := array(1)
 print(read_rebound_element(&values))
 )", "call void @quidra_init_check(ptr %ref.load.addr.");
  bad_code(R"(int read_unknown_element(int[] &input, bool choice)
@@ -8586,33 +8586,33 @@ print(read_rebound_element(&values))
     return target
 )", "UNINITIALIZED");
  good(R"(class Pair(local int first_value, local int second_value)
-    int first = first_value
-    int second = second_value
+    int first := first_value
+    int second := second_value
 int read_first(Pair[] &input)
-    int &target = &input[0].first
+    int &target := &input[0].first
     return target
-Pair[] values = [Pair(4, 5)]
+Pair[] values := [Pair(4, 5)]
 print(read_first(&values))
 )");
  bad_code(R"(class Pair(local int first_value)
-    int first = first_value
+    int first := first_value
     int second
 int read_first(Pair[] &input)
-    int &target = &input[0].first
+    int &target := &input[0].first
     return target
-Pair[] values = [Pair(4)]
+Pair[] values := [Pair(4)]
 print(read_first(&values))
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class Capture(local int &input)
     local int &temporary
     &temporary = &input
-    int captured = temporary
+    int captured := temporary
 int original
-Capture value = Capture(&original)
+Capture value := Capture(&original)
 )", "UNINITIALIZED");
  bad_code(R"(int read_never()
     int source
-    int &target = &source
+    int &target := &source
     return target
 )", "UNINITIALIZED");
  bad_code(R"(int read_unknown(int &input, bool choice)
@@ -8632,43 +8632,43 @@ Capture value = Capture(&original)
     int first
     int second
 int read_first(Pair &input)
-    int &target = &input.first
+    int &target := &input.first
     return target
-Pair value = Pair()
+Pair value := Pair()
 print(read_first(&value))
 )", "UNINITIALIZED");
 
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
-int[] entries = array(2, fill = 1)
-for int entry = entries[]
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
+int[] entries := array(2, fill = 1)
+for int entry := entries[]
     if entry == 1
         data = partial
         continue
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
 for 0 <= int index < 2
     if index == 0
         data = partial
         break
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
 for 0 <= int index < 2
     print(data[0])
     data = partial
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_not_contains(R"(int[] data = array(1, fill = 7)
+ llvm_not_contains(R"(int[] data := array(1, fill = 7)
 for 0 <= int index < 2
     print(data[0])
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
- llvm_contains(R"(int[] data = array(1, fill = 7)
-int[] partial = array(1)
-nat count = 0
+ llvm_contains(R"(int[] data := array(1, fill = 7)
+int[] partial := array(1)
+nat count := 0
 while count < 2
     print(data[0])
     data = partial
@@ -8685,5 +8685,21 @@ int[] | error fail_values()
 int[] | error add_values()
     return make_values() + try fail_values()
 )", "array.elementwise.left");
+ good(R"(string default_label()
+    return "hello"
+string render(label := default_label())
+    return label
+class Greeting(text := "hi")
+    loud := true
+    string message(suffix := "!")
+        return text + suffix
+greeting := Greeting(text = render())
+test.equal(greeting.message(), "hello!")
+test.equal(greeting.loud, true)
+test.equal(render(label = "override"), "override")
+)");
+ bad(R"(int limit(value := 100)
+    return value
+)");
  std::cout<<"all compiler tests passed\n";
 }

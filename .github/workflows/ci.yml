@@ -371,7 +371,7 @@ jobs:
           $output = & build/Release/quidra.exe run build/platform-smoke.qui
           if (($output -join "`n").Trim() -ne "Hello from Windows") { throw "native smoke failed: $output" }
           $pieces = ((1..64) | ForEach-Object { '"x"' }) -join ' + '
-          Set-Content -Path build/binary-smoke.qui -Value "string value = $pieces`nprint(len(value))"
+          Set-Content -Path build/binary-smoke.qui -Value "string value := $pieces`nprint(len(value))"
           & build/Release/quidra.exe check build/binary-smoke.qui | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "binary expression check failed with exit code $LASTEXITCODE" }
           & build/Release/quidra.exe llvm build/binary-smoke.qui | Out-File -Encoding utf8 build/binary-smoke.ll
@@ -380,14 +380,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "binary expression run failed with exit code $LASTEXITCODE" }
           if (($binary -join "`n").Trim() -ne "64") { throw "binary expression smoke failed: $binary" }
           Set-Content -Path build/json-smoke.qui -Value @'
-          string source = "{{" + DQ + "name" + DQ + ":" + DQ + "Quidra" + DQ + "," + DQ + "items" + DQ + ":[1,2]}}"
-          auto | error parsed = json.parse(source)
+          string source := "{{" + DQ + "name" + DQ + ":" + DQ + "Quidra" + DQ + "," + DQ + "items" + DQ + ":[1,2]}}"
+          json.Value | error parsed := json.parse(source)
           match parsed
               json.Value root
-                  auto | error name = root.get("name")
+                  json.Value | none | error name := root.get("name")
                   match name
                       json.Value value
-                          auto | error text = value.text()
+                          string | error text := value.text()
                           match text
                               string result
                                   print.line(result)
@@ -409,14 +409,14 @@ jobs:
           '@
           if ($jsonActual -ne $jsonExpected.Trim()) { throw "json smoke failed: $json" }
           Set-Content -Path build/process-smoke.qui -Value @'
-          process.Result result = process.run("cmd", ["/c", "echo", "quidra-process"])
+          process.Result result := process.run("cmd", ["/c", "echo", "quidra-process"])
           print.line(result.started)
           print.line(result.status)
           '@
           $process = & build/Release/quidra.exe run build/process-smoke.qui
           if (($process -join "`n").Trim() -ne "true`n0") { throw "process smoke failed: $process" }
           Set-Content -Path build/process-shell-smoke.qui -Value @'
-          process.Result result = process.shell("echo quidra shell")
+          process.Result result := process.shell("echo quidra shell")
           print.line(result.started)
           print.line(result.status)
           print.line(result.output.trim())
@@ -428,15 +428,15 @@ jobs:
           class WindowsTensorState()
               tensor<real32> weight
 
-          WindowsTensorState state = WindowsTensorState()
+          WindowsTensorState state := WindowsTensorState()
           state.weight = tensor.ones<real32>([1])
-          real32 before = state.weight[0].item()
+          real32 before := state.weight[0].item()
 
           state.weight = state.weight.track()
-          tensor<real32> loss = (state.weight * state.weight).reshape([])
+          tensor<real32> loss := (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
           print.line(state.weight.has_grad())
-          tensor<real32> gradient = state.weight.grad
+          tensor<real32> gradient := state.weight.grad
           .state.weight.clear_grad()
           state.weight = state.weight.untrack() - gradient * real32(0.1)
           print.line(state.weight[0].item() < before and not state.weight.has_grad())

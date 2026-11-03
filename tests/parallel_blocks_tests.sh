@@ -5,10 +5,10 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 cat > "$TMP/diamond.qui" <<'QUI'
-int64 x = 0
-int64 a = 0
-int64 b = 0
-int64 total = 0
+int64 x := 0
+int64 a := 0
+int64 b := 0
+int64 total := 0
 parallel
     x = 40
     a = x + 1
@@ -18,26 +18,26 @@ print(total)
 print(NL)
 QUI
 cat > "$TMP/shapes.qui" <<'QUI'
-int64 extent = 2
-int64 result = 0
+int64 extent := 2
+int64 result := 0
 parallel
     extent = 3
-    int64[nat(extent)] values = [10, 20, 30]
+    int64[nat(extent)] values := [10, 20, 30]
     result = values[0] + values[1] + values[2]
 print(result)
 print(NL)
 parallel
-    tensor<real32>{nat N, N + 1} a = tensor.zeros<real32>([2, 3])
-    tensor<real32>{N, N + 1} b = tensor.ones<real32>()
+    tensor<real32>{nat N, N + 1} a := tensor.zeros<real32>([2, 3])
+    tensor<real32>{N, N + 1} b := tensor.ones<real32>()
     if b.shape()[0] == 2 and b.shape()[1] == 3
         print("shape captured" + NL)
     else
         print("bad shape" + NL)
 QUI
 cat > "$TMP/references.qui" <<'QUI'
-int64 first = 1
-int64 second = 2
-int64 &current = &first
+int64 first := 1
+int64 second := 2
+int64 &current := &first
 parallel
     &current = &second
     current = 42
@@ -47,8 +47,8 @@ print(second)
 print(NL)
 QUI
 cat > "$TMP/failure.qui" <<'QUI'
-int64 zero = 0
-int64 result = 0
+int64 zero := 0
+int64 result := 0
 parallel
     result = 1 / zero
     print("independent finished" + NL)

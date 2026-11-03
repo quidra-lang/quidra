@@ -1,10 +1,10 @@
 print("ADV-START")
 print(NL)
 flush()
-int value = 1
-int doubled = value + value
-int halved = doubled / 2@#$
-int total = halved * value
+int value := 1
+int doubled := value + value
+int halved := doubled / 2@#$
+int total := halved * value
 print("OBS=V:{total}")
 print(NL)
 flush()

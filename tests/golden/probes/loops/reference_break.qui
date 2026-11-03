@@ -5,13 +5,13 @@ void grow(int[] &values)
     values = values.append(0)
 
 void walk(int[] &a, int[] &b)
-    for auto &x = &a[]
+    for &x := &a[]
         x = x + 1
         if x == 3
             grow(&b)
             break
 
-int[] v = [1, 2, 3]
+int[] v := [1, 2, 3]
 print("before" + NL)
 walk(&v, &v)
 print("after" + NL)

@@ -54,7 +54,7 @@ def cases() -> list[Case]:
             result.append(Case(f'{ty}-signed-zero-divide', f'{ty} one = 1.0\n{ty} zero = -0.0\nprint(one / zero)\n', neg))
             result.append(Case(f'{ty}-tensor', f'tensor<{ty}> one = tensor.ones<{ty}>([2])\n'
                 f'tensor<{ty}> zero = tensor.zeros<{ty}>([2])\n'
-                f'tensor<{ty}> result = one / zero\nprint(result[0].item())\n', pos))
+                f'tensor<{ty}> result := one / zero\nprint(result[0].item())\n', pos))
             result.append(Case(f'{ty}-tensor-nan', f'tensor<{ty}> zero = tensor.zeros<{ty}>([2])\n'
                 f'print("before")\ntensor<{ty}> result = zero / zero\nprint(result[0].item())\n', 'before', True))
     for ty, large in (('real16', '60000.0'), ('real16b', '3.0e38'), ('real32', '3.0e38'), ('real64', '1.0e308')):
@@ -65,40 +65,40 @@ def cases() -> list[Case]:
     # UP to the next half, whereas going via binary32 can round down.
     result.extend([
         Case('real64-real16-halfway-even',
-             'real64 value = 1.0 + 1.0 / 2048.0\n'
-             'real16 rounded = real16(value)\n'
+             'real64 value := 1.0 + 1.0 / 2048.0\n'
+             'real16 rounded := real16(value)\n'
              'print(rounded == real16(1.0))\n', 'true'),
         Case('real64-real16-above-halfway',
-             'real64 value = 1.0 + 1.0 / 2048.0 + 1.0 / 1099511627776.0\n'
-             'real16 rounded = real16(value)\n'
+             'real64 value := 1.0 + 1.0 / 2048.0 + 1.0 / 1099511627776.0\n'
+             'real16 rounded := real16(value)\n'
              'print(rounded == real16(1.0009765625))\n', 'true'),
         Case('exact-real16-above-halfway',
-             'real value = real(1) + real(1) / real(2048) + real(1) / real(1099511627776)\n'
-             'real16 rounded = real16(value)\n'
+             'real value := real(1) + real(1) / real(2048) + real(1) / real(1099511627776)\n'
+             'real16 rounded := real16(value)\n'
              'print(rounded == real16(1.0009765625))\n', 'true'),
         Case('exact-real16-subnormal',
-             'real value = real(1) / real(16777216)\n'
-             'real16 rounded = real16(value)\n'
+             'real value := real(1) / real(16777216)\n'
+             'real16 rounded := real16(value)\n'
              'print(rounded == real16(0.000000059604644775390625))\n', 'true'),
         Case('real64-real16-negative-zero',
-             'real64 value = -0.0\n'
-             'real16 rounded = real16(value)\n'
+             'real64 value := -0.0\n'
+             'real16 rounded := real16(value)\n'
              'print(rounded.string() == "-0.0")\n', 'true'),
     ])
     # Native real16 comparisons must not pull __extendhfsf2 into Windows
     # executables; comparisons retain IEEE zero and infinity semantics.
     result.extend([
         Case('real16-ordered-zero-and-infinities',
-             'real16 neg_inf = -inf\nreal16 neg = -1.0\n'
-             'real16 neg_zero = -0.0\nreal16 pos_zero = 0.0\n'
-             'real16 pos = 1.0\nreal16 pos_inf = inf\n'
+             'real16 neg_inf := -inf\nreal16 neg := -1.0\n'
+             'real16 neg_zero := -0.0\nreal16 pos_zero := 0.0\n'
+             'real16 pos := 1.0\nreal16 pos_inf := inf\n'
              'print("{neg_inf < neg} {neg < neg_zero} {neg_zero == pos_zero} '
              '{pos_zero <= pos} {pos < pos_inf} {neg_inf != pos_inf}")\n',
              'true true true true true true'),
         Case('real16-subnormal-comparisons',
-             'real16 negative = -0.000000059604644775390625\n'
-             'real16 zero = 0.0\n'
-             'real16 positive = 0.000000059604644775390625\n'
+             'real16 negative := -0.000000059604644775390625\n'
+             'real16 zero := 0.0\n'
+             'real16 positive := 0.000000059604644775390625\n'
              'print("{negative < zero} {positive > zero} {negative <= positive}")\n',
              'true true true'),
     ])
@@ -109,10 +109,10 @@ def cases() -> list[Case]:
                 f'{target} x = {target}(a)\n{target} y = {target}(b)\nprint("{{x}} {{y}}")\n',
                 '∞ -∞' if target == 'real' else 'inf -inf'))
     result.extend([
-        Case('exact-unicode-roundtrip', 'real a = real.parse("∞")\nreal b = real.parse("-∞")\nprint("{a} {b}")\n', '∞ -∞'),
-        Case('exact-finite-does-not-overflow', 'real a = 1.0e308 * 10.0\nreal b = inf\nprint(a < b)\n', 'true'),
-        Case('exact-infinity-powers', 'real a = inf\nreal b = -inf\nprint("{a ^ 2.0} {b ^ 3.0} {a ^ -2.0} {a ^ 0.0}")\n', '∞ -∞ 0.0 1.0'),
-        Case('exact-infinite-exponents', 'real a = 2.0\nreal b = 0.5\nreal e = inf\nprint("{a ^ e} {b ^ e} {a ^ -e} {b ^ -e}")\n', '∞ 0.0 0.0 ∞'),
+        Case('exact-unicode-roundtrip', 'real a := real.parse("∞")\nreal b := real.parse("-∞")\nprint("{a} {b}")\n', '∞ -∞'),
+        Case('exact-finite-does-not-overflow', 'real a := 1.0e308 * 10.0\nreal b := inf\nprint(a < b)\n', 'true'),
+        Case('exact-infinity-powers', 'real a := inf\nreal b := -inf\nprint("{a ^ 2.0} {b ^ 3.0} {a ^ -2.0} {a ^ 0.0}")\n', '∞ -∞ 0.0 1.0'),
+        Case('exact-infinite-exponents', 'real a := 2.0\nreal b := 0.5\nreal e := inf\nprint("{a ^ e} {b ^ e} {a ^ -e} {b ^ -e}")\n', '∞ 0.0 0.0 ∞'),
     ])
     return result
 

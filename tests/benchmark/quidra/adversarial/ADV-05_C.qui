@@ -1,8 +1,8 @@
 print("ADV-START")
 print(NL)
 flush()
-real64 v = 1.0e30
-int32 r = int32(math.trunc(v))
+real64 v := 1.0e30
+int32 r := int32(math.trunc(v))
 print("OBS=V:{r}")
 print(NL)
 flush()

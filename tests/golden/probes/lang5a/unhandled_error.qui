@@ -4,9 +4,9 @@ int | error check(int value)
         return error("too large: {value}")
     return value
 
-int fine = check(3)
+int fine := check(3)
 print("fine {fine}")
 print(NL)
-int stopped = check(30)
+int stopped := check(30)
 print("{stopped}")
 print(NL)

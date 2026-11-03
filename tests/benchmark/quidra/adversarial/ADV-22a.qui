@@ -1,7 +1,7 @@
 print("ADV-START")
 print(NL)
 flush()
-int value = 1
-int doubled = value + value
-int halved = doubled / 2
-int total = halved *
+int value := 1
+int doubled := value + value
+int halved := doubled / 2
+int total := halved *

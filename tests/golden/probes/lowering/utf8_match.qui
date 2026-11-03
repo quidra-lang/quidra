@@ -2,7 +2,7 @@
 // text idiom, with cases that end their blocks and a string case without a
 // binder.
 int code(bool valid)
-    nat8[] bytes = [111, 107]
+    nat8[] bytes := [111, 107]
     if not valid
         bytes = [255, 255]
     match string.from_utf8(bin(bytes))

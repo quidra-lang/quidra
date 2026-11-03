@@ -57,7 +57,7 @@ def program_source(count: int, specialized: bool) -> str:
             ]
         )
 
-    lines.append("int total = 0")
+    lines.append("int total := 0")
     for index in range(count):
         type_name = f"Case{index}"
         variable = f"item{index}"

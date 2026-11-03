@@ -12,12 +12,12 @@ class Holder<T> this(local T &target)
     void .replace(T next)
         this.value = next
 int .observe(int &value, Holder<int> holder)
-    int first = value
+    int first := value
     .holder.replace(17)
     return first * 100 + value
 int .snapshot(int[] &values, Holder<int[]> holder)
-    int total = 0
-    for int value = values[nat index]
+    int total := 0
+    for int value := values[nat index]
         if index == 0
             .holder.replace([1, 77, 3])
         total += value
@@ -25,11 +25,11 @@ int .snapshot(int[] &values, Holder<int[]> holder)
 int .read_copy(const int[] values, Holder<int[]> holder)
     .holder.replace([8, 9])
     return values[1]
-int number = 4
-Holder<int> scalar = Holder<int>(&number)
+int number := 4
+Holder<int> scalar := Holder<int>(&number)
 print("{.observe(&number, scalar)} {number}{NL}")
-int[] values = [1, 2, 3]
-Holder<int[]> array_holder = Holder<int[]>(&values)
+int[] values := [1, 2, 3]
+Holder<int[]> array_holder := Holder<int[]>(&values)
 print("{.snapshot(&values, array_holder)} {values[1]}{NL}")
 print("{.read_copy(values, array_holder)} {values[1]}{NL}")
 QUI
@@ -45,12 +45,12 @@ class Holder this(local int[] &source)
     void .shorten()
         this.values = [7]
 void .iterate(int[] &values, Holder holder)
-    for int &value = &values[nat index]
+    for int &value := &values[nat index]
         if index == 0
             .holder.shorten()
         print(value)
-int[] values = [1, 2, 3]
-Holder holder = Holder(&values)
+int[] values := [1, 2, 3]
+Holder holder := Holder(&values)
 .iterate(&values, holder)
 QUI
 if "$QUIDRA" run "$TMP/live.qui" > "$TMP/out" 2> "$TMP/err"; then
@@ -61,8 +61,8 @@ grep -Fq FOR_ITERATION "$TMP/err"
 cat > "$TMP/unbound-equality.qui" <<'QUI'
 class Holder()
     int &value
-Holder first = Holder()
-Holder second = Holder()
+Holder first := Holder()
+Holder second := Holder()
 print(first == second)
 QUI
 if "$QUIDRA" check "$TMP/unbound-equality.qui" > "$TMP/out" 2> "$TMP/err"; then

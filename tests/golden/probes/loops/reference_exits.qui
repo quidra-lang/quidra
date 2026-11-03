@@ -4,7 +4,7 @@ void touch(int[] &values)
     values[0] = values[0] + 0
 
 void skip_and_stop(int[] &a, int[] &b)
-    for auto &x = &a[]
+    for &x := &a[]
         if x == 2
             touch(&b)
             continue
@@ -14,18 +14,18 @@ void skip_and_stop(int[] &a, int[] &b)
         x = x + 100
 
 int first_at_least(int[] &a, int[] &b, int limit)
-    for auto &x = &a[]
+    for &x := &a[]
         touch(&b)
         if x >= limit
             return x
         x = x + 10
     return 0
 
-int[] w = [1, 2, 3, 4, 5]
+int[] w := [1, 2, 3, 4, 5]
 skip_and_stop(&w, &w)
 print("{w[0]} {w[1]} {w[2]} {w[3]} {w[4]}" + NL)
-int[] v = [1, 2, 3, 4]
-int found = first_at_least(&v, &v, 3)
+int[] v := [1, 2, 3, 4]
+int found := first_at_least(&v, &v, 3)
 print("{found}: {v[0]} {v[1]} {v[2]} {v[3]}" + NL)
 v = v.append(5)
 print("{len(v)}" + NL)

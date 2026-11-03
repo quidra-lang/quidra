@@ -35,7 +35,7 @@ self_source = '''int32 count(int32 n)
         return 10 / n
     return count(n - 1)
 
-int32 n = int32.parse("500")
+int32 n := int32.parse("500")
 print(count(n))
 '''
 stale_source = '''int32 count(int32 n, bool fails)
@@ -45,11 +45,11 @@ stale_source = '''int32 count(int32 n, bool fails)
         return 0
     return count(n - 1, fails)
 
-int32 result = count(7, false) + count(3, false)
+int32 result := count(7, false) + count(3, false)
 for 0 <= nat i < 10000
     result = result + count(5, false)
 print(result)
-int32 n = int32.parse("DEPTH")
+int32 n := int32.parse("DEPTH")
 print(count(n, true))
 '''
 exit_source = '''int32 sink(int32 denominator)
@@ -62,8 +62,8 @@ int32 count(int32 n, int32 denominator)
 
 print(count(7, 1))
 print(count(3, 1))
-int32 n = int32.parse("DEPTH")
-int32 zero = int32.parse("0")
+int32 n := int32.parse("DEPTH")
+int32 zero := int32.parse("0")
 print(count(n, zero))
 '''
 child_source = '''int32 sink(int32 denominator)
@@ -78,7 +78,7 @@ int32 count(int32 n, bool fails)
 
 print(count(7, false))
 print(count(3, false))
-int32 n = int32.parse("DEPTH")
+int32 n := int32.parse("DEPTH")
 print(count(n, true))
 '''
 branch_source = '''int32 sink(int32 denominator)
@@ -91,7 +91,7 @@ int32 choose(bool first, int32 a, int32 b)
 
 print(choose(true, 1, 1))
 print(choose(false, 1, 1))
-int32 zero = int32.parse("0")
+int32 zero := int32.parse("0")
 print(choose(BRANCH, zero, zero))
 '''
 unique_source = '''int32 sink(int32 denominator)
@@ -103,7 +103,7 @@ int32 relay(int32 denominator)
 int32 outer(int32 denominator)
     return relay(denominator)
 
-int32 zero = int32.parse("0")
+int32 zero := int32.parse("0")
 print(outer(zero))
 '''
 mixed_source = '''int32 count(int32 n)
@@ -113,7 +113,7 @@ mixed_source = '''int32 count(int32 n)
         return count(n - 1)
     return count(n - 1) + 1
 
-int32 n = int32.parse("3000")
+int32 n := int32.parse("3000")
 print(count(n))
 '''
 indirect_source = '''int32 sink(int32 denominator)
@@ -122,7 +122,7 @@ indirect_source = '''int32 sink(int32 denominator)
 int32 apply(func<int32>(int32) operation, int32 denominator)
     return operation(denominator)
 
-int32 zero = int32.parse("0")
+int32 zero := int32.parse("0")
 print(apply(sink, zero))
 '''
 
@@ -148,12 +148,12 @@ with tempfile.TemporaryDirectory() as temporary:
               [('sink', line, 1), ('choose', 12, 1)])
     check(root, 'indirect', indirect_source, [('sink', 5, 1), ('apply', 8, 1)])
 
-    task_source = self_source.split('int32 n =')[0] + """void fails()
-    int32 n = int32.parse("500")
+    task_source = self_source.split('int32 n :=')[0] + """void fails()
+    int32 n := int32.parse("500")
     print(count(n))
 
 void waits()
-    int unused = 0
+    int unused := 0
 
 parallel
     fails()

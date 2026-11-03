@@ -6,21 +6,21 @@ cli args
 
 // The whole workload body (methodology 06 section 4, MB-02).
 int workload()
-    int m = 1000003
-    int n = 20000
-    int total = 0
+    int m := 1000003
+    int n := 20000
+    int total := 0
     for 1 <= int k < n + 1
-        int f = 1
+        int f := 1
         for 2 <= int j < k + 1
             f = (f * j) % m
         total = (total + f) % m
     return total
 
 int timed(int index)
-    time.Instant start = time.now()
-    int result = workload()
-    time.Duration elapsed = time.since(start)
-    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    time.Instant start := time.now()
+    int result := workload()
+    time.Duration elapsed := time.since(start)
+    int elapsed_ns := math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
     print(NL)
     flush()
@@ -28,7 +28,7 @@ int timed(int index)
 
 int total
 if args.mode == "steady"
-    int k = math.max(args.iterations, 1)
+    int k := math.max(args.iterations, 1)
     total = timed(0)
     for 1 <= int i < k
         total = timed(i)

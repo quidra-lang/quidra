@@ -6989,7 +6989,7 @@ Type Checker::check_class_construction(const Expr& expression, const CallExpr& n
             text += type_name(parameter.type);
             text += parameter.writable ? " &" : " ";
             text += parameter.name;
-            if (parameter.default_value) text += " = ...";
+            if (parameter.default_value) text += " := ...";
         }
         return text + ")";
     };
@@ -7604,7 +7604,7 @@ Type Checker::check_literal_constant(const Expr& expression, const LiteralConsta
     const auto ambiguous = [&] {
         error("AMBIGUOUS_NUMERIC_LITERAL",
               "The literal constant '" + node.name +
-                  "' needs a unique real-family type; write 'real64 x = " + node.name +
+                  "' needs a unique real-family type; write 'real64 x := " + node.name +
                   "' or 'real64(" + node.name + ")'.",
               expression.span);
     };
@@ -9061,7 +9061,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 }
                 if (success_cases.empty()) {
                     error("INVALID_AUTO",
-                          "auto cannot infer a success type from an error-only initializer.",
+                          "An inferred declaration cannot infer a success type from an error-only initializer.",
                           statement.span);
                 }
                 type = Type::union_of(std::move(success_cases));
@@ -10835,7 +10835,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
                 error("MATCH_CASE", "Enum payload binders use Variant(name) syntax.", match_case.span);
         } else if(match_case.pattern) {
             const auto fits=[&](const Pattern& p,const Type& candidate){return tuple_pattern_matches(p,candidate,[](const Type& t)->const std::vector<Type>* {return t.kind==TypeKind::Tuple?&t.parameters:nullptr;},[&](const TypeName& leaf,const Type& t){return resolve_type(leaf)==t;});};
-            for(std::size_t i=0;i<type.cases.size();++i)if(fits(*match_case.pattern,type.cases[i])){if(tag>=0)error("MATCH_CASE","'_' or 'auto' leaves this case ambiguous: write that element's type.",match_case.span);tag=static_cast<int>(i);requested_case_type=type.cases[i];}
+            for(std::size_t i=0;i<type.cases.size();++i)if(fits(*match_case.pattern,type.cases[i])){if(tag>=0)error("MATCH_CASE","This tuple case matches more than one type: write the ambiguous element's type.",match_case.span);tag=static_cast<int>(i);requested_case_type=type.cases[i];}
             if(tag<0)error("MATCH_CASE","No alternative of this match is the requested tuple; write the element types of one alternative.",match_case.span);
         } else {
             if (!match_case.tag.empty())

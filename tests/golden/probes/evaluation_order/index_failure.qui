@@ -5,9 +5,9 @@ int f()
     print(NL)
     return 1
 
-int[] a = [0, 0, 0]
-int[] b = [1, 2]
-int j = 4
+int[] a := [0, 0, 0]
+int[] b := [1, 2]
+int j := 4
 print("start")
 print(NL)
 a[b[j]] = f()

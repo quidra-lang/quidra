@@ -7,7 +7,7 @@ export QUIDRA_CACHE_DIR="$TMP/cache"
 
 cat > "$TMP/ranges.qui" <<'QUI'
 void show(int[] values)
-    for int value = values[]
+    for int value := values[]
         print("{value},")
     print(NL)
 show(:3)
@@ -32,8 +32,8 @@ show((:3 ^ 2))
 show((-3:0 ^ 2))
 show((0:-3 ^ 2))
 show((3:0:-1 ^ 2))
-int start = 3
-int stop = 0
+int start := 3
+int stop := 0
 show(start:stop)
 show(stop:start)
 show(start:>start)
@@ -43,7 +43,7 @@ show(start<:stop)
 show(stop:>start)
 show(0:1:18446744073709551616)
 show(1:0:-18446744073709551616)
-int huge = 18446744073709551616
+int huge := 18446744073709551616
 show(huge:(huge + 2))
 show((huge + 2):huge)
 QUI
@@ -89,12 +89,12 @@ diff -u "$TMP/ranges.expected" "$TMP/ranges.actual"
 for kind in int nat int8 int16 int32 int64 nat8 nat16 nat32 nat64; do
     cat > "$TMP/family.qui" <<QUI
 void consume($kind[] values)
-    for $kind value = values[]
+    for $kind value := values[]
         print("{value},")
     print(NL)
-$kind start = 1
-$kind stop = 3
-auto values = start:stop
+$kind start := 1
+$kind stop := 3
+values := start:stop
 consume(values)
 consume(stop:start)
 consume(:stop)
@@ -107,7 +107,7 @@ done
 for range in '0:3:0' '0:3:-1' '3:0:1' '3<:0:-1' '0>:3:1' \
              '3:>3:1' '3:<3:-1' '3<:0:1' '0:>3:-1' \
              '18446744073709551616<:0:1'; do
-    printf 'int[] values = %s\n' "$range" > "$TMP/invalid.qui"
+    printf 'int[] values := %s\n' "$range" > "$TMP/invalid.qui"
     if "$QUIDRA" check "$TMP/invalid.qui" > "$TMP/out" 2> "$TMP/err"; then
         printf 'invalid constant range accepted: %s\n' "$range" >&2
         exit 1
@@ -120,7 +120,7 @@ done
 for range in 'start<:stop:-1' 'stop>:start:1' 'start:<stop:-1' 'stop:>start:1'; do
     cat > "$TMP/static-marker.qui" <<QUI
 void check(int start, int stop)
-    int[] values = $range
+    int[] values := $range
 QUI
     if "$QUIDRA" check "$TMP/static-marker.qui" >"$TMP/out" 2>"$TMP/err"; then
         printf 'invalid static range accepted: %s\n' "$range" >&2
@@ -137,7 +137,7 @@ for range in 'start:stop:1' 'stop:start:-1' \
     cat > "$TMP/dynamic.qui" <<QUI
 void validate(int start, int stop, int step, int negative_step, int zero)
     print("before" + NL)
-    auto values = $range
+    values := $range
     print("after" + NL)
 validate(3, 0, 1, -1, 0)
 QUI
@@ -151,9 +151,9 @@ QUI
     grep -Eq 'runtime error\[(SLICE_STEP|FOR_STEP)\]' "$TMP/err"
 done
 
-for source in 'int8 start = 1\nint16 stop = 3\nauto values = start:stop' \
-              'real start = 1.0\nreal stop = 3.0\nauto values = start:stop' \
-              'int8 start = 1\nint8 stop = 3\nint[] values = start:stop'; do
+for source in 'int8 start := 1\nint16 stop := 3\nvalues := start:stop' \
+              'real start := 1.0\nreal stop := 3.0\nvalues := start:stop' \
+              'int8 start := 1\nint8 stop := 3\nint[] values := start:stop'; do
     printf '%b\n' "$source" > "$TMP/types.qui"
     if "$QUIDRA" check "$TMP/types.qui" > "$TMP/out" 2> "$TMP/err"; then
         printf 'invalid range operand types accepted\n' >&2

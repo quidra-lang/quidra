@@ -1,6 +1,6 @@
-int value = 255
-int negative = -255
-nat large = nat.parse("18446744073709551616")
+int value := 255
+int negative := -255
+nat large := nat.parse("18446744073709551616")
 print.line("bin={value.string(base = 2)}")
 print.line("oct={value.string(base = 8)}")
 print.line("hex={value.string(base = 16, uppercase = true)}")

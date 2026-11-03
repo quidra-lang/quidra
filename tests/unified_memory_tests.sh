@@ -34,35 +34,35 @@ fail() {
 # ------------------------------------------------------------------ programs
 
 cat > "$TMP/semantics.qui" <<'QUI'
-int dev = 0
+int dev := 0
 
 void show(string label, real32 value)
     print("{label} {value}{NL}")
 
 // 8 elements stay below the Metal wrap minimum; 32768 (128 KiB) are wrapped.
 // Both must behave like independent values.
-int[] sizes = [8, 32768]
-for auto size = sizes[]
+int[] sizes := [8, 32768]
+for size := sizes[]
     print("size {size}{NL}")
-    tensor<real32> host = tensor.ones<real32>([nat(size)]) * real32(2)
-    tensor<real32> device = host.gpu(nat(dev))
+    tensor<real32> host := tensor.ones<real32>([nat(size)]) * real32(2)
+    tensor<real32> device := host.gpu(nat(dev))
     host[0] = real32(10)
     show("cpu write after gpu: device", device.cpu()[0].item())
     show("cpu write after gpu: host", host[0].item())
 
-    tensor<real32> view = device.cpu()
+    tensor<real32> view := device.cpu()
     view[1] = real32(11)
     show("cpu view write: device", device.cpu()[1].item())
     show("cpu view write: view", view[1].item())
 
-    tensor<real32> first = device.cpu()
-    tensor<real32> second = device.cpu()
+    tensor<real32> first := device.cpu()
+    tensor<real32> second := device.cpu()
     device[2] = real32(12)
     show("gpu write with cpu views: first", first[2].item())
     show("gpu write with cpu views: second", second[2].item())
     show("gpu write with cpu views: device", device.cpu()[2].item())
 
-    tensor<real32> round = device.cpu().gpu(nat(dev))
+    tensor<real32> round := device.cpu().gpu(nat(dev))
     round[3] = real32(13)
     show("round trip write: device", device.cpu()[3].item())
     show("round trip write: round", round.cpu()[3].item())
@@ -70,7 +70,7 @@ for auto size = sizes[]
     show("view write after round trip: round", round.cpu()[3].item())
     show("view write after round trip: first", first[3].item())
 
-    tensor<real32> alias = view
+    tensor<real32> alias := view
     alias[4] = real32(15)
     show("shared view write: view", view[4].item())
     show("shared view write: alias", alias[4].item())
@@ -81,60 +81,60 @@ for auto size = sizes[]
 // work queued before .cpu() must be complete when the view is read. The device
 // view is dropped first, so `base` is the only view of its allocation while
 // the queued additions still read it.
-tensor<real32> base = tensor.ones<real32>([65536])
-tensor<real32> base_device = base.gpu(nat(dev))
-tensor<real32> accumulated = base_device
+tensor<real32> base := tensor.ones<real32>([65536])
+tensor<real32> base_device := base.gpu(nat(dev))
+tensor<real32> accumulated := base_device
 for 0 <= nat step < 40
     accumulated = accumulated + base_device
 base_device = tensor.zeros<real32>([1], gpu = nat(dev))
 base[0] = real32(1000)
 base[1] = real32(2000)
-tensor<real32> accumulated_host = accumulated.cpu()
+tensor<real32> accumulated_host := accumulated.cpu()
 show("queued reads before host writes", accumulated_host[0].item())
 show("queued reads before host writes [1]", accumulated_host[1].item())
 show("host writes", base[0].item() + base[1].item())
 
-tensor<real32> written = tensor.zeros<real32>([65536], gpu = nat(dev))
+tensor<real32> written := tensor.zeros<real32>([65536], gpu = nat(dev))
 for 0 <= nat step < 25
     written = written + real32(1)
-tensor<real32> written_host = written.cpu()
+tensor<real32> written_host := written.cpu()
 show("queued writes before cpu", written_host[65535].item())
 written = written + real32(1)
 show("later device work does not change the view", written_host[0].item())
 show("later device work", written.cpu()[0].item())
 
 // Views with an offset or strides, and partial initialization, keep copying.
-tensor<real32> grid = (tensor.ones<real32>([4, 4]) * real32(3)).gpu(nat(dev))
-tensor<real32> column = grid[:, 1].cpu()
+tensor<real32> grid := (tensor.ones<real32>([4, 4]) * real32(3)).gpu(nat(dev))
+tensor<real32> column := grid[:, 1].cpu()
 show("strided view", column[2].item())
 print("strided contiguous {column.is_contiguous()}{NL}")
-tensor<real32> partial = tensor<real32>([4])
+tensor<real32> partial := tensor<real32>([4])
 partial[0] = real32(5)
 partial[2] = real32(6)
-tensor<real32> partial_device = partial.gpu(nat(dev))
+tensor<real32> partial_device := partial.gpu(nat(dev))
 show("partial", partial_device.cpu()[2].item())
-tensor<real32> complete = tensor<real32>([3])
+tensor<real32> complete := tensor<real32>([3])
 complete[0] = real32(1)
 complete[1] = real32(2)
 complete[2] = real32(3)
-tensor<real32> complete_device = complete.gpu(nat(dev))
+tensor<real32> complete_device := complete.gpu(nat(dev))
 complete[1] = real32(20)
 show("element-initialized", complete_device.cpu()[1].item())
 
 // Other dtypes.
-tensor<int32> integers = tensor.ones<int32>([5]) * int32(7)
-tensor<int32> integers_device = integers.gpu(nat(dev))
+tensor<int32> integers := tensor.ones<int32>([5]) * int32(7)
+tensor<int32> integers_device := integers.gpu(nat(dev))
 integers[0] = int32(9)
 print("int32 {integers_device.cpu()[0].item()} {integers[0].item()}{NL}")
-tensor<real64> doubles = tensor.ones<real64>([3]) * 1.5
-tensor<real64> doubles_host = doubles.gpu(nat(dev)).cpu()
+tensor<real64> doubles := tensor.ones<real64>([3]) * 1.5
+tensor<real64> doubles_host := doubles.gpu(nat(dev)).cpu()
 doubles_host[0] = 4.5
 print("float64 {doubles[0].item()} {doubles_host[0].item()}{NL}")
-tensor<nat8> bytes = tensor.ones<nat8>([70000])
-tensor<nat8> bytes_device = bytes.gpu(nat(dev))
+tensor<nat8> bytes := tensor.ones<nat8>([70000])
+tensor<nat8> bytes_device := bytes.gpu(nat(dev))
 bytes[69999] = nat8(200)
 print("uint8 {bytes_device.cpu()[69999].item()} {bytes[69999].item()}{NL}")
-tensor<bool> flags = tensor.ones<real32>([4]) > real32(0)
+tensor<bool> flags := tensor.ones<real32>([4]) > real32(0)
 print("bool {flags.gpu(nat(dev)).cpu().all()}{NL}")
 QUI
 
@@ -192,26 +192,26 @@ TEXT
 # 3 elements are copied; 32768 (128 KiB) are viewed in both directions on
 # Metal and the fake GPU, which the counters check.
 cat > "$TMP/autograd.qui" <<'QUI'
-int dev = 0
+int dev := 0
 
 void show(string label, real32 value)
     print("{label} {value}{NL}")
 
 tensor<real32> sum_first(tensor<real32> value, int count)
-    tensor<real32> result = value.gather([0], [])
+    tensor<real32> result := value.gather([0], [])
     for 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
-int[] sizes = [3, 32768]
-for auto size = sizes[]
+int[] sizes := [3, 32768]
+for size := sizes[]
     print("size {size}{NL}")
     // First order on the device, through an upload.
-    tensor<real32> weights_host = tensor.ones<real32>([nat(size)]) * real32(2)
-    tensor<real32> weights = weights_host.gpu(nat(dev))
-    tensor<real32> tracked = weights.track()
+    tensor<real32> weights_host := tensor.ones<real32>([nat(size)]) * real32(2)
+    tensor<real32> weights := weights_host.gpu(nat(dev))
+    tensor<real32> tracked := weights.track()
     sum_first(tracked * tracked * tracked, 3).backward(&weights)
-    tensor<real32> gradient = weights.grad.cpu()
+    tensor<real32> gradient := weights.grad.cpu()
     show("gpu gradient", gradient[1].item())
     weights_host[1] = real32(100)
     show("gpu gradient after host write", weights.grad.cpu()[1].item())
@@ -220,11 +220,11 @@ for auto size = sizes[]
     show("gpu gradient after view write", weights.grad.cpu()[1].item())
 
     // Second order on the host, through a download.
-    tensor<real32> on_host = (tensor.ones<real32>([nat(size)], gpu = nat(dev)) * real32(3)).cpu()
-    tensor<real32> cube_input = on_host.track()
-    tensor<real32> cube = cube_input * cube_input * cube_input
+    tensor<real32> on_host := (tensor.ones<real32>([nat(size)], gpu = nat(dev)) * real32(3)).cpu()
+    tensor<real32> cube_input := on_host.track()
+    tensor<real32> cube := cube_input * cube_input * cube_input
     sum_first(cube, 2).backward(&on_host, track = true)
-    tensor<real32> first_derivative = on_host.grad
+    tensor<real32> first_derivative := on_host.grad
     show("first derivative", first_derivative.untrack()[1].item())
     .on_host.clear_grad()
     sum_first(first_derivative, 2).backward(&on_host)
@@ -234,10 +234,10 @@ for auto size = sizes[]
     show("first derivative after host write", first_derivative.untrack()[1].item())
 
     // Gradient accumulation after a download of the gradient.
-    tensor<real32> values = tensor.ones<real32>([nat(size)]).gpu(nat(dev))
-    tensor<real32> values_tracked = values.track()
+    tensor<real32> values := tensor.ones<real32>([nat(size)]).gpu(nat(dev))
+    tensor<real32> values_tracked := values.track()
     sum_first(values_tracked * real32(3), 2).backward(&values)
-    tensor<real32> earlier = values.grad.cpu()
+    tensor<real32> earlier := values.grad.cpu()
     sum_first(values_tracked * real32(4), 2).backward(&values)
     show("accumulated", values.grad.cpu()[1].item())
     show("earlier gradient", earlier[1].item())
@@ -345,15 +345,15 @@ CPP
 
 cat > "$TMP/borrow.qui" <<'QUI'
 import probe = unified_probe
-int dev = 0
+int dev := 0
 
 void show(string label, real32 value)
     print("{label} {value}{NL}")
 
 // While the source is alive the result shares its allocation until the first
 // native borrow moves it out; const and mutable pointers agree.
-tensor<real32> device = (tensor.ones<real32>([32768]) * real32(2)).gpu(nat(dev))
-tensor<real32> result = device.cpu()
+tensor<real32> device := (tensor.ones<real32>([32768]) * real32(2)).gpu(nat(dev))
+tensor<real32> result := device.cpu()
 print("reuse shared {probe.reuse(&result)}{NL}")
 show("reuse shared: result", result[0].item())
 show("reuse shared: device", device.cpu()[0].item())
@@ -361,9 +361,9 @@ show("reuse shared: device", device.cpu()[0].item())
 // Once the device view is gone, queued device work may still read the bytes:
 // the mutable borrow waits for it instead of moving the value, and the queued
 // work still sees the old bytes.
-tensor<real32> host = tensor.ones<real32>([65536])
-tensor<real32> uploaded = host.gpu(nat(dev))
-tensor<real32> accumulated = uploaded
+tensor<real32> host := tensor.ones<real32>([65536])
+tensor<real32> uploaded := host.gpu(nat(dev))
+tensor<real32> accumulated := uploaded
 for 0 <= nat step < 100
     accumulated = accumulated + uploaded
 uploaded = tensor.zeros<real32>([1], gpu = nat(dev))
@@ -372,17 +372,17 @@ show("reuse exclusive: host", host[0].item())
 show("reuse exclusive: queued", accumulated.cpu()[0].item())
 
 // Two views of one allocation in one native call stay distinct values.
-tensor<real32> shared = (tensor.ones<real32>([32768]) * real32(3)).gpu(nat(dev))
-tensor<real32> left = shared.cpu()
-tensor<real32> right = shared.cpu()
+tensor<real32> shared := (tensor.ones<real32>([32768]) * real32(3)).gpu(nat(dev))
+tensor<real32> left := shared.cpu()
+tensor<real32> right := shared.cpu()
 print("alias {probe.alias(left, &right)}{NL}")
 show("alias: left", left[0].item())
 show("alias: right", right[0].item())
 show("alias: shared", shared.cpu()[0].item())
 
 // Device handles of a device view that shares its allocation.
-tensor<real32> source = tensor.ones<real32>([32768]) * real32(4)
-tensor<real32> on_device = source.gpu(nat(dev))
+tensor<real32> source := tensor.ones<real32>([32768]) * real32(4)
+tensor<real32> on_device := source.gpu(nat(dev))
 print("device reuse {probe.device_reuse(&on_device)}{NL}")
 show("device reuse: source", source[0].item())
 QUI
@@ -406,8 +406,8 @@ TEXT
 # work needs no host wait for a mutable borrow (the relu_reuse pattern).
 cat > "$TMP/nowait.qui" <<'QUI'
 import probe = unified_probe
-int dev = 0
-tensor<real32> result = (tensor.ones<real32>([32768], gpu = nat(dev)) * real32(2)).cpu()
+int dev := 0
+tensor<real32> result := (tensor.ones<real32>([32768], gpu = nat(dev)) * real32(2)).cpu()
 print("reuse after transfer {probe.reuse(&result)} {result[0].item()} {result[1].item()}{NL}")
 QUI
 cat > "$TMP/nowait.expected" <<'TEXT'
@@ -417,11 +417,11 @@ TEXT
 # `.cpu()` after the device has finished all of Core's work (here after
 # gpu.sync) is a view too, and stays a distinct value.
 cat > "$TMP/idle.qui" <<'QUI'
-int dev = 0
-tensor<real32> device = tensor.ones<real32>([32768], gpu = nat(dev)) * real32(4)
+int dev := 0
+tensor<real32> device := tensor.ones<real32>([32768], gpu = nat(dev)) * real32(4)
 gpu.sync(nat(dev))
-tensor<real32> first = device.cpu()
-tensor<real32> second = device.cpu()
+tensor<real32> first := device.cpu()
+tensor<real32> second := device.cpu()
 first[0] = real32(1)
 print("idle {first[0].item()} {first[1].item()} {second[0].item()} {device.cpu()[0].item()}{NL}")
 QUI
@@ -588,31 +588,31 @@ OBJC
 
 cat > "$TMP/gate.qui" <<'QUI'
 import probe = unified_gate
-int dev = 0
+int dev := 0
 
 // Nothing tracked pending. Whether `.cpu()` sees the fill depends on timing
 // in both modes, but the result must not change later and the source must
 // keep the fill after a native borrow.
-tensor<real32> idle = tensor.zeros<real32>([65536], gpu = nat(dev))
+tensor<real32> idle := tensor.zeros<real32>([65536], gpu = nat(dev))
 gpu.sync(nat(dev))
-int32 idle_status = probe.delayed_fill(&idle, 400)
-tensor<real32> idle_host = idle.cpu()
-real32 idle_before = idle_host[65535].item()
-int32 idle_touch = probe.touch(idle)
+int32 idle_status := probe.delayed_fill(&idle, 400)
+tensor<real32> idle_host := idle.cpu()
+real32 idle_before := idle_host[65535].item()
+int32 idle_touch := probe.touch(idle)
 time.sleep(time.seconds(0.8))
-real32 idle_after = idle_host[65535].item()
+real32 idle_after := idle_host[65535].item()
 print("idle status {idle_status} {idle_touch}{NL}")
 print("idle result unchanged {idle_before == idle_after}{NL}")
 print("idle source {idle.cpu()[65535].item()}{NL}")
 
 // Core work pending: the synchronization's barrier waits for the fill.
-tensor<real32> busy = tensor.zeros<real32>([65536], gpu = nat(dev))
+tensor<real32> busy := tensor.zeros<real32>([65536], gpu = nat(dev))
 gpu.sync(nat(dev))
-int32 busy_status = probe.delayed_fill(&busy, 200)
-tensor<real32> other = tensor.ones<real32>([4], gpu = nat(dev)) + real32(1)
-tensor<real32> busy_host = busy.cpu()
-real32 busy_before = busy_host[65535].item()
-int32 busy_touch = probe.touch(busy)
+int32 busy_status := probe.delayed_fill(&busy, 200)
+tensor<real32> other := tensor.ones<real32>([4], gpu = nat(dev)) + real32(1)
+tensor<real32> busy_host := busy.cpu()
+real32 busy_before := busy_host[65535].item()
+int32 busy_touch := probe.touch(busy)
 time.sleep(time.seconds(0.4))
 print("busy status {busy_status} {busy_touch}{NL}")
 print("busy result {busy_before} {busy_host[65535].item()}{NL}")
@@ -629,17 +629,17 @@ TEXT
 
 cat > "$TMP/open.qui" <<'QUI'
 import probe = unified_gate
-int dev = 0
+int dev := 0
 
 // The package encodes a read of `g` in one call and commits it in a later
 // one; `g` is gone by then, and `c` is the only value left.
 tensor<real32> download(int device)
-    tensor<real32> g = tensor.ones<real32>([65536], gpu = nat(device)) * real32(2)
-    int32 status = probe.open_read(g)
+    tensor<real32> g := tensor.ones<real32>([65536], gpu = nat(device)) * real32(2)
+    int32 status := probe.open_read(g)
     print("open status {status}{NL}")
     return g.cpu()
 
-tensor<real32> c = download(dev)
+tensor<real32> c := download(dev)
 c[0] = real32(99)
 print("commit {probe.commit_open()}{NL}")
 print("package read {probe.snapshot(0)} {probe.snapshot(65535)}{NL}")
@@ -654,23 +654,23 @@ TEXT
 
 cat > "$TMP/upload.qui" <<'QUI'
 import probe = unified_gate
-int dev = 0
+int dev := 0
 
 tensor<real32> upload(int device)
-    tensor<real32> source = tensor.ones<real32>([65536]) * real32(5)
+    tensor<real32> source := tensor.ones<real32>([65536]) * real32(5)
     return source.gpu(nat(device))
 
 // The host value stays alive, so the package's mutable borrow moves the
 // device value to memory of its own first.
-tensor<real32> host = tensor.ones<real32>([65536]) * real32(4)
-tensor<real32> shared = host.gpu(nat(dev))
-int32 shared_status = probe.delayed_fill(&shared, 100)
+tensor<real32> host := tensor.ones<real32>([65536]) * real32(4)
+tensor<real32> shared := host.gpu(nat(dev))
+int32 shared_status := probe.delayed_fill(&shared, 100)
 gpu.sync(nat(dev))
 print("shared {shared_status} host {host[100].item()} device {shared.cpu()[100].item()}{NL}")
 
 // The host value is gone: the package fills the uploaded memory itself.
-tensor<real32> sole = upload(dev)
-int32 sole_status = probe.delayed_fill(&sole, 100)
+tensor<real32> sole := upload(dev)
+int32 sole_status := probe.delayed_fill(&sole, 100)
 gpu.sync(nat(dev))
 print("sole {sole_status} device {sole.cpu()[100].item()}{NL}")
 QUI
@@ -681,33 +681,33 @@ TEXT
 
 # Diagnostics: identical message, location and exit status in both modes.
 cat > "$TMP/error-index.qui" <<'QUI'
-tensor<real32> host = tensor.ones<real32>([32768])
-tensor<real32> device = host.gpu(7)
+tensor<real32> host := tensor.ones<real32>([32768])
+tensor<real32> device := host.gpu(7)
 print(device.device())
 QUI
 cat > "$TMP/error-tracked-cpu.qui" <<'QUI'
-tensor<real32> device = (tensor.ones<real32>([32768]) * real32(2)).gpu(0).track()
-tensor<real32> host = device.cpu()
+tensor<real32> device := (tensor.ones<real32>([32768]) * real32(2)).gpu(0).track()
+tensor<real32> host := device.cpu()
 print(host.device())
 QUI
 cat > "$TMP/error-tracked-gpu.qui" <<'QUI'
-tensor<real32> host = tensor.ones<real32>([32768]).track()
-tensor<real32> device = host.gpu(0)
+tensor<real32> host := tensor.ones<real32>([32768]).track()
+tensor<real32> device := host.gpu(0)
 print(device.device())
 QUI
 cat > "$TMP/error-uninitialized.qui" <<'QUI'
-tensor<real32> partial = tensor<real32>([4])
+tensor<real32> partial := tensor<real32>([4])
 partial[0] = real32(1)
-tensor<real32> device = partial.gpu(0)
-tensor<real32> back = device.cpu()
+tensor<real32> device := partial.gpu(0)
+tensor<real32> back := device.cpu()
 print(back[0].item())
 print(NL)
 print(back[1].item())
 QUI
 cat > "$TMP/error-deferred.qui" <<'QUI'
-tensor<int32> value = tensor.ones<int32>([32768], gpu = 0)
-tensor<int32> invalid = value / int32(0)
-tensor<int32> host = invalid.cpu()
+tensor<int32> value := tensor.ones<int32>([32768], gpu = 0)
+tensor<int32> invalid := value / int32(0)
+tensor<int32> host := invalid.cpu()
 print("after cpu")
 print(NL)
 gpu.sync(0)

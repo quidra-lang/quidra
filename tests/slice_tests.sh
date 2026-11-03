@@ -63,183 +63,183 @@ PY
 
 # A materialized indices() result uses the outer axis and nat elements.
 expect indices-dynamic "true" <<'QUI'
-int[] values = [10, 20, 30, 40]
-nat[] expected = [0, 1, 2, 3]
+int[] values := [10, 20, 30, 40]
+nat[] expected := [0, 1, 2, 3]
 print(values.indices() == expected)
 QUI
 expect indices-nested "true" <<'QUI'
-int[][] values = [[1, 2], [3, 4], [5, 6]]
-nat[] expected = [0, 1, 2]
+int[][] values := [[1, 2], [3, 4], [5, 6]]
+nat[] expected := [0, 1, 2]
 print(values.indices() == expected)
 QUI
 expect indices-empty "true" <<'QUI'
-int[] values = []
-nat[] expected = []
+int[] values := []
+nat[] expected := []
 print(values.indices() == expected)
 QUI
 rejects indices-args ARGUMENT_MISMATCH "array.indices() takes no arguments" <<'QUI'
-int[] values = [1, 2]
+int[] values := [1, 2]
 print(values.indices(1))
 QUI
 
 # Read-only gathers preserve order, duplicates, outer-axis rows and values.
 expect gather-indices "true" <<'QUI'
-int[] values = [10, 20, 30, 40, 50]
-int[] indices = [3, 1, 3]
-int[] expected = [40, 20, 40]
+int[] values := [10, 20, 30, 40, 50]
+int[] indices := [3, 1, 3]
+int[] expected := [40, 20, 40]
 print(values[indices] == expected)
 QUI
 expect gather-nat "true" <<'QUI'
-int[] values = [10, 20, 30, 40]
-nat[] indices = [3, 0]
-int[] expected = [40, 10]
+int[] values := [10, 20, 30, 40]
+nat[] indices := [3, 0]
+int[] expected := [40, 10]
 print(values[indices] == expected)
 QUI
 expect gather-nested "true" <<'QUI'
-int[][] values = [[1, 2], [3, 4], [5, 6]]
-nat[] indices = [2, 0]
-int[][] expected = [[5, 6], [1, 2]]
+int[][] values := [[1, 2], [3, 4], [5, 6]]
+nat[] indices := [2, 0]
+int[][] expected := [[5, 6], [1, 2]]
 print(values[indices] == expected)
 QUI
 expect mask-array "true" <<'QUI'
-int[] values = [-2, 3, 0, 4]
-bool[] mask = [false, true, false, true]
-int[] expected = [3, 4]
+int[] values := [-2, 3, 0, 4]
+bool[] mask := [false, true, false, true]
+int[] expected := [3, 4]
 print(values[mask] == expected)
 QUI
 expect mask-nested "true" <<'QUI'
-int[][] values = [[1, 2], [3, 4], [5, 6]]
-bool[] mask = [true, false, true]
-int[][] expected = [[1, 2], [5, 6]]
+int[][] values := [[1, 2], [3, 4], [5, 6]]
+bool[] mask := [true, false, true]
+int[][] expected := [[1, 2], [5, 6]]
 print(values[mask] == expected)
 QUI
 expect mask-empty "true" <<'QUI'
-int[] values = [2, 4]
-bool[] mask = [false, false]
-int[] expected = []
+int[] values := [2, 4]
+bool[] mask := [false, false]
+int[] expected := []
 print(values[mask] == expected)
 QUI
 rejects selection-invalid-kind TYPE_MISMATCH "needs bool[], nat[] or int[]" <<'QUI'
-int[] values = [1, 2]
-real32[] indices = [0.0, 1.0]
+int[] values := [1, 2]
+real32[] indices := [0.0, 1.0]
 print(values[indices])
 QUI
 # Scalar literal indexing remains typed and has its original behavior.
 expect gather-scalar-literal "true" <<'QUI'
-int[] values = [10, 20, 30]
+int[] values := [10, 20, 30]
 print(values[1] == 20)
 QUI
 # An array of literal integer indices is contextual and materialized as int[].
 expect gather-index-literals "true" <<'QUI'
-int[] values = [10, 20, 30]
-int[] expected = [30, 10]
+int[] values := [10, 20, 30]
+int[] expected := [30, 10]
 print(values[[2, 0]] == expected)
 QUI
 rejects gather-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
-int[] values = [1, 2, 3]
-int[] indices = [0, 2]
+int[] values := [1, 2, 3]
+int[] indices := [0, 2]
 values[indices] = [8, 9]
 QUI
 rejects mask-not-assignable INVALID_ASSIGNMENT "read-only" <<'QUI'
-int[] values = [1, 2, 3]
-bool[] mask = [true, false, true]
+int[] values := [1, 2, 3]
+bool[] mask := [true, false, true]
 values[mask] = [8, 9]
 QUI
 # Elementwise arithmetic and comparisons preserve values and shape.
 expect arithmetic-basic "true" <<'QUI'
-int[] a = [1, 2, 3]
-int[] b = [4, 5, 6]
-int[] plus = [5, 7, 9]
-int[] times = [4, 10, 18]
-int[] squares = [1, 4, 9]
-int[] scalar = [6, 7, 8]
+int[] a := [1, 2, 3]
+int[] b := [4, 5, 6]
+int[] plus := [5, 7, 9]
+int[] times := [4, 10, 18]
+int[] squares := [1, 4, 9]
+int[] scalar := [6, 7, 8]
 print(a + b == plus and a * b == times and a ^ 2 == squares and
       a + 5 == scalar and 5 + a == scalar and a[0] == 1)
 QUI
 expect arithmetic-nested "true" <<'QUI'
-int[][] a = [[1, 2], [3, 4]]
-int[][] b = [[5, 6], [7, 8]]
-int[][] expected = [[6, 8], [10, 12]]
+int[][] a := [[1, 2], [3, 4]]
+int[][] b := [[5, 6], [7, 8]]
+int[][] expected := [[6, 8], [10, 12]]
 print(a + b == expected)
 QUI
 expect arithmetic-comparisons "true" <<'QUI'
-int[] a = [-2, 3, 0, 4]
-bool[] positive = [false, true, false, true]
-bool[] nonpositive = [true, false, true, false]
-int[] b = [0, 1, 2, 3]
-bool[] less = [true, false, true, false]
+int[] a := [-2, 3, 0, 4]
+bool[] positive := [false, true, false, true]
+bool[] nonpositive := [true, false, true, false]
+int[] b := [0, 1, 2, 3]
+bool[] less := [true, false, true, false]
 print((a > 0) == positive and (a <= 0) == nonpositive and (a < b) == less)
 QUI
 rejects arithmetic-static-shape ARRAY_SHAPE "identical lengths" <<'QUI'
-int[2] a = [1, 2]
-int[3] b = [3, 4, 5]
+int[2] a := [1, 2]
+int[3] b := [3, 4, 5]
 print(a + b)
 QUI
 # Free-standing ranges allocate arrays, while indexing colons remain
 # direct slices. Both endpoints are inclusive unless explicitly excluded.
 expect free-range-basic "true" <<'QUI'
-int[] a = 0:3
-int[] b = :3
-int[] c = 2:5
-int[] expected0 = [0, 1, 2, 3]
-int[] expected1 = [2, 3, 4, 5]
+int[] a := 0:3
+int[] b := :3
+int[] c := 2:5
+int[] expected0 := [0, 1, 2, 3]
+int[] expected1 := [2, 3, 4, 5]
 print(a == expected0 and b == expected0 and c == expected1)
 QUI
 expect free-range-step "true" <<'QUI'
-int[] a = 0:10:2
-int[] b = 5:0:-2
-int[] c = 3:0
-int[] d = 0:<3
-int[] e = 0<:3
-int[] expected_a = [0, 2, 4, 6, 8, 10]
-int[] expected_b = [5, 3, 1]
-int[] expected_c = [3, 2, 1, 0]
-int[] expected_d = [0, 1, 2]
-int[] expected_e = [1, 2, 3]
+int[] a := 0:10:2
+int[] b := 5:0:-2
+int[] c := 3:0
+int[] d := 0:<3
+int[] e := 0<:3
+int[] expected_a := [0, 2, 4, 6, 8, 10]
+int[] expected_b := [5, 3, 1]
+int[] expected_c := [3, 2, 1, 0]
+int[] expected_d := [0, 1, 2]
+int[] expected_e := [1, 2, 3]
 print(a == expected_a and b == expected_b and c == expected_c and
       d == expected_d and e == expected_e)
 QUI
 expect free-range-nat "true" <<'QUI'
-nat[] values = :3
-nat[] expected = [0, 1, 2, 3]
+nat[] values := :3
+nat[] expected := [0, 1, 2, 3]
 print(values == expected)
 QUI
 expect free-range-typed "true" <<'QUI'
-int start = 2
-int stop = 6
-int step = 2
-int[] values = start:stop:step
-int[] expected = [2, 4, 6]
+int start := 2
+int stop := 6
+int step := 2
+int[] values := start:stop:step
+int[] expected := [2, 4, 6]
 print(values == expected)
 QUI
 expect free-range-power "true" <<'QUI'
-int[] values = :3 ^ 2
-int[] expected = [0, 1, 4, 9]
+int[] values := :3 ^ 2
+int[] expected := [0, 1, 4, 9]
 print(values == expected)
 QUI
 expect range-gather "true" <<'QUI'
-int[] values = [10, 20, 30, 40, 50]
-int[] idx = :3
-int[] expected = [10, 20, 30, 40]
+int[] values := [10, 20, 30, 40, 50]
+int[] idx := :3
+int[] expected := [10, 20, 30, 40]
 print(values[idx] == expected and values[:3] == expected)
 QUI
 rejects free-range-missing-stop SLICE_BOUNDS "standalone range requires an end" <<'QUI'
-int[] indices = 3:
+int[] indices := 3:
 QUI
 rejects free-range-opposite-step SLICE_STEP "opposes the bound direction" <<'QUI'
-int[] indices = 0:3:-1
+int[] indices := 0:3:-1
 QUI
 # An extension remains one user function with both call forms, and only
 # its defining/imported library makes its method syntax visible.
 cat > "$TMP/stats.qui" <<'QUI'
 int sum_squares(extend int[] values)
-    int result = 0
-    for int value = values[]
+    int result := 0
+    for int value := values[]
         result += value * value
     return result
 
 void scale(extend int[] &values, int factor)
-    for int &value = &values[]
+    for int &value := &values[]
         value *= factor
 QUI
 expect extension-local "true" <<'QUI'
@@ -250,23 +250,23 @@ print(5.squared() == squared(5))
 QUI
 expect extension-imported "true" <<'QUI'
 import stats = "./stats.qui"
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 print(values.sum_squares() == 14 and stats.sum_squares(values) == 14)
 QUI
 expect extension-reference "true" <<'QUI'
 import stats = "./stats.qui"
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 .values.scale(2)
-int[] expected = [2, 4, 6]
+int[] expected := [2, 4, 6]
 print(values == expected)
 QUI
 rejects extension-without-import UNKNOWN_MEMBER "sum_squares" <<'QUI'
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 print(values.sum_squares())
 QUI
 rejects extension-writable-without-marker MUTATION_MARKER "writable receiver" <<'QUI'
 import stats = "./stats.qui"
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 values.scale(2)
 QUI
 rejects extension-second-param PARSE_ERROR "first function parameter" <<'QUI'
@@ -280,7 +280,7 @@ QUI
 rejects extension-ambiguous EXTENSION_AMBIGUOUS "multiple imported modules" <<'QUI'
 import stats = "./stats.qui"
 import other = "./other.qui"
-int[] values = [1, 2]
+int[] values := [1, 2]
 print(values.sum_squares())
 QUI
 cat > "$TMP/conflict.qui" <<'QUI'
@@ -289,37 +289,37 @@ nat[] indices(extend int[] values)
 QUI
 rejects extension-native-collision EXTENSION_COLLISION "conflicts" <<'QUI'
 import conflict = "./conflict.qui"
-int[] values = [1, 2]
+int[] values := [1, 2]
 print(values.indices())
 QUI
 
 # Tensor<boolean> extracts logical row-major values as a new rank-1 tensor.
 expect tensor-boolean-mask "true" <<'QUI'
-tensor<real32> input = tensor.zeros<real32>([2, 2])
+tensor<real32> input := tensor.zeros<real32>([2, 2])
 input[0, 0] = real32(-2)
 input[0, 1] = real32(3)
 input[1, 0] = real32(0)
 input[1, 1] = real32(4)
-tensor<bool> mask = input > real32(0)
-tensor<real32> selected = input[mask]
-nat[1] expected_shape = [2]
+tensor<bool> mask := input > real32(0)
+tensor<real32> selected := input[mask]
+nat[1] expected_shape := [2]
 print(selected.shape() == expected_shape and
       selected[0].item() == real32(3) and
       selected[1].item() == real32(4))
 QUI
 expect tensor-boolean-mask-empty "true" <<'QUI'
-tensor<real32> input = tensor.zeros<real32>([3])
-tensor<bool> mask = input > real32(0)
-tensor<real32> selected = input[mask]
-nat[1] expected_shape = [0]
+tensor<real32> input := tensor.zeros<real32>([3])
+tensor<bool> mask := input > real32(0)
+tensor<real32> selected := input[mask]
+nat[1] expected_shape := [0]
 print(selected.shape() == expected_shape)
 QUI
 expect tensor-boolean-mask-autograd "true" <<'QUI'
-tensor<real32> input = tensor.ones<real32>([3]).track()
-tensor<real32> sample = tensor.zeros<real32>([3])
+tensor<real32> input := tensor.ones<real32>([3]).track()
+tensor<real32> sample := tensor.zeros<real32>([3])
 sample[1] = real32(2)
-tensor<bool> mask = sample > real32(0)
-tensor<real32> selected = input[mask]
+tensor<bool> mask := sample > real32(0)
+tensor<real32> selected := input[mask]
 // A one-element tracked gather is a valid scalar-loss tensor.
 selected.backward(&input)
 print(input.grad[0].item() == real32(0) and
@@ -329,21 +329,21 @@ QUI
 # Exact integer ranges retain values beyond int64 when their output is
 # short; the length is limited by memory, not the magnitude of endpoints.
 expect range-exact-large "true" <<'QUI'
-int[] values = 18446744073709551616:18446744073709551618
-int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+int[] values := 18446744073709551616:18446744073709551618
+int[] expected := [18446744073709551616, 18446744073709551617, 18446744073709551618]
 print(values == expected)
 QUI
 expect range-exact-large-nat "true" <<'QUI'
-nat[] values = 9223372036854775808:9223372036854775809
-nat[] expected = [9223372036854775808, 9223372036854775809]
+nat[] values := 9223372036854775808:9223372036854775809
+nat[] expected := [9223372036854775808, 9223372036854775809]
 print(values == expected)
 QUI
 # Reusing exact integer bounds must not consume/mutate caller-owned values.
 expect range-exact-borrowed-operand "true" <<'QUI'
-int start = 18446744073709551616
-int last = start + 2
-int[] values = start:last
-int[] expected = [18446744073709551616, 18446744073709551617, 18446744073709551618]
+int start := 18446744073709551616
+int last := start + 2
+int[] values := start:last
+int[] expected := [18446744073709551616, 18446744073709551617, 18446744073709551618]
 print(values == expected and start == 18446744073709551616 and
       last == 18446744073709551618)
 QUI
@@ -417,17 +417,17 @@ def cases(lengths, steps):
 LETTERS = ["a", "\u00e9", "\U0001F600", "b", "\u20ac", "c"]
 
 HELPERS = """string letters(nat n)
-    string all = "a\u00e9\U0001F600b\u20acc"
-    string out = ""
-    nat i = 0
+    string all := "a\u00e9\U0001F600b\u20acc"
+    string out := ""
+    nat i := 0
     while i < n
         out = out + all[i]
         i = i + 1
     return out
 
 int[] ramp(nat n)
-    int[] out = array(n, fill = 0)
-    nat i = 0
+    int[] out := array(n, fill = 0)
+    nat i := 0
     while i < n
         out[i] = int(i)
         i = i + 1
@@ -435,7 +435,7 @@ int[] ramp(nat n)
 
 void show(int[] xs)
     print("[")
-    nat i = 0
+    nat i := 0
     while i < len(xs)
         if i > 0
             print(" ")
@@ -466,9 +466,9 @@ for n, (sf, ef, stepped, rows) in enumerate(cases(range(0, 6), [1, -1, 2, -2, 3,
     if stepped:
         text += f":{name}k[{name}i]"
     program.append(f"nat {name}i = 0\nwhile {name}i < len({name}len)\n"
-                   f"    int[] values = ramp({name}len[{name}i])\n"
+                   f"    int[] values := ramp({name}len[{name}i])\n"
                    f"    show(values[{text}])\n"
-                   f"    string word = letters({name}len[{name}i])\n"
+                   f"    string word := letters({name}len[{name}i])\n"
                    f"    print(\"<\" + word[{text}] + \">\" + NL)\n"
                    f"    {name}i = {name}i + 1\n")
     for row in valid:
@@ -506,17 +506,17 @@ print(f"oracle: {total} run-time cases, {len(valid_expected)} constant cases, "
 # The same independent index oracle checks every bin form without a step,
 # and ascending tensor forms with a positive or omitted step.
 OTHER_HELPERS = '''bin bits(nat n)
-    string all = "010101"
-    string text = ""
-    nat i = 0
+    string all := "010101"
+    string text := ""
+    nat i := 0
     while i < n
         text = text + all[i]
         i = i + 1
     return bin.parse(text)
 
 tensor<real32> tensor_ramp(nat n)
-    tensor<real32> result = tensor.zeros<real32>([n])
-    nat i = 0
+    tensor<real32> result := tensor.zeros<real32>([n])
+    nat i := 0
     while i < n
         result[i] = real32(i)
         i = i + 1
@@ -524,7 +524,7 @@ tensor<real32> tensor_ramp(nat n)
 
 void show_tensor(tensor<real32> values)
     print("[")
-    nat i = 0
+    nat i := 0
     while i < values.shape()[0]
         if i > 0
             print(" ")
@@ -602,8 +602,8 @@ expect examples "$(printf '%s\n' '[0 1 2 3 4 5]' '[0 2 4]' '[5 4 3 2 1 0]' '[4 2
     '[10 8 6 4 2]' '[8 6 4 2 0]' '[1 2 3 4 5]' '[2 4 6]' '[3 5]' '[]' '[7]' \
     '[10 9 8 7 6 5 4 3 2 1 0]' '[4 2 0]' '[3 1]' '[4 1]' '[0 1 2]' '[2 1 0]' '[]' '[]' '[]' '[]')" <<'QUI'
 int[] ramp(nat n)
-    int[] out = array(n, fill = 0)
-    nat i = 0
+    int[] out := array(n, fill = 0)
+    nat i := 0
     while i < n
         out[i] = int(i)
         i = i + 1
@@ -611,7 +611,7 @@ int[] ramp(nat n)
 
 void show(int[] xs)
     print("[")
-    nat i = 0
+    nat i := 0
     while i < len(xs)
         if i > 0
             print(" ")
@@ -620,9 +620,9 @@ void show(int[] xs)
     print("]")
     print(NL)
 
-int[] a = ramp(11)
-int[] six = ramp(6)
-nat N = len(six)
+int[] a := ramp(11)
+int[] six := ramp(6)
+nat N := len(six)
 show(six[0:<N])
 show(six[0:<N:2])
 show(six[N>:0])
@@ -632,12 +632,12 @@ show(a[10>:0:-2])
 show(six[0<:5])
 show(a[0<:6:2])
 show(a[1<:6:2])
-int[] empty = []
+int[] empty := []
 show(empty[len(empty)>:0])
-int[] one = [7]
+int[] one := [7]
 show(one[len(one)>:0])
 show(a[len(a)>:0])
-int[] five = ramp(5)
+int[] five := ramp(5)
 show(five[::-2])
 show(five[5>::-2])
 show(five[::-3])
@@ -651,73 +651,73 @@ QUI
 
 # --- Strings: code points, every form; start:<end past its end is empty ------
 expect strings "$(printf '%s\n' '<é😀>' '<b😀éa>' '<b😀éa>' '<>' '<😀>' '<é😀b>' '<>' '<aé>' '<ba>')" <<'QUI'
-string word = "aé😀b"
+string word := "aé😀b"
 print("<" + word[1:2] + ">" + NL)
 print("<" + word[::-1] + ">" + NL)
 print("<" + word[len(word)>:0] + ">" + NL)
 print("<" + word[4:<3] + ">" + NL)
 print("<" + word[0<:3:2] + ">" + NL)
 print("<" + word[1:] + ">" + NL)
-int stop = 1
+int stop := 1
 print("<" + word[3:<stop] + ">" + NL)
 print("<" + word[:<2] + ">" + NL)
 print("<" + "abc"[2>:0:-1] + ">" + NL)
 QUI
 fails string_inclusive INDEX_BOUNDS "slice 1:9 out of bounds for length 4" <<'QUI'
-string word = "aé😀b"
-int stop = 9
+string word := "aé😀b"
+int stop := 9
 print("before" + NL)
-string part = word[1:stop]
+string part := word[1:stop]
 QUI
 fails string_exclusive INDEX_BOUNDS "slice 5:<1 out of bounds for length 4" <<'QUI'
-string word = "aé😀b"
-int start = 5
+string word := "aé😀b"
+int start := 5
 print("before" + NL)
-string part = word[start:<1]
+string part := word[start:<1]
 QUI
 fails string_step SLICE_STEP "slice step 0 is invalid" <<'QUI'
-string word = "aé😀b"
-int step = 0
+string word := "aé😀b"
+int step := 0
 print("before" + NL)
-string part = word[::step]
+string part := word[::step]
 QUI
 rejects string_literal INDEX_BOUNDS "Slice 1:5 out of bounds for length 3." <<'QUI'
-string part = "abc"[1:5]
+string part := "abc"[1:5]
 QUI
 rejects string_arity INDEX_ARITY "Arrays and strings take one index or one slice." <<'QUI'
-string text = "abc"
-string part = text[0:1, 1:2]
+string text := "abc"
+string part := text[0:1, 1:2]
 QUI
 
 # --- Bins: every form but a step; start:<end past its end is empty ---------
 expect bins "$(printf '%s\n' '<110>' '<11>' '<10>' '<10110>' '<101>' '<>' '<01>' '<>')" <<'QUI'
-auto data = bin.parse("01101")
+data := bin.parse("01101")
 print("<" + data[1:3].string() + ">" + NL)
 print("<" + data[1:<3].string() + ">" + NL)
 print("<" + data[1<:3].string() + ">" + NL)
 print("<" + data[len(data)>:0].string() + ">" + NL)
 print("<" + data[4:>1].string() + ">" + NL)
-int at = 3
+int at := 3
 print("<" + data[at:<1].string() + ">" + NL)
 print("<" + data[:<2].string() + ">" + NL)
 print("<" + data[5:].string() + ">" + NL)
 QUI
 fails bin_inclusive INDEX_BOUNDS "slice 2:9 out of bounds for length 5" <<'QUI'
-auto data = bin.parse("01101")
-int at = 9
+data := bin.parse("01101")
+int at := 9
 print("before" + NL)
-bin part = data[2:at]
+bin part := data[2:at]
 QUI
 fails bin_exclusive INDEX_BOUNDS "slice 6:<1 out of bounds for length 5" <<'QUI'
-auto data = bin.parse("01101")
-int at = 6
+data := bin.parse("01101")
+int at := 6
 print("before" + NL)
-bin part = data[at:<1]
+bin part := data[at:<1]
 QUI
 
 # --- Tensors: ascending forms with a positive step --------------------------
 expect tensors "$(printf '%s\n' '3' '2' '0' '3' '1' '3' '4.0' '1.0')" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5]) + real32(1)
+tensor<real32> t := tensor.zeros<real32>([5]) + real32(1)
 print(t[0:2].shape()[0])
 print(NL)
 print(t[0<:2].shape()[0])
@@ -730,7 +730,7 @@ print(t[0<:<4:2].shape()[0])
 print(NL)
 print(t[2:].shape()[0])
 print(NL)
-tensor<real32> grid = tensor.zeros<real32>([3, 3])
+tensor<real32> grid := tensor.zeros<real32>([3, 3])
 grid[2, 2] = real32(4)
 print(grid[1<:2, 0<:2][0, 1].item())
 print(NL)
@@ -738,14 +738,14 @@ print(t[:<1][0].item())
 print(NL)
 QUI
 fails tensor_inclusive INDEX_BOUNDS "slice 0:5 out of bounds for axis 0 with length 5" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int at = 5
+tensor<real32> t := tensor.zeros<real32>([5])
+int at := 5
 print("before" + NL)
-tensor<real32> part = t[0:at]
+tensor<real32> part := t[0:at]
 QUI
 rejects tensor_descending SLICE_STEP "Tensor slices ascend" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-auto part = t[4:>0]
+tensor<real32> t := tensor.zeros<real32>([5])
+part := t[4:>0]
 QUI
 
 # --- Element kinds: copies are independent values ---------------------------
@@ -758,22 +758,22 @@ class Pair this(local string name_initial, local int count_initial)
     this.name = name_initial
     this.count = count_initial
 
-string[] words = ["a", "b", "c", "d"]
-string[] picked = words[2:>0]
+string[] words := ["a", "b", "c", "d"]
+string[] picked := words[2:>0]
 print(picked[0] + " " + picked[1])
 print(NL)
-bool[] flags = [false, true]
+bool[] flags := [false, true]
 print(flags[1:][0])
 print(NL)
-real64[] reals = [0.5, 1.5, 2.5]
+real64[] reals := [0.5, 1.5, 2.5]
 print(reals[2:<3][0])
 print(NL)
-string text = "x"
-string[] single = [text][0:0]
+string text := "x"
+string[] single := [text][0:0]
 print(single[0])
 print(NL)
-int[][] rows = [[1, 2], [3, 4]]
-int[][] copied = rows[0:<1]
+int[][] rows := [[1, 2], [3, 4]]
+int[][] copied := rows[0:<1]
 print(copied[0][0])
 print(NL)
 copied[0][0] = 9
@@ -786,17 +786,17 @@ print(copied[0][0])
 print(" ")
 print(rows[1][0])
 print(NL)
-Pair first = Pair("a", 4)
-Pair[] pairs = [first, Pair("b", 5)]
-Pair[] front = pairs[:<1]
+Pair first := Pair("a", 4)
+Pair[] pairs := [first, Pair("b", 5)]
+Pair[] front := pairs[:<1]
 print(front[0].name + " ")
 print(front[0].count)
 print(NL)
-int[3] fixed = [10, 20, 30]
-int[] tail = fixed[2:]
+int[3] fixed := [10, 20, 30]
+int[] tail := fixed[2:]
 print(tail[0])
 print(NL)
-int[] reversed = fixed[len(fixed)>:0]
+int[] reversed := fixed[len(fixed)>:0]
 print(reversed[0])
 print(" ")
 print(reversed[1])
@@ -806,15 +806,15 @@ print(NL)
 QUI
 
 expect nested_fixed "$(printf '%s\n' '4 5 6' '1 2 3' '9' '4')" <<'QUI'
-int[2][3] matrix = [[1, 2, 3], [4, 5, 6]]
-int[][3] lower = matrix[1:]
+int[2][3] matrix := [[1, 2, 3], [4, 5, 6]]
+int[][3] lower := matrix[1:]
 print(lower[0][0])
 print(" ")
 print(lower[0][1])
 print(" ")
 print(lower[0][2])
 print(NL)
-int[][3] both = matrix[1>:0]
+int[][3] both := matrix[1>:0]
 print(both[0][0])
 print(" ")
 print(both[0][1])
@@ -829,8 +829,8 @@ print(NL)
 QUI
 
 expect bigint "$(printf '%s\n' '100000000000000000000000' '-5')" <<'QUI'
-int[] big = [5, 100000000000000000000000, -5]
-int[] picked = big[1:2]
+int[] big := [5, 100000000000000000000000, -5]
+int[] picked := big[1:2]
 print(picked[0])
 print(NL)
 print(picked[1])
@@ -839,75 +839,75 @@ QUI
 
 # --- Initialization: the selected elements are read ------------------------
 expect initialized_part "$(printf '%s\n' '1 2')" <<'QUI'
-int[] values = array(5)
+int[] values := array(5)
 values[0] = 1
 values[1] = 2
-int[] part = values[0:1]
+int[] part := values[0:1]
 print(part[0])
 print(" ")
 print(part[1])
 print(NL)
 QUI
 fails uninitialized UNINITIALIZED "value is uninitialized" <<'QUI'
-int[] values = array(5)
+int[] values := array(5)
 values[0] = 1
 print("before" + NL)
-int[] part = values[0:2]
+int[] part := values[0:2]
 QUI
 
 # --- Run-time failures --------------------------------------------------------
 fails past_end INDEX_BOUNDS "slice 1:9 out of bounds for length 6" <<'QUI'
-int[] values = [1, 2, 3, 4, 5, 6]
-int stop = int(len(values)) + 3
+int[] values := [1, 2, 3, 4, 5, 6]
+int stop := int(len(values)) + 3
 print("before" + NL)
-int[] part = values[1:stop]
+int[] part := values[1:stop]
 QUI
 fails reversed_inclusive INDEX_BOUNDS "slice 4:2:1 out of bounds for length 6" <<'QUI'
-int[] values = [1, 2, 3, 4, 5, 6]
-int stop = 2
+int[] values := [1, 2, 3, 4, 5, 6]
+int stop := 2
 print("before" + NL)
-int[] part = values[4:stop:1]
+int[] part := values[4:stop:1]
 QUI
 fails excluded_far INDEX_BOUNDS "slice -2<:2 out of bounds for length 6" <<'QUI'
-int[] values = [1, 2, 3, 4, 5, 6]
-int at = -2
+int[] values := [1, 2, 3, 4, 5, 6]
+int at := -2
 print("before" + NL)
-int[] part = values[at<:2]
+int[] part := values[at<:2]
 QUI
 fails empty_inclusive INDEX_BOUNDS "slice -1<:-1 out of bounds for length 5" <<'QUI'
-int[] values = [1, 2, 3, 4, 5]
-int at = -1
+int[] values := [1, 2, 3, 4, 5]
+int at := -1
 print("before" + NL)
-int[] part = values[at<:at]
+int[] part := values[at<:at]
 QUI
 fails strided_anchor INDEX_BOUNDS "slice 7>:0:-2 out of bounds for length 6" <<'QUI'
-int[] values = [1, 2, 3, 4, 5, 6]
-int at = int(len(values)) + 1
+int[] values := [1, 2, 3, 4, 5, 6]
+int at := int(len(values)) + 1
 print("before" + NL)
-int[] part = values[at>:0:-2]
+int[] part := values[at>:0:-2]
 QUI
 fails step_zero SLICE_STEP "slice step 0 is invalid" <<'QUI'
-int[] values = [1, 2, 3]
-int step = 0
+int[] values := [1, 2, 3]
+int step := 0
 print("before" + NL)
-int[] part = values[0:2:step]
+int[] part := values[0:2:step]
 QUI
 fails step_against_end SLICE_STEP "slice step -2 cannot be used with ':<'" <<'QUI'
-int[] values = [1, 2, 3]
-int step = -2
+int[] values := [1, 2, 3]
+int step := -2
 print("before" + NL)
-int[] part = values[0:<2:step]
+int[] part := values[0:<2:step]
 QUI
 fails step_against_start SLICE_STEP "slice step 2 cannot be used with '>:'" <<'QUI'
-int[] values = [1, 2, 3]
-int step = 2
+int[] values := [1, 2, 3]
+int step := 2
 print("before" + NL)
-int[] part = values[3>:0:step]
+int[] part := values[3>:0:step]
 QUI
 expect runtime_step "$(printf '%s\n' '[2 1 0]' '[0 1 2]')" <<'QUI'
 void show(int[] xs)
     print("[")
-    nat i = 0
+    nat i := 0
     while i < len(xs)
         if i > 0
             print(" ")
@@ -915,34 +915,34 @@ void show(int[] xs)
         i = i + 1
     print("]")
     print(NL)
-int[] values = [0, 1, 2]
-int down = -1
-int up = 1
+int[] values := [0, 1, 2]
+int down := -1
+int up := 1
 show(values[2:0:down])
 show(values[0:2:up])
 QUI
 
 # --- Compile-time errors -----------------------------------------------------
 rejects marker_conflict SLICE_STEP "Slice markers point one way" <<'QUI'
-int[] values = [1, 2, 3]
-int[] part = values[0<:>2]
+int[] values := [1, 2, 3]
+int[] part := values[0<:>2]
 QUI
 rejects constant_step SLICE_STEP "Slice step -1 cannot be used with ':<'." <<'QUI'
-int[] values = [1, 2, 3]
-int[] part = values[0:<2:-1]
+int[] values := [1, 2, 3]
+int[] part := values[0:<2:-1]
 QUI
 rejects fixed_bounds INDEX_BOUNDS "Slice 1:5 out of bounds for length 3." <<'QUI'
-int[3] values = [1, 2, 3]
-int[] part = values[1:5]
+int[3] values := [1, 2, 3]
+int[] part := values[1:5]
 QUI
 rejects two_items INDEX_ARITY "Arrays and strings take one index or one slice." <<'QUI'
-int[] values = [1, 2, 3]
-int[] part = values[0:1, 1:2]
+int[] values := [1, 2, 3]
+int[] part := values[0:1, 1:2]
 QUI
 rejects not_storage INDEX_ARITY "exactly one integer index" <<'QUI'
 void touch(int[] &values)
     values[0] = 1
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 touch(&values[0:1])
 QUI
 
@@ -950,8 +950,8 @@ QUI
 expect assign "$(printf '%s\n' '[0 9 9 3 4 5]' '[0 7 2 8 4 9]' '[5 4 3 2 1 0]' '[0 0 1 2 4 5]' \
     '[0 1 9 9 4]' '[3 2 1]' '[1 2 3]' '[a b z]' '[1 2]')" <<'QUI'
 int[] ramp(nat n)
-    int[] out = array(n, fill = 0)
-    nat i = 0
+    int[] out := array(n, fill = 0)
+    nat i := 0
     while i < n
         out[i] = int(i)
         i = i + 1
@@ -959,7 +959,7 @@ int[] ramp(nat n)
 
 void show(int[] xs)
     print("[")
-    nat i = 0
+    nat i := 0
     while i < len(xs)
         if i > 0
             print(" ")
@@ -968,79 +968,79 @@ void show(int[] xs)
     print("]")
     print(NL)
 
-int[] a = ramp(6)
+int[] a := ramp(6)
 a[1:2] = [9, 9]
 show(a)
-int[] b = ramp(6)
+int[] b := ramp(6)
 b[1:<6:2] = [7, 8, 9]
 show(b)
-int[] c = ramp(6)
+int[] c := ramp(6)
 c[len(c)>:0] = ramp(6)
 show(c)
-int[] d = ramp(6)
+int[] d := ramp(6)
 d[1:<4] = d[0:<3]
 show(d)
-int[] e = ramp(5)
+int[] e := ramp(5)
 e[1<:3] = [9, 9]
 show(e)
-int[3] f = [0, 0, 0]
+int[3] f := [0, 0, 0]
 f[::-1] = [1, 2, 3]
 show(f)
-int[] g = array(3)
+int[] g := array(3)
 g[:] = [1, 2, 3]
 show(g)
-string[] words = ["a", "b", "c"]
+string[] words := ["a", "b", "c"]
 words[2:] = ["z"]
 print("[" + words[0] + " " + words[1] + " " + words[2] + "]")
 print(NL)
-int[2] source = [1, 2]
-int[] h = [0, 0]
+int[2] source := [1, 2]
+int[] h := [0, 0]
 h[0:1] = source
 show(h)
 QUI
 fails assign_length SLICE_ASSIGNMENT "slice assignment needs 3 values, got 2" <<'QUI'
-int[] values = [1, 2, 3, 4]
-int[] two = [5, 6]
+int[] values := [1, 2, 3, 4]
+int[] two := [5, 6]
 print("before" + NL)
 values[0:2] = two
 QUI
 fails assign_bounds INDEX_BOUNDS "slice 2:4 out of bounds for length 4" <<'QUI'
-int[] values = [1, 2, 3, 4]
-int stop = 4
+int[] values := [1, 2, 3, 4]
+int stop := 4
 print("before" + NL)
 values[2:stop] = [7, 8, 9]
 QUI
 rejects assign_static SLICE_ASSIGNMENT "Slice assignment needs 3 values, got 2." <<'QUI'
-int[] values = [1, 2, 3, 4]
-int[2] two = [5, 6]
+int[] values := [1, 2, 3, 4]
+int[2] two := [5, 6]
 values[0:2] = two
 QUI
 rejects assign_scalar TYPE_MISMATCH "Slice assignment needs an array." <<'QUI'
-int[] values = [1, 2, 3, 4]
+int[] values := [1, 2, 3, 4]
 values[0:2] = 5
 QUI
 rejects assign_elements TYPE_MISMATCH "int64[]" <<'QUI'
-int64[] values = [int64(1), int64(2)]
-int[] other = [3, 4]
+int64[] values := [int64(1), int64(2)]
+int[] other := [3, 4]
 values[0:1] = other
 QUI
 rejects assign_string INVALID_ASSIGNMENT "A string slice cannot be assigned" <<'QUI'
-string text = "abc"
+string text := "abc"
 text[0:1] = "xy"
 QUI
 
 # --- quidra fmt and quidra patch keep each marker next to its colon -----------
 cat > "$TMP/format.qui" <<'QUI'
-int[] values = [0, 1, 2, 3, 4, 5]
-int n = 5
-int[] a = values[0<:5]
-int[] b = values[n>:0]
-int[] c = values[0:<n]
-int[] d = values[4:>0: -2]
-int[] e = values[0<:<n:2]
-int[] f = values[n>:> -1]
-int[] g = values[0 <:5]
-int[] h = values[0<: 5]
+int[] values := [0, 1, 2, 3, 4, 5]
+int n := 5
+int[] a := values[0<:5]
+int[] b := values[n>:0]
+int[] c := values[0:<n]
+int[] d := values[4:>0: -2]
+int[] e := values[0<:<n:2]
+int[] f := values[n>:> -1]
+int[] g := values[0 <:5]
+int[] h := values[0<: 5]
 print(len(a) + len(b) + len(c) + len(d) + len(e) + len(f) + len(g) + len(h))
 print(NL)
 QUI
@@ -1065,7 +1065,7 @@ cmp -s "$TMP/format.expected" "$TMP/format.qui" || { fail "patch changed slice m
 
 # --- The REPL ---------------------------------------------------------------
 cat > "$TMP/repl.txt" <<'QUI'
-int[] values = [1, 2, 3, 4]
+int[] values := [1, 2, 3, 4]
 values[len(values)>:0][0] * 10 + values[0<:2][1]
 :exit
 QUI
@@ -1075,20 +1075,20 @@ grep -Eq '(^|> )43$' "$TMP/repl.out" || { fail "repl slice"; cat "$TMP/repl.out"
 # Slice bounds have the same integer-operand rule as element indices.
 for integer_kind in nat nat8 nat16 nat32 nat64 int int8 int16 int32 int64; do
     expect "bounds_$integer_kind" "$(printf '%s\n' '1 3' 'é🙂' '110' '2')" <<QUI
-$integer_kind first = 1
-$integer_kind last = 3
-$integer_kind stride = 2
-int[] values = [0, 1, 2, 3, 4]
-int[] picked = values[first:last:stride]
+$integer_kind first := 1
+$integer_kind last := 3
+$integer_kind stride := 2
+int[] values := [0, 1, 2, 3, 4]
+int[] picked := values[first:last:stride]
 print(picked[0])
 print(" ")
 print(picked[1])
 print(NL)
-string text = "aé中🙂z"
+string text := "aé中🙂z"
 print(text[first:last:stride] + NL)
-auto bits = bin.parse("01101")
+bits := bin.parse("01101")
 print(bits[first:last].string() + NL)
-tensor<real32> t = tensor.zeros<real32>([5])
+tensor<real32> t := tensor.zeros<real32>([5])
 print(t[first:last:stride].shape()[0])
 print(NL)
 QUI
@@ -1109,7 +1109,7 @@ int[] replacement(int[] &values)
     print("rhs" + NL)
     values = [4, 5, 6, 7, 10, 11]
     return [8, 9]
-int[] values = [0, 1, 2, 3]
+int[] values := [0, 1, 2, 3]
 values[start():stop():stride()] = replacement(&values)
 print(values[0])
 print(" ")
@@ -1125,61 +1125,61 @@ QUI
 
 # A tensor step fails with the slice diagnostic, including its marker.
 fails tensor_zero_step SLICE_STEP "slice step 0 is invalid" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = 0
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := 0
 print("before" + NL)
-auto part = t[::stride]
+part := t[::stride]
 QUI
 fails tensor_end_step SLICE_STEP "slice step -1 cannot be used with ':<'" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = -1
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := -1
 print("before" + NL)
-auto part = t[0:<3:stride]
+part := t[0:<3:stride]
 QUI
 fails tensor_start_step SLICE_STEP "slice step -1 cannot be used with '<:'" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = -1
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := -1
 print("before" + NL)
-auto part = t[0<:3:stride]
+part := t[0<:3:stride]
 QUI
 fails tensor_negative_step SLICE_STEP "tensor slices currently require a positive step" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = -1
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := -1
 print("before" + NL)
-auto part = t[::stride]
+part := t[::stride]
 QUI
 
 rejects tensor_constant_zero SLICE_STEP "Slice step 0 is invalid." <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-auto part = t[::0]
+tensor<real32> t := tensor.zeros<real32>([5])
+part := t[::0]
 QUI
 rejects tensor_constant_end_step SLICE_STEP "Slice step -1 cannot be used with ':<'." <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-auto part = t[0:<3:-1]
+tensor<real32> t := tensor.zeros<real32>([5])
+part := t[0:<3:-1]
 QUI
 rejects tensor_constant_start_step SLICE_STEP "Slice step -1 cannot be used with '<:'." <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-auto part = t[0<:3:-1]
+tensor<real32> t := tensor.zeros<real32>([5])
+part := t[0<:3:-1]
 QUI
 
 # A written extreme integer is never an omitted bound or step.
 fails tensor_min_start INDEX_BOUNDS "slice -9223372036854775808<:3 out of bounds" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int64 first = -9223372036854775808
+tensor<real32> t := tensor.zeros<real32>([5])
+int64 first := -9223372036854775808
 print("before" + NL)
-auto part = t[first<:3]
+part := t[first<:3]
 QUI
 fails tensor_min_end INDEX_BOUNDS "slice 0:<-9223372036854775808 out of bounds" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int64 last = -9223372036854775808
+tensor<real32> t := tensor.zeros<real32>([5])
+int64 last := -9223372036854775808
 print("before" + NL)
-auto part = t[0:<last]
+part := t[0:<last]
 QUI
 fails tensor_min_step SLICE_STEP "slice step -9223372036854775808 cannot be used with ':<'" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int64 stride = -9223372036854775808
+tensor<real32> t := tensor.zeros<real32>([5])
+int64 stride := -9223372036854775808
 print("before" + NL)
-auto part = t[0:<3:stride]
+part := t[0:<3:stride]
 QUI
 
 # Bounds are checked against the storage the right-hand side leaves behind.
@@ -1187,14 +1187,14 @@ fails assign_new_bounds INDEX_BOUNDS "slice 2:3 out of bounds for length 2" <<'Q
 int[] replacement(int[] &values)
     values = [4, 5]
     return [8, 9]
-int[] values = [0, 1, 2, 3]
+int[] values := [0, 1, 2, 3]
 print("before" + NL)
 values[2:3] = replacement(&values)
 QUI
 
 expect tensor_excluded_minus_one "0" <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int last = -1
+tensor<real32> t := tensor.zeros<real32>([5])
+int last := -1
 print(t[0:<last].shape()[0])
 print(NL)
 QUI

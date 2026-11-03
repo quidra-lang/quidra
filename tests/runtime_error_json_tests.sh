@@ -54,7 +54,7 @@ PY
 
 # An index trap: its details, its location and the provenance.
 cat > "$TMP/index.qui" <<'QUI'
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 print(values[3])
 QUI
 json_row index 101 '
@@ -72,8 +72,8 @@ assert report["provenance"]["source_revision"] == location["source_revision"]
 
 # A slice trap and a tensor index trap: their arguments by the holes' names.
 cat > "$TMP/slice.qui" <<'QUI'
-string word = "quidra"
-nat stop = len(word) + 3
+string word := "quidra"
+nat stop := len(word) + 3
 print(word[1:<int(stop)])
 QUI
 json_row slice 101 '
@@ -82,8 +82,8 @@ assert report["message"] == "slice 1:<9 out of bounds for length 6"
 assert report["details"] == {"slice": "1:<9", "length": 6}, report["details"]
 '
 cat > "$TMP/tensor-index.qui" <<'QUI'
-tensor<real32> grid = tensor.zeros<real32>([2, 3])
-int at = 3
+tensor<real32> grid := tensor.zeros<real32>([2, 3])
+int at := 3
 print(grid[1, at].item())
 QUI
 json_row tensor-index 101 '
@@ -104,16 +104,16 @@ json_row recursion 101 '
 assert report["code"] == "CALL_DEPTH_LIMIT"
 assert report["message"] == "maximum recursion depth exceeded (limit 4096)"
 assert report["details"] == {"limit": 4096}, report["details"]
-assert sum(frame["count"] for frame in report["path"]) == 4096, report["path"]
-assert all(frame["function"] == "down" and frame["via"] == "call"
+assert sum := assert(frame["count"] for frame in report["path"]) == 4096, report["path"]
+assert all := assert(frame["function"] == "down" and frame["via"] == "call"
            for frame in report["path"]), report["path"]
 assert report["path"][-1]["line"] == 4 and report["path"][-1]["count"] == 1
 '
 
 # A coded failure without details (generated code's own message).
 cat > "$TMP/overflow.qui" <<'QUI'
-int64 big = int64.parse("9223372036854775807")
-int64 sum = big + 1
+int64 big := int64.parse("9223372036854775807")
+int64 sum := big + 1
 QUI
 json_row overflow 101 '
 [report] = reports
@@ -124,8 +124,8 @@ assert report["location"]["line"] == 2
 
 # An uncoded runtime-library failure: code null.
 cat > "$TMP/uncoded.qui" <<'QUI'
-string fill = "ab"
-string text = string.repeat(fill, 3)
+string fill := "ab"
+string text := string.repeat(fill, 3)
 QUI
 json_row uncoded 101 '
 [report] = reports
@@ -136,7 +136,7 @@ assert report["location"]["line"] == 2 and report["location"]["column"] == 1
 
 # A test assertion: kind test_assertion, status 1, no message.
 cat > "$TMP/assertion.qui" <<'QUI'
-int answer = 41
+int answer := 41
 test.check(answer == 42)
 QUI
 json_row assertion 1 '

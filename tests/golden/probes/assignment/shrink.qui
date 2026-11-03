@@ -4,11 +4,11 @@ int shrink(int[] &values)
     values = [1]
     return 1
 
-int[] b = [5, 0, 0]
+int[] b := [5, 0, 0]
 b[0] += shrink(&b)
 print("first: {b[0]} {len(b)}")
 print(NL)
-int[] c = [5, 0, 0]
+int[] c := [5, 0, 0]
 c[2] += shrink(&c)
 print("unreachable")
 print(NL)

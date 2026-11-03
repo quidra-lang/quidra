@@ -12,12 +12,12 @@ class Result()
 
 // The whole workload body (methodology 06 section 4, MB-03).
 Result workload()
-    int64 n = 120000000
-    int64 x = 20263917
-    int64 s_add = 0
-    int64 s_xor = 0
-    int64 s_mul = 1
-    int64 s_div = 0
+    int64 n := 120000000
+    int64 x := 20263917
+    int64 s_add := 0
+    int64 s_xor := 0
+    int64 s_mul := 1
+    int64 s_div := 0
     for 0 <= int64 i < n
         x = (48271 * x) % 2147483647
         s_add = (s_add + x) % 2147483647
@@ -32,10 +32,10 @@ Result workload()
     return result
 
 Result timed(int index)
-    time.Instant start = time.now()
-    Result result = workload()
-    time.Duration elapsed = time.since(start)
-    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    time.Instant start := time.now()
+    Result result := workload()
+    time.Duration elapsed := time.since(start)
+    int elapsed_ns := math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
     print(NL)
     flush()
@@ -43,7 +43,7 @@ Result timed(int index)
 
 Result result
 if args.mode == "steady"
-    int k = math.max(args.iterations, 1)
+    int k := math.max(args.iterations, 1)
     result = timed(0)
     for 1 <= int i < k
         result = timed(i)

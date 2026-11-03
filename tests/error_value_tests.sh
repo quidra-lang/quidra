@@ -107,7 +107,7 @@ int | error check(int value)
         return error("negative value")
     return value
 print("before" + NL)
-int n = check(-1)
+int n := check(-1)
 QUI
 stops user-template ERROR 3 16 "bad value -1" <<'QUI'
 int | error check(int value)
@@ -115,14 +115,14 @@ int | error check(int value)
         return error("bad value {value}")
     return value
 print("before" + NL)
-int n = check(-1)
+int n := check(-1)
 QUI
 details user-details '{"code": "ERROR", "details": {"text": "negative value"}}' <<'QUI'
 int | error check(int value)
     if value < 0
         return error("negative value")
     return value
-int n = check(-1)
+int n := check(-1)
 QUI
 
 # The message is what printing, interpolation and string() give; a runtime
@@ -148,37 +148,37 @@ match described(-1)
     int n
         print(n)
     error problem
-        error[] kept = [problem, problem]
+        error[] kept := [problem, problem]
         print("{kept[0]} / {kept[1]}" + NL)
         print(len(kept))
 QUI
 
 # --- Core codes from their sources.
 stops utf8-decode UTF8_DECODE 3 15 "invalid UTF-8 text" <<'QUI'
-bin data = bin.parse("11111111")
+bin data := bin.parse("11111111")
 print("before" + NL)
-string text = string.from_utf8(data)
+string text := string.from_utf8(data)
 QUI
 stops json-parse JSON_PARSE 2 20 "expected JSON value at byte 1" <<'QUI'
 print("before" + NL)
-json.Value value = json.parse("[")
+json.Value value := json.parse("[")
 QUI
 details json-parse-details '{"code": "JSON_PARSE", "details": {"problem": "expected JSON value", "offset": 1}}' <<'QUI'
-json.Value value = json.parse("[")
+json.Value value := json.parse("[")
 QUI
 stops input-end INPUT_END 3 1 "scan reached the end of input" <<'QUI'
-int n = 0
+int n := 0
 print("before" + NL)
 scan("{&n}")
 QUI
 stops conversion-int8 NUMERIC_CONVERSION 3 14 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
-int value = 300
+int value := 300
 print("before" + NL)
-int8 small = int8(value)
+int8 small := int8(value)
 QUI
 details conversion-details '{"code": "NUMERIC_CONVERSION", "details": {"type": "int8", "subject": "VALUE", "reason": "OUT_OF_RANGE"}}' <<'QUI'
-int value = 300
-int8 small = int8(value)
+int value := 300
+int8 small := int8(value)
 QUI
 
 # One conversion site, two reasons: the site's record array is indexed by
@@ -187,8 +187,8 @@ QUI
 prints conversion-reasons "$(printf 'numeric conversion failed: value is not an integer and cannot be represented as int64\nnumeric conversion out of range: value cannot be represented as int64')" <<'QUI'
 int64 | error whole(real value)
     return int64(value)
-real[] values = [0.5, 1.0e30]
-for auto value = values[]
+real[] values := [0.5, 1.0e30]
+for value := values[]
     match whole(value)
         int64 converted
             print(converted)
@@ -217,13 +217,13 @@ stops package-user-error ERR_PKG_REFUSED 4 1 "package refused -2" <<'QUI'
 import pkg = err_pkg
 
 print("before" + NL)
-int n = pkg.checked(-2)
+int n := pkg.checked(-2)
 QUI
 stops package-conversion NUMERIC_CONVERSION 4 1 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
 import pkg = err_pkg
 
 print("before" + NL)
-int8 n = pkg.narrowed(1000)
+int8 n := pkg.narrowed(1000)
 QUI
 
 # --- Parses: NUMERIC_PARSE names the type and, out of range, says so; the
@@ -238,8 +238,8 @@ prints parse-reasons "$(printf '%s\n' \
     'cannot parse numeric input as real32: value out of range' \
     'cannot parse numeric input as int' \
     'cannot parse bin input')" <<'QUI'
-string[] wide = ["12x", "99999999999999999999"]
-for auto text = wide[]
+string[] wide := ["12x", "99999999999999999999"]
+for text := wide[]
     match int64.parse(text)
         int64 value
             print(value)
@@ -252,16 +252,16 @@ match int8.parse("300")
     error problem
         print(problem)
         print(NL)
-string[] small = ["-1", "abc"]
-for auto text = small[]
+string[] small := ["-1", "abc"]
+for text := small[]
     match nat8.parse(text)
         nat8 value
             print(value)
         error problem
             print(problem)
             print(NL)
-string[] reals = ["x", "1e60"]
-for auto text = reals[]
+string[] reals := ["x", "1e60"]
+for text := reals[]
     match real32.parse(text)
         real32 value
             print(value)
@@ -274,7 +274,7 @@ match int.parse("1.5")
     error problem
         print(problem)
         print(NL)
-string bits = "0102"
+string bits := "0102"
 match bin.parse(bits)
     bin value
         print(value)
@@ -282,13 +282,13 @@ match bin.parse(bits)
         print(problem)
 QUI
 stops parse-fail-fast NUMERIC_PARSE 3 10 "cannot parse numeric input as int8: value out of range" <<'QUI'
-string text = "300"
+string text := "300"
 print("before" + NL)
-int8 n = int8.parse(text)
+int8 n := int8.parse(text)
 QUI
 details parse-details '{"code": "NUMERIC_PARSE", "details": {"type": "nat16", "reason": "INVALID_TEXT"}}' <<'QUI'
-string text = "x"
-nat16 n = nat16.parse(text)
+string text := "x"
+nat16 n := nat16.parse(text)
 QUI
 
 # --- File operations keep their cause: the operation's code, the path as
@@ -338,7 +338,7 @@ match file.read("")
         print(NL)
 QUI
 details file-details "{\"code\": \"FILE_OPEN\", \"details\": {\"path\": \"$TMP/files/missing.txt\", \"mode\": \"READ\", \"reason\": \"NOT_FOUND\"}}" <<QUI
-file.read reader = file.read("$TMP/files/missing.txt")
+file.read reader := file.read("$TMP/files/missing.txt")
 QUI
 
 # --- The parts of an error: code, message, cause and the details by name;
@@ -389,7 +389,7 @@ match read_port("x")
                 print("no text" + NL)
 QUI
 prints error-code-default "$(printf 'ERROR\n5')" <<'QUI'
-error plain = error("plain")
+error plain := error("plain")
 print(plain.code + NL)
 match json.parse("[1, 2")
     json.Value value
@@ -408,34 +408,34 @@ class Holder this(local error held_initial)
     error held
 
     this.held = held_initial
-error a = error("same", code = "SAME_CODE")
-error b = error("same", code = "SAME_CODE")
-error c = error("same")
+error a := error("same", code = "SAME_CODE")
+error b := error("same", code = "SAME_CODE")
+error c := error("same")
 print("{a == b}{NL}")
 print("{a == c}{NL}")
 print("{a != c}{NL}")
-error wrapped_a = error("outer", cause = a)
-error wrapped_b = error("outer", cause = b)
-error wrapped_c = error("outer", cause = c)
+error wrapped_a := error("outer", cause = a)
+error wrapped_b := error("outer", cause = b)
+error wrapped_c := error("outer", cause = c)
 print("{wrapped_a == wrapped_b}{NL}")
 print("{wrapped_a == wrapped_c}{NL}")
-error core = error("x")
+error core := error("x")
 match int.parse("x")
     int value
         print(value)
     error parsed
         core = parsed
-error user = error("cannot parse numeric input as int")
+error user := error("cannot parse numeric input as int")
 print("{core == user}{NL}")
 match int.parse("y")
     int value
         print(value)
     error again
         print("{core == again}{NL}")
-error[] first = [a, wrapped_a]
-error[] second = [b, wrapped_b]
-error[] third = [b, wrapped_c]
-error[] shorter = [a]
+error[] first := [a, wrapped_a]
+error[] second := [b, wrapped_b]
+error[] third := [b, wrapped_c]
+error[] shorter := [a]
 print("{first == second}{NL}")
 print("{first == third}{NL}")
 print("{first == shorter}{NL}")
@@ -452,9 +452,9 @@ error | none read_error(string path)
             return none
         error problem
             return problem
-error | none one = read_error("$TMP/missing-a.txt")
-error | none two = read_error("$TMP/missing-a.txt")
-error | none other = read_error("$TMP/missing-b.txt")
+error | none one := read_error("$TMP/missing-a.txt")
+error | none two := read_error("$TMP/missing-a.txt")
+error | none other := read_error("$TMP/missing-b.txt")
 match one
     none
         print("none")
@@ -509,36 +509,36 @@ code_row index-bounds '"INDEX_BOUNDS"'
 code_row file-read '"FILE_READ"'
 code_row error '"ERROR"'
 accepts code-long <<QUI
-error e = error("x", code = "$(printf 'A%.0s' $(seq 1 200))")
+error e := error("x", code = "$(printf 'A%.0s' $(seq 1 200))")
 QUI
 rejects unknown-member UNKNOWN_MEMBER <<'QUI'
-error e = error("x")
-string s = e.size
+error e := error("x")
+string s := e.size
 QUI
 rejects unknown-detail UNKNOWN_MEMBER <<'QUI'
-error e = error("x")
-string | none s = e.detail
+error e := error("x")
+string | none s := e.detail
 QUI
 # A member of an error is not an assignable target (the ordinary rule for
 # a member of a value that is not a class).
 rejects assign-detail TYPE_MISMATCH <<'QUI'
-error e = error("x")
+error e := error("x")
 e.path = "y"
 QUI
 rejects assign-message TYPE_MISMATCH <<'QUI'
-error e = error("x")
+error e := error("x")
 e.message = "y"
 QUI
 rejects detail-needs-match TYPE_MISMATCH <<'QUI'
-error e = error("x")
-bool missing = e.reason == "NOT_FOUND"
+error e := error("x")
+bool missing := e.reason == "NOT_FOUND"
 QUI
 rejects cause-not-error TYPE_MISMATCH <<'QUI'
-error e = error("x", cause = "text")
+error e := error("x", cause = "text")
 QUI
 rejects cause-optional TYPE_MISMATCH <<'QUI'
-error | none maybe = none
-error e = error("x", cause = maybe)
+error | none maybe := none
+error e := error("x", cause = maybe)
 QUI
 mkdir -p "$TMP/packages/code_pkg"
 cat > "$TMP/packages/code_pkg/quidra.package" <<'MANIFEST'
@@ -554,7 +554,7 @@ QUI
 accepts package-prefix <<'QUI'
 import pkg = code_pkg
 
-int n = pkg.checked(1)
+int n := pkg.checked(1)
 QUI
 mkdir -p "$TMP/packages/bad_pkg"
 cat > "$TMP/packages/bad_pkg/quidra.package" <<'MANIFEST'
@@ -570,7 +570,7 @@ QUI
 rejects package-no-prefix ERROR_CODE <<'QUI'
 import pkg = bad_pkg
 
-int n = pkg.checked(1)
+int n := pkg.checked(1)
 QUI
 
 mkdir -p "$TMP/packages/codeless_pkg"
@@ -584,7 +584,7 @@ error problem()
 QUI
 rejects package-codeless ERROR_CODE <<'QUI'
 import pkg = codeless_pkg
-error saved = pkg.problem()
+error saved := pkg.problem()
 QUI
 cat >> "$TMP/packages/code_pkg/main.qui" <<'QUI'
 
@@ -593,8 +593,8 @@ error forward(error problem)
 QUI
 accepts package-passthrough-error <<'QUI'
 import pkg = code_pkg
-error original = error("user failure")
-error returned = pkg.forward(original)
+error original := error("user failure")
+error returned := pkg.forward(original)
 QUI
 
 if [[ "$failures" -ne 0 ]]; then

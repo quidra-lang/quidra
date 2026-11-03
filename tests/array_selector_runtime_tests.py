@@ -22,18 +22,18 @@ def cases() -> list[Case]:
     result = []
     for dtype in ("int", "nat", "bool"):
         first, second = ("true", "false") if dtype == "bool" else ("1", "0")
-        values = "int[2] values = [10, 20]\n"
+        values = "int[2] values := [10, 20]\n"
         declaration = f"{dtype}[2] selector\n"
         for through_parameter in (False, True):
             name = "parameter" if through_parameter else "alias"
             if through_parameter:
                 prefix = (f"int[] choose(int[2] values, {dtype}[2] &selector)\n"
                           "    return values[selector]\n" + values + declaration)
-                select = "int[] result = choose(values, &selector)\n"
+                select = "int[] result := choose(values, &selector)\n"
                 target = "selector"
             else:
                 prefix = values + declaration + f"{dtype}[2] &alias = &selector\n"
-                select = "int[] result = values[alias]\n"
+                select = "int[] result := values[alias]\n"
                 target = "alias"
             for written in (0, 1, 2):
                 writes = ""

@@ -33,11 +33,11 @@ int bump(Box &box)
     box.n = box.n + 1
     return 1
 
-int[] a = [1, 2]
+int[] a := [1, 2]
 a[0] += grow(&a)
 a[1] = a[1] + grow(&a)
 a[0] += 1
-Box b = Box(1)
+Box b := Box(1)
 b.n += bump(&b)
 print("{a[0]} {b.n}")
 print(NL)
@@ -45,11 +45,11 @@ print(NL)
     # collection-loop-writes-iterable: the first loop appends to the array
     # it iterates, the second only reads it.
     "loops.qui": """\
-int[] values = [1, 2, 3]
-for auto v = values[]
+int[] values := [1, 2, 3]
+for v := values[]
     values = values.append(v)
-int total = 0
-for auto v = values[]
+int total := 0
+for v := values[]
     total = total + v
 print("{total}")
 print(NL)
@@ -66,10 +66,10 @@ int bump(int &i)
 int seven()
     return 7
 
-int[] a = [0, 0, 0, 0]
-int[] b = [1, 2]
-int i = 0
-int j = 0
+int[] a := [0, 0, 0, 0]
+int[] b := [1, 2]
+int i := 0
+int j := 0
 a[i] = bump(&i)
 a[b[j]] = seven()
 a[i + 1] = b[j]
@@ -85,17 +85,17 @@ print(NL)
     # local array is neither.
     "references.qui": """\
 void walk(int[] &a, int[] &b)
-    for auto &x = &a[]
+    for &x := &a[]
         b = b.append(9)
         x = x + 100
 
 void plain()
-    int[] local_values = [1, 2]
-    for auto &x = &local_values[]
+    int[] local_values := [1, 2]
+    for &x := &local_values[]
         x = x + 1
 
-int[] v = [1, 2, 3]
-int[] w = [4]
+int[] v := [1, 2, 3]
+int[] w := [4]
 walk(&v, &w)
 plain()
 print("{v[0]} {len(w)}")
@@ -105,14 +105,14 @@ print(NL)
     # another type. A typed constant keeps its declared type, so such a
     # use is a compile error and an explicit conversion is not listed.
     "constants/lib.qui": """\
-const real32 eps = 0.5
-const real32 tiny = 0.25
+const real32 eps := 0.5
+const real32 tiny := 0.25
 """,
     "constants/main.qui": """\
 import lib = "./lib.qui"
 
-real64 wide = real64(lib.eps)
-real32 narrow = lib.tiny
+real64 wide := real64(lib.eps)
+real32 narrow := lib.tiny
 print("{wide} {narrow}")
 print(NL)
 """,
@@ -124,8 +124,8 @@ int first_after(int[] values, int[] &target)
     target = target.append(1)
     return values[0]
 
-int[] a = [5]
-int[] b = [7]
+int[] a := [5]
+int[] b := [7]
 print("{first_after(a, &a)}")
 print("{first_after(b, &a)}")
 print(NL)
@@ -133,9 +133,9 @@ print(NL)
     # Only the copy used as a gradient destination is listed; touching the
     # original's gradient state does not demand every other copy in the scope.
     "target-copy.qui": """\
-autograd.Target source = autograd.target()
-autograd.Target used = source
-autograd.Target ignored = source
+autograd.Target source := autograd.target()
+autograd.Target used := source
+autograd.Target ignored := source
 print(used.has_grad())
 print(source.has_grad())
 print(NL)
@@ -143,45 +143,45 @@ print(NL)
     "target-flow.qui": """\
 autograd.Target echo(autograd.Target value)
     return value
-autograd.Target source = autograd.target()
-autograd.Target copy = echo(source)
+autograd.Target source := autograd.target()
+autograd.Target copy := echo(source)
 print(copy.has_grad())
 print(NL)
 """,
     "target-loop.qui": """\
-autograd.Target source = autograd.target()
-autograd.Target[] values = [source]
-for auto value = values[]
+autograd.Target source := autograd.target()
+autograd.Target[] values := [source]
+for value := values[]
     print(value.has_grad())
 print(NL)
 """,
     "target-pattern.qui": """\
-(autograd.Target, int) pair = (autograd.target(), 0)
-(autograd.Target used, int count) = pair
+(autograd.Target, int) pair := (autograd.target(), 0)
+(autograd.Target used, int count) := pair
 print(used.has_grad())
 print(NL)
 """,
     "target-pattern-reference.qui": """\
-(autograd.Target, int) pair = (autograd.target(), 0)
-(autograd.Target &used, int &count) = &pair
+(autograd.Target, int) pair := (autograd.target(), 0)
+(autograd.Target &used, int &count) := &pair
 print(used.has_grad())
 print(NL)
 """,
     "target-pattern-place.qui": """\
-(autograd.Target, int) pair = (autograd.target(), 0)
-autograd.Target used = autograd.target()
-int count = 0
+(autograd.Target, int) pair := (autograd.target(), 0)
+autograd.Target used := autograd.target()
+int count := 0
 (used, count) = pair
 print(used.has_grad())
 print(NL)
 """,
     # Checks and loop operations.
     "counts.qui": """\
-int total = 0
+int total := 0
 for 0 <= nat i < 10
     total = total + int(i)
-int8 small = 3
-int64 k = 0
+int8 small := 3
+int64 k := 0
 while k < 5
     k = k + 1
 print("{total} {small} {k}")

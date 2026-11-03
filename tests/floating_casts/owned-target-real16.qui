@@ -1,11 +1,11 @@
-autograd.Target target = autograd.target()
-tensor<real32> x = tensor.ones<real32>([]).track(&target)
-tensor<real16> low = real16(x)
-tensor<real16> loss = low * real16(1.0009765625)
+autograd.Target target := autograd.target()
+tensor<real32> x := tensor.ones<real32>([]).track(&target)
+tensor<real16> low := real16(x)
+tensor<real16> loss := low * real16(1.0009765625)
 loss.backward(&target)
 print(target.gradient<real32>().item() == real32(1.0009765625))
 print(NL)
-autograd.Target copied = target
+autograd.Target copied := target
 loss.backward(&target)
 print(copied.gradient<real32>().item() == real32(1.0009765625))
 print(NL)

@@ -8,20 +8,20 @@ class Bag this()
         this.items = this.items.append(int(len(this.items)))
 
     int .walk()
-        int total = 0
-        for auto v = this.items[]
+        int total := 0
+        for v := this.items[]
             total = total + v
             .grow_items()
         return total
 
-Bag g = Bag()
+Bag g := Bag()
 g.items = [1, 2, 3]
 print("method: {.g.walk()} {len(g.items)}")
 print(NL)
-Bag h = Bag()
+Bag h := Bag()
 h.items = [1, 2, 3]
-int total = 0
-for auto v = h.items[]
+int total := 0
+for v := h.items[]
     total = total + v
     .h.grow_items()
 print("receiver call: {total} {len(h.items)}")

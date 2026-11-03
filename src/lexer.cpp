@@ -90,6 +90,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::LBrace: return "{"; case TokenKind::RBrace: return "}";
         case TokenKind::Colon: return ":"; case TokenKind::Comma: return ","; case TokenKind::Semicolon: return ";"; case TokenKind::Dot: return ".";
         case TokenKind::Assign: return "=";
+        case TokenKind::DeclareAssign: return ":=";
         case TokenKind::PlusAssign: return "+="; case TokenKind::MinusAssign: return "-=";
         case TokenKind::StarAssign: return "*="; case TokenKind::SlashAssign: return "/=";
         case TokenKind::PercentAssign: return "%="; case TokenKind::Plus: return "+";
@@ -314,7 +315,7 @@ std::vector<Token> Lexer::scan() {
             // (tensor<real32>{2, 3}); the parser reports them anywhere else.
             case '{': tokens.push_back(make(TokenKind::LBrace, start_index, start)); break;
             case '}': tokens.push_back(make(TokenKind::RBrace, start_index, start)); break;
-            case ':': tokens.push_back(make(TokenKind::Colon, start_index, start)); break;
+            case ':': tokens.push_back(make(match('=') ? TokenKind::DeclareAssign : TokenKind::Colon, start_index, start)); break;
             case ',': tokens.push_back(make(TokenKind::Comma, start_index, start)); break;
             case ';': tokens.push_back(make(TokenKind::Semicolon, start_index, start)); break;
             case '.': tokens.push_back(make(TokenKind::Dot, start_index, start)); break;

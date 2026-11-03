@@ -71,7 +71,7 @@ expect evaluated_once $'0\n1\n2\n3' <<'QUI'
 int bound(int[] &order, int value)
     order = order.append(value)
     return value
-int[] order = []
+int[] order := []
 for bound(&order, 0) <= int x < bound(&order, 3) step bound(&order, 1)
     print(x)
     print(NL)
@@ -79,30 +79,30 @@ print(len(order))
 print(NL)
 QUI
 expect stable_bounds $'0\n1\n2\n9' <<'QUI'
-int start = 0
-int end = 3
-int step = 1
+int start := 0
+int end := 3
+int step := 1
 for start <= int x < end step step
     print(x)
     print(NL)
     start = 100
     end = 0
     step = 0
-int old = 9
+int old := 9
 for 5 < old <= 5
     print(int(999))
 print(old)
 print(NL)
 QUI
 expect forms $'1\n2\n3\n3\n0\n2\n1\n1\n2\n0' <<'QUI'
-int[] values = [1, 2, 3]
-int previous = 9
+int[] values := [1, 2, 3]
+int previous := 9
 for previous = values[]
     print(previous)
     print(NL)
 print(previous)
 print(NL)
-for auto value = values[len(values)>:0][auto index]
+for value := values[len(values)>:0][nat index]
     print(index)
     print(NL)
     print(value - 1)
@@ -112,8 +112,8 @@ for auto value = values[len(values)>:0][auto index]
             print(int(999))
 QUI
 expect snapshot $'1\n2\n3\n77' <<'QUI'
-int[] values = [1, 2, 3]
-for int value = values[]
+int[] values := [1, 2, 3]
+for int value := values[]
     values[1] = 77
     print(value)
     print(NL)
@@ -123,16 +123,16 @@ QUI
 expect live_elements $'1\n77\n3' <<'QUI'
 void fill(int[] &values)
     values[1] = 77
-int[] values = [1, 2, 3]
-for int &value = &values[nat index]
+int[] values := [1, 2, 3]
+for int &value := &values[nat index]
     if index == 0
         fill(&values)
     print(value)
     print(NL)
 QUI
 expect true_reference $'true\n5\n5\n6' <<'QUI'
-int[] values = [1, 2]
-for int &value = &values[nat index]
+int[] values := [1, 2]
+for int &value := &values[nat index]
     if index == 0
         print(&value == &values[0])
         print(NL)
@@ -150,9 +150,9 @@ expect nested_paths $'1\n11\n12\n3' <<'QUI'
 int once(int &calls)
     calls += 1
     return 0
-int[][] matrix = [[1, 2], [3, 4]]
-int calls = 0
-for int &value = &matrix[once(&calls)][]
+int[][] matrix := [[1, 2], [3, 4]]
+int calls := 0
+for int &value := &matrix[once(&calls)][]
     value += 10
 print(calls)
 print(NL)
@@ -160,20 +160,20 @@ print(matrix[0][0])
 print(NL)
 print(matrix[0][1])
 print(NL)
-for int[] &row = &matrix[]
-    for int &value = &row[]
+for int[] &row := &matrix[]
+    for int &value := &row[]
         if value == 3
             print(value)
             print(NL)
 QUI
 expect bit_places $'true\ntrue\ntrue' <<'QUI'
-bin | error parsed_bits = bin.parse("101")
-bin | error parsed_one = bin.parse("1")
+bin | error parsed_bits := bin.parse("101")
+bin | error parsed_one := bin.parse("1")
 match parsed_bits
     bin bits
         match parsed_one
             bin one
-                for bin &bit = &bits[]
+                for bin &bit := &bits[]
                     bit = one
                     print(bit == one)
                     print(NL)
@@ -183,10 +183,10 @@ match parsed_bits
         process.exit(1)
 QUI
 expect unrelated_row $'1\n2\n9' <<'QUI'
-int[][] matrix = [[1, 2], [3, 4]]
-int selected = 0
-int other = 1
-for int &value = &matrix[selected][]
+int[][] matrix := [[1, 2], [3, 4]]
+int selected := 0
+int other := 1
+for int &value := &matrix[selected][]
     matrix[other] = [9]
     print(value)
     print(NL)
@@ -194,17 +194,17 @@ print(matrix[1][0])
 print(NL)
 QUI
 fails child_alias FOR_ITERATION <<'QUI'
-int[][] matrix = [[1, 2], [3, 4]]
-int selected = 0
-int other = 0
+int[][] matrix := [[1, 2], [3, 4]]
+int selected := 0
+int other := 0
 print("before")
-for int &value = &matrix[selected][]
+for int &value := &matrix[selected][]
     matrix[other] = [9]
 QUI
 expect nested_snapshot $'1\n2\n77' <<'QUI'
-int[][] matrix = [[1, 2]]
-for int[] &row = &matrix[]
-    for int value = row[]
+int[][] matrix := [[1, 2]]
+for int[] &row := &matrix[]
+    for int value := row[]
         row[1] = 77
         print(value)
         print(NL)
@@ -213,16 +213,16 @@ print(NL)
 QUI
 expect return_cleanup $'4' <<'QUI'
 void visit(int[] &values)
-    for int &value = &values[]
+    for int &value := &values[]
         return
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 visit(&values)
 values = values.append(4)
 print(values[3])
 print(NL)
 QUI
 expect existing_initialization $'1\n0' <<'QUI'
-int count = 2
+int count := 2
 int existing
 for 0 <= existing < count
     print("")
@@ -235,7 +235,7 @@ print(stopped)
 print(NL)
 QUI
 fails empty_initialization UNINITIALIZED <<'QUI'
-int count = 0
+int count := 0
 int existing
 print("before")
 for 0 <= existing < count
@@ -244,20 +244,20 @@ print(existing)
 QUI
 fails alias_reshape FOR_ITERATION <<'QUI'
 void walk(int[] &a, int[] &b)
-    for int &value = &a[]
+    for int &value := &a[]
         b = b.append(9)
-int[] values = [1, 2]
+int[] values := [1, 2]
 print("before")
 walk(&values, &values)
 QUI
 fails zero_step FOR_STEP <<'QUI'
-int step = 0
+int step := 0
 print("before")
 for 3 <= int x < 0 step step
     print(x)
 QUI
 fails wrong_direction FOR_STEP <<'QUI'
-int step = 1
+int step := 1
 print("before")
 for 3 >= int x >= 0 step step
     print(x)
@@ -267,31 +267,31 @@ for int x < 3
     x += 1
 QUI
 rejects readonly_index LOOP_VARIABLE_WRITE <<'QUI'
-int[] values = [1]
-for int value = values[nat index]
+int[] values := [1]
+for int value := values[nat index]
     index += 1
 QUI
 rejects bit_address WRITE_CAPABILITY <<'QUI'
-bin | error parsed = bin.parse("1")
+bin | error parsed := bin.parse("1")
 match parsed
     bin values
-        for bin &value = &values[]
+        for bin &value := &values[]
             print(&value)
     error problem
         process.exit(1)
 QUI
 rejects replace_path WRITE_CAPABILITY <<'QUI'
-int[][] values = [[1]]
-for int &value = &values[0][]
+int[][] values := [[1]]
+for int &value := &values[0][]
     values = [[2]]
 QUI
 rejects index_type FOR_HEADER <<'QUI'
-int[] values = [1]
-for int value = values[int index]
+int[] values := [1]
+for int value := values[int index]
     print(value)
 QUI
 rejects suffix_outside ELEMENT_ITERATION <<'QUI'
-int[] values = [1]
+int[] values := [1]
 print(values[])
 QUI
 # The inspect major schema remains compatible; the minor and additive kinds

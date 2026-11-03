@@ -11,7 +11,7 @@ top_declaration  = [ "private" ], ( extern_decl | enum_decl | class_decl | funct
    members. A private top-level declaration is usable only inside its module (source file) and is
    never exported, also not by `public import`. export_decl stays a separate program item:
    `private export "C"` is an error, because exported C functions are public. *)
-const_binding    = "const", type, identifier, "=", expression, statement_end ;
+const_binding    = "const", ( "literal", type | [ type ] ), identifier, ":=", expression, statement_end ;
 
 import_decl      = [ "public" ], "import", identifier,
                    [ "=", ( string | identifier ) ], statement_end ;
@@ -40,8 +40,9 @@ class_prototype  = class_signature, ";", statement_end ;
 class_definition = class_signature, NEWLINE, INDENT,
                    class_item, { class_item | NEWLINE }, DEDENT ;
 class_item       = [ "private" ], ( field | function_definition ) | statement ;
-field            = [ "const" ], type, identifier, [ "=", expression ], statement_end
-                 | type, "&", identifier, [ "=", "&", expression ], statement_end ;
+field            = [ "const" ], type, identifier, [ ":=", expression ], statement_end
+                 | [ "const" ], identifier, ":=", expression, statement_end
+                 | type, "&", identifier, [ ":=", "&", expression ], statement_end ;
 (* Ordinary header parameters and direct declarations are members. Header/body
    local declarations are initialization-only. Inner control-block declarations
    are local. Header members initialize first, then executable direct items run
@@ -57,7 +58,9 @@ type_parameters  = "<", type_parameter, { ",", type_parameter }, ">" ;
 type_parameter   = identifier, [ ":", generic_constraint ] ;
 generic_constraint = "numeric" | "integer" | "floating" | "ordered" | "equatable" ;
 parameters       = [ "extend" ], parameter, { ",", parameter }, [ "," ] ;
-parameter        = [ "local" ], ( "const", type | type, [ "&" ] ), identifier, [ "=", expression ] ;
+parameter        = [ "local" ], (
+                     ( "const", type | type, [ "&" ] ), identifier, [ ":=", expression ]
+                   | [ "const" ], identifier, ":=", expression ) ;
 (* `extend` is a contextual modifier permitted only on the first parameter of
    a top-level function. It declares that parameter as the method receiver;
    class methods, constructors, and extern signatures cannot use it. *)
@@ -81,14 +84,14 @@ suite            = NEWLINE, INDENT, statement, { statement | NEWLINE }, DEDENT ;
 main_guard       = "if", "main", suite ;
 statement        = binding | destructuring | assignment | address_assignment | return_stmt |
                    loop_control_stmt | if_stmt | while_stmt | for_stmt | match_stmt | parallel_stmt | expr_stmt ;
-binding          = [ "local" ], ( "const", [ "literal" ], type, identifier, "=", expression
-                   | type, [ "&" ], identifier, [ "=", [ "&" ], expression ]
-                   | [ "const" ], class_type, identifier, direct_call ), statement_end ;
-class_type       = qualified_identifier, [ type_arguments ] ;
+binding          = [ "local" ], ( "const", ( "literal", type | [ type ] ), identifier, ":=", expression
+                   | type, [ "&" ], identifier
+                   | [ type ], identifier, ":=", expression
+                   | [ type ], "&", identifier, ":=", "&", expression ), statement_end ;
 (* file.read, file.write and file.append are qualified nominal types in type position
    and factory calls in expression position. Bare file is a namespace, not a type. *)
 (* `literal` is a contextual keyword, only between `const` and the type:
-   `const literal real NAME = EXPRESSION` declares a contextual constant,
+   `const literal real NAME := EXPRESSION` declares a contextual constant,
    whose type is `real` (or `com`) and whose initializer is a constant exact
    expression; elsewhere `literal` is an ordinary identifier. *)
 assignment       = assignable, assignment_operator, expression, statement_end ;
@@ -114,9 +117,13 @@ ascending_op     = "<" | "<=" ;
 descending_op    = ">" | ">=" ;
 (* A postfix call may be reflect.each or a traversal function. Such a traversal
    is only an element source or the return of a reflect.Each<T> function. *)
-collection_header = [ type | "auto" ], [ "&" ], identifier, "=", [ "&" ], postfix, "[", [ ( "nat" | "auto" ), identifier ], "]" ;
+collection_header = ( [ type ], identifier, ":=", postfix
+                   | [ type ], "&", identifier, ":=", "&", postfix
+                   | identifier, "=", postfix
+                   | new_pattern, ":=", [ "&" ], postfix
+                   | place_pattern, "=", postfix ), "[", [ "nat", identifier ], "]" ;
 zip_header       = array_value_binding, ",", array_value_binding, { ",", array_value_binding } ;
-array_value_binding = [ type | "auto" ], identifier, "=", postfix, "[", "]" ;
+array_value_binding = ( [ type ], identifier, ":=" | identifier, "=" ), postfix, "[", "]" ;
 (* Zip headers take Array values only, without reference, range, traversal,
    pattern or index bindings. Sources are evaluated once, left to right;
    each value is snapshotted immediately. Equal lengths are checked before
@@ -128,7 +135,7 @@ match_stmt       = "match", or_expr, NEWLINE, INDENT,
                    match_case, { match_case | NEWLINE }, DEDENT ;
 match_case       = ( type, [ identifier | "(", identifier, ")" ] | match_pattern ), suite ;
 match_pattern    = "(", match_element, ",", match_element, { ",", match_element }, ")" ;
-match_element    = [ "const" ], ( type | "auto" ), identifier | type | "_" | match_pattern ;
+match_element    = [ "const" ], type, identifier | type | "_" | match_pattern ;
 (* A parenthesized case is a type when it scans as one and its group is followed
    by a name, an array suffix, | or end of line; otherwise it is a pattern. *)
 expr_stmt        = expression, statement_end ;
@@ -186,8 +193,10 @@ member_suffix    = ".", identifier, [ type_arguments ],
                    [ "(", [ arguments ], ")" ] ;
 primary          = integer_literal | real_literal | imaginary_literal | string |
                    "true" | "false" | "void" | "none" |
-                   tuple_expr | array | identifier | "(", expression, ")" ;
+                   tuple_expr | array | array_generation | identifier | "(", expression, ")" ;
 array            = "[", [ expression, { ",", expression }, [ "," ] ], "]" ;
+array_generation = "[", "for", [ type ], identifier, ":=", postfix, "[", "]",
+                   [ "if", or_expr ], "then", expression, "]" ;
 arguments        = argument, { ",", argument }, [ "," ] ;
 argument         = "&", identifier, "=", "&", expression
                  | identifier, "=", expression
@@ -199,7 +208,7 @@ statement_end    = NEWLINE | EOF ;
    - real literals contain a decimal point; exponent notation only after it (1.0e8);
    - an imaginary literal is a real literal immediately followed by `i` that is not
      followed by an identifier character (2.0i, 1.0e-3i); `i` is not reserved, so
-     `int i = 5` stays valid; `2i` is lexed as an integer-form imaginary literal
+     `int i := 5` stays valid; `2i` is lexed as an integer-form imaginary literal
      and rejected by the checker;
    - literals carry categories, not types: non-negative integer, negative integer
      (unary `-` applied to an integer literal), real, imaginary, and complex (a real
@@ -265,13 +274,14 @@ statement_end    = NEWLINE | EOF ;
      methods do not implicitly become function values;
    - `T(...)` runs the class header and ordered initialization body. Header defaults
      or free factories express alternate forms; `construct` is an ordinary name.
-     `T name(args)` is declaration syntax equivalent to `T name = T(args)`.
+     To declare an instance and construct it, write `T name := T(args)`.
      A bare class binding has no accessible instance until whole-value initialization;
      standard `map<K, V>` and `distinct<T>` bare bindings retain initialized empty storage;
-   - in an initialized local binding, bare `auto` infers the non-`error` success side and
-     fails fast if the initializer produces `error`; `auto | error` is the only union form
-     containing `auto` and explicitly retains that failure channel. Forms such as
-     `error | auto` and `auto | none` are invalid;
+   - a required parameter and an uninitialized field need explicit types. The default
+     or initializer must determine a unique type when the type is omitted.
+   - omitting the type in an initialized declaration infers the non-`error` success side and
+     fails fast if the initializer produces `error`. An explicit union type including
+     `error` retains that failure channel;
    - class members are public by default. private limits a member to its declaring class; top-level private limits a declaration to its module;
    - a string literal placeholder `{&storage}` is an input target and is valid only as
      the format of scan(...); print, flush and scan return void | error, and an
@@ -338,10 +348,12 @@ statement_end    = NEWLINE | EOF ;
 tuple_type = "(", type, ",", type, { ",", type }, ")" ;
 tuple_expr = "(", expression, ",", expression, { ",", expression }, ")" ;
 
-destructuring = pattern, "=", [ "&" ], expression, statement_end ;
-pattern = "(", pattern_element, ",", pattern_element, { ",", pattern_element }, ")" ;
-pattern_element = [ "const" ], ( type | "auto" ), [ "&" ], identifier
-                | "_" | pattern | assignable ;
+destructuring = [ "local" ], new_pattern, ":=", [ "&" ], expression, statement_end
+              | place_pattern, "=", expression, statement_end ;
+new_pattern = "(", new_element, ",", new_element, { ",", new_element }, ")" ;
+new_element = [ "const" ], [ type ], [ "&" ], identifier | "_" | new_pattern ;
+place_pattern = "(", place_element, ",", place_element, { ",", place_element }, ")" ;
+place_element = "_" | place_pattern | assignable ;
 
 (* Collection for headers also accept a declaration, existing-place or reference
-   tuple pattern before = SOURCE[]. Reference patterns take &SOURCE[]. *)
+   tuple pattern. Reference patterns take &SOURCE[]. *)

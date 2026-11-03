@@ -1,44 +1,44 @@
 // File operations that only unquoted (run-time path) heredocs of
 // stdlib_tests.sh use; compiled by the golden corpus, never run.
-auto | error copied = file.copy("probe-source.txt", "probe-copied.txt")
+void | error copied := file.copy("probe-source.txt", "probe-copied.txt")
 match copied
     void
         print("copy{NL}")
     error e
         print("{e}{NL}")
 
-auto | error moved = file.move("probe-copied.txt", "probe-moved.txt")
+void | error moved := file.move("probe-copied.txt", "probe-moved.txt")
 match moved
     void
         print("move{NL}")
     error e
         print("{e}{NL}")
 
-auto | error removed = file.remove("probe-moved.txt")
+void | error removed := file.remove("probe-moved.txt")
 match removed
     void
         print("remove{NL}")
     error e
         print("{e}{NL}")
 
-auto | error directory = file.mkdir("probe-directory")
+void | error directory := file.mkdir("probe-directory")
 match directory
     void
         print("mkdir{NL}")
     error e
         print("{e}{NL}")
 
-auto | error written = file.write_bin("probe.bin", bin.fill(3, 1))
+void | error written := file.write_bin("probe.bin", bin.fill(3, 1))
 match written
     void
         print("write_bin{NL}")
     error e
         print("{e}{NL}")
 
-file.write created = file.write("probe-stream.txt")
+file.write created := file.write("probe-stream.txt")
 .created("alpha")
-file.append appended = file.append("probe-stream.txt")
+file.append appended := file.append("probe-stream.txt")
 .appended("{NL}tail")
-file.read reader = file.read("probe-stream.txt")
+file.read reader := file.read("probe-stream.txt")
 while .reader(string &line)
     print("{line}{NL}")

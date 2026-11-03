@@ -52,9 +52,9 @@ match environment.get("MTL_CAPTURE_ENABLED")
     none
         print("unset")
 print(NL)
-tensor<real32> weight = tensor.ones<real32>([4], gpu = 0).track()
+tensor<real32> weight := tensor.ones<real32>([4], gpu = 0).track()
 for 0 <= nat step < 3
-    tensor<real32> loss = (weight * weight).gather([0], [])
+    tensor<real32> loss := (weight * weight).gather([0], [])
     .weight.clear_grad()
     loss.backward(&weight)
 print(weight.grad.cpu()[0].item())
@@ -136,9 +136,9 @@ PY
 
 # Immediate runtime failure must still leave a trace for extraction.
 cat > "$TMP/failure.qui" <<'QUI'
-tensor<real32> values = tensor.ones<real32>([4])
-nat[] shape = [5]
-tensor<real32> invalid = values.reshape(shape)
+tensor<real32> values := tensor.ones<real32>([4])
+nat[] shape := [5]
+tensor<real32> invalid := values.reshape(shape)
 print(invalid.shape()[0])
 QUI
 set +e

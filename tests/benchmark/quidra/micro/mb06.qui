@@ -15,7 +15,7 @@ class Lcg(local int seed)
         return state
 
     real64 .next_unit()
-        real64 value = real64(.next_int())
+        real64 value := real64(.next_int())
         return value / 2147483647.0
 
 class Result()
@@ -25,12 +25,12 @@ class Result()
 
 // The whole workload body, generation included (methodology 06 section 4, MB-06).
 Result workload()
-    int n = 512
-    int rounds = 3
-    Lcg g = Lcg(20266917)
-    real64[] a = array(nat(n * n), fill = 0.0)
-    real64[] b = array(nat(n * n), fill = 0.0)
-    real64[] c = array(nat(n * n), fill = 0.0)
+    int n := 512
+    int rounds := 3
+    Lcg g := Lcg(20266917)
+    real64[] a := array(nat(n * n), fill = 0.0)
+    real64[] b := array(nat(n * n), fill = 0.0)
+    real64[] c := array(nat(n * n), fill = 0.0)
     for 0 <= int i < n * n
         a[i] = .g.next_unit()
     for 0 <= int i < n * n
@@ -39,11 +39,11 @@ Result workload()
         a[r] = a[r] + 1.0e-9
         for 0 <= int i < n
             for 0 <= int j < n
-                real64 s = 0.0
+                real64 s := 0.0
                 for 0 <= int k < n
                     s = s + a[i * n + k] * b[k * n + j]
                 c[i * n + j] = s
-    real64 sum_c = 0.0
+    real64 sum_c := 0.0
     for 0 <= int i < n * n
         sum_c = sum_c + c[i]
     Result result
@@ -53,10 +53,10 @@ Result workload()
     return result
 
 Result timed(int index)
-    time.Instant start = time.now()
-    Result result = workload()
-    time.Duration elapsed = time.since(start)
-    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    time.Instant start := time.now()
+    Result result := workload()
+    time.Duration elapsed := time.since(start)
+    int elapsed_ns := math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
     print(NL)
     flush()
@@ -64,7 +64,7 @@ Result timed(int index)
 
 Result result
 if args.mode == "steady"
-    int k = math.max(args.iterations, 1)
+    int k := math.max(args.iterations, 1)
     result = timed(0)
     for 1 <= int i < k
         result = timed(i)

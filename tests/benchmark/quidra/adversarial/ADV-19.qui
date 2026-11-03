@@ -2,8 +2,8 @@ print("ADV-START")
 print(NL)
 flush()
 string read_input_line()
-    string line = ""
-    void | error read = scan(&line)
+    string line := ""
+    void | error read := scan(&line)
     match read
         void
             return line
@@ -11,8 +11,8 @@ string read_input_line()
             process.exit(2)
 int f(int n)
     return 1 + f(n + 1)
-int start = int.parse(read_input_line())
-int result = f(start)
+int start := int.parse(read_input_line())
+int result := f(start)
 print("OBS=R:{result}")
 print(NL)
 flush()

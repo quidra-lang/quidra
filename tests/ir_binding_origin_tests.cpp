@@ -36,15 +36,15 @@ class Holder this(local Model &input)
 Item[] collect(Model input)
     return reflect.collect<Item>(input)
 void visit(Model input)
-    for auto item = reflect.each<Item>(input)[]
+    for item := reflect.each<Item>(input)[]
         print(item.value)
 string[] paths(Model input)
     return reflect.each_paths<Item>(input)
 void mutate(Model &input)
-    for Item &item = &reflect.each<Item>(&input)[]
+    for Item &item := &reflect.each<Item>(&input)[]
         item.value = 7
 int plain(int input)
-    int copied = input
+    int copied := input
     return copied
 )");
     auto module=lower(checked);

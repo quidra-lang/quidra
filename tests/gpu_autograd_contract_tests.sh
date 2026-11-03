@@ -13,27 +13,27 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run onl
 
 cat > "$TMP/reduction_helpers.qui" <<'QUI'
 int element_count(tensor<real32> value)
-    int count = 1
-    for auto extent = value.shape()[]
+    int count := 1
+    for extent := value.shape()[]
         count = count * int(extent)
     return count
 
 tensor<real32> sum(tensor<real32> value)
-    int count = element_count(value)
+    int count := element_count(value)
     if count == 0
         if value.device() >= 0
             return tensor.zeros<real32>([], gpu = nat(value.device()))
         return tensor.zeros<real32>([])
-    tensor<real32> result = value.gather([0], [])
+    tensor<real32> result := value.gather([0], [])
     for 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
 tensor<real32> mean(tensor<real32> value)
-    int count = element_count(value)
+    int count := element_count(value)
     if count == 0
         error("test mean requires at least one element")
-    real32 scale = real32(count)
+    real32 scale := real32(count)
     return sum(value) / scale
 QUI
 
@@ -45,27 +45,27 @@ export QUIDRA_TEST_FAKE_GPU_COUNT=2
 # selection, and inherits the tracked tensor's gather backward graph.
 # This exercises the fake GPU path in addition to the CPU slice-suite cases.
 cat > "$TMP/tensor-mask-fake-gpu.qui" <<'QUI'
-tensor<real32> cpu = tensor.zeros<real32>([2, 2])
+tensor<real32> cpu := tensor.zeros<real32>([2, 2])
 cpu[0, 0] = real32(-2)
 cpu[0, 1] = real32(3)
 cpu[1, 0] = real32(0)
 cpu[1, 1] = real32(4)
-tensor<bool> mask = cpu > real32(0)
-tensor<real32> device_values = cpu.gpu(0)
-tensor<bool> gpu_mask = mask.gpu(0)
-tensor<real32> selected = device_values[gpu_mask]
-nat[1] expected_shape = [2]
+tensor<bool> mask := cpu > real32(0)
+tensor<real32> device_values := cpu.gpu(0)
+tensor<bool> gpu_mask := mask.gpu(0)
+tensor<real32> selected := device_values[gpu_mask]
+nat[1] expected_shape := [2]
 print(selected.shape() == expected_shape)
 print(NL)
 print(selected.cpu()[0].item() == real32(3))
 print(NL)
 print(selected.cpu()[1].item() == real32(4))
 print(NL)
-tensor<real32> tracked = device_values.track()
-tensor<bool> single_mask = (cpu > real32(3)).gpu(0)
-tensor<real32> singled = tracked[single_mask]
+tensor<real32> tracked := device_values.track()
+tensor<bool> single_mask := (cpu > real32(3)).gpu(0)
+tensor<real32> singled := tracked[single_mask]
 singled.backward(&tracked)
-tensor<real32> gradient = tracked.grad.cpu()
+tensor<real32> gradient := tracked.grad.cpu()
 print(gradient[0, 0].item() == real32(0) and
       gradient[0, 1].item() == real32(0) and
       gradient[1, 0].item() == real32(0) and
@@ -124,13 +124,13 @@ tensor<real32> place(tensor<real32> value, int device)
         return value.gpu(nat(device))
     return value
 
-tensor<real32> left = place(tensor.ones<real32>([2, 3]), args.device)
-tensor<real32> right = place(tensor.ones<real32>([3]), args.device)
+tensor<real32> left := place(tensor.ones<real32>([2, 3]), args.device)
+tensor<real32> right := place(tensor.ones<real32>([3]), args.device)
 if args.case == 1
     right = place(tensor.ones<real32>([2, 2]), args.device)
 if args.tracked
     left = left.track()
-tensor<real32> output = left * right
+tensor<real32> output := left * right
 print(output.shape()[0])
 QUI
 "$QUIDRA" build "$TMP/broadcast-errors.qui" -o "$TMP/broadcast-errors" >/dev/null
@@ -255,8 +255,8 @@ extern int32 fill_native(
 
 // input * factor, with factor saved for backward.
 tensor<real32> scale(tensor<real32> input, tensor<real32> factor)
-    tensor<real32> output = tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = scale_native(input, factor, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := scale_native(input, factor, &output)
     if status != int32(0)
         error("fake-GPU saved-tensor registration failed", code = "FAKE_SAVED_NATIVE")
     return output
@@ -328,20 +328,20 @@ import fake = fake_saved
 void poke(tensor<real32> &value)
     value[1] = real32(-7)
 
-tensor<real32> x = tensor.ones<real32>([4], gpu = 0)
-tensor<real32> by_handle = tensor.ones<real32>([4], gpu = 0) * real32(3)
-tensor<real32> by_reference = tensor.ones<real32>([4], gpu = 0) * real32(5)
-tensor<real32> xt = x.track()
-tensor<real32> y = fake.scale(xt, by_handle) + fake.scale(xt, by_reference)
+tensor<real32> x := tensor.ones<real32>([4], gpu = 0)
+tensor<real32> by_handle := tensor.ones<real32>([4], gpu = 0) * real32(3)
+tensor<real32> by_reference := tensor.ones<real32>([4], gpu = 0) * real32(5)
+tensor<real32> xt := x.track()
+tensor<real32> y := fake.scale(xt, by_handle) + fake.scale(xt, by_reference)
 print(fake.fill(&by_handle, real32(100)) == int32(0))
 print(NL)
 poke(&by_reference)
 y.reshape([4]).scatter([0, 0, 0, 0], [1]).backward(&x)
-tensor<real32> gradient = x.grad.cpu()
+tensor<real32> gradient := x.grad.cpu()
 print("{real64(gradient[0].item())} {real64(gradient[1].item())} {real64(gradient[3].item())}")
 print(NL)
-tensor<real32> handle_live = by_handle.cpu()
-tensor<real32> reference_live = by_reference.cpu()
+tensor<real32> handle_live := by_handle.cpu()
+tensor<real32> reference_live := by_reference.cpu()
 print("{real64(handle_live[1].item())} {real64(reference_live[0].item())} {real64(reference_live[1].item())}")
 print(NL)
 QUI
@@ -400,23 +400,23 @@ extern int64 masked_last_native() = "qfake_masked_last"
 extern int64 fills_native() = "qfake_fills"
 
 tensor<real32> mul_masked(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
-    int32 status = mul_masked_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
+    int32 status := mul_masked_native(left, right, &output)
     if status != int32(0)
         error("fake-GPU masked custom autograd registration failed", code = "FAKE_NATIVE_NATIVE")
     return output
 
 tensor<real32> mul_masked_unreported(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
-    int32 status = mul_masked_unreported_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
+    int32 status := mul_masked_unreported_native(left, right, &output)
     if status != int32(0)
         error("fake-GPU masked custom autograd registration failed", code = "FAKE_NATIVE_NATIVE")
     return output
 
 // The same callback without the full-write declaration.
 tensor<real32> mul_masked_undeclared(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
-    int32 status = mul_masked_undeclared_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
+    int32 status := mul_masked_undeclared_native(left, right, &output)
     if status != int32(0)
         error("fake-GPU masked custom autograd registration failed", code = "FAKE_NATIVE_NATIVE")
     return output
@@ -438,8 +438,8 @@ int handle_value(tensor<real32> value)
     return int(handle_value_native(value))
 
 tensor<real32> scale2(tensor<real32> input)
-    tensor<real32> output = tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = scale2_native(input, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := scale2_native(input, &output)
     if status != int32(0)
         error("fake-GPU custom autograd registration failed", code = "FAKE_NATIVE_NATIVE")
     return output
@@ -602,10 +602,10 @@ CPP
 
 cat > "$TMP/gpu-native-handles.qui" <<'QUI'
 import fake = fake_native
-tensor<real32> full = tensor.ones<real32>([4], gpu = 0)
+tensor<real32> full := tensor.ones<real32>([4], gpu = 0)
 print(fake.handle_const(full) == 1 and fake.handle_mut(full) == 1)
 print(NL)
-tensor<real32> partial = tensor<real32>([4], gpu = 0)
+tensor<real32> partial := tensor<real32>([4], gpu = 0)
 partial[0] = real32(1)
 partial[1] = real32(2)
 print(fake.handle_const(partial) == 0 and fake.handle_mut(partial) == 0)
@@ -634,15 +634,15 @@ fi
 cat > "$TMP/gpu-broadcast-retention.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
 import fake = fake_native
-tensor<real32> big = tensor.ones<real32>([64, 2], gpu = 0) * real32(3)
-tensor<real32> x = tensor.ones<real32>([5, 2], gpu = 0)
-tensor<real32> product = x.track() * big[1:<2]
-int before = fake.handle_value(big)
+tensor<real32> big := tensor.ones<real32>([64, 2], gpu = 0) * real32(3)
+tensor<real32> x := tensor.ones<real32>([5, 2], gpu = 0)
+tensor<real32> product := x.track() * big[1:<2]
+int before := fake.handle_value(big)
 big[1, 0] = real32(-7)
 print(before != 0 and fake.handle_value(big) == before)
 print(NL)
 reductions.sum(product).backward(&x)
-tensor<real32> gradient = x.grad.cpu()
+tensor<real32> gradient := x.grad.cpu()
 print(gradient[4, 0].item() == real32(3) and gradient[0, 1].item() == real32(3))
 print(NL)
 QUI
@@ -661,21 +661,21 @@ done
 cat > "$TMP/gpu-native-strided-gradient.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
 import fake = fake_native
-tensor<real32> source = tensor.ones<real32>([2, 3], gpu = 0)
-tensor<real32> weights = tensor<real32>([3, 2], gpu = 0)
+tensor<real32> source := tensor.ones<real32>([2, 3], gpu = 0)
+tensor<real32> weights := tensor<real32>([3, 2], gpu = 0)
 for 0 <= nat row < 3
     for 0 <= nat column < 2
         weights[row, column] = real32(row * 2 + column + 1)
-tensor<real32> x = source.track()
-tensor<real32> scaled = fake.scale2(x)
-tensor<real32> loss = reductions.sum(scaled.transpose(0, 1) * weights)
+tensor<real32> x := source.track()
+tensor<real32> scaled := fake.scale2(x)
+tensor<real32> loss := reductions.sum(scaled.transpose(0, 1) * weights)
 loss.backward(&source)
-tensor<real32> gradient = source.grad.cpu()
-bool matches = true
+tensor<real32> gradient := source.grad.cpu()
+bool matches := true
 for 0 <= nat row < 2
     for 0 <= nat column < 3
-        real32 weight = real32(column * 2 + row + 1)
-        real32 expected = real32(2) * weight
+        real32 weight := real32(column * 2 + row + 1)
+        real32 expected := real32(2) * weight
         if gradient[row, column].item() != expected
             matches = false
 print(matches)
@@ -694,10 +694,10 @@ fi
 # The device engine passes the gradient-need mask to masked callbacks.
 cat > "$TMP/gpu-native-masked.qui" <<'QUI'
 import fake = fake_native
-tensor<real32> x = tensor.ones<real32>([2], gpu = 0) * real32(3)
-tensor<real32> y = tensor.ones<real32>([2], gpu = 0) * real32(5)
-tensor<real32> product = fake.mul_masked(x.track(), y.track())
-tensor<real32> loss = product.gather([0], []) + product.gather([1], [])
+tensor<real32> x := tensor.ones<real32>([2], gpu = 0) * real32(3)
+tensor<real32> y := tensor.ones<real32>([2], gpu = 0) * real32(5)
+tensor<real32> product := fake.mul_masked(x.track(), y.track())
+tensor<real32> loss := product.gather([0], []) + product.gather([1], [])
 loss.backward(&y)
 print(y.grad.cpu()[1].item() == real32(3) and fake.masked_last() == 2)
 print(NL)
@@ -719,32 +719,32 @@ fi
 # restores the fill.
 cat > "$TMP/gpu-native-masked-fill.qui" <<'QUI'
 import fake = fake_native
-tensor<real32> xs = tensor.zeros<real32>([3])
+tensor<real32> xs := tensor.zeros<real32>([3])
 xs[0] = real32(0.1)
 xs[1] = real32(-2.5)
 xs[2] = real32(3.7)
-tensor<real32> ys = tensor.zeros<real32>([3])
+tensor<real32> ys := tensor.zeros<real32>([3])
 ys[0] = real32(1.3)
 ys[1] = real32(0.7)
 ys[2] = real32(-0.9)
-tensor<real32> weights = tensor.zeros<real32>([3])
+tensor<real32> weights := tensor.zeros<real32>([3])
 weights[0] = real32(0.25)
 weights[1] = real32(-1.5)
 weights[2] = real32(2.125)
 
-tensor<real32> x = xs.gpu(0)
-tensor<real32> y = ys.gpu(0)
-int start = fake.fills()
-tensor<real32> declared = fake.mul_masked(x.track(), y.track()) * weights.gpu(0)
+tensor<real32> x := xs.gpu(0)
+tensor<real32> y := ys.gpu(0)
+int start := fake.fills()
+tensor<real32> declared := fake.mul_masked(x.track(), y.track()) * weights.gpu(0)
 (declared.gather([0], []) + declared.gather([1], []) + declared.gather([2], [])).backward(&x, &y)
-int declared_fills = fake.fills() - start
+int declared_fills := fake.fills() - start
 
-tensor<real32> u = xs.gpu(0)
-tensor<real32> v = ys.gpu(0)
+tensor<real32> u := xs.gpu(0)
+tensor<real32> v := ys.gpu(0)
 start = fake.fills()
-tensor<real32> undeclared = fake.mul_masked_undeclared(u.track(), v.track()) * weights.gpu(0)
+tensor<real32> undeclared := fake.mul_masked_undeclared(u.track(), v.track()) * weights.gpu(0)
 (undeclared.gather([0], []) + undeclared.gather([1], []) + undeclared.gather([2], [])).backward(&u, &v)
-int undeclared_fills = fake.fills() - start
+int undeclared_fills := fake.fills() - start
 
 print((x.grad.cpu() == u.grad.cpu()).all() and (y.grad.cpu() == v.grad.cpu()).all())
 print(NL)
@@ -772,10 +772,10 @@ fi
 # undeclared-report input matters: y's gradient alone passes, x's fails.
 cat > "$TMP/gpu-native-masked-unreported.qui" <<'QUI'
 import fake = fake_native
-tensor<real32> x = tensor.ones<real32>([2], gpu = 0) * real32(3)
-tensor<real32> y = tensor.ones<real32>([2], gpu = 0) * real32(5)
-tensor<real32> product = fake.mul_masked_unreported(x.track(), y.track())
-tensor<real32> loss = product.gather([0], []) + product.gather([1], [])
+tensor<real32> x := tensor.ones<real32>([2], gpu = 0) * real32(3)
+tensor<real32> y := tensor.ones<real32>([2], gpu = 0) * real32(5)
+tensor<real32> product := fake.mul_masked_unreported(x.track(), y.track())
+tensor<real32> loss := product.gather([0], []) + product.gather([1], [])
 loss.backward(&y)
 print(y.grad.cpu()[1].item() == real32(3))
 print(NL)

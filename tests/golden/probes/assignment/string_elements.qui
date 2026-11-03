@@ -5,11 +5,11 @@ int replace(string[] &values)
     values = ["p", "q", "r"]
     return 1
 
-string[] s = ["a", "b"]
+string[] s := ["a", "b"]
 s[0] += "{replace(&s)}"
 print("{s[0]} {s[1]} {s[2]} {len(s)}")
 print(NL)
-string[] t = ["x", "y"]
+string[] t := ["x", "y"]
 t[1] += "{replace(&t)}!"
 print("{t[0]} {t[1]} {len(t)}")
 print(NL)

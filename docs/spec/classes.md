@@ -4,15 +4,24 @@ A class definition always has an argument list. Its order is the type name,
 optional instance name, argument list, and optional generation error contract.
 
 ```quidra
-class Point point(real64 x, real64 y, local real64 scale = 2.0)
+class Point point(real64 x, real64 y, local real64 scale := 2.0)
     x *= scale
     y *= scale
-    real64 length_squared = x * x + y * y
+    real64 length_squared := x * x + y * y
     real64 sum()
         return x + y
     Point copy()
         return point
-Point p = Point(3.0, 4.0)
+Point p := Point(3.0, 4.0)
+
+class Greeting(text := "hello")
+    suffix := "!"
+
+    string message()
+        return text + suffix
+
+Greeting greeting := Greeting()
+print.line(greeting.message())
 ```
 
 Ordinary header arguments declare members initialized from the supplied values.
@@ -28,8 +37,12 @@ without creating a usable instance. Initialize or assign the whole binding with
 Copying an initialized instance does not rerun generation. Standard `map<K, V>` and `distinct<T>` bindings retain their empty-storage
 initialization contract.
 
-A normal declaration directly in the class body adds a member. A `local`
-declaration keeps a temporary in the initialization block. Declarations inside
+A normal declaration directly in the class body adds a member. A field
+initializer or header default uses `:=`. Omit the type when the expression
+determines it. The `Greeting` header infers `string` for `text`, and the field
+initializer infers `string` for `suffix`. A required parameter or a field
+without an initializer needs an explicit type. A `local` declaration keeps
+a temporary in the initialization block. Declarations inside
 an `if`, `for` or other control block are local with or without that qualifier.
 Names are visible from their declaration through their block and inner control
 blocks. Locals do not cross a function or class definition boundary. An
@@ -45,11 +58,11 @@ or local declaration. Another instance's members use an explicit receiver.
 
 ```quidra
 class Document document(local string path) | error
-    file.read stream = try file.read(path)
-    string text = ""
+    file.read stream := try file.read(path)
+    string text := ""
     while .stream(string &line)
         text += "{line}{NL}"
-Document | error result = Document("notes.txt")
+Document | error result := Document("notes.txt")
 ```
 
 The error contract belongs to generation: `Document(...)` returns

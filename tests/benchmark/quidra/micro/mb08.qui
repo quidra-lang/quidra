@@ -19,8 +19,8 @@ class Lcg(local int seed)
 
 // Order-sensitive rolling hash over a byte sequence.
 int rhash(const nat8[] seq)
-    int h = 0
-    for auto c = seq[]
+    int h := 0
+    for c := seq[]
         h = (h * 131 + int(c)) % 1000000007
     return h
 
@@ -32,48 +32,48 @@ class Result()
 
 // The whole workload body, build phase included (methodology 06 section 4, MB-08).
 Result workload()
-    int nw = 200000
-    int rounds = 20
-    int q = 1000000007
-    Lcg g = Lcg(20268917)
+    int nw := 200000
+    int rounds := 20
+    int q := 1000000007
+    Lcg g := Lcg(20268917)
 
-    string[] words = []
+    string[] words := []
     for 0 <= int w < nw
-        int l = 4 + (.g.next_int() % 13)
-        nat8[] word = array(nat(l), fill = nat8(0))
+        int l := 4 + (.g.next_int() % 13)
+        nat8[] word := array(nat(l), fill = nat8(0))
         for 0 <= int c < l
             word[c] = nat8(97 + (.g.next_int() % 26))
-        string piece = string.from_utf8(bin(word))
+        string piece := string.from_utf8(bin(word))
         words = words.append(piece)
-    string joined = words.join(" ")
-    nat8[] text = nat8[](joined.utf8())
-    int n = int(len(text))
+    string joined := words.join(" ")
+    nat8[] text := nat8[](joined.utf8())
+    int n := int(len(text))
 
-    int acc = 0
-    int cnt_ab = 0
-    int cnt_w = 0
+    int acc := 0
+    int cnt_ab := 0
+    int cnt_w := 0
     for 0 <= int r < rounds
-        int p = 7 * r + 11
+        int p := 7 * r + 11
         if text[p] == nat8(32)
             text[p] = nat8(120)
         else
             text[p] = nat8(97 + ((int(text[p]) - 97 + 1) % 26))
 
-        int h1 = rhash(text)
+        int h1 := rhash(text)
 
-        nat8[] u = array(nat(n), fill = nat8(0))
+        nat8[] u := array(nat(n), fill = nat8(0))
         for 0 <= int i < n
-            int c = int(text[i])
+            int c := int(text[i])
             if c >= 97 and c <= 122
                 u[i] = nat8(c - 32)
             else
                 u[i] = nat8(c)
-        int h2 = rhash(u)
+        int h2 := rhash(u)
 
-        nat8[] v = array(nat(n), fill = nat8(0))
+        nat8[] v := array(nat(n), fill = nat8(0))
         for 0 <= int i < n
             v[i] = text[n - 1 - i]
-        int h3 = rhash(v)
+        int h3 := rhash(v)
 
         cnt_ab = 0
         for 0 <= int i < n - 1
@@ -82,9 +82,9 @@ Result workload()
 
         // pass 5: word count on the language's own string type, constructed
         // fresh from the working buffer inside the timed round.
-        string s = string.from_utf8(bin(text))
+        string s := string.from_utf8(bin(text))
         cnt_w = 1
-        for auto cp = s.codepoints()[]
+        for cp := s.codepoints()[]
             if cp == 32
                 cnt_w = cnt_w + 1
 
@@ -101,10 +101,10 @@ Result workload()
     return result
 
 Result timed(int index)
-    time.Instant start = time.now()
-    Result result = workload()
-    time.Duration elapsed = time.since(start)
-    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    time.Instant start := time.now()
+    Result result := workload()
+    time.Duration elapsed := time.since(start)
+    int elapsed_ns := math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
     print(NL)
     flush()
@@ -112,7 +112,7 @@ Result timed(int index)
 
 Result result
 if args.mode == "steady"
-    int k = math.max(args.iterations, 1)
+    int k := math.max(args.iterations, 1)
     result = timed(0)
     for 1 <= int i < k
         result = timed(i)

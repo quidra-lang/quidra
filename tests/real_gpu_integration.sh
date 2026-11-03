@@ -466,19 +466,19 @@ void report(string name, bool passed)
 // Sum through tracked gather nodes, so that the graph exercises Gather and,
 // in its backward, GatherBackward.
 tensor<real32> total(tensor<real32> value)
-    int count = 1
-    for auto extent = value.shape()[]
+    int count := 1
+    for extent := value.shape()[]
         count = count * int(extent)
-    tensor<real32> flat = value.reshape([nat(count)])
-    tensor<real32> result = flat.gather([0], [])
+    tensor<real32> flat := value.reshape([nat(count)])
+    tensor<real32> result := flat.gather([0], [])
     for 1 <= int index < count
         result = result + flat.gather([index], [])
     return result
 
 tensor<real32> pattern(int count, int seed)
-    tensor<real32> value = tensor.zeros<real32>([nat(count)])
+    tensor<real32> value := tensor.zeros<real32>([nat(count)])
     for 0 <= int index < count
-        real32 step = real32((index * 7 + seed * 3) % 11)
+        real32 step := real32((index * 7 + seed * 3) % 11)
         value[index] = step / real32(8) + real32(0.25)
     return value
 
@@ -491,13 +491,13 @@ tensor<real32> place(tensor<real32> value, int device)
 // an absolute bound near zero and a relative one elsewhere. atol = rtol = 0
 // requires bitwise-equal values.
 bool close(tensor<real32> expected, tensor<real32> actual, real64 atol, real64 rtol)
-    tensor<real32> a = expected.untrack().cpu()
-    tensor<real32> b = actual.untrack().cpu()
+    tensor<real32> a := expected.untrack().cpu()
+    tensor<real32> b := actual.untrack().cpu()
     if a.shape() != b.shape()
         return false
-    tensor<real32> difference = a - b
-    real32 absolute = real32(atol)
-    real32 relative = real32(rtol)
+    tensor<real32> difference := a - b
+    real32 absolute := real32(atol)
+    real32 relative := real32(rtol)
     return (difference * difference <= a * a * (relative * relative) + absolute * absolute).all()
 
 // 0: binary + - * / with a shared operand, 1: scalar + - * / and power on
@@ -506,11 +506,11 @@ tensor<real32> network(int which, tensor<real32> x, tensor<real32> w)
     if which == 0
         return x * x * w + x / w - w * x * x * x + (x - w) * (x + w)
     if which == 1
-        tensor<real32> scaled = (x * real32(3) + real32(1)) * (real32(2) - x) / real32(4)
+        tensor<real32> scaled := (x * real32(3) + real32(1)) * (real32(2) - x) / real32(4)
         return scaled + real32(5) / x + (x ^ real32(3)) - (real32(1) - x * real32(0.5))
-    tensor<real32> view = (x * w).reshape([2, 3]).transpose(0, 1)
-    tensor<real32> picked = view.gather([5, 0, 3, 3], [4])
-    tensor<real32> spread = (x * x).scatter([0, 2, 2, 1, 0, 3], [4])
+    tensor<real32> view := (x * w).reshape([2, 3]).transpose(0, 1)
+    tensor<real32> picked := view.gather([5, 0, 3, 3], [4])
+    tensor<real32> spread := (x * x).scatter([0, 2, 2, 1, 0, 3], [4])
     return picked * spread * picked + spread
 
 class Derivatives()
@@ -520,13 +520,13 @@ class Derivatives()
 
 // first = d loss / dx, second = d (first . probe) / dx = H probe
 Derivatives derivatives(int which, int device)
-    tensor<real32> x = place(pattern(6, 1), device).track()
-    tensor<real32> w = place(pattern(6, 2), device)
-    tensor<real32> output = network(which, x, w)
-    tensor<real32> upstream = place(pattern(int(output.shape()[0]), 3), device)
+    tensor<real32> x := place(pattern(6, 1), device).track()
+    tensor<real32> w := place(pattern(6, 2), device)
+    tensor<real32> output := network(which, x, w)
+    tensor<real32> upstream := place(pattern(int(output.shape()[0]), 3), device)
     total(output * upstream).backward(&x, track = true)
-    tensor<real32> first = x.grad
-    Derivatives result = Derivatives()
+    tensor<real32> first := x.grad
+    Derivatives result := Derivatives()
     result.first = first.untrack().cpu()
     .x.clear_grad()
     total(first * place(pattern(6, 4), device)).backward(&x)
@@ -535,31 +535,31 @@ Derivatives derivatives(int which, int device)
 
 // The first-order gradient at an untracked point (first-order engine only).
 tensor<real32> gradient_at(int which, tensor<real32> point, int device)
-    tensor<real32> x = place(point, device).track()
-    tensor<real32> w = place(pattern(6, 2), device)
-    tensor<real32> output = network(which, x, w)
-    tensor<real32> upstream = place(pattern(int(output.shape()[0]), 3), device)
+    tensor<real32> x := place(point, device).track()
+    tensor<real32> w := place(pattern(6, 2), device)
+    tensor<real32> output := network(which, x, w)
+    tensor<real32> upstream := place(pattern(int(output.shape()[0]), 3), device)
     total(output * upstream).backward(&x)
     return x.grad.untrack().cpu()
 
 // Central difference of the first-order gradient along the probe.
 tensor<real32> finite_hessian_probe(int which, int device)
-    real32 step = real32(0.01)
-    tensor<real32> probe = pattern(6, 4)
-    tensor<real32> plus = gradient_at(which, pattern(6, 1) + probe * step, device)
-    tensor<real32> minus = gradient_at(which, pattern(6, 1) - probe * step, device)
+    real32 step := real32(0.01)
+    tensor<real32> probe := pattern(6, 4)
+    tensor<real32> plus := gradient_at(which, pattern(6, 1) + probe * step, device)
+    tensor<real32> minus := gradient_at(which, pattern(6, 1) - probe * step, device)
     return (plus - minus) / (step * real32(2))
 
 // The finite-difference checks bound truncation error, not rounding:
 // |d| <= 0.02 * sqrt(1 + expected^2).
 bool case_passes(int which, int device, real64 atol, real64 rtol, real64 first_rtol)
-    Derivatives host = derivatives(which, -1)
-    Derivatives device_result = derivatives(which, device)
-    bool first = close(host.first, device_result.first, atol, first_rtol)
-    bool second = close(host.second, device_result.second, atol, rtol)
-    bool host_fd = close(finite_hessian_probe(which, -1), host.second, 0.02, 0.02)
-    bool gpu_fd = close(finite_hessian_probe(which, device), device_result.second, 0.02, 0.02)
-    bool first_order = close(gradient_at(which, pattern(6, 1), device), device_result.first, atol, rtol)
+    Derivatives host := derivatives(which, -1)
+    Derivatives device_result := derivatives(which, device)
+    bool first := close(host.first, device_result.first, atol, first_rtol)
+    bool second := close(host.second, device_result.second, atol, rtol)
+    bool host_fd := close(finite_hessian_probe(which, -1), host.second, 0.02, 0.02)
+    bool gpu_fd := close(finite_hessian_probe(which, device), device_result.second, 0.02, 0.02)
+    bool first_order := close(gradient_at(which, pattern(6, 1), device), device_result.first, atol, rtol)
     return first and second and host_fd and gpu_fd and first_order
 
 // Cross-backend tolerances per quantity. Every quantity allows atol 1e-6 and
@@ -570,9 +570,9 @@ bool case_passes(int which, int device, real64 atol, real64 rtol, real64 first_r
 // ulps, and allows rtol 2e-6.
 // --bitwise true (the fake GPU, whose kernels are the CPU's arithmetic)
 // requires every quantity to be bitwise equal.
-real64 atol = 0.000001
-real64 rtol = 0.000001
-real64 scalar_first_rtol = 0.000002
+real64 atol := 0.000001
+real64 rtol := 0.000001
+real64 scalar_first_rtol := 0.000002
 if args.bitwise
     atol = 0.0
     rtol = 0.0
@@ -587,12 +587,12 @@ report("gpu higher-order gather view", case_passes(2, args.device, atol, rtol, r
 // can be reshaped while tracked (contiguous() rejects tracked tensors), and
 // its second derivative matches the CPU.
 Derivatives transposed_derivatives(int device)
-    tensor<real32> x = place(pattern(6, 1), device).reshape([2, 3]).track()
-    tensor<real32> w = place(pattern(6, 2), device).reshape([3, 2])
-    tensor<real32> view = x.transpose(0, 1)
+    tensor<real32> x := place(pattern(6, 1), device).reshape([2, 3]).track()
+    tensor<real32> w := place(pattern(6, 2), device).reshape([3, 2])
+    tensor<real32> view := x.transpose(0, 1)
     total(view * view * w).backward(&x, track = true)
-    tensor<real32> first = x.grad
-    Derivatives result = Derivatives()
+    tensor<real32> first := x.grad
+    Derivatives result := Derivatives()
     result.dense = first.is_tracked() and first.is_contiguous()
     result.first = first.untrack().cpu()
     .x.clear_grad()
@@ -600,28 +600,28 @@ Derivatives transposed_derivatives(int device)
     result.second = x.grad.untrack().cpu()
     return result
 
-Derivatives layout_host = transposed_derivatives(-1)
-Derivatives layout_device = transposed_derivatives(args.device)
-bool layout_values = close(layout_host.first, layout_device.first, atol, rtol) and close(layout_host.second, layout_device.second, atol, rtol)
+Derivatives layout_host := transposed_derivatives(-1)
+Derivatives layout_device := transposed_derivatives(args.device)
+bool layout_values := close(layout_host.first, layout_device.first, atol, rtol) and close(layout_host.second, layout_device.second, atol, rtol)
 report("gpu higher-order dense transposed gradient", layout_host.dense and layout_device.dense and layout_values)
 
 // Third order through repeated backward(track = true): d/dx x^4 = 4x^3,
 // 12x^2, 24x, with every gradient on the device.
-tensor<real32> quartic_source = place(pattern(6, 5), args.device)
-tensor<real32> quartic = quartic_source.track()
+tensor<real32> quartic_source := place(pattern(6, 5), args.device)
+tensor<real32> quartic := quartic_source.track()
 total(quartic * quartic * quartic * quartic).backward(&quartic, track = true)
-tensor<real32> d1 = quartic.grad
+tensor<real32> d1 := quartic.grad
 .quartic.clear_grad()
 total(d1).backward(&quartic, track = true)
-tensor<real32> d2 = quartic.grad
+tensor<real32> d2 := quartic.grad
 .quartic.clear_grad()
 total(d2).backward(&quartic)
-tensor<real32> d3 = quartic.grad
-tensor<real32> q = quartic_source.cpu()
-bool quartic_device = d1.device() == args.device and d2.device() == args.device and d3.device() == args.device
-bool quartic_tracked = d1.is_tracked() and d2.is_tracked() and not d3.is_tracked()
+tensor<real32> d3 := quartic.grad
+tensor<real32> q := quartic_source.cpu()
+bool quartic_device := d1.device() == args.device and d2.device() == args.device and d3.device() == args.device
+bool quartic_tracked := d1.is_tracked() and d2.is_tracked() and not d3.is_tracked()
 report("gpu higher-order device placement", quartic_device and quartic_tracked)
-bool quartic_values = close(q * q * q * real32(4), d1, atol, rtol) and close(q * q * real32(12), d2, atol, rtol) and close(q * real32(24), d3, atol, rtol)
+bool quartic_values := close(q * q * q * real32(4), d1, atol, rtol) and close(q * q * real32(12), d2, atol, rtol) and close(q * real32(24), d3, atol, rtol)
 report("gpu higher-order third derivative", quartic_values)
 QUI
 higher_order_output="$("$QUIDRA" "$TMP/gpu-higher-order.qui" --device "$GPU_INDEX")"
@@ -947,8 +947,8 @@ extern int32 arm_late_check_native(const tensor<real32> input) = "qtest_stream_a
 extern int32 late_check_state_native() = "qtest_stream_late_check_state"
 
 tensor<real32> scale(tensor<real32> input, real32 factor, int32 mode)
-    tensor<real32> output = tensor<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = scale_native(input, &output, factor, mode)
+    tensor<real32> output := tensor<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := scale_native(input, &output, factor, mode)
     if status != int32(0)
         error("stream package scale failed with status {status}", code = "STREAM_PKG_SCALE")
     return output
@@ -960,8 +960,8 @@ int32 check(tensor<real32> input, int32 deferred)
     return check_native(input, deferred)
 
 tensor<real32> slow(tensor<real32> input, int32 iterations, int32 mode)
-    tensor<real32> output = tensor<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = slow_native(input, &output, iterations, mode)
+    tensor<real32> output := tensor<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := slow_native(input, &output, iterations, mode)
     if status != int32(0)
         error("stream package slow failed with status {status}", code = "STREAM_PKG_SLOW")
     return output
@@ -1007,7 +1007,7 @@ int32 hooks(int32 which)
     return hooks_native(which)
 
 tensor<real32> scratch_fill(tensor<real32> output, real32 value)
-    int32 status = scratch_fill_native(&output, value)
+    int32 status := scratch_fill_native(&output, value)
     if status != int32(0)
         error("stream package scratch fill failed with status {status}", code = "STREAM_PKG_SCRATCH_FILL")
     return output
@@ -1015,7 +1015,7 @@ tensor<real32> scratch_fill(tensor<real32> output, real32 value)
 extern int32 inplace_native(tensor<real32> &t, int32 mode) = "qtest_stream_inplace"
 
 tensor<real32> inplace(tensor<real32> t, int32 mode)
-    int32 status = inplace_native(&t, mode)
+    int32 status := inplace_native(&t, mode)
     if status != int32(0)
         error("stream package inplace failed with status {status}", code = "STREAM_PKG_INPLACE")
     return t
@@ -1023,7 +1023,7 @@ tensor<real32> inplace(tensor<real32> t, int32 mode)
 extern int32 violate_native(tensor<real32> &t, int32 kind) = "qtest_stream_violate"
 
 tensor<real32> violate(tensor<real32> t, int32 kind)
-    int32 status = violate_native(&t, kind)
+    int32 status := violate_native(&t, kind)
     if status != int32(0)
         error("stream package violate failed with status {status}", code = "STREAM_PKG_VIOLATE")
     return t
@@ -1083,8 +1083,8 @@ tensor<real32> leak_cast(tensor<real32> t, tensor<int32> ints, int32 kind)
 extern int32 break_backward_native(const tensor<real32> input, tensor<real32> &output, int32 kind) = "qtest_stream_break_backward"
 
 tensor<real32> break_backward(tensor<real32> input, int32 kind)
-    tensor<real32> output = tensor<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = break_backward_native(input, &output, kind)
+    tensor<real32> output := tensor<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := break_backward_native(input, &output, kind)
     if status != int32(0)
         error("stream package break_backward failed with status {status}", code = "STREAM_PKG_BREAK_BACKWARD")
     return output
@@ -3178,8 +3178,8 @@ extern int32 copy_native(
 
 // The identity as a custom native node on the input's Metal device.
 tensor<real32> copy(tensor<real32> input)
-    tensor<real32> output = tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
-    int32 status = copy_native(input, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape(), gpu = nat(input.device()))
+    int32 status := copy_native(input, &output)
     if status != int32(0)
         error("Metal probe custom autograd registration failed with status {status}", code = "METAL_PROBE_REGISTRATION")
     return output
@@ -3360,8 +3360,8 @@ extern int64 fills_native() = "qtest_metal_masked_fills"
 // left * right as a masked custom node whose callback declares both
 // gradients fully written (declared = 1) or neither (declared = 0).
 tensor<real32> mul(tensor<real32> left, tensor<real32> right, int declared)
-    tensor<real32> output = tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
-    int32 status = mul_native(left, right, &output, int64(declared))
+    tensor<real32> output := tensor.zeros<real32>(left.shape(), gpu = nat(left.device()))
+    int32 status := mul_native(left, right, &output, int64(declared))
     if status != int32(0)
         error("Metal masked custom autograd registration failed with status {status}", code = "METAL_MASKED_REGISTRATION")
     return output

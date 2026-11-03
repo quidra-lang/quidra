@@ -40,15 +40,15 @@ jobs:
           class WindowsTensorState()
               tensor<real32> weight
 
-          WindowsTensorState state = WindowsTensorState()
+          WindowsTensorState state := WindowsTensorState()
           state.weight = tensor.ones<real32>([1])
-          real32 before = state.weight[0].item()
+          real32 before := state.weight[0].item()
 
           state.weight = state.weight.track()
-          tensor<real32> loss = (state.weight * state.weight).reshape([])
+          tensor<real32> loss := (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
           print.line(state.weight.has_grad())
-          tensor<real32> gradient = state.weight.grad
+          tensor<real32> gradient := state.weight.grad
           state.weight.clear_grad()
           state.weight = state.weight.untrack() - gradient * real32(0.1)
           print.line(state.weight[0].item() < before and not state.weight.has_grad())

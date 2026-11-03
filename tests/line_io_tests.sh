@@ -7,7 +7,7 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-line-io-cache"
 
 # Exact stdout bytes, not command substitution (which strips trailing newlines).
 cat > "$TMP/print-lines.qui" <<'QUI'
-int value = 42
+int value := 42
 print("head:")
 print.line("Hello")
 print.line("answer={value}")
@@ -21,7 +21,7 @@ cmp "$TMP/print-lines.expected" "$TMP/print-lines.out"
 
 cat > "$TMP/file-lines.qui" <<QUI
 void create_lines(string path)
-    file.write w(path)
+    file.write w := file.write(path)
     .w.line("First")
     .w("Second")
     .w.line()
@@ -29,7 +29,7 @@ void create_lines(string path)
     .w.line(true)
 
 void append_lines(string path)
-    file.append a(path)
+    file.append a := file.append(path)
     .a.line("last")
     .a.line()
 
@@ -45,7 +45,7 @@ cmp "$TMP/file-lines.expected" "$TMP/lines.txt"
 cat > "$TMP/legacy.qui" <<QUI
 print("a")
 print("b")
-file.write w("$TMP/legacy.txt")
+file.write w := file.write("$TMP/legacy.txt")
 .w("x")
 .w("y")
 QUI
@@ -67,11 +67,11 @@ reject() {
 reject print_wrong_arity 'print.line("x", "y")'
 reject print_bad_type 'print.line([1, 2])'
 reject print_bad_name 'print.line(unknown = "x")'
-reject file_wrong_arity 'file.write w("missing.txt")
+reject file_wrong_arity 'file.write w := file.write("missing.txt")
 .w.line("x", "y")'
-reject file_wrong_type 'file.write w("missing.txt")
+reject file_wrong_type 'file.write w := file.write("missing.txt")
 .w.line([1, 2])'
-reject read_no_line 'file.read r("missing.txt")
+reject read_no_line 'file.read r := file.read("missing.txt")
 .r.line()'
-reject missing_mutation_dot 'file.write w("missing.txt")
+reject missing_mutation_dot 'file.write w := file.write("missing.txt")
 w.line("x")'

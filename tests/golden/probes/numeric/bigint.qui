@@ -1,23 +1,23 @@
 // bigint arithmetic beyond 64 bits, division, remainder and comparison, in
 // and out of loops.
-int big = 1
+int big := 1
 for 0 <= nat i < 80
     big = big * 3
 print("{big}")
 print(NL)
-int other = big / 7
+int other := big / 7
 print("{other} {big % 7} {big - other * 7}")
 print(NL)
-int negative = -big
+int negative := -big
 print("{negative} {negative < big} {negative + big == 0}")
 print(NL)
-int sum = 0
+int sum := 0
 for 0 <= nat i < 1000
     sum = sum + int(i) * int(i)
 print("{sum}")
 print(NL)
-int factorial = 1
-int n = 1
+int factorial := 1
+int n := 1
 while n <= 30
     factorial = factorial * n
     n = n + 1

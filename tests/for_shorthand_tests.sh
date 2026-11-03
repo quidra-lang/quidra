@@ -17,8 +17,8 @@ for int8 i <= 2
 for 2 >= nat8 i
     print(i)
     print(NL)
-int i = 99
-int n = 3
+int i := 99
+int n := 3
 for i < n step 2
     print(i)
     print(NL)
@@ -43,7 +43,7 @@ expected=$'0\n1\n2\n2\n1\n0\n0\n1\n2\n2\n1\n0\n0\n2\n2\n1\n1\n0\n1'
 out="$("$QUIDRA" "$TMP/accepted.qui")"
 [[ "$out" == "$expected" ]] || { printf '%s\n' "$out"; exit 1; }
 for header in 'for i > 5' 'for 0 < i'; do
-    printf 'int i = 0\n%s\n    print(i)\n    print(NL)\n' "$header" > "$TMP/reject.qui"
+    printf 'int i := 0\n%s\n    print(i)\n    print(NL)\n' "$header" > "$TMP/reject.qui"
     if "$QUIDRA" check "$TMP/reject.qui" --json > "$TMP/reject.json"; then exit 1; fi
     python3 - "$TMP/reject.json" <<'PYJSON'
 import json, sys
@@ -65,7 +65,7 @@ for real64 x <= 1.0 step 0.5
 for 1.0 >= real64 x step -0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
-real64 existing = 9.0
+real64 existing := 9.0
 for existing <= -1.0 step 0.5
     print(int(999))
     print(NL)

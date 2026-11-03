@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
         )
         helper_text = str(helper)
         command = (
-            'string command = '
+            'string command := '
             f'"{{DQ}}{helper_text}{{DQ}} '
             '{DQ}{output_path}{DQ}"'
         )
@@ -41,18 +41,18 @@ with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
 
     source = root / "process-portability.qui"
     source.write_text(
-        f'''string output_path = "{output_text}"
+        f'''string output_path := "{output_text}"
 {command}
-process.Result result = process.shell(command)
+process.Result result := process.shell(command)
 print(result.started)
 print(NL)
 print(result.status == 0)
 print(NL)
-auto | error opened = file.read(output_path)
+file.read | error opened := file.read(output_path)
 match opened
     file.read reader
-        string value = ""
-        bool | error loaded = .reader(&value)
+        string value := ""
+        bool | error loaded := .reader(&value)
         match loaded
             bool ok
                 print(ok and value == "shell-ok")

@@ -117,15 +117,15 @@ nat64 parsed_uint64(string text)
             return nat64(0)
 
 int32 | error kept_int32(string text)
-    int32 | error result = int32.parse(text)
+    int32 | error result := int32.parse(text)
     return result
 
 int | error kept_bigint(string text)
-    int | error result = int.parse(text)
+    int | error result := int.parse(text)
     return result
 
 real | error kept_bigreal(string text)
-    real | error result = real.parse(text)
+    real | error result := real.parse(text)
     return result
 
 string formatted(int8 a, nat32 b, int c, real d, real e, real32 f)

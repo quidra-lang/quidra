@@ -25,11 +25,11 @@ def main():
         source = root / "modes.qui"
         source.write_text("""cli args
     string opt = option(default = "program")
-tensor<real32> first = tensor.ones<real32>([2, 3])
-tensor<real32> second = tensor.ones<real32>([2, 3])
-tensor<real32> result = first + second
+tensor<real32> first := tensor.ones<real32>([2, 3])
+tensor<real32> second := tensor.ones<real32>([2, 3])
+tensor<real32> result := first + second
 if args.opt == "fail"
-    int8 value = int8(127)
+    int8 value := int8(127)
     value += int8(1)
 print(args.opt)
 print(NL)
@@ -38,9 +38,9 @@ print(NL)
 """)
         library = root / "library.qui"
         library.write_text("""export "C" real32 combined()
-    tensor<real32> first = tensor.ones<real32>([2, 3])
-    tensor<real32> second = tensor.ones<real32>([2, 3])
-    tensor<real32> result = first + second
+    tensor<real32> first := tensor.ones<real32>([2, 3])
+    tensor<real32> second := tensor.ones<real32>([2, 3])
+    tensor<real32> result := first + second
     return result[1, 2].item()
 """)
 

@@ -8,10 +8,10 @@ export QUIDRA_CACHE_DIR="$TMP/cache"
 
 cat > "$TMP/direction.qui" <<'QUI'
 void show(int[] xs)
-    for auto x = xs[]
+    for x := xs[]
         print(x)
     print(NL)
-int[] a = [0, 1, 2, 3, 4]
+int[] a := [0, 1, 2, 3, 4]
 show(a[4:0])
 show(a[4:1])
 show(a[1:4])
@@ -21,10 +21,10 @@ show(a[:])
 show(a[::-1])
 show(a[1:4:2])
 show(a[4:1:-2])
-int start = 4
-int finish = 0
+int start := 4
+int finish := 0
 show(a[start:finish])
-for auto x = a[start:finish][]
+for x := a[start:finish][]
     print(x)
 print(NL)
 for _ = a[start:finish][]
@@ -34,21 +34,21 @@ start = 0
 finish = 4
 show(a[start:finish])
 show(a[start:start])
-int[] copied = a[4:0]
+int[] copied := a[4:0]
 copied[0] = 9
 show(a)
 a[4:0] = [5, 6, 7, 8, 9]
 show(a)
-string word = "aé😀b"
+string word := "aé😀b"
 print(word[3:0] + NL)
 start = 3
 finish = 0
 print(word[start:finish] + NL)
-auto bits = bin.parse("01101")
+bits := bin.parse("01101")
 print(bits[4:0].string() + NL)
 start = 4
 print(bits[start:finish].string() + NL)
-tensor<real32> t = tensor.zeros<real32>([5])
+tensor<real32> t := tensor.zeros<real32>([5])
 print(t[4:<1:1].shape()[0])
 print(NL)
 QUI

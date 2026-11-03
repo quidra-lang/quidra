@@ -2,8 +2,8 @@ print("ADV-START")
 print(NL)
 flush()
 string read_input_line()
-    string line = ""
-    void | error read = scan(&line)
+    string line := ""
+    void | error read := scan(&line)
     match read
         void
             return line
@@ -12,9 +12,9 @@ string read_input_line()
 int pick(bool flag)
     if flag
         return 1
-string text = read_input_line()
-bool flag = text == "1"
-int product = pick(flag) * 2
+string text := read_input_line()
+bool flag := text == "1"
+int product := pick(flag) * 2
 print("OBS=R:{product}")
 print(NL)
 flush()

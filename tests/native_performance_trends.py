@@ -11,40 +11,40 @@ import tempfile
 import time
 
 WORKLOADS = {
-    "bitwise": """int64 value = 1
+    "bitwise": """int64 value := 1
 for 0 <= nat index < 2000000
-    int64 converted_index = int64(index)
+    int64 converted_index := int64(index)
     value = ((value XOR converted_index) << 1) XOR (value >> 3)
 print(value)
 """,
-    "sort": """int[] values = array(50000, fill = 0)
+    "sort": """int[] values := array(50000, fill = 0)
 for 0 <= nat index < 50000
     values[index] = 50000 - int(index)
 values = values.sorted()
 print(values[0])
 """,
-    "string_concat": """string text = ""
+    "string_concat": """string text := ""
 for 0 <= nat index < 200000
     text += "x"
 print(len(text))
 """,
     "stream_file": """void | error write_sample()
-    file.write output = try file.write("trend-output.txt")
+    file.write output := try file.write("trend-output.txt")
     for 0 <= nat index < 50000
         try .output("abcdef{NL}")
     return
 
 int | error run()
     try write_sample()
-    file.read reader = try file.read("trend-output.txt")
-    int lines = 0
+    file.read reader := try file.read("trend-output.txt")
+    int lines := 0
     while .reader(string &line)
         if line != "abcdef"
             return error("unexpected file contents")
         lines += 1
     return lines
 
-auto | error result = run()
+int | error result := run()
 match result
     int value
         print(value)
@@ -58,45 +58,45 @@ for 0 <= nat index < 50000 step 2
     .values.remove(int(index))
 print(values.size())
 """,
-    "file_read_binary": """bin bytes = file.read_bin("parse-input.txt")
+    "file_read_binary": """bin bytes := file.read_bin("parse-input.txt")
 print(len(bytes) / 8)
 """,
-    "file_split_decoded": """string text = string.from_utf8(file.read_bin("parse-input.txt"))
-string[] rows = text.split(NL)
-int lines = 0
-for auto line = rows[]
+    "file_split_decoded": """string text := string.from_utf8(file.read_bin("parse-input.txt"))
+string[] rows := text.split(NL)
+int lines := 0
+for line := rows[]
     if line != ""
         lines += 1
 print(lines)
 """,
-    "file_read_stream": """file.read reader = file.read("parse-input.txt")
-int lines = 0
+    "file_read_stream": """file.read reader := file.read("parse-input.txt")
+int lines := 0
 while .reader(string &line)
     lines += 1
 print(lines)
 """,
-    "file_parse_stream": """file.read reader = file.read("parse-input.txt")
-int lines = 0
-int checksum = 0
+    "file_parse_stream": """file.read reader := file.read("parse-input.txt")
+int lines := 0
+int checksum := 0
 while .reader(string &line)
-    string[] fields = line.split(" ")
-    int parsed_index = int.parse(fields[0])
-    int value = int.parse(fields[1])
+    string[] fields := line.split(" ")
+    int parsed_index := int.parse(fields[0])
+    int value := int.parse(fields[1])
     if parsed_index != lines
         process.exit(3)
     lines += 1
     checksum = (checksum + value) % 1000000007
 print("{lines} {checksum}")
 """,
-    "file_parse_decoded": """string text = string.from_utf8(file.read_bin("parse-input.txt"))
-string[] rows = text.split(NL)
-int lines = 0
-int checksum = 0
-for auto line = rows[]
+    "file_parse_decoded": """string text := string.from_utf8(file.read_bin("parse-input.txt"))
+string[] rows := text.split(NL)
+int lines := 0
+int checksum := 0
+for line := rows[]
     if line != ""
-        string[] fields = line.split(" ")
-        int parsed_index = int.parse(fields[0])
-        int value = int.parse(fields[1])
+        string[] fields := line.split(" ")
+        int parsed_index := int.parse(fields[0])
+        int value := int.parse(fields[1])
         if parsed_index != lines
             process.exit(3)
         lines += 1

@@ -3,92 +3,92 @@ cli args
     int device = option(default = -1)
 
 void power_gradient(int device)
-    tensor<real16> x = tensor.ones<real16>([1]) * real16(0.01)
+    tensor<real16> x := tensor.ones<real16>([1]) * real16(0.01)
     if device >= 0
         x = x.gpu(nat(device))
-    tensor<real16> value = x
-    tensor<real16> loss = (value.track() ^ real16(3)) * real16(0.07)
+    tensor<real16> value := x
+    tensor<real16> loss := (value.track() ^ real16(3)) * real16(0.07)
     loss.backward(&value)
     print("{real64(value.grad.cpu()[0].item())}")
     print(NL)
 
 void bfloat_subnormals(int device)
-    tensor<real16b> values = tensor.zeros<real16b>([3])
+    tensor<real16b> values := tensor.zeros<real16b>([3])
     values[0] = real16b(9.18355e-41)
     values[1] = real16b(1.83671e-40)
     values[2] = real16b(1.17549435e-38)
     if device >= 0
         values = values.gpu(nat(device))
-    tensor<real16b> sum = values + values
-    tensor<real16b> mul = values * real16b(2.0)
-    tensor<real16b> div = values / real16b(2.0)
-    tensor<real16b> root = values ^ real16b(0.5)
-    tensor<real16b> tracked = values.track()
-    tensor<real16b> loss = (tracked * tracked).scatter([0, 0, 0], [1])
+    tensor<real16b> sum := values + values
+    tensor<real16b> mul := values * real16b(2.0)
+    tensor<real16b> div := values / real16b(2.0)
+    tensor<real16b> root := values ^ real16b(0.5)
+    tensor<real16b> tracked := values.track()
+    tensor<real16b> loss := (tracked * tracked).scatter([0, 0, 0], [1])
     loss.backward(&values)
-    tensor<real16b> grad = values.grad.cpu()
-    tensor<com16b> complex = com16b(values)
-    tensor<com16b> complex_mul = (complex * com16b(2.0 + 1.0i)).cpu()
-    tensor<com16b> complex_div = (complex / com16b(2.0)).cpu()
+    tensor<real16b> grad := values.grad.cpu()
+    tensor<com16b> complex := com16b(values)
+    tensor<com16b> complex_mul := (complex * com16b(2.0 + 1.0i)).cpu()
+    tensor<com16b> complex_div := (complex / com16b(2.0)).cpu()
     print("{(values > real16b(0.0)).all()} {(values == real16b(0.0)).any()}")
     print(NL)
     for 0 <= nat index < 3
         print("{real64(values[index].item())} {real64(sum[index].item())} {real64(mul[index].item())} {real64(div[index].item())} {real64(root[index].item())} {real64(grad[index].item())}")
         print(NL)
     for 0 <= nat index < 3
-        com16b product = complex_mul[index].item()
-        com16b quotient = complex_div[index].item()
+        com16b product := complex_mul[index].item()
+        com16b quotient := complex_div[index].item()
         print("{real64(product.real)} {real64(product.imag)} {real64(quotient.real)} {real64(quotient.imag)}")
         print(NL)
 
-    tensor<real16b> signed_zero = tensor.ones<real16b>([1]) * real16b(-0.0)
+    tensor<real16b> signed_zero := tensor.ones<real16b>([1]) * real16b(-0.0)
     if device >= 0
         signed_zero = signed_zero.gpu(nat(device))
-    tensor<real16b> odd_power = signed_zero ^ real16b(3)
+    tensor<real16b> odd_power := signed_zero ^ real16b(3)
     print("{real64(odd_power.cpu()[0].item())}")
     print(NL)
 
 void bfloat_cancellation(int device)
-    tensor<real16b> negative = tensor.ones<real16b>([1]) * real16b(-1.0)
+    tensor<real16b> negative := tensor.ones<real16b>([1]) * real16b(-1.0)
     if device >= 0
         negative = negative.gpu(nat(device))
-    tensor<real16b> zero = negative - negative
+    tensor<real16b> zero := negative - negative
     print("{real64(zero.cpu()[0].item())}")
     print(NL)
 
 void bfloat_complex_negation(int device)
-    tensor<com16b> values = tensor.zeros<com16b>([2])
+    tensor<com16b> values := tensor.zeros<com16b>([2])
     values[0] = com16b(9.18355e-41 + 1.83671e-40i)
     values[1] = com16b(-0.0 + 0.0i)
     if device >= 0
         values = values.gpu(nat(device))
-    tensor<com16b> result = (-values).cpu()
+    tensor<com16b> result := (-values).cpu()
     for 0 <= nat index < 2
-        com16b value = result[index].item()
+        com16b value := result[index].item()
         print("{real64(value.real)} {real64(value.imag)}")
         print(NL)
 
 void bfloat_integer_powers(int device)
-    tensor<real16b> values = tensor.zeros<real16b>([4])
+    tensor<real16b> values := tensor.zeros<real16b>([4])
     values[0] = real16b(3.3881317890172014e-20)
     values[1] = real16b(-3.3881317890172014e-20)
     values[2] = real16b(1.0842021724855044e-19)
     values[3] = real16b(-1.0842021724855044e-19)
     if device >= 0
         values = values.gpu(nat(device))
-    tensor<real16b> square = (values ^ real16b(2)).cpu()
-    tensor<real16b> cube = (values ^ real16b(3)).cpu()
+    tensor<real16b> square := (values ^ real16b(2)).cpu()
+    tensor<real16b> cube := (values ^ real16b(3)).cpu()
     for 0 <= nat index < 4
         print("{real64(square[index].item())} {real64(cube[index].item())}")
         print(NL)
 
 void complex_storage(int device)
-    tensor<com64> values = tensor.ones<com64>([2])
+    tensor<com64> values := tensor.ones<com64>([2])
     values[0] = com64(1.0 - 0.0i)
     values[1] = com64(-0.0 + 2.0i)
     if device >= 0
         values = values.gpu(nat(device))
-    tensor<com64> result = (-values).gather([1, 0], [2]).cpu()
+    tensor<com64> result := (-values).gather([1, 0], [2]).cpu()
     print("{result[0].item()} {result[1].item()} {(values == values).all()}")
     print(NL)
 

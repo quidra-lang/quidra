@@ -7,11 +7,11 @@ void grow(Bag &bag)
     bag.items = bag.items.append(9)
 
 void walk(int[] &values, Bag &bag)
-    for auto &x = &values[]
+    for &x := &values[]
         x = x + 1
         grow(&bag)
 
-Bag b = Bag()
+Bag b := Bag()
 b.items = [1, 2, 3]
 print("before" + NL)
 walk(&b.items, &b)

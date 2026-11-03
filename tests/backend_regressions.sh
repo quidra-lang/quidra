@@ -28,12 +28,12 @@ verify_and_run() {
 printf 'scope' > "$TMP/file-handle-cleanup.txt"
 cat > "$TMP/file-handle-cleanup.qui" <<QUI
 void | error consume(string path)
-    file.read handle = try file.read(path)
+    file.read handle := try file.read(path)
     while .handle(string &line)
         print("{line}{NL}")
     return void
 
-auto | error result = consume("$TMP/file-handle-cleanup.txt")
+void | error result := consume("$TMP/file-handle-cleanup.txt")
 match result
     void
         print("done")
@@ -55,15 +55,15 @@ file.write create_file(string path)
     return file.write(path)
 
 void go()
-    int state = 20270917
-    file.write w = create_file("$TMP/file-handle-string-append.txt")
-    string[] buffer = []
+    int state := 20270917
+    file.write w := create_file("$TMP/file-handle-string-append.txt")
+    string[] buffer := []
     for 0 <= nat i < 3
         state = (state * 48271) % 2147483647
-        string[] fields = [i.string(), " ", state.string(), NL]
-        string line = fields.join("")
+        string[] fields := [i.string(), " ", state.string(), NL]
+        string line := fields.join("")
         buffer = buffer.append(line)
-    string joined = buffer.join("|")
+    string joined := buffer.join("|")
     print("RESULT {joined.trim()}")
     print(NL)
     return
@@ -81,7 +81,7 @@ repl_file_handle_append="$("$QUIDRA" repl < "$TMP/file-handle-string-append.qui"
 
 
 cat > "$TMP/short-circuit.qui" <<'QUI'
-int a = 4
+int a := 4
 if a % 2 == 0 and a % 4 == 0
     print("mod")
     print(NL)
@@ -97,17 +97,17 @@ QUI
 verify_and_run short-circuit "$(printf 'mod\narith\nor')"
 
 cat > "$TMP/contextual-literals.qui" <<'QUI'
-real64 x = real64(3)
-real32 y = real32(2)
-real64[] xs = [1.0, 2.0, 3.0]
+real64 x := real64(3)
+real32 y := real32(2)
+real64[] xs := [1.0, 2.0, 3.0]
 
 real64 half(real64 value)
     return value / 2.0
 
-real64 negative = -3.0
-real64 mixed = 2.0 * 3.0
-int8 small = 5
-int8 sum = small + 100
+real64 negative := -3.0
+real64 mixed := 2.0 * 3.0
+int8 small := 5
+int8 sum := small + 100
 
 print(x)
 print(NL)
@@ -127,8 +127,8 @@ QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
 
 cat > "$TMP/bitwise.qui" <<'QUI'
-nat8 a = 240
-nat8 b = 204
+nat8 a := 240
+nat8 b := 204
 print(a AND b)
 print(NL)
 print(a OR b)
@@ -137,27 +137,27 @@ print(a XOR b)
 print(NL)
 print(NOT a)
 print(NL)
-nat8 small = 3
+nat8 small := 3
 print(small << 2)
 print(NL)
-nat8 high = 128
+nat8 high := 128
 print(high >> 7)
 print(NL)
-int8 signed_value = -8
+int8 signed_value := -8
 print(signed_value >> 2)
 print(NL)
-int8 signed_zero = 0
+int8 signed_zero := 0
 print(NOT signed_zero)
 print(NL)
-int8 signed_left = 64
+int8 signed_left := 64
 print(signed_left << 1)
 print(NL)
 QUI
 verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2\n-1\n-128')"
 
 cat > "$TMP/shift-count-runtime.qui" <<'QUI'
-nat8 value = 1
-nat8 count = 8
+nat8 value := 1
+nat8 count := 8
 print(value << count)
 print(NL)
 QUI
@@ -169,8 +169,8 @@ set -e
 cat "$TMP/shift-count-runtime.out" "$TMP/shift-count-runtime.err" | grep -q "SHIFT_COUNT"
 
 cat > "$TMP/string-concat-loop.qui" <<'QUI'
-string text = ""
-int i = 0
+string text := ""
+int i := 0
 while i < 200000
     text = "a" + "b"
     i += 1
@@ -184,14 +184,14 @@ QUI
 
 
 cat > "$TMP/frame-scratch-loop.qui" <<'QUI'
-tensor<real32> values = tensor.ones<real32>([2])
-int i = 0
+tensor<real32> values := tensor.ones<real32>([2])
+int i := 0
 while i < 20
-    int | error parsed = int.parse("42")
-    tensor<real32> shifted = values + 1.0
-    tensor<real32> first = shifted[0:<1]
+    int | error parsed := int.parse("42")
+    tensor<real32> shifted := values + 1.0
+    tensor<real32> first := shifted[0:<1]
     values[0] = 2.0
-    string joined = "x" + "y"
+    string joined := "x" + "y"
     i += 1
 print(values[0].item())
 print(NL)
@@ -206,9 +206,9 @@ last_alloca_line="$(grep -n ' = alloca ' "$TMP/frame-scratch-main.ll" | tail -n1
 [[ "$("$QUIDRA" run "$TMP/frame-scratch-loop.qui")" == "2.0" ]]
 
 cat > "$TMP/float32-rounding.qui" <<'QUI'
-real32 rounded = 0.000001
-real64 source = 0.1
-real32 narrowed = real32(source)
+real32 rounded := 0.000001
+real64 source := 0.1
+real32 narrowed := real32(source)
 print(rounded > 0.0000009 and rounded < 0.0000011)
 print(NL)
 print(narrowed > 0.099 and narrowed < 0.101)
@@ -217,8 +217,8 @@ QUI
 verify_and_run float32-rounding "$(printf 'true\ntrue')"
 
 cat > "$TMP/float32-range-error.qui" <<'QUI'
-real64 source = 1.0e100
-real32 narrowed = real32(source)
+real64 source := 1.0e100
+real32 narrowed := real32(source)
 print(narrowed)
 print(NL)
 QUI
@@ -244,10 +244,10 @@ Pair | error make(bool ok)
     return error("bad")
 
 int | error sum(bool ok)
-    Pair pair = try make(ok)
+    Pair pair := try make(ok)
     return pair.a + pair.b
 
-auto | error result = sum(true)
+int | error result := sum(true)
 match result
     int value
         print(value)
@@ -263,8 +263,8 @@ verify_and_run try-class "5"
 # copy four strings on the hot path. Preserve the same diagnostic payload when
 # a runtime failure actually needs it.
 cat > "$TMP/source-provenance-pointer.qui" <<'QUI'
-int[] values = [1]
-int index = 2
+int[] values := [1]
+int index := 2
 print(values[index])
 print(NL)
 QUI

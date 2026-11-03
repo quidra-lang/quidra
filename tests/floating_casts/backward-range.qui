@@ -1,3 +1,3 @@
-tensor<real16> x = tensor.zeros<real16>([]).track()
-tensor<real32> y = real32(x)
+tensor<real16> x := tensor.zeros<real16>([]).track()
+tensor<real32> y := real32(x)
 (y * real32(70000)).backward(&x)

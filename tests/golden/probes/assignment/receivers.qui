@@ -12,12 +12,12 @@ class Bag this()
     void .bump_first()
         this.items[0] += .grow_items()
 
-Bag g = Bag()
+Bag g := Bag()
 g.items = [5, 0, 0]
 .g.bump_first()
 print("method: {g.items[0]} {len(g.items)}")
 print(NL)
-Bag h = Bag()
+Bag h := Bag()
 h.items = [5, 0, 0]
 h.items[0] += .h.grow_items()
 print("receiver call: {h.items[0]} {len(h.items)}")

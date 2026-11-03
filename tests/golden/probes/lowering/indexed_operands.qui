@@ -5,11 +5,11 @@
 string[] names()
     return ["alpha", "beta"]
 
-string first = names()[0]
+string first := names()[0]
 print(first)
 print(NL)
 
-string word = "hello"
+string word := "hello"
 print("h" == word[0])
 print(NL)
 print("x" != word[1])

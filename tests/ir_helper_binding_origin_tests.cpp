@@ -30,25 +30,25 @@ void continuity() {
     std::string program=R"(class Item(int value)
 class Model(Item first, Item second)
 bool inspect(tensor<real32> data, Model input)
-    bool state = data.is_tracked()
-    for auto item = reflect.each<Item>(input)[]
+    bool state := data.is_tracked()
+    for item := reflect.each<Item>(input)[]
         print(item.value)
     return state
 void apply(Model input)
-    tensor<real32> plain = tensor.zeros<real32>([2])
+    tensor<real32> plain := tensor.zeros<real32>([2])
     print(inspect(plain, input))
-    tensor<real32> fresh = tensor.zeros<real32>([2])
-    tensor<real32> tracked = fresh.track()
+    tensor<real32> fresh := tensor.zeros<real32>([2])
+    tensor<real32> tracked := fresh.track()
     print(inspect(tracked, input))
-    Item[] collected = reflect.collect<Item>(input)
-    for auto item = reflect.each<Item>(input)[]
+    Item[] collected := reflect.collect<Item>(input)
+    for item := reflect.each<Item>(input)[]
         print(item.value)
-Model model = Model(Item(1), Item(2))
+Model model := Model(Item(1), Item(2))
 apply(model)
 )";
     // An unused authored function supplies module growth capacity without
     // adding callers, fake entry facts or extra specialization eligibility.
-    program+="\nvoid reserve_capacity()\n    int32 capacity = 0\n";
+    program+="\nvoid reserve_capacity()\n    int32 capacity := 0\n";
     for(int i=0;i<80;++i)program+="    capacity = capacity + 1\n";
     program+="    return\n";
     auto module=lower(check(program));

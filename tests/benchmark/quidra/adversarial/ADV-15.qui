@@ -1,9 +1,9 @@
 print("ADV-START")
 print(NL)
 flush()
-int[] values = [1, 2, 3, 4, 5]
-int iterations = 0
-for auto v = values[]
+int[] values := [1, 2, 3, 4, 5]
+int iterations := 0
+for v := values[]
     iterations = iterations + 1
     if v == 2
         values = values.append(99)

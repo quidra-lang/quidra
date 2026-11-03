@@ -6,16 +6,16 @@ int | error half(int value)
     return value / 2
 
 int | error quarter(int value)
-    int first = try half(value)
+    int first := try half(value)
     return try half(first)
 
-error made = error("made here")
+error made := error("made here")
 print("made: {made}")
 print(NL)
 print("equal: {made == error("made here")} {made == error("other")}")
 print(NL)
-int[] inputs = [8, 6, 5]
-for auto value = inputs[]
+int[] inputs := [8, 6, 5]
+for value := inputs[]
     match quarter(value)
         int result
             print("{value} -> {result}")

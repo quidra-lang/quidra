@@ -58,37 +58,37 @@ extern int64 masked_last_native() = "qtest_masked_last"
 extern int64 masked_calls_native() = "qtest_masked_calls"
 
 tensor<real32> mul_masked(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape())
-    int32 status = mul_masked_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape())
+    int32 status := mul_masked_native(left, right, &output)
     if status != int32(0)
         error("masked custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
 
 // mul_masked's callback without the full-write declaration.
 tensor<real32> mul_masked_undeclared(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape())
-    int32 status = mul_masked_undeclared_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape())
+    int32 status := mul_masked_undeclared_native(left, right, &output)
     if status != int32(0)
         error("masked custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
 
 tensor<real32> mul_masked_partial(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape())
-    int32 status = mul_masked_partial_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape())
+    int32 status := mul_masked_partial_native(left, right, &output)
     if status != int32(0)
         error("masked custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
 
 tensor<real32> mul_masked_unreported(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape())
-    int32 status = mul_masked_unreported_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape())
+    int32 status := mul_masked_unreported_native(left, right, &output)
     if status != int32(0)
         error("masked custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
 
 tensor<real32> mul_full(tensor<real32> left, tensor<real32> right)
-    tensor<real32> output = tensor.zeros<real32>(left.shape())
-    int32 status = mul_full_native(left, right, &output)
+    tensor<real32> output := tensor.zeros<real32>(left.shape())
+    int32 status := mul_full_native(left, right, &output)
     if status != int32(0)
         error("full-request custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
@@ -104,8 +104,8 @@ extern int32 square_any_native(
 ) = "qtest_square_any"
 
 tensor<real32> scale3(tensor<real32> input)
-    tensor<real32> output = tensor.zeros<real32>(input.shape())
-    int32 status = scale3_native(input, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape())
+    int32 status := scale3_native(input, &output)
     if status != int32(0)
         error("native custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
@@ -114,15 +114,15 @@ tensor<real32> scale_saved(
     tensor<real32> input,
     tensor<real32> factor
 )
-    tensor<real32> output = tensor.zeros<real32>(input.shape())
-    int32 status = scale_saved_native(input, factor, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape())
+    int32 status := scale_saved_native(input, factor, &output)
     if status != int32(0)
         error("native custom autograd saved-tensor registration failed", code = "NATIVE_PKG_NATIVE")
     return output
 
 tensor<real32> square(tensor<real32> input)
-    tensor<real32> output = tensor.zeros<real32>(input.shape())
-    int32 status = square_native(input, &output)
+    tensor<real32> output := tensor.zeros<real32>(input.shape())
+    int32 status := square_native(input, &output)
     if status != int32(0)
         error("native tracked custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
@@ -130,10 +130,10 @@ tensor<real32> square(tensor<real32> input)
 // square() on the CPU or on the fake test GPU, whose device handle is host
 // memory: exercises custom native nodes and their tracked callbacks on gpu(n).
 tensor<real32> square_any(tensor<real32> input)
-    tensor<real32> output = tensor.zeros<real32>(input.shape())
+    tensor<real32> output := tensor.zeros<real32>(input.shape())
     if input.device() >= 0
         output = output.gpu(nat(input.device()))
-    int32 status = square_any_native(input, &output)
+    int32 status := square_any_native(input, &output)
     if status != int32(0)
         error("native device custom autograd registration failed", code = "NATIVE_PKG_NATIVE")
     return output
@@ -150,7 +150,7 @@ int answer()
     return int(native_answer())
 
 int probe()
-    tensor<real32> value = tensor.ones<real32>([2])
+    tensor<real32> value := tensor.ones<real32>([2])
     return int(tensor_probe(value))
 QUI
 
@@ -715,22 +715,22 @@ print(NL)
 print(package.probe())
 print(NL)
 // Native writable access must preserve source-level independent-value semantics.
-tensor<real32> mutation_source = tensor.ones<real32>([1])
-tensor<real32> mutation_copy = mutation_source
+tensor<real32> mutation_source := tensor.ones<real32>([1])
+tensor<real32> mutation_copy := mutation_source
 print(package.increment_first(&mutation_source) == int32(0))
 print(NL)
 print(mutation_source[0].item() == real32(2))
 print(NL)
 print(mutation_copy[0].item() == real32(1))
 print(NL)
-tensor<real32> tracked = tensor.ones<real32>([]).track()
-tensor<real32> scaled = package.scale3(tracked)
+tensor<real32> tracked := tensor.ones<real32>([]).track()
+tensor<real32> scaled := package.scale3(tracked)
 scaled.backward(&tracked)
 print(tracked.grad.item())
 print(NL)
-tensor<real32> tracked_saved = tensor.ones<real32>([]).track()
-tensor<real32> factor = tensor.ones<real32>([1]) * real32(4)
-tensor<real32> scaled_saved = package.scale_saved(tracked_saved, factor)
+tensor<real32> tracked_saved := tensor.ones<real32>([]).track()
+tensor<real32> factor := tensor.ones<real32>([1]) * real32(4)
+tensor<real32> scaled_saved := package.scale_saved(tracked_saved, factor)
 print(scaled_saved.untrack().item())
 print(NL)
 // Backward must consume the forward-time saved value, not this later mutation.
@@ -740,19 +740,19 @@ print(tracked_saved.grad.item())
 print(NL)
 // Saved tensors share dense storage copy-on-write: a native in-place write
 // through qcore_tensor_cpu_data must detach instead of changing the save.
-tensor<real32> native_saved = tensor.ones<real32>([]).track()
-tensor<real32> native_factor = tensor.ones<real32>([1]) * real32(5)
-tensor<real32> native_scaled = package.scale_saved(native_saved, native_factor)
+tensor<real32> native_saved := tensor.ones<real32>([]).track()
+tensor<real32> native_factor := tensor.ones<real32>([1]) * real32(5)
+tensor<real32> native_scaled := package.scale_saved(native_saved, native_factor)
 print(package.increment_first(&native_factor) == int32(0) and native_factor[0].item() == real32(6))
 print(NL)
 native_scaled.backward(&native_saved)
 print(native_saved.grad.item())
 print(NL)
 
-tensor<real32> nonlinear = (tensor.ones<real32>([]) * real32(3)).track()
-tensor<real32> squared = package.square(nonlinear)
+tensor<real32> nonlinear := (tensor.ones<real32>([]) * real32(3)).track()
+tensor<real32> squared := package.square(nonlinear)
 squared.backward(&nonlinear, track = true)
-tensor<real32> first_grad = nonlinear.grad
+tensor<real32> first_grad := nonlinear.grad
 print(first_grad.untrack().item() == real32(6))
 print(NL)
 .nonlinear.clear_grad()
@@ -788,10 +788,10 @@ done
 # full-request callback still receives every gradient.
 cat > "$TMP/masked-use.qui" <<'QUI'
 import package = native_pkg
-tensor<real32> x = tensor.ones<real32>([2]) * real32(3)
-tensor<real32> y = tensor.ones<real32>([2]) * real32(5)
-tensor<real32> product = package.mul_masked(x.track(), y.track())
-tensor<real32> loss = product.gather([0], []) + product.gather([1], [])
+tensor<real32> x := tensor.ones<real32>([2]) * real32(3)
+tensor<real32> y := tensor.ones<real32>([2]) * real32(5)
+tensor<real32> product := package.mul_masked(x.track(), y.track())
+tensor<real32> loss := product.gather([0], []) + product.gather([1], [])
 loss.backward(&x)
 print(x.grad[0].item() == real32(5) and x.grad[1].item() == real32(5) and package.masked_last() == 1)
 print(NL)
@@ -801,54 +801,54 @@ print(NL)
 loss.backward(&x, &y)
 print(x.grad[0].item() == real32(10) and y.grad[0].item() == real32(6) and package.masked_last() == 3)
 print(NL)
-tensor<real32> p = tensor.ones<real32>([2]) * real32(7)
-tensor<real32> constant = package.mul_masked(p.track(), y)
+tensor<real32> p := tensor.ones<real32>([2]) * real32(7)
+tensor<real32> constant := package.mul_masked(p.track(), y)
 (constant.gather([0], []) + constant.gather([1], [])).backward(&p)
 print(p.grad[1].item() == real32(5) and package.masked_last() == 1)
 print(NL)
-int calls = package.masked_calls()
-tensor<real32> w = tensor.ones<real32>([]) * real32(2)
-tensor<real32> unrelated = package.mul_masked(x.track(), y.track())
-tensor<real32> mixed = unrelated.gather([0], []) * real32(0) + w.track() * real32(3)
+int calls := package.masked_calls()
+tensor<real32> w := tensor.ones<real32>([]) * real32(2)
+tensor<real32> unrelated := package.mul_masked(x.track(), y.track())
+tensor<real32> mixed := unrelated.gather([0], []) * real32(0) + w.track() * real32(3)
 mixed.backward(&w)
 print(w.grad.item() == real32(3) and package.masked_calls() == calls)
 print(NL)
-tensor<real32> q = tensor.ones<real32>([2]) * real32(4)
-tensor<real32> full = package.mul_full(q.track(), y.track())
+tensor<real32> q := tensor.ones<real32>([2]) * real32(4)
+tensor<real32> full := package.mul_full(q.track(), y.track())
 (full.gather([0], []) + full.gather([1], [])).backward(&q)
 print(q.grad[0].item() == real32(10))
 print(NL)
-tensor<real32> r = tensor.ones<real32>([2]) * real32(2)
-tensor<real32> partial = package.mul_masked_partial(r.track(), y)
+tensor<real32> r := tensor.ones<real32>([2]) * real32(2)
+tensor<real32> partial := package.mul_masked_partial(r.track(), y)
 (partial.gather([0], []) + partial.gather([1], [])).backward(&r)
 print(r.grad[0].item() == real32(5) and r.grad[1].item() == real32(0))
 print(NL)
-tensor<real32> s = tensor.ones<real32>([2]) * real32(2)
-tensor<real32> undeclared = package.mul_masked_unreported(s.track(), y)
+tensor<real32> s := tensor.ones<real32>([2]) * real32(2)
+tensor<real32> undeclared := package.mul_masked_unreported(s.track(), y)
 (undeclared.gather([0], []) + undeclared.gather([1], [])).backward(&s)
 print(s.grad[1].item() == real32(5))
 print(NL)
 // Declared full writes are write-only outputs; the gradients are bitwise
 // those of the same callback without the declaration.
-tensor<real32> left = tensor.zeros<real32>([3])
+tensor<real32> left := tensor.zeros<real32>([3])
 left[0] = real32(0.1)
 left[1] = real32(-2.5)
 left[2] = real32(3.7)
-tensor<real32> right = tensor.zeros<real32>([3])
+tensor<real32> right := tensor.zeros<real32>([3])
 right[0] = real32(1.3)
 right[1] = real32(0.7)
 right[2] = real32(-0.9)
-tensor<real32> weights = tensor.zeros<real32>([3])
+tensor<real32> weights := tensor.zeros<real32>([3])
 weights[0] = real32(0.25)
 weights[1] = real32(-1.5)
 weights[2] = real32(2.125)
-tensor<real32> a = left
-tensor<real32> b = right
-tensor<real32> declared = package.mul_masked(a.track(), b.track()) * weights
+tensor<real32> a := left
+tensor<real32> b := right
+tensor<real32> declared := package.mul_masked(a.track(), b.track()) * weights
 (declared.gather([0], []) + declared.gather([1], []) + declared.gather([2], [])).backward(&a, &b)
-tensor<real32> c = left
-tensor<real32> d = right
-tensor<real32> plain = package.mul_masked_undeclared(c.track(), d.track()) * weights
+tensor<real32> c := left
+tensor<real32> d := right
+tensor<real32> plain := package.mul_masked_undeclared(c.track(), d.track()) * weights
 (plain.gather([0], []) + plain.gather([1], []) + plain.gather([2], [])).backward(&c, &d)
 print((a.grad == c.grad).all() and (b.grad == d.grad).all() and (a.grad == right * weights).all() and (b.grad == left * weights).all())
 print(NL)
@@ -864,9 +864,9 @@ fi
 # (here the declared input 1 is requested).
 cat > "$TMP/masked-unreported.qui" <<'QUI'
 import package = native_pkg
-tensor<real32> x = tensor.ones<real32>([2]) * real32(3)
-tensor<real32> y = tensor.ones<real32>([2]) * real32(5)
-tensor<real32> product = package.mul_masked_unreported(x, y.track())
+tensor<real32> x := tensor.ones<real32>([2]) * real32(3)
+tensor<real32> y := tensor.ones<real32>([2]) * real32(5)
+tensor<real32> product := package.mul_masked_unreported(x, y.track())
 (product.gather([0], []) + product.gather([1], [])).backward(&y)
 print(y.grad[0].item())
 print(NL)
@@ -887,9 +887,9 @@ fi
 
 # Gradient-need pruning skips the formulas of values that reach no target.
 cat > "$TMP/autograd-stats.qui" <<'QUI'
-tensor<real32> a = tensor.ones<real32>([])
-tensor<real32> b = tensor.ones<real32>([])
-tensor<real32> loss = a.track() * real32(2) + b.track() * real32(3)
+tensor<real32> a := tensor.ones<real32>([])
+tensor<real32> b := tensor.ones<real32>([])
+tensor<real32> loss := a.track() * real32(2) + b.track() * real32(3)
 loss.backward(&a)
 print(a.grad.item())
 print(NL)
@@ -935,17 +935,17 @@ if QUIDRA_TEST_FAKE_GPU_COUNT=1 "$QUIDRA" gpu 2>/dev/null | grep -Fq "backend: T
 import package = native_pkg
 
 tensor<real32> total(tensor<real32> value)
-    tensor<real32> flat = value.reshape([6])
-    tensor<real32> result = flat.gather([0], [])
+    tensor<real32> flat := value.reshape([6])
+    tensor<real32> result := flat.gather([0], [])
     for 1 <= nat index < 6
         result = result + flat.gather([int(index)], [])
     return result
 
 tensor<real32> values(int seed)
-    tensor<real32> result = tensor.zeros<real32>([2, 3])
+    tensor<real32> result := tensor.zeros<real32>([2, 3])
     for 0 <= nat row < 2
         for 0 <= nat column < 3
-            real32 cell = real32((int(row) * 3 + int(column) + seed) % 5)
+            real32 cell := real32((int(row) * 3 + int(column) + seed) % 5)
             result[row, column] = cell + real32(0.5)
     return result
 
@@ -961,30 +961,30 @@ class Result()
 // loss = sum(square(x)^T * c): the gradient reaching the custom node is a
 // transposed (strided) view.
 Result derivatives(int device)
-    tensor<real32> x = place(values(1), device).track()
-    tensor<real32> c = place(values(2).transpose(0, 1).contiguous(), device)
-    tensor<real32> loss = total(package.square_any(x).transpose(0, 1) * c)
+    tensor<real32> x := place(values(1), device).track()
+    tensor<real32> c := place(values(2).transpose(0, 1).contiguous(), device)
+    tensor<real32> loss := total(package.square_any(x).transpose(0, 1) * c)
     loss.backward(&x, track = true)
-    tensor<real32> first = x.grad
-    Result result = Result()
+    tensor<real32> first := x.grad
+    Result result := Result()
     result.first = first.untrack().cpu()
     .x.clear_grad()
     total(first * place(values(3), device)).backward(&x)
     result.second = x.grad.untrack().cpu()
     return result
 
-Result host = derivatives(-1)
-Result device_result = derivatives(0)
+Result host := derivatives(-1)
+Result device_result := derivatives(0)
 print((host.first == device_result.first).all() and (host.second == device_result.second).all())
 print(NL)
 // d/dx sum(x^2 * c^T) = 2 x c^T; d/dx sum(2 x c^T p) = 2 c^T p
-tensor<real32> expected_first = values(1) * values(2) * real32(2)
-tensor<real32> expected_second = values(2) * values(3) * real32(2)
+tensor<real32> expected_first := values(1) * values(2) * real32(2)
+tensor<real32> expected_second := values(2) * values(3) * real32(2)
 print((device_result.first == expected_first).all() and (device_result.second == expected_second).all())
 print(NL)
 
 // First order alone on the device through the same transposed gradient.
-tensor<real32> y = place(values(1), 0).track()
+tensor<real32> y := place(values(1), 0).track()
 total(package.square_any(y).transpose(0, 1) * place(values(2).transpose(0, 1).contiguous(), 0)).backward(&y)
 print((y.grad.cpu() == expected_first).all())
 print(NL)
@@ -1078,7 +1078,7 @@ TOML
 cat > "$TMP/invalid-extension-use.qui" <<'QUI'
 import broken = invalid_extension
 
-tensor<real32> value = broken.identity(tensor.ones<real32>([1]))
+tensor<real32> value := broken.identity(tensor.ones<real32>([1]))
 print(value[0].item())
 print(NL)
 QUI
@@ -1279,12 +1279,12 @@ cat > "$TMP/policy-extension-use.qui" <<'QUI'
 import policy = policy_extension
 
 policy.fast()
-tensor<real32> first = policy.portable(tensor.ones<real32>([1]))
+tensor<real32> first := policy.portable(tensor.ones<real32>([1]))
 policy.deterministic()
-tensor<real32> second = policy.portable(tensor.ones<real32>([1]))
+tensor<real32> second := policy.portable(tensor.ones<real32>([1]))
 policy.fast()
 policy.opaque()
-tensor<real32> third = policy.portable(tensor.ones<real32>([1]))
+tensor<real32> third := policy.portable(tensor.ones<real32>([1]))
 print(first[0].item() == real32(1))
 print(NL)
 print(second[0].item() == real32(1))
@@ -1453,7 +1453,7 @@ fi
 # the exact unwritten input view, not turn a refused borrow into package error.
 cat > "$TMP/native-uninitialized-input.qui" <<'QUI'
 import package = native_pkg
-tensor<real32> partial = tensor<real32>([2])
+tensor<real32> partial := tensor<real32>([2])
 partial[0] = real32(1)
 print(package.tensor_probe(partial))
 print(NL)

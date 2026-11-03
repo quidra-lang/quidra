@@ -81,7 +81,7 @@ int size(extend int[] value)
     return int(len(value))
 int count(extend bool[] value)
     return int(len(value))
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 print(size(values[:1]))
 print(NL)
 print(values[:1].size())
@@ -110,8 +110,8 @@ int twice(extend int value)
     return value * 2
 int count(extend bool[] value)
     return int(len(value))
-int[] values = [1, 2]
-int[2] fixed = [0, 0]
+int[] values := [1, 2]
+int[2] fixed := [0, 0]
 print("{twice(1 + 2)}{NL}")
 print("{(1 + 2).twice()}{NL}")
 print("{count(values > [0, 0])}{NL}")
@@ -125,25 +125,25 @@ QUI
 runs selection-generic-shapes '3 2 2' <<'QUI'
 T identity<T>(extend T value)
     return value
-int[3] values = [1, 2, 3]
-int[3] whole = values.identity()
-int[] picked = values[[0, 1]].identity()
-int[] sliced = values[:1].identity()
+int[3] values := [1, 2, 3]
+int[3] whole := values.identity()
+int[] picked := values[[0, 1]].identity()
+int[] sliced := values[:1].identity()
 print("{len(whole)} {len(picked)} {len(sliced)}{NL}")
 QUI
 
 runs fixed-nested-generic-arrays true <<'QUI'
 T[] copied<T>(extend T[] value)
-    T[] result = []
-    for T element = value[]
+    T[] result := []
+    for T element := value[]
         result = result.append(element)
     return result
-int[2][3] a = [[1, 2, 3], [4, 5, 6]]
-int[2][4] b = [[1, 2, 3, 4], [5, 6, 7, 8]]
-auto x = a.copied()
-auto y = b.copied()
-int[][3] expected_a = a
-int[][4] expected_b = b
+int[2][3] a := [[1, 2, 3], [4, 5, 6]]
+int[2][4] b := [[1, 2, 3, 4], [5, 6, 7, 8]]
+x := a.copied()
+y := b.copied()
+int[][3] expected_a := a
+int[][4] expected_b := b
 print(x == expected_a and y == expected_b)
 QUI
 
@@ -206,14 +206,14 @@ string string(extend int value)
 QUI
 runs inferred-union-avoids-unused-native-collision 'generic generic generic generic' <<'QUI'
 import provider = "./generic-string.qui"
-int | error value = 3
+int | error value := 3
 int | error fail()
     return error("kept")
 print("{provider.string(value)} {value.string()} {provider.string(fail())} {fail().string()}{NL}")
 QUI
 rejects explicit-fallible-native-collision EXTENSION_COLLISION <<'QUI'
 import provider = "./generic-string.qui"
-int | error value = 3
+int | error value := 3
 print(value.string<int>())
 QUI
 rejects inferred-fallible-free-stays-union GENERIC_CONSTRAINT <<'QUI'
@@ -233,7 +233,7 @@ QUI
 rejects mutable-fallible-receiver-stays-union UNKNOWN_MEMBER <<'QUI'
 void .increment(extend int &value)
     value += 1
-int | error value = 3
+int | error value := 3
 .value.increment()
 QUI
 
@@ -333,7 +333,7 @@ accepts generic-class-extension <<'QUI'
 class Box<T> box(T value)
 T unwrap<T>(extend const Box<T> value)
     return value.value
-Box<int> value = Box<int>(1)
+Box<int> value := Box<int>(1)
 print(value.unwrap())
 QUI
 cat > "$TMP/class-string.qui" <<'QUI'
@@ -343,7 +343,7 @@ string string(extend Box value)
 QUI
 accepts class-string-extension <<'QUI'
 import provider = "./class-string.qui"
-provider.Box value = provider.Box(1)
+provider.Box value := provider.Box(1)
 print(value.string())
 QUI
 cat > "$TMP/array-string.qui" <<'QUI'
@@ -352,7 +352,7 @@ string string(extend int[] value)
 QUI
 accepts array-string-extension <<'QUI'
 import provider = "./array-string.qui"
-int[] value = [1, 2]
+int[] value := [1, 2]
 print(value.string())
 QUI
 rejects mixed-extension-family DUPLICATE_NAME <<'QUI'
@@ -413,16 +413,16 @@ accepts recursive-array-family <<'QUI'
 T doubled<T: floating>(extend T value)
     return value + value
 T[] doubled<T>(extend T[] value)
-    T[] result = []
-    for T element = value[]
+    T[] result := []
+    for T element := value[]
         result = result.append(doubled(element))
     return result
-real32[][] value = [[real32(1)], [real32(2), real32(3)]]
-real32[][] result = value.doubled()
+real32[][] value := [[real32(1)], [real32(2), real32(3)]]
+real32[][] result := value.doubled()
 print(result[1][1])
-real32[] vector = [real32(2)]
-real32[] explicit = vector.doubled<real32>()
-real32 scalar = real32(2).doubled<real32>()
+real32[] vector := [real32(2)]
+real32[] explicit := vector.doubled<real32>()
+real32 scalar := real32(2).doubled<real32>()
 print(explicit[0] == scalar)
 QUI
 runs receiver-and-argument-order true <<'QUI'
@@ -431,8 +431,8 @@ int event(int &sequence, int digit)
     return digit
 int combine(extend const int value, int left, int right)
     return value * 100 + left * 10 + right
-int sequence = 0
-int result = event(&sequence, 1).combine(right = event(&sequence, 2), left = event(&sequence, 3))
+int sequence := 0
+int result := event(&sequence, 1).combine(right = event(&sequence, 2), left = event(&sequence, 3))
 print(sequence == 123 and result == 132)
 QUI
 runs writable-receiver-evaluated-once true <<'QUI'
@@ -441,8 +441,8 @@ nat next_index(nat &calls)
     return 0
 void increment(extend int &value, int amount)
     value += amount
-int[] values = [1, 2]
-nat calls = 0
+int[] values := [1, 2]
+nat calls := 0
 .values[next_index(&calls)].increment(3)
 print(calls == 1 and values[0] == 4 and values[1] == 2)
 QUI
@@ -456,7 +456,7 @@ QUI
 rejects mutable-const-receiver WRITE_CAPABILITY <<'QUI'
 void reset(extend int[] &value)
     value = []
-const int[] value = [1]
+const int[] value := [1]
 .value.reset()
 QUI
 
@@ -480,7 +480,7 @@ QUI
 rejects array-literal-intrinsic-collision EXTENSION_COLLISION <<'QUI'
 nat[] indices(extend int[] value)
     return [0]
-nat[] index_values = [1, 2].indices()
+nat[] index_values := [1, 2].indices()
 QUI
 for method in transpose contiguous gather scatter device is_contiguous is_tracked has_grad clear_grad; do
     rejects "tensor-$method-collision" EXTENSION_COLLISION <<QUI
@@ -493,7 +493,7 @@ done
 rejects tensor-boolean-collision EXTENSION_COLLISION <<'QUI'
 bool all(extend tensor<bool> value)
     return true
-tensor<bool> value = tensor.ones<bool>([2])
+tensor<bool> value := tensor.ones<bool>([2])
 print(value.all())
 QUI
 rejects class-intrinsic-collision EXTENSION_COLLISION <<'QUI'
@@ -502,7 +502,7 @@ class Box<T> box(T value)
         return box.value
 int read<T>(extend Box<T> value)
     return 0
-Box<int> value = Box<int>(1)
+Box<int> value := Box<int>(1)
 print(value.read())
 QUI
 

@@ -23,18 +23,18 @@ fails() {
 
 # Finite results are the IEEE results, as before.
 cat > "$TMP/finite.qui" <<'QUI'
-real64 x = 2.5
-real64 y = -0.125
-real32 p = 1.5
-real32 q = 0.25
+real64 x := 2.5
+real64 y := -0.125
+real32 p := 1.5
+real32 q := 0.25
 print("{x + y} {x - y} {x * y} {x / y} {x ^ 2.0}")
 print(NL)
 print("{p + q} {p - q} {p * q} {p / q} {-p}")
 print(NL)
-real64 tiny = 1.0e-300
+real64 tiny := 1.0e-300
 print(tiny * 1.0e-300)
 print(NL)
-real64 zero = 0.0
+real64 zero := 0.0
 print(zero / 3.0)
 print(NL)
 print(-zero * 2.0)
@@ -44,7 +44,7 @@ QUI
 
 # Each operation and type, at the operation's own location.
 cat > "$TMP/multiply.qui" <<'QUI'
-real64 big = inf
+real64 big := inf
 print("before")
 print(big * 0.0)
 print("after")
@@ -53,49 +53,49 @@ fails multiply 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:7'
 [[ "$(cat "$TMP/multiply.out")" == "before" ]]
 
 cat > "$TMP/add32.qui" <<'QUI'
-real32 big = inf
-real32 sum = big + -big
+real32 big := inf
+real32 sum := big + -big
 print(sum)
 QUI
 fails add32 101 NONFINITE_RESULT 'real32 addition produced NaN' '2:14'
 
 cat > "$TMP/subtract.qui" <<'QUI'
-real64 big = inf
-real64 low = big - big
+real64 big := inf
+real64 low := big - big
 print(low)
 QUI
 fails subtract 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:14'
 
 cat > "$TMP/divide_overflow.qui" <<'QUI'
-real64 big = inf
-real64 small = inf
+real64 big := inf
+real64 small := inf
 print(big / small)
 QUI
 fails divide_overflow 101 NONFINITE_RESULT 'real64 division produced NaN' '3:7'
 
 cat > "$TMP/divide_zero.qui" <<'QUI'
-real32 one = 0.0
-real32 zero = 0.0
+real32 one := 0.0
+real32 zero := 0.0
 print(one / zero)
 QUI
 fails divide_zero 101 DIVISION_BY_ZERO 'real32 division by zero' '3:7'
 
 cat > "$TMP/zero_zero.qui" <<'QUI'
-real64 zero = 0.0
-real64 negative_zero = -0.0
+real64 zero := 0.0
+real64 negative_zero := -0.0
 print(zero / negative_zero)
 QUI
 fails zero_zero 101 DIVISION_BY_ZERO 'real64 division by zero' '3:7'
 
 cat > "$TMP/power.qui" <<'QUI'
-real64 ten = 10.0
-real64 exponent = 400.0
+real64 ten := 10.0
+real64 exponent := 400.0
 print(ten ^ exponent)
 QUI
 [[ "$("$QUIDRA" run "$TMP/power.qui")" == "inf" ]]
 
 cat > "$TMP/compound.qui" <<'QUI'
-real64 value = inf
+real64 value := inf
 value *= 0.0
 print(value)
 QUI
@@ -104,23 +104,23 @@ fails compound 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:1'
 # Two indeterminate operands: the earlier operation is reported at its own
 # location. Valid infinite operands whose consumer makes NaN report the consumer.
 cat > "$TMP/first.qui" <<'QUI'
-real64 big = inf
-real64 r = big * 0.0 - big * 0.0
+real64 big := inf
+real64 r := big * 0.0 - big * 0.0
 print(r)
 QUI
 fails first 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:12'
 
 cat > "$TMP/second.qui" <<'QUI'
-real64 big = inf
-real64 one = 1.0
-real64 r = one * 2.0 - big * 0.0
+real64 big := inf
+real64 one := 1.0
+real64 r := one * 2.0 - big * 0.0
 print(r)
 QUI
 fails second 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:24'
 
 cat > "$TMP/consumer.qui" <<'QUI'
-real64 big = inf
-real64 r = big * 1.5 - big * 1.5
+real64 big := inf
+real64 r := big * 1.5 - big * 1.5
 print(r)
 QUI
 fails consumer 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:12'
@@ -133,7 +133,7 @@ real64 sum(real64 a, real64 b, real64 c)
     return a * b + c
 
 real64 total(real64 step)
-    real64 s = -inf
+    real64 s := -inf
     for 0 <= nat8 i < 4
         s = s + step
     return s
@@ -162,22 +162,22 @@ grep -q '"details": {"type": "real32"}' "$TMP/json.err"
 
 # Constant overflow/division obey the same infinity policy as runtime values.
 cat > "$TMP/constant_infinity.qui" <<'QUI'
-real64 a = 1.0e308 * 10.0
-real32 b = 3.0e38 + 3.0e38
-real64 c = 1.0 / 0.0
-real64 d = 1.0e308 * 2.5 / 10.0
-real64 fine = 1.0e300 * 10.0
+real64 a := 1.0e308 * 10.0
+real32 b := 3.0e38 + 3.0e38
+real64 c := 1.0 / 0.0
+real64 d := 1.0e308 * 2.5 / 10.0
+real64 fine := 1.0e300 * 10.0
 print("{a} {b} {c} {d} {fine}")
 QUI
 [[ "$("$QUIDRA" run "$TMP/constant_infinity.qui")" == "inf inf inf inf 1.0e+301" ]]
 
 # A constant NaN, including one hidden by a later power to zero, is rejected.
 cat > "$TMP/constant.qui" <<'QUI'
-real64 a = (1.0 / 0.0) - (1.0 / 0.0)
-real32 b = (1.0 / 0.0) * 0.0
-real64 c = 0.0 / 0.0
-real64 d = ((1.0 / 0.0) - (1.0 / 0.0)) ^ 0.0
-real64 fine = 1.0e300 * 10.0
+real64 a := (1.0 / 0.0) - (1.0 / 0.0)
+real32 b := (1.0 / 0.0) * 0.0
+real64 c := 0.0 / 0.0
+real64 d := ((1.0 / 0.0) - (1.0 / 0.0)) ^ 0.0
+real64 fine := 1.0e300 * 10.0
 QUI
 rc=0
 "$QUIDRA" check "$TMP/constant.qui" >"$TMP/constant.out" 2>&1 || rc=$?
@@ -190,9 +190,9 @@ grep -q '4:.*error\[REAL_RANGE\] Constant real64 expression produces NaN:' "$TMP
 
 # Parsing accepts signed infinity but rejects NaN and finite range overflow.
 cat > "$TMP/parse.qui" <<'QUI'
-string[] texts = ["nan", "inf", "-inf", "1.0e999", "-1.0e999", "1.5"]
-for auto text = texts[]
-    real64 | error value = real64.parse(text)
+string[] texts := ["nan", "inf", "-inf", "1.0e999", "-1.0e999", "1.5"]
+for text := texts[]
+    real64 | error value := real64.parse(text)
     match value
         real64 parsed
             print(parsed)
@@ -206,60 +206,60 @@ QUI
 # Tensors: every element of a real tensor operation is tested; on the CPU the
 # first failing element fails at the operation.
 cat > "$TMP/tensor_overflow.qui" <<'QUI'
-tensor<real32> big = tensor.ones<real32>([3]) * real32(3.0e38)
+tensor<real32> big := tensor.ones<real32>([3]) * real32(3.0e38)
 print(big[1].item())
 print(NL)
-tensor<real32> twice = big + big
+tensor<real32> twice := big + big
 print(twice[1].item())
 QUI
 [[ "$("$QUIDRA" run "$TMP/tensor_overflow.qui")" == "$(printf '3.0e+38\ninf')" ]]
 cat > "$TMP/tensor_nan.qui" <<'QUI'
-tensor<real32> infinity = tensor.ones<real32>([3]) * real32(inf)
+tensor<real32> infinity := tensor.ones<real32>([3]) * real32(inf)
 print("before")
-tensor<real32> invalid = infinity - infinity
+tensor<real32> invalid := infinity - infinity
 QUI
 fails tensor_nan 101 NONFINITE_RESULT 'tensor<real32> subtraction produced NaN' '3:26'
 [[ "$(cat "$TMP/tensor_nan.out")" == "before" ]]
 
 cat > "$TMP/tensor_divide.qui" <<'QUI'
-tensor<real64> ones = tensor.ones<real64>([2, 2])
-tensor<real64> zeros = ones - ones
-tensor<real64> quotient = ones / zeros
+tensor<real64> ones := tensor.ones<real64>([2, 2])
+tensor<real64> zeros := ones - ones
+tensor<real64> quotient := ones / zeros
 print(quotient[0, 0].item())
 QUI
 [[ "$("$QUIDRA" run "$TMP/tensor_divide.qui")" == "inf" ]]
 cat > "$TMP/tensor_zero_zero.qui" <<'QUI'
-tensor<real64> zeros = tensor.zeros<real64>([2, 2])
-tensor<real64> quotient = zeros / zeros
+tensor<real64> zeros := tensor.zeros<real64>([2, 2])
+tensor<real64> quotient := zeros / zeros
 QUI
 fails tensor_zero_zero 101 DIVISION_BY_ZERO 'tensor<real64> division by zero' '2:27'
 
 cat > "$TMP/tensor_power.qui" <<'QUI'
-tensor<real32> zeros = tensor.zeros<real32>([2])
-tensor<real32> fine = zeros ^ real32(2.0)
+tensor<real32> zeros := tensor.zeros<real32>([2])
+tensor<real32> fine := zeros ^ real32(2.0)
 print(fine[0].item())
 print(NL)
-tensor<real32> undefined = zeros ^ real32(0.0)
+tensor<real32> undefined := zeros ^ real32(0.0)
 QUI
 fails tensor_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '5:28'
 
 cat > "$TMP/tensor_negative_base.qui" <<'QUI'
-tensor<real64> negative = tensor.ones<real64>([2]) * -2.0
-tensor<real64> root = negative ^ 0.5
+tensor<real64> negative := tensor.ones<real64>([2]) * -2.0
+tensor<real64> root := negative ^ 0.5
 QUI
 fails tensor_negative_base 101 POWER_DOMAIN 'a negative base requires an integer exponent' '2:23'
 
 cat > "$TMP/tensor_integer_power.qui" <<'QUI'
-tensor<int32> zeros = tensor.zeros<int32>([2])
-tensor<int32> result = zeros ^ int32(0)
+tensor<int32> zeros := tensor.zeros<int32>([2])
+tensor<int32> result := zeros ^ int32(0)
 QUI
 fails tensor_integer_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '2:24'
 
 # A gradient a backward pass delivers is tested: 1 / w with w = 1e-20 is
 # finite, its gradient -1 / w^2 overflows real32.
 cat > "$TMP/gradient.qui" <<'QUI'
-tensor<real32> w = (tensor.ones<real32>([1]) * real32(1.0e-20)).track()
-tensor<real32> z = tensor.ones<real32>([1]) / w
+tensor<real32> w := (tensor.ones<real32>([1]) * real32(1.0e-20)).track()
+tensor<real32> z := tensor.ones<real32>([1]) / w
 print("{z.untrack()[0].item() > real32(1.0e19)}")
 print(NL)
 z.backward(&w)
@@ -269,9 +269,9 @@ QUI
 
 # The results of finite tensor arithmetic are unchanged.
 cat > "$TMP/tensor_finite.qui" <<'QUI'
-tensor<real32> ones = tensor.ones<real32>([3])
-tensor<real32> twos = ones + ones
-tensor<real32> scaled = twos * twos / real32(3.0) - ones
+tensor<real32> ones := tensor.ones<real32>([3])
+tensor<real32> twos := ones + ones
+tensor<real32> scaled := twos * twos / real32(3.0) - ones
 print("{scaled[0].item()} {(twos ^ real32(3.0))[2].item()}")
 print(NL)
 QUI
@@ -291,18 +291,18 @@ extern int32 fill_preserving_native(tensor<real32> &output, real32 value) = "qte
 extern int32 fill_checked_native(tensor<real32> &output, int32 overflow) = "qtest_finite_fill_checked"
 
 tensor<real32> fill(nat count, real32 value)
-    tensor<real32> output = tensor.zeros<real32>([count])
-    int32 status = fill_native(&output, value)
+    tensor<real32> output := tensor.zeros<real32>([count])
+    int32 status := fill_native(&output, value)
     return output
 
 tensor<real32> fill_preserving(nat count, real32 value)
-    tensor<real32> output = tensor.zeros<real32>([count])
-    int32 status = fill_preserving_native(&output, value)
+    tensor<real32> output := tensor.zeros<real32>([count])
+    int32 status := fill_preserving_native(&output, value)
     return output
 
 tensor<real32> fill_checked(nat count, int32 overflow)
-    tensor<real32> output = tensor.zeros<real32>([count])
-    int32 status = fill_checked_native(&output, overflow)
+    tensor<real32> output := tensor.zeros<real32>([count])
+    int32 status := fill_checked_native(&output, overflow)
     return output
 QUI
 cat > "$TMP/packages/finite_pkg/native/bridge.cpp" <<'CPP'
@@ -339,23 +339,23 @@ extern "C" int qtest_finite_fill_checked(void* output, int overflow) {
 CPP
 cat > "$TMP/package_ok.qui" <<'QUI'
 import finite_pkg
-tensor<real32> a = finite_pkg.fill(3, real32(1.5))
-tensor<real32> b = finite_pkg.fill_preserving(3, real32(-2.5))
-tensor<real32> c = finite_pkg.fill_checked(3, 0)
+tensor<real32> a := finite_pkg.fill(3, real32(1.5))
+tensor<real32> b := finite_pkg.fill_preserving(3, real32(-2.5))
+tensor<real32> c := finite_pkg.fill_checked(3, 0)
 print("{a[2].item()} {b[2].item()} {c[2].item()}")
 print(NL)
 QUI
 [[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_ok.qui")" == "1.5 2.5 1.0" ]]
 cat > "$TMP/package_infinity.qui" <<'QUI'
 import finite_pkg
-tensor<real32> a = finite_pkg.fill(3, real32(inf))
+tensor<real32> a := finite_pkg.fill(3, real32(inf))
 print(a[2].item())
 QUI
 [[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_infinity.qui")" == "inf" ]]
 cat > "$TMP/package_fallback.qui" <<'QUI'
 import finite_pkg
 print("before")
-tensor<real32> a = finite_pkg.fill(3, real32(-1.0))
+tensor<real32> a := finite_pkg.fill(3, real32(-1.0))
 print("after")
 QUI
 rc=0
@@ -367,7 +367,7 @@ grep -q 'Quidra runtime error\[NONFINITE_RESULT\] at .*package_fallback.qui:3:1$
 grep -q '| package operation .*fill_native produced a NaN real32 value$' "$TMP/package_fallback.err"
 cat > "$TMP/package_checked.qui" <<'QUI'
 import finite_pkg
-tensor<real32> a = finite_pkg.fill_checked(3, 1)
+tensor<real32> a := finite_pkg.fill_checked(3, 1)
 QUI
 rc=0
 QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" run "$TMP/package_checked.qui" \
@@ -380,8 +380,8 @@ grep -q '| package operation finite_pkg.fill_checked produced a NaN real32 value
 # point and names the operation and the statement that queued it.
 if "$QUIDRA" gpu 2>/dev/null | grep -Fq "backend: Metal"; then
     cat > "$TMP/metal_overflow.qui" <<'QUI'
-tensor<real32> big = tensor.ones<real32>([4], gpu = 0) * real32(inf)
-tensor<real32> twice = big - big
+tensor<real32> big := tensor.ones<real32>([4], gpu = 0) * real32(inf)
+tensor<real32> twice := big - big
 print("queued")
 print(NL)
 print(twice.cpu()[0].item())
@@ -392,8 +392,8 @@ QUI
     [[ "$(cat "$TMP/metal_overflow.out")" == "queued" ]]
     grep -Fq "tensor<real32> subtraction produced NaN (deferred GPU check from $TMP/metal_overflow.qui:2:" "$TMP/metal_overflow.err"
     cat > "$TMP/metal_finite.qui" <<'QUI'
-tensor<real32> ones = tensor.ones<real32>([4], gpu = 0)
-tensor<real32> twos = ones + ones
+tensor<real32> ones := tensor.ones<real32>([4], gpu = 0)
+tensor<real32> twos := ones + ones
 print((twos * twos / real32(3.0)).cpu()[3].item())
 print(NL)
 QUI

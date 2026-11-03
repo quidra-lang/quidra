@@ -12,10 +12,10 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run onl
 export QUIDRA_TEST_FAKE_GPU_COUNT=1
 
 cat > "$TMP/steps.qui" <<'QUI'
-tensor<real32> weight = tensor.ones<real32>([4], gpu = 0).track()
+tensor<real32> weight := tensor.ones<real32>([4], gpu = 0).track()
 for 0 <= nat step < 3
-    tensor<real32> scaled = weight * weight
-    tensor<real32> loss = scaled.gather([0], []) + scaled.gather([3], [])
+    tensor<real32> scaled := weight * weight
+    tensor<real32> loss := scaled.gather([0], []) + scaled.gather([3], [])
     .weight.clear_grad()
     loss.backward(&weight)
 print(weight.grad.cpu()[0].item())
@@ -85,9 +85,9 @@ print("counter report shape: ok")
 PY
 
 cat > "$TMP/host.qui" <<'QUI'
-tensor<real32> values = tensor.ones<real32>([4])
-tensor<real32> scaled = values * 2.0
-tensor<real32> empty = tensor.zeros<real32>([0])
+tensor<real32> values := tensor.ones<real32>([4])
+tensor<real32> scaled := values * 2.0
+tensor<real32> empty := tensor.zeros<real32>([0])
 print("{scaled[0].item()} {empty.shape()[0]}{NL}")
 QUI
 QUIDRA_COUNTERS="$TMP/host.jsonl" "$QUIDRA" run "$TMP/host.qui" >/dev/null
@@ -121,8 +121,8 @@ extern "C" int32_t qtest_counter_borrow(const void* value) {
 CPP
 cat > "$TMP/borrow-counters.qui" <<'QUI'
 import counter_probe
-tensor<real32> device = tensor.ones<real32>([16384], gpu = 0)
-tensor<real32> host = device.cpu()
+tensor<real32> device := tensor.ones<real32>([16384], gpu = 0)
+tensor<real32> host := device.cpu()
 print("{counter_probe.borrow(host)} {device.shape()[0]}{NL}")
 QUI
 borrowed="$(QUIDRA_COUNTERS="$TMP/borrow.jsonl" QUIDRA_TEST_FAKE_GPU_UNIFIED=1 \
@@ -134,15 +134,15 @@ if [[ "$borrowed" != "0 16384" ]]; then
 fi
 
 cat > "$TMP/transfers.qui" <<'QUI'
-tensor<real32> empty = tensor.zeros<real32>([0])
-tensor<real32> device_empty = empty.gpu(0)
-tensor<real32> host_empty = device_empty.cpu()
-tensor<real32> uninitialized = tensor<real32>([4])
-tensor<real32> device_uninitialized = uninitialized.gpu(0)
-tensor<real32> host_uninitialized = device_uninitialized.cpu()
-tensor<real32> values = tensor.ones<real32>([4])
-tensor<real32> device_values = values.gpu(0)
-tensor<real32> host_values = device_values.cpu()
+tensor<real32> empty := tensor.zeros<real32>([0])
+tensor<real32> device_empty := empty.gpu(0)
+tensor<real32> host_empty := device_empty.cpu()
+tensor<real32> uninitialized := tensor<real32>([4])
+tensor<real32> device_uninitialized := uninitialized.gpu(0)
+tensor<real32> host_uninitialized := device_uninitialized.cpu()
+tensor<real32> values := tensor.ones<real32>([4])
+tensor<real32> device_values := values.gpu(0)
+tensor<real32> host_values := device_values.cpu()
 print("{host_empty.shape()[0]} {host_uninitialized.shape()[0]} {host_values[0].item()}{NL}")
 QUI
 QUIDRA_COUNTERS="$TMP/transfers.jsonl" QUIDRA_UNIFIED_MEMORY=0 \

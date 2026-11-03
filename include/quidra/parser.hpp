@@ -74,6 +74,8 @@ private:
     void cli_decl(Program& program);
     EnumDecl enum_decl();
     ClassDecl class_decl();
+    TypeName binding_type();
+    ExprPtr parameter_default();
     FunctionDecl function_decl();
     FunctionDecl external_function_decl();
     ForeignExport foreign_export_prefix();
@@ -82,8 +84,8 @@ private:
     StmtPtr statement();
     void reject_const_reference(bool is_const, bool reference) const;
     StmtPtr binding_stmt();
-    bool pattern_followed_by_assignment() const;
-    Pattern parse_pattern(bool match_case = false);
+    TokenKind pattern_assignment() const;
+    Pattern parse_pattern(bool match_case = false, bool infer_bindings = false);
     StmtPtr destructuring_stmt();
     StmtPtr return_stmt();
     StmtPtr loop_control_stmt();

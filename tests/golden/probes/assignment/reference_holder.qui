@@ -9,8 +9,8 @@ int .grow(Holder holder)
         holder.value = holder.value.append(int(i))
     return 1
 
-int[] values = [5, 0, 0]
-Holder c = Holder(&values)
+int[] values := [5, 0, 0]
+Holder c := Holder(&values)
 c.value[0] += .grow(c)
 print("cell: {c.value[0]} {len(c.value)}")
 print(NL)

@@ -8,12 +8,12 @@ int grow(int[] &values)
 void bump(int[] &a, int[] &b)
     a[0] += grow(&b)
 
-int[] v = [5, 0, 0]
-int[] &r = &v
+int[] v := [5, 0, 0]
+int[] &r := &v
 r[0] += grow(&v)
 print("reference local: {v[0]} {len(v)}")
 print(NL)
-int[] w = [5, 0, 0]
+int[] w := [5, 0, 0]
 bump(&w, &w)
 print("reference parameters: {w[0]} {len(w)}")
 print(NL)

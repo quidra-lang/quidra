@@ -49,12 +49,12 @@ extern int64 body_calls_native(
 // Checksum of a parallel float32 kernel over 40000 independent outputs, or a
 // negative value when a native step reported an error.
 int run(int grain)
-    tensor<real32> input = tensor.zeros<real32>([40000])
-    int32 filled = fill_native(&input, 7)
+    tensor<real32> input := tensor.zeros<real32>([40000])
+    int32 filled := fill_native(&input, 7)
     if filled != int32(0)
         return -1
-    tensor<real32> output = tensor.zeros<real32>([40000])
-    int32 computed = kernel_native(input, &output, int64(grain))
+    tensor<real32> output := tensor.zeros<real32>([40000])
+    int32 computed := kernel_native(input, &output, int64(grain))
     if computed != int32(0)
         return -2
     return int(checksum_native(output))
@@ -69,7 +69,7 @@ int failure(int status_chunk, int throw_chunk)
 // Bodies that call qcore_* functions: kind 0 only pure data-access ones,
 // kinds 1..5 one that is not (see body_calls_body).
 int body_calls(int kind)
-    tensor<real32> value = tensor.zeros<real32>([64])
+    tensor<real32> value := tensor.zeros<real32>([64])
     return int(body_calls_native(value, int64(kind)))
 QUI
 
@@ -306,7 +306,7 @@ int parallel_result_1_1
 parallel
     parallel_result_1_0 = task_checksum()
     parallel_result_1_1 = task_threads()
-int[] results = [parallel_result_1_0, parallel_result_1_1]
+int[] results := [parallel_result_1_0, parallel_result_1_1]
 print(results[0])
 print(NL)
 print(results[1])
@@ -330,7 +330,7 @@ int parallel_result_2_1
 parallel
     parallel_result_2_0 = task_checksum()
     parallel_result_2_1 = task_threads()
-int[] results = [parallel_result_2_0, parallel_result_2_1]
+int[] results := [parallel_result_2_0, parallel_result_2_1]
 print(results[0])
 print(NL)
 print(results[1])

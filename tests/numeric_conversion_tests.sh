@@ -105,8 +105,8 @@ int domain<T: numeric>(T value)
     return 1
 int domain<T: ordered>(T value)
     return 2
-com32 z = 1.0 + 2.0i
-real16 h = 2.0
+com32 z := 1.0 + 2.0i
+real16 h := 2.0
 print(domain(z))
 print(NL)
 print(domain(h))

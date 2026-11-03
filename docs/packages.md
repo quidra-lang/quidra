@@ -503,7 +503,7 @@ enclosures of the arguments). Source code applies them with
 literals:
 
 ```quidra
-const literal real tau = real.atom("geometry", 1)
+const literal real tau := real.atom("geometry", 1)
 
 real rotate(real angle, real turns)
     return real.op("geometry", 2, angle, turns)
@@ -524,8 +524,8 @@ Core prints the resulting form.
 
 A package exports its exact constants as contextual constants
 (`const literal real`), so that each use materializes into the real type its
-context expects, as a real literal does: `real32 x = geometry.tau` is the
-correctly rounded value and `real exact = geometry.tau` the exact one.
+context expects, as a real literal does: `real32 x := geometry.tau` is the
+correctly rounded value and `real exact := geometry.tau` the exact one.
 
 Hooks must be deterministic: the same arguments give the same answer on every
 run and platform, and a refinement never depends on time. Core decides

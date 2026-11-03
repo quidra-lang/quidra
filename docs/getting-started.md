@@ -43,7 +43,7 @@ Create a file named `first.qui` with this small program:
 void increment(int &value)
     value += 1
 
-int count = 7
+int count := 7
 increment(&count)
 print("count = ")
 print.line(count)
@@ -51,7 +51,7 @@ print.line(count)
 
 The important part is the value/reference distinction:
 
-- `int count = 7` creates a value.
+- `int count := 7` creates a value.
 - `int &value` makes writable access to existing storage explicit in the
   function signature.
 - `increment(&count)` makes that access explicit at the call site.

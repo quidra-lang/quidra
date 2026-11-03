@@ -30,7 +30,7 @@ class Binder<M>(local M &input)
 
     void .step()
         counter = counter + 1
-        for Cell &cell = &reflect.each<Cell>(&model)[]
+        for Cell &cell := &reflect.each<Cell>(&model)[]
             counter = counter + cell.value
         return
 
@@ -39,13 +39,13 @@ class Binder<M>(local M &input)
         return
 
 void drive(Pair &input, Pair &other)
-    int32 padding = 0
+    int32 padding := 0
 )";
   // Authored host code provides real caller/module growth capacity. No source
   // rows, semantic flags or return/birth receipts are injected by the fixture.
   for (int i = 0; i < 32; ++i)
     text += "    padding = padding + 1\n";
-  text += "    Binder<Pair> held = Binder<Pair>(&input)\n";
+  text += "    Binder<Pair> held := Binder<Pair>(&input)\n";
   text += "    for int32 iteration < 3\n";
   if (kind == Case::HolderReplacement)
     text += "        held = Binder<Pair>(&other)\n";

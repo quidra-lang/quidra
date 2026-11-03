@@ -1,5 +1,5 @@
-tensor<real16b> low = tensor.ones<real16b>([]).track()
-tensor<real32> wide = real32(low)
+tensor<real16b> low := tensor.ones<real16b>([]).track()
+tensor<real32> wide := real32(low)
 (wide * real32(1.00390625)).backward(&low)
 print(low.grad.item() == real16b(1))
 print(NL)

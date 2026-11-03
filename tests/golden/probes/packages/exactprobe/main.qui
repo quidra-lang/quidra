@@ -4,10 +4,10 @@
 // narrows; flip negates and first returns its first argument. The *_v1
 // declarations reach the same square root and negation through the
 // version-1 provider interface.
-const literal real root2 = real.atom("exactprobe", 1)
-const literal real pi = real.atom("exactprobe", 2)
-const literal real omega = real.atom("exactprobe", 3)
-const literal real root2_v1 = real.atom("exactprobe_v1", 1)
+const literal real root2 := real.atom("exactprobe", 1)
+const literal real pi := real.atom("exactprobe", 2)
+const literal real omega := real.atom("exactprobe", 3)
+const literal real root2_v1 := real.atom("exactprobe_v1", 1)
 
 real flip(real value)
     return real.unary("exactprobe", 101, value)

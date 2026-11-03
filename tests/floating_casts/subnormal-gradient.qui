@@ -1,5 +1,5 @@
-tensor<real32> x = tensor.zeros<real32>([]).track()
-tensor<real16> y = real16(x)
+tensor<real32> x := tensor.zeros<real32>([]).track()
+tensor<real16> y := real16(x)
 (y * real16(0.000000059604644775390625)).backward(&x)
 print(x.grad.item() == real32(0.000000059604644775390625))
 print(NL)

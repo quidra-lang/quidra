@@ -1,2 +1,2 @@
-tensor<real32> x = tensor.ones<real32>([]).track()
-auto y = com32(x)
+tensor<real32> x := tensor.ones<real32>([]).track()
+y := com32(x)

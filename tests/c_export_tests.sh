@@ -88,7 +88,7 @@ export "C" int32 through_c(int32 value)
     return c_twice(value) + 1
 
 extern int32 run_driver() = "run_driver"
-int32 failed = run_driver()
+int32 failed := run_driver()
 print("failed checks: {failed}")
 print(NL)
 QUI
@@ -253,7 +253,7 @@ extern real32 make_value(int32 which) = "make_value"
 
 print(make_value(0))
 print(NL)
-real32 value = make_value(1)
+real32 value := make_value(1)
 print("after")
 QUI
 cat > "$TMP/nonfinite_result_driver.c" <<'C'
@@ -316,8 +316,8 @@ fi
 if "$QUIDRA" gpu 2>/dev/null | grep -Fq "backend: Metal"; then
     cat > "$TMP/deferred.qui" <<'QUI'
 export "C" void overflow_on_gpu()
-    tensor<int8> value = tensor.ones<int8>([1], gpu = 0) * int8(127)
-    tensor<int8> invalid = value + int8(1)
+    tensor<int8> value := tensor.ones<int8>([1], gpu = 0) * int8(127)
+    tensor<int8> invalid := value + int8(1)
 
 extern void run_driver() = "run_driver"
 run_driver()
@@ -349,7 +349,7 @@ fi
 # A library build: a C program with its own main links the archive that
 # `quidra build --lib` writes and the flags it prints, and nothing else.
 cat > "$TMP/add.qui" <<'QUI'
-const int64 offset = 1
+const int64 offset := 1
 
 export "C" int32 add2(int32 a, int32 b)
     return a + b
@@ -460,12 +460,12 @@ fi
 # The late mode first enters the runtime from an exit callback.
 cat > "$TMP/atexit.qui" <<'QUI'
 export "C" int32 host_work(int32 x)
-    int32[] values = [x, x + 1]
+    int32[] values := [x, x + 1]
     return values[0] + values[1]
 
 export "C" void fail_now()
-    int[4] slots = [1, 2, 3, 4]
-    nat at = len(slots) + 1
+    int[4] slots := [1, 2, 3, 4]
+    nat at := len(slots) + 1
     print(slots[at])
 QUI
 cat > "$TMP/atexit_host.c" <<'C'

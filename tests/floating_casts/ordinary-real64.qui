@@ -1,4 +1,4 @@
-tensor<real64> x = (tensor.ones<real64>([]) * real64(3)).track()
+tensor<real64> x := (tensor.ones<real64>([]) * real64(3)).track()
 (x * x).backward(&x)
 print(x.grad.item() == real64(6))
 print(NL)

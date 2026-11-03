@@ -22,8 +22,8 @@ TensorFactAnalysis analyze(const Function& function,const ModuleSummaries& summa
 }
 void initializer_shape_contracts() {
     const auto checked = check(R"(tensor<real32> guarded_sum(tensor<real32> first, tensor<real32> second)
-    tensor<real32>{2, 3} left = first
-    tensor<real32>{2, 3} right = second
+    tensor<real32>{2, 3} left := first
+    tensor<real32>{2, 3} right := second
     return left + right
 )");
     const auto module = lower(checked);
@@ -67,7 +67,7 @@ void initializer_shape_contracts() {
         return error.code == "TENSOR_SHAPE" || error.code == "TYPE_MISMATCH";
     };
     bool rejected = false;
-    try { (void)check(R"(tensor<real32>{2, 3} value = tensor.zeros<real32>([2, 4])
+    try { (void)check(R"(tensor<real32>{2, 3} value := tensor.zeros<real32>([2, 4])
 )"); }
     catch (const CompileError& error) { rejected = shape_error(error.diagnostic()); }
     catch (const CompileErrors& errors) {

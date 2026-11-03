@@ -1,8 +1,8 @@
 void double_all(int[] &values)
-    for auto &value = &values[]
+    for &value := &values[]
         value = value * 2
 
-int[] values = [1, 2, 3]
+int[] values := [1, 2, 3]
 double_all(&values)
-for auto value = values[]
+for value := values[]
     print.line(value)

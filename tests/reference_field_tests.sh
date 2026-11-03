@@ -28,10 +28,10 @@ class Holder this(local int &source)
         &this.total == &source
         &this.total
         return &this.total == &source
-int value = 4
-int next = 11
-Holder first = Holder(&value)
-Holder second = first
+int value := 4
+int next := 11
+Holder first := Holder(&value)
+Holder second := first
 .second.add(3)
 print("{first.read()} {second.read()} {value}{NL}")
 .second.bind(&next)
@@ -51,8 +51,8 @@ int read(Holder holder)
     return holder.value
 void .write(Holder holder)
     .holder.replace(17)
-int source = 1
-Holder holder = Holder(&source)
+int source := 1
+Holder holder := Holder(&source)
 print("{read(holder)} ")
 .write(holder)
 print("{read(holder)} {source}{NL}")
@@ -63,7 +63,7 @@ class Holder()
     int &value
 int read(Holder holder)
     return holder.value
-Holder holder = Holder()
+Holder holder := Holder()
 print(read(holder))
 QUI
 "$QUIDRA" check "$TMP/unbound-parameter.qui"
@@ -79,10 +79,10 @@ class Box<T> this(local T &source)
 
     &this.item = &source
 Box<int> make()
-    int value = 5
+    int value := 5
     return Box<int>(&value)
-Box<int> escaped = make()
-Box<int>[] copies = [escaped, escaped]
+Box<int> escaped := make()
+Box<int>[] copies := [escaped, escaped]
 copies[0].item = 9
 print("{escaped.item} {copies[1].item}{NL}")
 QUI
@@ -100,8 +100,8 @@ class Holder this(local int &source)
     int &total
 
     &this.total = &source
-Model model = Model(4)
-Holder field = Holder(&model.inner.value)
+Model model := Model(4)
+Holder field := Holder(&model.inner.value)
 model.inner = Inner(8)
 field.total = 6
 print("{model.inner.value} {field.total}{NL}")
@@ -109,7 +109,7 @@ QUI
 [[ "$("$QUIDRA" run "$TMP/detached.qui")" == '8 6' ]]
 cat > "$TMP/default.qui" <<'QUI'
 class Holder()
-    int &total = &source
+    int &total := &source
 QUI
 expect_failure default WRITE_CAPABILITY "A writable reference requires storage with write authority."
 cat > "$TMP/const.qui" <<'QUI'
@@ -136,15 +136,15 @@ expect_failure tuple TUPLE 'Tuple types hold values, never references.'
 cat > "$TMP/outside.qui" <<'QUI'
 class Holder()
     int &total
-int value = 1
-Holder holder = Holder()
+int value := 1
+Holder holder := Holder()
 &holder.total = &value
 QUI
 expect_failure outside REFERENCE_BINDING
 cat > "$TMP/unbound.qui" <<'QUI'
 class Holder()
     int &total
-Holder holder = Holder()
+Holder holder := Holder()
 print(holder.total)
 QUI
 expect_failure unbound UNBOUND_REFERENCE
@@ -153,13 +153,13 @@ class Holder this(local int &source)
     int &total
 
     &this.total = &source
-int[] values = [1, 2]
-Holder holder = Holder(&values[0])
+int[] values := [1, 2]
+Holder holder := Holder(&values[0])
 QUI
 expect_failure moving REFERENCE_TARGET
 cat > "$TMP/self.qui" <<'QUI'
 class Model this()
-    int value = 1
+    int value := 1
     int &alias
     void .link()
         &this.alias = &this.value
@@ -172,10 +172,10 @@ class Holder this(local int &source)
     &this.total = &source
     void .add(int amount)
         this.total += amount
-int left = 1
-int right = 2
-Holder first = Holder(&left)
-Holder second = Holder(&right)
+int left := 1
+int right := 2
+Holder first := Holder(&left)
+Holder second := Holder(&right)
 parallel
     .first.add(3)
     .second.add(4)

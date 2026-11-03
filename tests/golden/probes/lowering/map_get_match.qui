@@ -1,6 +1,6 @@
 // match over map.get(key) with scalar keys and values: the collection
 // idiom that branches on the map's own lookup instead of building V | none.
-map<int, int> counts = map<int, int>()
+map<int, int> counts := map<int, int>()
 .counts.set(1, 10)
 .counts.set(2, 20)
 match counts.get(1)
@@ -15,7 +15,7 @@ match counts.get(7)
         print("present{NL}")
 
 int lookup(int key)
-    map<int, real64> table = map<int, real64>()
+    map<int, real64> table := map<int, real64>()
     .table.set(3, 1.5)
     match table.get(key)
         real64 value

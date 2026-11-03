@@ -5,15 +5,15 @@ int grow(int[] &values)
         values = values.append(int(i))
     return 1
 
-int[] a = [5, 0, 0]
+int[] a := [5, 0, 0]
 a[0] = a[0] + grow(&a)
 print("plain: {a[0]} {len(a)}")
 print(NL)
-int[] b = [5, 0, 0]
+int[] b := [5, 0, 0]
 b[0] += grow(&b)
 print("compound: {b[0]} {len(b)}")
 print(NL)
-int[] c = [5, 3, 2]
+int[] c := [5, 3, 2]
 c[2] *= grow(&c) + 1
 print("product: {c[2]} {c[3]} {len(c)}")
 print(NL)

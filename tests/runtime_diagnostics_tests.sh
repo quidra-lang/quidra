@@ -55,126 +55,126 @@ row() {
 # is reported at the index operand; a slice names its bounds and is reported
 # at the indexing expression; a tensor access names the axis.
 row array-past-end 101 4 14 "index 3 out of bounds for length 3" caret=14 <<'QUI'
-int[] values = [1, 2, 3]
-nat at = len(values)
+int[] values := [1, 2, 3]
+nat at := len(values)
 print("before" + NL)
 print(values[at])
 QUI
 row array-negative 101 4 14 "index -1 out of bounds for length 3" <<'QUI'
-int[] values = [1, 2, 3]
-int at = int(len(values))
+int[] values := [1, 2, 3]
+int at := int(len(values))
 print("before" + NL)
 print(values[at - 4])
 QUI
 row array-write 101 4 8 "index 3 out of bounds for length 3" <<'QUI'
-int[] values = [1, 2, 3]
-nat at = len(values)
+int[] values := [1, 2, 3]
+nat at := len(values)
 print("before" + NL)
 values[at] = 9
 QUI
 row fixed-array 101 4 13 "index 5 out of bounds for length 4" <<'QUI'
-int[4] slots = [1, 2, 3, 4]
-nat at = len(slots) + 1
+int[4] slots := [1, 2, 3, 4]
+nat at := len(slots) + 1
 print("before" + NL)
 print(slots[at])
 QUI
 row string-ascii 101 4 12 "index 6 out of bounds for length 6" <<'QUI'
-string word = "quidra"
-nat at = len(word)
+string word := "quidra"
+nat at := len(word)
 print("before" + NL)
 print(word[at])
 QUI
 row string-non-ascii 101 4 12 "index 3 out of bounds for length 3" <<'QUI'
-string word = "日本語"
-nat at = len(word)
+string word := "日本語"
+nat at := len(word)
 print("before" + NL)
 print(word[at])
 QUI
 row string-negative 101 4 12 "index -1 out of bounds for length 6" <<'QUI'
-string word = "quidra"
-int at = int(len(word))
+string word := "quidra"
+int at := int(len(word))
 print("before" + NL)
 print(word[at - 7])
 QUI
 row string-compare 101 4 9 "index 6 out of bounds for length 6" <<'QUI'
-string word = "quidra"
-nat at = len(word)
+string word := "quidra"
+nat at := len(word)
 print("before" + NL)
 if word[at] == "q"
     print("q")
 QUI
 row bin-get 101 4 12 "index 10 out of bounds for length 8" <<'QUI'
-bin data = bin.fill(8, 0)
-nat at = len(data) + 2
+bin data := bin.fill(8, 0)
+nat at := len(data) + 2
 print("before" + NL)
 print(data[at])
 QUI
 row bin-set 101 4 6 "index 10 out of bounds for length 8" <<'QUI'
-bin data = bin.fill(8, 0)
-nat at = len(data) + 2
+bin data := bin.fill(8, 0)
+nat at := len(data) + 2
 print("before" + NL)
 data[at] = bin.fill(1, 1)
 QUI
 row bin-slice 101 4 7 "slice 2:<10 out of bounds for length 8" <<'QUI'
-bin data = bin.fill(8, 0)
-nat at = len(data) + 2
+bin data := bin.fill(8, 0)
+nat at := len(data) + 2
 print("before" + NL)
 print(data[2:<at])
 QUI
 row text-slice-past-end 101 4 7 "slice 1:<9 out of bounds for length 6" <<'QUI'
-string word = "quidra"
-nat stop = len(word) + 3
+string word := "quidra"
+nat stop := len(word) + 3
 print("before" + NL)
 print(word[1:<int(stop)])
 QUI
 row text-slice-reversed 101 4 7 "slice 7:<2 out of bounds for length 6" <<'QUI'
-string word = "quidra"
-int at = int(len(word))
+string word := "quidra"
+int at := int(len(word))
 print("before" + NL)
 print(word[at + 1:<at - 4])
 QUI
 row tensor-index 101 4 7 "index 3 out of bounds for axis 1 with length 3" <<'QUI'
-tensor<real32> grid = tensor.zeros<real32>([2, 3])
-int at = 3
+tensor<real32> grid := tensor.zeros<real32>([2, 3])
+int at := 3
 print("before" + NL)
 print(grid[1, at].item())
 QUI
 row tensor-set 101 4 1 "index 2 out of bounds for axis 0 with length 2" <<'QUI'
-tensor<real32> grid = tensor.zeros<real32>([2, 3])
-int at = 3
+tensor<real32> grid := tensor.zeros<real32>([2, 3])
+int at := 3
 print("before" + NL)
 grid[at - 1, 0] = real32(6)
 QUI
-row tensor-slice 101 4 23 "slice 0:<3 out of bounds for axis 0 with length 2" <<'QUI'
-tensor<real32> grid = tensor.zeros<real32>([2, 3])
-int at = 3
+row tensor-slice 101 4 24 "slice 0:<3 out of bounds for axis 0 with length 2" <<'QUI'
+tensor<real32> grid := tensor.zeros<real32>([2, 3])
+int at := 3
 print("before" + NL)
-tensor<real32> part = grid[0:<at, 0]
+tensor<real32> part := grid[0:<at, 0]
 QUI
 
-row tensor-zero-step 101 4 13 "slice step 0 is invalid" code=SLICE_STEP caret=13 <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = 0
+row tensor-zero-step 101 4 9 "slice step 0 is invalid" code=SLICE_STEP caret=9 <<'QUI'
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := 0
 print("before" + NL)
-auto part = t[::stride]
+part := t[::stride]
 QUI
-row tensor-marker-step 101 4 13 "slice step -1 cannot be used with ':<'" code=SLICE_STEP caret=13 <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = -1
+row tensor-marker-step 101 4 9 "slice step -1 cannot be used with ':<'" code=SLICE_STEP caret=9 <<'QUI'
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := -1
 print("before" + NL)
-auto part = t[0:<3:stride]
+part := t[0:<3:stride]
 QUI
-row tensor-negative-step 101 4 13 "tensor slices currently require a positive step" code=SLICE_STEP caret=13 <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int stride = -1
+row tensor-negative-step 101 4 9 "tensor slices currently require a positive step" code=SLICE_STEP caret=9 <<'QUI'
+tensor<real32> t := tensor.zeros<real32>([5])
+int stride := -1
 print("before" + NL)
-auto part = t[::stride]
+part := t[::stride]
 QUI
-row tensor-min-step 101 4 13 "slice step -9223372036854775808 cannot be used with ':<'" code=SLICE_STEP caret=13 <<'QUI'
-tensor<real32> t = tensor.zeros<real32>([5])
-int64 stride = -9223372036854775808
+row tensor-min-step 101 4 9 "slice step -9223372036854775808 cannot be used with ':<'" code=SLICE_STEP caret=9 <<'QUI'
+tensor<real32> t := tensor.zeros<real32>([5])
+int64 stride := -9223372036854775808
 print("before" + NL)
-auto part = t[0:<3:stride]
+part := t[0:<3:stride]
 QUI
 
 # --- Recursion: the limit, at the call that would exceed it, for a function
@@ -223,65 +223,65 @@ conversion_row() {
     row "$name" 101 "$line" "$column" "$message" code=NUMERIC_CONVERSION
 }
 conversion_row conversion-int8-high 4 7 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
-int value = 300
-int8 fits = int8(value - 200)
+int value := 300
+int8 fits := int8(value - 200)
 print("before" + NL)
 print(int8(value))
 QUI
 conversion_row conversion-int8-low 3 7 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
-int value = -300
+int value := -300
 print("before" + NL)
 print(int8(value))
 QUI
 conversion_row conversion-nat64-int32 3 7 "numeric conversion out of range: value cannot be represented as int32" <<'QUI'
-nat64 value = 1099511627776
+nat64 value := 1099511627776
 print("before" + NL)
 print(int32(value))
 QUI
 conversion_row conversion-negative-nat8 3 7 "numeric conversion out of range: value cannot be represented as nat8" <<'QUI'
-int value = -1
+int value := -1
 print("before" + NL)
 print(nat8(value))
 QUI
 conversion_row conversion-real32-finite 3 7 "numeric conversion out of range: value cannot be represented as real32" <<'QUI'
-real64 value = 1.0e300
+real64 value := 1.0e300
 print("before" + NL)
 print(real32(value))
 QUI
 # Signed infinity is valid. Indeterminate 0 / 0 must still stop before
 # producing NaN (C-supplied NaN is tested in tests/c_export_tests.sh).
 row real-division-by-zero 101 3 7 "real64 division by zero" code=DIVISION_BY_ZERO <<'QUI'
-real64 zero = 0.0
+real64 zero := 0.0
 print("before" + NL)
 print(0.0 / zero)
 QUI
 conversion_row conversion-bigint-int32 3 7 "numeric conversion out of range: value cannot be represented as int32" <<'QUI'
-int value = 1099511627776
+int value := 1099511627776
 print("before" + NL)
 print(int32(value))
 QUI
 conversion_row conversion-real-not-integral 3 7 "numeric conversion failed: value is not an integer and cannot be represented as int" <<'QUI'
-real value = 1.5
+real value := 1.5
 print("before" + NL)
 print(int(value))
 QUI
 conversion_row conversion-real-real64 5 7 "numeric conversion out of range: value cannot be represented as real64" <<'QUI'
-int ten = 10
-int big = ten ^ int(400)
-real value = real(big)
+int ten := 10
+int big := ten ^ int(400)
+real value := real(big)
 print("before" + NL)
 print(real64(value))
 QUI
-conversion_row conversion-array-element 3 20 "numeric conversion out of range: array element cannot be represented as int8" <<'QUI'
-int[] values = [1, 300]
+conversion_row conversion-array-element 3 21 "numeric conversion out of range: array element cannot be represented as int8" <<'QUI'
+int[] values := [1, 300]
 print("before" + NL)
-int8[] converted = int8(values)
+int8[] converted := int8(values)
 QUI
-conversion_row conversion-tensor-element 4 26 "numeric conversion out of range: tensor element cannot be represented as int8" <<'QUI'
-tensor<int64> values = tensor.ones<int64>([2])
+conversion_row conversion-tensor-element 4 27 "numeric conversion out of range: tensor element cannot be represented as int8" <<'QUI'
+tensor<int64> values := tensor.ones<int64>([2])
 values[1] = 300
 print("before" + NL)
-tensor<int8> converted = int8(values)
+tensor<int8> converted := int8(values)
 QUI
 
 if [[ "$failures" -ne 0 ]]; then

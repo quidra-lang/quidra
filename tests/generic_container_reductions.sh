@@ -15,9 +15,9 @@ T sum<T: floating>(const T[] values)
 real32 sum(const real32[] values)
     return values[0] * 2.0
 
-tensor<real32> scalar = tensor.ones<real32>([])
-real32[] single = [1.0]
-real64[] other = [3.0]
+tensor<real32> scalar := tensor.ones<real32>([])
+real32[] single := [1.0]
+real64[] other := [3.0]
 print("{sum(scalar)} {sum(single)} {sum(other)}{NL}")
 print("{sum<real32>(scalar)} {sum<real32>(single)} {sum<real64>(other)}{NL}")
 print("{sum<real32>([1.0])} {sum<real32>(tensor.zeros([]))}{NL}")
@@ -39,8 +39,8 @@ nat count_items<T: floating>(const tensor<T> values)
 nat count_items<T: floating>(const T[] values)
     return len(values)
 
-nat[] none_values = []
-print("{count_items<real32>([])} {count_items<real32>([for nat x = none_values[] then 1.0])}{NL}")
+nat[] none_values := []
+print("{count_items<real32>([])} {count_items<real32>([for nat x := none_values[] then 1.0])}{NL}")
 
 print("{sum<real32>(if true then [1.0] else [2.0])} {sum<real32>(if false then tensor.ones([]) else tensor.zeros([]))}{NL}")
 
@@ -52,7 +52,7 @@ class Reducer()
     T sum_array<T: floating>(const T[] values)
         return sum<T>(values)
 
-Reducer reducer = Reducer()
+Reducer reducer := Reducer()
 print("{reducer.sum<real32>(scalar)} {reducer.sum<real32>(single)} {reducer.sum_array<real32>(single)}{NL}")
 print("{reducer.sum<real32>(if true then [1.0] else [2.0])}{NL}")
 
@@ -101,7 +101,7 @@ string pick<T: floating>(const T[] items)
 QUI
 
 rejects DUPLICATE_NAME <<'QUI'
-string pick<T: floating>(const tensor<T> values, int mode = 0)
+string pick<T: floating>(const tensor<T> values, int mode := 0)
     return "tensor"
 string pick<T: floating>(const T[] values, int mode)
     return "array"
@@ -112,7 +112,7 @@ T sum<T: floating>(const tensor<T> values)
     return values.item()
 T sum<T: floating>(const T[] values)
     return values[0]
-int[] values = [1]
+int[] values := [1]
 print(sum<int>(values))
 QUI
 

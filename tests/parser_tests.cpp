@@ -71,19 +71,19 @@ static const IndexPart& slice_of(const Program& program, std::size_t statement) 
 static void slice_markers() {
     {
         auto marked = parse(
-            "int[] x = values[0<:5]\n"
-            "int[] y = values[10:>0:-2]\n"
-            "int[] z = values[5>:0]\n"
-            "int[] w = values[0:<5:2]\n"
-            "int[] conflict = values[0<:>5]\n"
-            "int[] spaced = values[0 <:5]\n"
-            "int[] after = values[0<: 5]\n"
-            "int[] plain = values[1:3]\n"
-            "int[] open = values[:]\n"
-            "int[] reverse = values[::-1]\n"
-            "int[] tail = values[2:]\n"
-            "int[] both = values[1<:<4]\n"
-            "int[] down = values[4>:>1]\n"
+            "int[] x := values[0<:5]\n"
+            "int[] y := values[10:>0:-2]\n"
+            "int[] z := values[5>:0]\n"
+            "int[] w := values[0:<5:2]\n"
+            "int[] conflict := values[0<:>5]\n"
+            "int[] spaced := values[0 <:5]\n"
+            "int[] after := values[0<: 5]\n"
+            "int[] plain := values[1:3]\n"
+            "int[] open := values[:]\n"
+            "int[] reverse := values[::-1]\n"
+            "int[] tail := values[2:]\n"
+            "int[] both := values[1<:<4]\n"
+            "int[] down := values[4>:>1]\n"
         );
         const auto get = [&](std::size_t index) -> const IndexPart& {
             return slice_of(marked, index);
@@ -134,14 +134,14 @@ static void slice_markers() {
         // Comparisons that do not touch the colon, or that sit inside a
         // nested argument list or parentheses, stay comparisons.
         auto compared = parse(
-            "int[] a = values[if x < y then 0 else 1:3]\n"
-            "int[] b = values[f(x < 3):]\n"
-            "int[] c = values[(x < 3):5]\n"
-            "int[] d = values[if c then 0 else n>:0]\n"
-            "int[] e = values[if c then n else m<:5]\n"
-            "int[] g = values[make<int>(n)>:0]\n"
-            "int[] h = values[x < y]\n"
-            "int[] i = values[cut[1]<:4]\n"
+            "int[] a := values[if x < y then 0 else 1:3]\n"
+            "int[] b := values[f(x < 3):]\n"
+            "int[] c := values[(x < 3):5]\n"
+            "int[] d := values[if c then 0 else n>:0]\n"
+            "int[] e := values[if c then n else m<:5]\n"
+            "int[] g := values[make<int>(n)>:0]\n"
+            "int[] h := values[x < y]\n"
+            "int[] i := values[cut[1]<:4]\n"
         );
         const auto& a = slice_of(compared, 0);
         require(a.start_form == SliceStart::inclusive &&
@@ -168,22 +168,22 @@ static void slice_markers() {
                 "a nested index before a start marker");
     }
     const std::string spacing = "A slice marker is written next to its colon";
-    reject_message("int[] x = values[0: <5]\n", spacing);
-    reject_message("int[] x = values[0 < :5]\n", spacing);
-    reject_message("int[] x = values[0: >5]\n", spacing);
-    reject_message("int[] x = values[<:5]\n", "An exclusive start needs a start value");
-    reject_message("int[] x = values[>:]\n", "An exclusive start needs a start value");
-    reject_message("int[] x = values[2:<]\n", "An exclusive end needs an end value");
-    reject_message("int[] x = values[2:>]\n", "An exclusive end needs an end value");
-    reject_message("int[] x = values[:> ]\n", "An exclusive end needs an end value");
-    reject_message("int[] x = values[0:5<:2]\n", "Slice markers belong to the first colon.");
-    reject_message("int[] x = values[0:5:<2]\n", "Slice markers belong to the first colon.");
-    reject_message("int[] x = values[0:5:>2]\n", "Slice markers belong to the first colon.");
+    reject_message("int[] x := values[0: <5]\n", spacing);
+    reject_message("int[] x := values[0 < :5]\n", spacing);
+    reject_message("int[] x := values[0: >5]\n", spacing);
+    reject_message("int[] x := values[<:5]\n", "An exclusive start needs a start value");
+    reject_message("int[] x := values[>:]\n", "An exclusive start needs a start value");
+    reject_message("int[] x := values[2:<]\n", "An exclusive end needs an end value");
+    reject_message("int[] x := values[2:>]\n", "An exclusive end needs an end value");
+    reject_message("int[] x := values[:> ]\n", "An exclusive end needs an end value");
+    reject_message("int[] x := values[0:5<:2]\n", "Slice markers belong to the first colon.");
+    reject_message("int[] x := values[0:5:<2]\n", "Slice markers belong to the first colon.");
+    reject_message("int[] x := values[0:5:>2]\n", "Slice markers belong to the first colon.");
     // Nested bounded ranges belong to their own expression, not the outer
     // index's slice syntax.
     {
-        auto nested = parse("int[] x = values[if c then n>:0 else m]\n"
-                            "int[] y = values[f(x<:3)]\n");
+        auto nested = parse("int[] x := values[if c then n>:0 else m]\n"
+                            "int[] y := values[f(x<:3)]\n");
         const auto& conditional = slice_of(nested, 0);
         require(!conditional.slice &&
                     std::holds_alternative<IfExpr>(conditional.index->data),
@@ -194,8 +194,8 @@ static void slice_markers() {
                 "a range argument does not start an outer slice");
     }
     // '<=' and '>=' are single tokens and never markers.
-    reject("int[] x = values[s<=:e]\n");
-    reject("int[] x = values[s>=:e]\n");
+    reject("int[] x := values[s<=:e]\n");
+    reject("int[] x := values[s>=:e]\n");
 }
 
 static const IfExpr& if_expression_of(const Program& program, std::size_t statement) {
@@ -205,20 +205,20 @@ static const IfExpr& if_expression_of(const Program& program, std::size_t statem
 
 static void if_expressions() {
     {
-        auto p = parse("int x = if ready then 1 else 2\n");
+        auto p = parse("int x := if ready then 1 else 2\n");
         const auto& node = if_expression_of(p, 0);
         require(node.conditions.size() == 1 && node.values.size() == 1 && node.otherwise,
                 "if-expression AST");
     }
     {
-        auto p = parse("string grade = if s >= 90 then \"A\" elif s >= 80 then \"B\" elif s >= 70 then \"C\" else \"D\"\n");
+        auto p = parse("string grade := if s >= 90 then \"A\" elif s >= 80 then \"B\" elif s >= 70 then \"C\" else \"D\"\n");
         const auto& node = if_expression_of(p, 0);
         require(node.conditions.size() == 3 && node.values.size() == 3,
                 "elif chains of an if-expression");
     }
     {
         // A branch extends as far as an or_expr does.
-        auto p = parse("int x = if c then 2 else 3 + 1\n");
+        auto p = parse("int x := if c then 2 else 3 + 1\n");
         const auto& node = if_expression_of(p, 0);
         require(std::holds_alternative<BinaryExpr>(node.otherwise->data),
                 "an if-expression branch is an or_expr");
@@ -227,31 +227,31 @@ static void if_expressions() {
         // Parenthesized nesting in every position, operands, and the
         // whole-expression positions.
         auto p = parse(
-            "int a = if x then (if y then 1 else 2) else (if z then 3 else 4)\n"
-            "int b = if (if x then y else z) then 1 else 2\n"
-            "int c = 1 + (if x then 2 else 3)\n"
-            "int d = (if x\n    then 1\n    else 2)\n"
+            "int a := if x then (if y then 1 else 2) else (if z then 3 else 4)\n"
+            "int b := if (if x then y else z) then 1 else 2\n"
+            "int c := 1 + (if x then 2 else 3)\n"
+            "int d := (if x\n    then 1\n    else 2)\n"
             "f(if x then 1 else 2, named = if y then 3 else 4)\n"
-            "int[] e = [if x then 1 else 2, 3]\n"
-            "int g = e[if x then 0 else 1]\n"
+            "int[] e := [if x then 1 else 2, 3]\n"
+            "int g := e[if x then 0 else 1]\n"
             "g += if x then 1 else 2\n"
             "print(\"{if x then a else b}\")\n"
-            "int h(int v = if x then 1 else 2)\n"
+            "int h(int v := if x then 1 else 2)\n"
             "    return if v > 0 then v else 0\n"
             "class Box()\n"
-            "    int v = if x then 1 else 2\n");
+            "    int v := if x then 1 else 2\n");
         require(p.statements.size() == 9 && p.functions.size() == 1 && p.classes.size() == 1,
                 "if-expressions in whole-expression positions");
         require(std::holds_alternative<IfExpr>(
                     std::get<BindingStmt>(p.statements[3]->data).value->data),
                 "a multi-line if-expression in parentheses");
     }
-    reject_code("int x = if c then 1\n", "IF_EXPRESSION");
-    reject_code("int x = if c then 1 else if d then 2 else 3\n", "IF_EXPRESSION");
-    reject_code("int x = if c 1 else 2\n", "IF_EXPRESSION");
-    reject_code("int x = if c then if d then 1 else 2 else 3\n", "IF_EXPRESSION");
-    reject_code("int x = if if c then d else e then 1 else 2\n", "IF_EXPRESSION");
-    reject_code("int x = 1 + if c then 2 else 3\n", "IF_EXPRESSION");
+    reject_code("int x := if c then 1\n", "IF_EXPRESSION");
+    reject_code("int x := if c then 1 else if d then 2 else 3\n", "IF_EXPRESSION");
+    reject_code("int x := if c 1 else 2\n", "IF_EXPRESSION");
+    reject_code("int x := if c then if d then 1 else 2 else 3\n", "IF_EXPRESSION");
+    reject_code("int x := if if c then d else e then 1 else 2\n", "IF_EXPRESSION");
+    reject_code("int x := 1 + if c then 2 else 3\n", "IF_EXPRESSION");
     reject_code("if if c then d else e\n    print(1)\n", "IF_EXPRESSION");
     reject_code("while if c then d else e\n    print(1)\n", "IF_EXPRESSION");
     reject_code("match if c then d else e\n    int v\n        print(v)\n", "IF_EXPRESSION");
@@ -283,19 +283,19 @@ static const Expr& binding_value_of(const Program& program, std::size_t statemen
 // start an identifier; `i` itself stays an ordinary name.
 static void imaginary_literals() {
     {
-        auto p = parse("com z = 2.0i\n");
+        auto p = parse("com z := 2.0i\n");
         const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
         require(literal && literal->spelling == "2.0" && !literal->integer_form,
                 "2.0i is an imaginary literal");
     }
     {
-        auto p = parse("com z = 1.0e5i\n");
+        auto p = parse("com z := 1.0e5i\n");
         const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
         require(literal && literal->spelling == "1.0e5" && !literal->integer_form,
                 "1.0e5i is an imaginary literal");
     }
     {
-        auto p = parse("com z = 2i\n");
+        auto p = parse("com z := 2i\n");
         const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
         require(literal && literal->spelling == "2" && literal->integer_form,
                 "2i is an integer-form imaginary literal");
@@ -309,13 +309,13 @@ static void imaginary_literals() {
                 "an i followed by an identifier character ends no imaginary literal");
     }
     {
-        auto p = parse("int i = 5\nint j = i\n");
+        auto p = parse("int i := 5\nint j := i\n");
         require(std::holds_alternative<IntegerExpr>(binding_value_of(p, 0).data) &&
                     std::holds_alternative<NameExpr>(binding_value_of(p, 1).data),
                 "i stays an identifier");
     }
     {
-        auto p = parse("int in = 5\nint j = in\n");
+        auto p = parse("int in := 5\nint j := in\n");
         const auto* name = std::get_if<NameExpr>(&binding_value_of(p, 1).data);
         require(name && name->name == "in", "in is an ordinary identifier");
         reject("for int x in values\n    print(x)\n");
@@ -349,7 +349,7 @@ static void brace_shapes() {
                 "only literal axes keep an extent expression");
     }
     {
-        auto p = parse("tensor<real32>{nat B,\n    nat C} x = f()\nprint(1)\n");
+        auto p = parse("tensor<real32>{nat B,\n    nat C} x := f()\nprint(1)\n");
         require(p.statements.size() == 2, "a brace shape across two lines is one statement");
     }
     {
@@ -400,8 +400,8 @@ static void brace_shapes() {
     }
     reject_code("tensor{2, 3} x = f()\n", "TENSOR_TYPE");
     reject_code("tensor<real32>{int N} x = f()\n", "SHAPE_VARIABLE");
-    reject_code("int x = {3}\n", "PARSE_ERROR");
-    reject_code("int x = 3}\n", "PARSE_ERROR");
+    reject_code("int x := {3}\n", "PARSE_ERROR");
+    reject_code("int x := 3}\n", "PARSE_ERROR");
     reject("tensor<real32>{} x\n");
     reject("tensor<real32>{3,} x\n");
     reject("tensor<real32>{3, , _} x\n");
@@ -413,7 +413,7 @@ static void brace_shapes() {
 }
 
 static void local_declarations() {
-    auto program = parse("local const int outer = 1\nvoid use(local const int count, local int &target)\n    local int copy = count\n    target = copy\n");
+    auto program = parse("local const int outer := 1\nvoid use(local const int count, local int &target)\n    local int copy := count\n    target = copy\n");
     const auto& binding = std::get<BindingStmt>(program.statements[0]->data);
     require(binding.is_local && binding.is_const, "local const binding qualifiers");
     require(program.functions[0].parameters[0].is_local &&
@@ -423,11 +423,11 @@ static void local_declarations() {
             "local parameter qualifiers preserve value/reference contract");
     const auto& inner = std::get<BindingStmt>(program.functions[0].body[0]->data);
     require(inner.is_local, "function-body local binding flag");
-    auto ordinary = parse("int count = 1\nvoid use(int count)\n    int copy = count\n");
+    auto ordinary = parse("int count := 1\nvoid use(int count)\n    int copy := count\n");
     require(!std::get<BindingStmt>(ordinary.statements[0]->data).is_local &&
             !ordinary.functions[0].parameters[0].is_local,
             "local remains optional for ordinary bindings and parameters");
-    auto pattern = parse("local (int count, _) = (1, string(\"x\"))\n");
+    auto pattern = parse("local (int count, _) := (1, string(\"x\"))\n");
     const auto& tuple = std::get<BindingStmt>(pattern.statements[0]->data);
     require(tuple.is_local && tuple.pattern, "local qualifies a destructuring declaration");
     reject("local (left, right) = pair\n");
@@ -439,17 +439,17 @@ static void bounded_range_precedence() {
         return *std::get<BindingStmt>(program.statements.at(0)->data).value;
     };
     {
-        auto program = parse("auto values = -3:0\n");
+        auto program = parse("values := -3:0\n");
         const auto* range = std::get_if<CallExpr>(&binding_value(program).data);
         require(range && range->callee == "$std.range.generate",
                 "a negative start belongs to the range, not a unary array operation");
         require(std::holds_alternative<UnaryExpr>(range->args[0].value->data),
                 "the range start retains its negative sign");
     }
-    for (const auto* source : {"auto values = :9 ^ 2\n",
-                               "auto values = :-3 ^ 2\n",
-                               "auto values = 3:0:-1 ^ 2\n",
-                               "auto values = -3:0 ^ 2\n"}) {
+    for (const auto* source : {"values := :9 ^ 2\n",
+                               "values := :-3 ^ 2\n",
+                               "values := 3:0:-1 ^ 2\n",
+                               "values := -3:0 ^ 2\n"}) {
         auto program = parse(source);
         const auto* power = std::get_if<BinaryExpr>(&binding_value(program).data);
         require(power && power->op == "^" &&
@@ -457,13 +457,13 @@ static void bounded_range_precedence() {
                 "power applies to the whole range after signed endpoints or steps");
     }
     {
-        auto program = parse("auto value = -2 ^ 2\n");
+        auto program = parse("value := -2 ^ 2\n");
         const auto* minus = std::get_if<UnaryExpr>(&binding_value(program).data);
         require(minus && std::holds_alternative<BinaryExpr>(minus->operand->data),
                 "scalar power still binds more tightly than unary minus");
     }
     {
-        auto program = parse("auto values = -(3:0)\n");
+        auto program = parse("values := -(3:0)\n");
         const auto* minus = std::get_if<UnaryExpr>(&binding_value(program).data);
         require(minus && std::holds_alternative<CallExpr>(minus->operand->data),
                 "parentheses allow unary minus on the generated array");
@@ -474,20 +474,20 @@ int main() {
     bounded_range_precedence();
     {
         auto program=parse("parallel for 5 > int x >= 0 step -2\n    continue\n"
-                           "parallel\n    int first = 1\n");
+                           "parallel\n    int first := 1\n");
         const auto& loop=std::get<ForStmt>(program.statements.at(0)->data);
         require(loop.parallel && loop.range && loop.range->descending,"parallel prefix preserves integer range syntax");
         require(loop.parallel_span.start.line==1 && loop.parallel_span.start.column==1,"parallel prefix source origin");
         require(std::holds_alternative<ParallelStmt>(program.statements.at(1)->data),"parallel suite remains a separate construct");
     }
     {
-        auto program=parse("parallel for int x = left[], int y = right[]\n    void\n");
+        auto program=parse("parallel for int x := left[], int y := right[]\n    void\n");
         const auto& loop=std::get<ForStmt>(program.statements.at(0)->data);
         require(loop.parallel && loop.collections.size()==1,"parallel zip retains additional bindings");
     }
 
     {
-        auto program=parse("for int price = prices[], auto quantity = quantities[], _ = ignored[]\n    print(price)\n");
+        auto program=parse("for int price := prices[], quantity := quantities[], _ = ignored[]\n    print(price)\n");
         const auto& loop=std::get<ForStmt>(program.statements.at(0)->data);
         require(loop.name=="price" && loop.collections.size()==2,"zip stores every binding");
         require(loop.collections[0].name=="quantity" && loop.collections[0].is_auto &&
@@ -496,8 +496,8 @@ int main() {
         visit_for_header(loop,[&](const Expr& source){order+=std::get<NameExpr>(source.data).name+";";});
         require(order=="prices;quantities;ignored;","zip header visitor is left to right");
     }
-    reject_code("for int &x = &values[], int y = other[]\n    print(y)\n","FOR_HEADER");
-    reject_code("for int x = values[nat i], int y = other[]\n    print(y)\n","FOR_HEADER");
+    reject_code("for int &x := &values[], int y = other[]\n    print(y)\n","FOR_HEADER");
+    reject_code("for int x := values[nat i], int y = other[]\n    print(y)\n","FOR_HEADER");
     reject_code("for int x < 3, int y = other[]\n    print(y)\n","FOR_HEADER");
     brace_shapes();
     imaginary_literals();
@@ -508,7 +508,7 @@ int main() {
             "    Name(string)\n"
             "    Plus\n"
             "    End\n"
-            "Token token = Token.Number(3.0)\n"
+            "Token token := Token.Number(3.0)\n"
             "match token\n"
             "    Token.Number(value)\n"
             "        print(value)\n"
@@ -552,7 +552,7 @@ int main() {
     {
         // `_` stays an identifier token: a typed `_` parses as a declaration,
         // so the checker can name the rule that applies (DISCARD).
-        auto discard = parse("int _ = 1\n");
+        auto discard = parse("int _ := 1\n");
         require(std::get<BindingStmt>(discard.statements[0]->data).name == "_",
                 "a typed discard parses as a binding");
     }
@@ -574,8 +574,8 @@ int main() {
     }
     {
         auto extents = parse(
-            "int n = 3\n"
-            "int m = 4\n"
+            "int n := 3\n"
+            "int m := 4\n"
             "tensor<real64>{nat(n * 2 + 1), _, 224} image\n"
             "tensor<real64>{nat(n * m), 224} graph\n"
             "real64[nat(n * m)] row\n"
@@ -615,8 +615,8 @@ int main() {
         bool rejected = false;
         try {
             (void)parse(
-                "int first =\n"
-                "int second =\n"
+                "int first :=\n"
+                "int second :=\n"
             );
         } catch (const CompileErrors& errors) {
             rejected = true;
@@ -668,8 +668,8 @@ int main() {
         require(rejected, "invalid UTF-8 source rejection");
     }
     {
-        auto lf = parse("string text = \"left\nright\"\n");
-        auto crlf = parse("string text = \"left\r\nright\"\r\n");
+        auto lf = parse("string text := \"left\nright\"\n");
+        auto crlf = parse("string text := \"left\r\nright\"\r\n");
         const auto& lf_binding = std::get<BindingStmt>(lf.statements[0]->data);
         const auto& crlf_binding = std::get<BindingStmt>(crlf.statements[0]->data);
         const auto& lf_text = std::get<StringExpr>(lf_binding.value->data).value;
@@ -707,7 +707,7 @@ int main() {
             "    T value\n"
             "\n"
             "class Config()\n"
-            "    int retries = 3\n"
+            "    int retries := 3\n"
             "    string endpoint\n"
             "\n"
             "T first<T>(T[] values)\n"
@@ -744,8 +744,8 @@ int main() {
 
     {
         auto p = parse(
-            "Box<int> a = Box<int>(value = 1)\n"
-            "int x = first<int>([1, 2, 3])\n"
+            "Box<int> a := Box<int>(value = 1)\n"
+            "int x := first<int>([1, 2, 3])\n"
             "geometry.Point p\n"
         );
         require(p.statements.size() == 3, "generic and qualified statements");
@@ -767,9 +767,9 @@ int main() {
             "    int x\n"
             "    int y\n"
             "\n"
-            "Point a = Point(x = 1, y = 2)\n"
-            "Point b = Point(x = 1, y = 2)\n"
-            "bool same = a == b\n"
+            "Point a := Point(x = 1, y = 2)\n"
+            "Point b := Point(x = 1, y = 2)\n"
+            "bool same := a == b\n"
         );
         require(p.statements.size() == 3, "class equality syntax");
         const auto& binding = std::get<BindingStmt>(p.statements[2]->data);
@@ -779,10 +779,10 @@ int main() {
 
     {
         auto p = parse(
-            "int x = 1\n"
-            "int &y = &x\n"
+            "int x := 1\n"
+            "int &y := &x\n"
             "print(&x)\n"
-            "bool same = &x == &y\n"
+            "bool same := &x == &y\n"
         );
         require(p.statements.size() == 4, "address expression statement count");
         const auto& print_stmt = std::get<ExprStmt>(p.statements[2]->data);
@@ -802,7 +802,7 @@ int main() {
         auto p = parse(
             "void touch(int &value)\n"
             "    value = 1\n"
-            "int x = 0\n"
+            "int x := 0\n"
             "touch(&x)\n"
         );
         const auto& call_stmt = std::get<ExprStmt>(p.statements[1]->data);
@@ -812,7 +812,7 @@ int main() {
 
     {
         auto p = parse(
-            "int x = 0\n"
+            "int x := 0\n"
             "if x < 0\n"
             "    print(\"negative\")\n"
             "elif x == 0\n"
@@ -844,7 +844,7 @@ int main() {
 
     {
         auto p = parse(
-            "int x = 1\n"
+            "int x := 1\n"
             "x += 2\n"
             "x -= 3\n"
             "x *= 4\n"
@@ -862,7 +862,7 @@ int main() {
     {
         auto p = parse(
             "void show()\n"
-            "    string root = \"x/{ghost.field}\"\n"
+            "    string root := \"x/{ghost.field}\"\n"
         );
         const auto& binding = std::get<BindingStmt>(p.functions[0].body[0]->data);
         const auto& templ = std::get<StringTemplateExpr>(binding.value->data);
@@ -871,13 +871,13 @@ int main() {
         const auto& name_expression = *member.base;
         const auto& name = std::get<NameExpr>(name_expression.data);
         require(name.name == "ghost", "interpolation member base");
-        require(name_expression.span.start.line == 2 && name_expression.span.start.column == 23,
+        require(name_expression.span.start.line == 2 && name_expression.span.start.column == 24,
                 "interpolation base start span");
-        require(name_expression.span.end.line == 2 && name_expression.span.end.column == 28,
+        require(name_expression.span.end.line == 2 && name_expression.span.end.column == 29,
                 "interpolation base end span");
-        require(member_expression.span.start.line == 2 && member_expression.span.start.column == 23,
+        require(member_expression.span.start.line == 2 && member_expression.span.start.column == 24,
                 "interpolation member start span");
-        require(member_expression.span.end.line == 2 && member_expression.span.end.column == 34,
+        require(member_expression.span.end.line == 2 && member_expression.span.end.column == 35,
                 "interpolation member end span");
     }
 
@@ -886,18 +886,18 @@ int main() {
         try {
             (void)parse(
                 "void show()\n"
-                "    string root = \"x/{ghost.}\"\n"
+                "    string root := \"x/{ghost.}\"\n"
             );
         } catch (const CompileError& error) {
             caught = true;
             require(error.diagnostic().span.start.line == 2 &&
-                    error.diagnostic().span.start.column == 29,
+                    error.diagnostic().span.start.column == 30,
                     "interpolation parse error span");
         } catch (const CompileErrors& errors) {
             caught = true;
             require(!errors.diagnostics().empty(), "interpolation aggregate diagnostic");
             require(errors.diagnostics()[0].span.start.line == 2 &&
-                    errors.diagnostics()[0].span.start.column == 29,
+                    errors.diagnostics()[0].span.start.column == 30,
                     "interpolation aggregate parse error span");
         }
         require(caught, "interpolation parse error");
@@ -905,7 +905,7 @@ int main() {
 
     {
         auto p = parse(
-            "real64 value = 12.3456\n"
+            "real64 value := 12.3456\n"
             "print(\"{value:int=5,frac=2,zero}\")\n"
             "print(\"{value:sig=4}\")\n"
         );
@@ -935,8 +935,8 @@ int main() {
     );
     {
         auto p = parse(
-            "int super = 1\n"
-            "int override = 2\n"
+            "int super := 1\n"
+            "int override := 2\n"
         );
         require(p.statements.size() == 2, "ordinary identifier spellings");
     }
@@ -976,7 +976,7 @@ int main() {
             "class Grid()\n"
             "    int n\n"
             "    void make()\n"
-            "        tensor<real32>{nat(n), 2} values = tensor.zeros<real32>([n, 2])\n"
+            "        tensor<real32>{nat(n), 2} values := tensor.zeros<real32>([n, 2])\n"
         );
         const auto& binding = std::get<BindingStmt>(shaped.classes[0].methods[1].body[0]->data);
         require(binding.declared_type.shape_axes.size() == 2 &&
@@ -992,14 +992,14 @@ int main() {
                 "bare member in a tensor shape");
         auto explicit_self = parse(
             "class Self this()\n"
-            "    int size = 1\n"
+            "    int size := 1\n"
             "    Self copy()\n"
             "        return this\n"
         );
         const auto& self_return = std::get<ReturnStmt>(explicit_self.classes[0].methods[1].body[0]->data);
         require(std::get<NameExpr>(self_return.value->data).self_reference,
                 "the header declares the whole self identity");
-        auto ordinary = parse("int this = 3\nclass this()\n    int value\n");
+        auto ordinary = parse("int this := 3\nclass this()\n    int value\n");
         require(ordinary.statements.size() == 1 && ordinary.classes.size() == 1,
                 "this is an ordinary identifier");
         auto implicit = parse("class Box()\n    int size\n    int get()\n        return this\n");
@@ -1010,6 +1010,60 @@ int main() {
     reject_code("class Box\n    int value\n", "CONSTRUCTOR_SIGNATURE");
     reject_code("class Box self()\n    self = 1\n", "WRITE_CAPABILITY");
 
+    {
+        auto program = parse(
+            "int[] source := [1, 2]\n"
+            "count := len(source)\n"
+            "int total\n"
+            "total = 2\n"
+            "(int number, word) := (total, \"two\")\n"
+            "(number, word) = (total, \"changed\")\n"
+            "for item := source[], int other := source[]\n"
+            "    total = item + other\n"
+            "for number = source[]\n"
+            "    total = number\n"
+        );
+        const auto& inferred = std::get<BindingStmt>(program.statements[1]->data);
+        require(inferred.declared_type.name == "auto" && inferred.name == "count" && inferred.value,
+                "untyped declaration requests inference");
+        require(std::holds_alternative<AssignStmt>(program.statements[3]->data) &&
+                std::holds_alternative<AssignStmt>(program.statements[5]->data),
+                "'=' writes existing scalar and destructured destinations");
+        const auto& destructured = std::get<BindingStmt>(program.statements[4]->data);
+        require(destructured.pattern && destructured.pattern->elements[1].type &&
+                destructured.pattern->elements[1].type->name == "auto",
+                "untyped declaration within a tuple pattern");
+        const auto& fresh = std::get<ForStmt>(program.statements[6]->data);
+        const auto& existing = std::get<ForStmt>(program.statements[7]->data);
+        require(fresh.declares && fresh.is_auto && fresh.collections[0].declares &&
+                !fresh.collections[0].is_auto && !existing.declares,
+                "collection loop declaration and assignment are distinct");
+    }
+    reject_message("int x = 1\n", "Initialize a declaration with ':='");
+    reject_code("auto x := \"text\"\n", "INVALID_AUTO");
+    reject_message("Widget item(1)\n", "Initialize a declaration with ':='");
+    {
+        const auto program = parse(
+            "string render(label := \"default\", int width := 10)\n"
+            "    return label\n"
+            "class Greeting(label := \"hi\")\n"
+            "    loud := false\n"
+            "render(label = \"override\")\n"
+        );
+        const auto& parameters = program.functions.front().parameters;
+        require(parameters[0].type.name == "auto" && parameters[0].default_value &&
+                parameters[1].type.name == "int" && parameters[1].default_value,
+                "typed and inferred parameter defaults use ':='");
+        require(program.classes[0].fields[0].type.name == "auto" &&
+                program.classes[0].fields[1].type.name == "auto",
+                "class parameters and initialized fields can omit the type");
+    }
+    reject_message("int f(int x = 1)\n    return x\n", "Declare a parameter default with ':='");
+    reject_message("class Widget(int x = 1)\n", "Declare a parameter default with ':='");
+    reject("render(label := \"override\")\n");
+    reject_code("(int x, int y) = (1, 2)\n", "TUPLE");
+    reject_code("for int x = values[]\n    print(x)\n", "FOR_HEADER");
+
     local_declarations();
 
     slice_markers();
@@ -1017,7 +1071,7 @@ int main() {
     if_expressions();
 
     {
-        const auto source = std::string("int[] values = [1, 2]\nauto output = [\n    for int element = values[]\n    if element > 0\n    then element * element\n]\n");
+        const auto source = std::string("int[] values := [1, 2]\noutput := [\n    for int element := values[]\n    if element > 0\n    then element * element\n]\n");
         auto program = parse(source);
         const auto* binding = std::get_if<BindingStmt>(&program.statements[1]->data);
         require(binding && binding->value, "generation result binding");
@@ -1029,16 +1083,16 @@ int main() {
         require(source_name && source_name->name == "values", "generation strips only the source suffix");
         require(generated->binding_span.start.line == 3 && generated->value->span.start.line == 5,
                 "multiline generation preserves child spans");
-        auto no_filter = parse("int[] values = []\nauto output = [for auto element = values[] then element]\n");
+        auto no_filter = parse("int[] values := []\noutput := [for element := values[] then element]\n");
         const auto& plain = std::get<BindingStmt>(no_filter.statements[1]->data);
         const auto& generated_plain = std::get<ArrayComprehensionExpr>(plain.value->data);
         require(!generated_plain.condition && !generated_plain.type, "optional filter and inferred binding");
     }
-    reject_code("int[] values = []\nauto output = [for int &x = &values[] then x]\n", "ARRAY_COMPREHENSION");
-    reject_code("int[] values = []\nauto output = [for int x = &values[] then x]\n", "ARRAY_COMPREHENSION");
-    reject_code("int[] values = []\nauto output = [for int x = values[], int y = values[] then x + y]\n", "ARRAY_COMPREHENSION");
-    reject_code("auto output = [for 0 <= int x < 3 then x]\n", "ARRAY_COMPREHENSION");
-    reject_code("int[] values = []\nauto output = [for int x = values[] x]\n", "ARRAY_COMPREHENSION");
+    reject_code("int[] values := []\noutput := [for int &x = &values[] then x]\n", "ARRAY_COMPREHENSION");
+    reject_code("int[] values := []\noutput := [for int x := &values[] then x]\n", "ARRAY_COMPREHENSION");
+    reject_code("int[] values := []\noutput := [for int x := values[], int y = values[] then x + y]\n", "ARRAY_COMPREHENSION");
+    reject_code("output := [for 0 <= int x < 3 then x]\n", "ARRAY_COMPREHENSION");
+    reject_code("int[] values := []\noutput := [for int x := values[] x]\n", "ARRAY_COMPREHENSION");
 
     std::cout << "all parser tests passed\n";
 }

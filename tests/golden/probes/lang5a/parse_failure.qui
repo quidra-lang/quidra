@@ -1,6 +1,6 @@
 // A numeric parse that fails, handled as a value and then fail-fast.
-int | error good = int.parse("123")
-int | error bad = int.parse("12x")
+int | error good := int.parse("123")
+int | error bad := int.parse("12x")
 match good
     int value
         print("good {value}")
@@ -13,6 +13,6 @@ match bad
     error problem
         print("bad failed {problem}")
 print(NL)
-int forced = int.parse("x9")
+int forced := int.parse("x9")
 print("{forced}")
 print(NL)

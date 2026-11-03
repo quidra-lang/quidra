@@ -59,7 +59,7 @@ Common forms therefore have deliberately narrow jobs:
 | `const T` | immutable value (passed without a copy where nothing can change it) |
 | `T \| none` | normal absence is part of the type |
 | `T \| error` | failure is part of the type |
-| `auto \| error` | retain an otherwise fail-fast failure channel |
+| `T \| error result := operation()` | retain an otherwise fail-fast failure channel |
 | `try` | propagate `error` |
 | `T(value)` | explicit representation conversion |
 | `tensor<T>{3, _, _}` | element type plus exact rank/shape constraints |
@@ -86,14 +86,14 @@ void increment(int &value)
 real32 first_sample(const tensor<real32>{3, _, _} pixels)
     return pixels[0, 0, 0].item()
 
-int count = 7
+int count := 7
 increment(&count)
 
-tensor<real32>{3, _, _} pixels = tensor.zeros([3, 224, 224])
-real32 sample = first_sample(pixels)
+tensor<real32>{3, _, _} pixels := tensor.zeros([3, 224, 224])
+real32 sample := first_sample(pixels)
 
-nat8 flags = 240
-nat8 selected = flags AND 15
+nat8 flags := 240
+nat8 selected := flags AND 15
 ```
 
 The surviving tokens carry concrete semantics:
@@ -117,14 +117,14 @@ storage is written with `&`, and writable authority is visible in both the
 parameter and the call.
 
 ```quidra
-int[] original = [1, 2, 3]
-int[] copy = original
+int[] original := [1, 2, 3]
+int[] copy := original
 copy[0] = 9
 
 void reset(int &value)
     value = 0
 
-int count = 5
+int count := 5
 reset(&count)
 ```
 
@@ -155,7 +155,7 @@ A required result type is a constraint, not permission to convert.
 
 Fallible operations can flow directly into a success-only context; an actual
 `error` then fails fast at that boundary. Explicit `T | error`,
-`auto | error`, `try`, and `match` are for code that deliberately keeps,
+An explicit `T | error` binding, `try`, and `match` are for code that deliberately keeps,
 propagates, or handles the failure channel.
 
 This keeps ordinary examples and ordinary application code focused on the main
@@ -202,13 +202,13 @@ The following syntax is not intended as an inventory of unrelated features. Each
 ### Bindings
 
 ```quidra
-int initialized = 5
+int initialized := 5
 int later
-int source = 10
-auto inferred = source
+int source := 10
+inferred := source
 ```
 
-`auto` requires an initializer. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
+A declaration with an initializer uses `:=`. Omit the type when the initializer determines it. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
 
 ### Numeric types
 
@@ -240,7 +240,7 @@ real64
 ```
 
 Complex numbers, a real and an imaginary part of `real16`, `real16b`,
-`real32`, `real64` or exact `real` (`com64 z = 1.0 + 2.0i`, `z.real`,
+`real32`, `real64` or exact `real` (`com64 z := 1.0 + 2.0i`, `z.real`,
 `z.imag`; no ordering):
 
 ```text
@@ -264,12 +264,12 @@ real
 Fixed-width integers use explicit bitwise syntax:
 
 ```quidra
-nat8 flags = 240
-nat8 mask = 15
-nat8 selected = flags AND mask
-nat8 toggled = flags XOR mask
-nat8 inverted = NOT flags
-nat8 shifted = flags << 2
+nat8 flags := 240
+nat8 mask := 15
+nat8 selected := flags AND mask
+nat8 toggled := flags XOR mask
+nat8 inverted := NOT flags
+nat8 shifted := flags << 2
 ```
 
 Uppercase bitwise words are intentionally distinct from boolean `and` / `or` / `not`, safe storage `&`, and union `|`. Signed operations use the same defined N-bit two's-complement representation used by explicit binary conversion; signed `>>` preserves the sign bit. This is a small example of Quidra preferring one stable semantic role per spelling over familiar overloads.
@@ -283,27 +283,27 @@ There is no `char` type:
 Numeric parsing and standard text conversion use methods:
 
 ```quidra
-int value = int.parse("123")
+int value := int.parse("123")
 
-int number = 123
-string text = number.string()
+int number := 123
+string text := number.string()
 ```
 
 ### Arrays and bin
 
 ```quidra
-int[] values = [1, 2, 3]
-int[3] fixed = [4, 5, 6]
+int[] values := [1, 2, 3]
+int[3] fixed := [4, 5, 6]
 
-int[] pending = array(100)
+int[] pending := array(100)
 pending[0] = 7
 
-int[] zeros = array(100, fill = 0)
+int[] zeros := array(100, fill = 0)
 values = values.append(4)
 
-string[] names = ["Aki", "Yui", "Haru"]
-int[] scores = [90, 85, 95]
-auto ranked = names.sorted(by = scores, descending = true)
+string[] names := ["Aki", "Yui", "Haru"]
+int[] scores := [90, 85, 95]
+ranked := names.sorted(by = scores, descending = true)
 ```
 
 Fixed array lengths are part of the type. Runtime-sized arrays may be created
@@ -323,10 +323,10 @@ code-point slice syntax and remain immutable.
 `bin` is mutable packed raw binary data:
 
 ```quidra
-bin data = bin.fill(8, 0)
+bin data := bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
-bin first = data[0]
-bin parsed = bin.parse("0101")
+bin first := data[0]
+bin parsed := bin.parse("0101")
 ```
 
 `len(data)` is the number of bits, indexing returns one-bit `bin`, and slicing
@@ -338,8 +338,8 @@ example `nat8(bits)`, and the bit length must match the destination width.
 Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `value` is exactly one Unicode code point and `n` is the repeat count.
 
 ```quidra
-string name = "Quidra"
-string repeated = string.repeat("a", 6)
+string name := "Quidra"
+string repeated := string.repeat("a", 6)
 print.line("Hello, {name}")
 print.line("first{NL}second")
 ```
@@ -353,7 +353,7 @@ Strings are immutable UTF-8 text. `len(text)` counts Unicode code points (a `nat
 ### Functions and calls
 
 ```quidra
-int add(int a, int b = 1)
+int add(int a, int b := 1)
     return a + b
 
 print.line(add(41)) // output: 42
@@ -369,20 +369,20 @@ class Point(real64 x, real64 y)
     real64 length_squared()
         return x * x + y * y
 
-Point point = Point(3.0, 4.0)
+Point point := Point(3.0, 4.0)
 print.line(point.length_squared())
 
 Point origin
 origin = Point(0.0, 0.0)
 ```
 
-Every class header has an argument list, even `class Empty()`. Ordinary header parameters create members; `local` parameters are initialization-only. Header members initialize first, then direct statements and member initialization expressions execute in written order. Methods execute only when called. A bare typed declaration declares an uninitialized binding with no accessible instance. Use `Type name(args)` or `Type name = Type(args)` for generation, or assign a generated value later. Member reads, member writes, method calls and instance borrowing require an initialized instance; copying an existing initialized value does not rerun generation. Header defaults or ordinary factory functions provide alternate call forms; `construct` is an ordinary name.
+Every class header has an argument list, even `class Empty()`. Ordinary header parameters create members; `local` parameters are initialization-only. Header members initialize first, then direct statements and member initialization expressions execute in written order. Methods execute only when called. A bare typed declaration declares an uninitialized binding with no accessible instance. Use `Type name := Type(args)` or `Type name := Type(args)` for generation, or assign a generated value later. Member reads, member writes, method calls and instance borrowing require an initialized instance; copying an existing initialized value does not rerun generation. Header defaults or ordinary factory functions provide alternate call forms; `construct` is an ordinary name.
 
 Members use bare names inside the class. An optional instance name, such as `class Point point(...)`, names the fixed whole instance and permits explicit value/reference use. It cannot be reassigned or escape while initialization is incomplete. `this` is an ordinary identifier and has no implicit receiver meaning. Members, instance names and locals cannot shadow one another. `local` declarations are visible after their declaration through inner control blocks, never across a function/class boundary.
 
 ```quidra
 class Counter()
-    private int value = 0
+    private int value := 0
 
     private void .increment_raw()
         value += 1
@@ -403,11 +403,11 @@ into the value that contains it.
 
 ```quidra
 class Holder(local int &source)
-    int &value = &source
+    int &value := &source
 
-int count = 1
-Holder first = Holder(&count)
-Holder second = first
+int count := 1
+Holder first := Holder(&count)
+Holder second := first
 second.value = 7
 print.line(&first.value == &second.value)
 ```
@@ -427,9 +427,9 @@ unused elements with `_`. They also work in collection loops and match cases.
 Tuples compare and hash recursively; their printed string elements are quoted.
 
 ```quidra
-(int, string) pair = (3, "three")
-(int number, string word) = pair
-(int &stored, string &label) = &pair
+(int, string) pair := (3, "three")
+(int number, string word) := pair
+(int &stored, string &label) := &pair
 stored = number + 1
 print.line(pair)
 ```
@@ -439,7 +439,7 @@ print.line(pair)
 Core standard namespaces are always visible and cannot be imported or aliased:
 
 ```quidra
-auto home_path = environment.get("HOME")
+home_path := environment.get("HOME")
 ```
 
 Generic mathematical semantics live in the installed `math` package and require
@@ -457,7 +457,7 @@ import geometry = "./geometry.qui"
 import shared = "@/shared.qui"
 import plot = plotting
 
-geometry.Point point = geometry.Point(2, 3)
+geometry.Point point := geometry.Point(2, 3)
 ```
 
 Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `nn.mode.fast()`.
@@ -474,7 +474,7 @@ class Box<T>(T value)
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box = Box<int>(7)
+Box<int> box := Box<int>(7)
 print.line(first<int>([4, 5]))
 ```
 
@@ -485,7 +485,7 @@ Repeated function or method names are permitted only for a generic specializatio
 ### Control flow
 
 ```quidra
-bool condition = false
+bool condition := false
 
 void work()
     print.line("work")
@@ -510,8 +510,8 @@ step and compute each value from the entry lattice rather than repeated
 rounded addition.
 
 ```quidra
-int[] values = [2, 4, 6]
-for int &value = &values[nat index]
+int[] values := [2, 4, 6]
+for int &value := &values[nat index]
     value += int(index)
 for real32 value <= 1.0 step 0.25
     print.line(value)
@@ -540,7 +540,7 @@ print.line(second)
 Use `elif` for flat conditional chains:
 
 ```quidra
-int score = 85
+int score := 85
 if score >= 90
     print.line("A")
 elif score >= 80
@@ -565,14 +565,14 @@ int n
 scan("{&n} {int &m}")
 print.line("{n} + {m}")
 
-int amount = 123456789
+int amount := 123456789
 print.line("{amount:group=3}") // 123,456,789
 
-file.read input("pairs.txt")
+file.read input := file.read("pairs.txt")
 while .input("{int &left} {int &right}")
     print.line("{left} {right}")
 
-file.write output("output.txt")
+file.write output := file.write("output.txt")
 .output("{n} {m}")
 .output.line("next line")
 .output.line()
@@ -591,17 +591,17 @@ existing bare `nat` name constrains the extent to that value; it does not bind
 a new name.
 
 ```quidra
-int batch = 3
-tensor<real32>{nat(batch * 2), 224} contextual = tensor.zeros()
+int batch := 3
+tensor<real32>{nat(batch * 2), 224} contextual := tensor.zeros()
 batch = 8 // the captured extent remains 6
 
-tensor<real32> matrix = tensor.zeros([2, 3])
-tensor<real32>{3, _, _} pixels = tensor.zeros([3, 224, 224])
-tensor<real32>{1, _, _} bias = tensor.ones([1, 224, 224])
-tensor<real32>{3, _, _} result = pixels + bias
+tensor<real32> matrix := tensor.zeros([2, 3])
+tensor<real32>{3, _, _} pixels := tensor.zeros([3, 224, 224])
+tensor<real32>{1, _, _} bias := tensor.ones([1, 224, 224])
+tensor<real32>{3, _, _} result := pixels + bias
 
-auto crop = result[:, 10:<20, 30:<40]
-real32 value = result[0, 10, 20].item()
+crop := result[:, 10:<20, 30:<40]
+real32 value := result[0, 10, 20].item()
 ```
 
 `tensor<T>(shape)` creates uninitialized tensor storage; `tensor.zeros` and
@@ -612,11 +612,11 @@ facts the compiler already knows.
 Device movement is always visible:
 
 ```quidra
-tensor<real32> cpu = tensor.zeros([1024])
-tensor<real32> gpu0 = tensor.zeros([1024], gpu = 0)
+tensor<real32> cpu := tensor.zeros([1024])
+tensor<real32> gpu0 := tensor.zeros([1024], gpu = 0)
 
-tensor<real32> copied = cpu.gpu(0)
-tensor<real32> host = copied.cpu()
+tensor<real32> copied := cpu.gpu(0)
+tensor<real32> host := copied.cpu()
 ```
 
 CPU is the default. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never
@@ -669,10 +669,10 @@ field containing a matching destination is rejected for writable traversal.
 
 ```quidra
 class Model()
-    private int weight = 1
-    int[] rest = [2, 3]
-Model model = Model()
-for int &value = &reflect.each<int>(&model)[nat index]
+    private int weight := 1
+    int[] rest := [2, 3]
+Model model := Model()
+for int &value := &reflect.each<int>(&model)[nat index]
     value += int(index)
 ```
 
@@ -694,11 +694,11 @@ import math
 class Scale()
     nn.Parameter<real32> value
 
-Scale model = Scale()
+Scale model := Scale()
 model.value = nn.Parameter<real32>(value = tensor.ones([1]))
-nn.Adam<Scale> optimizer = nn.Adam<Scale>(&model)
-tensor<real32> prediction = .model.value.track() * real32(2)
-tensor<real32> loss = math.mean(prediction * prediction)
+nn.Adam<Scale> optimizer := nn.Adam<Scale>(&model)
+tensor<real32> prediction := .model.value.track() * real32(2)
+tensor<real32> loss := math.mean(prediction * prediction)
 
 loss.backward(&model)
 .optimizer.update()
@@ -787,7 +787,7 @@ The current implementation includes:
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, transpose views, and autograd/device substrate operations,
-- distinct `file.read` / `file.write` / `file.append` resource types, typed and formatted `.f(T &value)` / `.f("{&x} {T &y}")` reads (atomic multi-field parsing) and `.f(value)` scalar/interpolated writes (no implicit newline), lifetime-bound close, and direct declarations such as `file.read f(path)`,
+- distinct `file.read` / `file.write` / `file.append` resource types, typed and formatted `.f(T &value)` / `.f("{&x} {T &y}")` reads (atomic multi-field parsing) and `.f(value)` scalar/interpolated writes (no implicit newline), lifetime-bound close, and direct declarations such as `file.read f := file.read(path)`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.
@@ -905,7 +905,7 @@ $ quidra
 Quidra 0.6.0
 >>> int(1) + 2
 3
->>> int x = 5
+>>> int x := 5
 >>> x
 5
 >>> x = 8

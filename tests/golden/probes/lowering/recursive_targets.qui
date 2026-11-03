@@ -10,13 +10,13 @@ class Node this()
     this.children = []
     this.target = autograd.target()
 
-Node root = Node()
+Node root := Node()
 root.children = root.children.append(Node())
-tensor<real32> left = tensor.ones<real32>([]).track(&root.target)
-tensor<real32> right = tensor.ones<real32>([]).track(
+tensor<real32> left := tensor.ones<real32>([]).track(&root.target)
+tensor<real32> right := tensor.ones<real32>([]).track(
     &root.children[0].target
 )
-tensor<real32> loss = left * right
+tensor<real32> loss := left * right
 loss.backward(&root)
 print(root.target.has_grad())
 print(NL)

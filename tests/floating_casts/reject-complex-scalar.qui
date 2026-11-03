@@ -1,2 +1,2 @@
-tensor<com32> z = tensor.ones<com32>([])
-auto y = real32(z)
+tensor<com32> z := tensor.ones<com32>([])
+y := real32(z)

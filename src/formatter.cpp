@@ -87,6 +87,7 @@ bool expression_end(TokenKind kind) {
 bool spaced_operator(TokenKind kind) {
     switch (kind) {
         case TokenKind::Assign:
+        case TokenKind::DeclareAssign:
         case TokenKind::PlusAssign:
         case TokenKind::MinusAssign:
         case TokenKind::StarAssign:
@@ -109,12 +110,13 @@ bool spaced_operator(TokenKind kind) {
 }
 
 // The tokens after which an operand starts. A '.' there begins a marked call
-// (`x = .update()`, `return .f()`, `f(a, .g())`, `try .optimizer.update()`):
+// (`x := .update()`, `return .f()`, `f(a, .g())`, `try .optimizer.update()`):
 // it is the mutation marker (L1), not a member access, which always follows
 // a complete operand.
 bool operand_follows(TokenKind kind) {
     switch (kind) {
         case TokenKind::Assign:
+        case TokenKind::DeclareAssign:
         case TokenKind::PlusAssign:
         case TokenKind::MinusAssign:
         case TokenKind::StarAssign:

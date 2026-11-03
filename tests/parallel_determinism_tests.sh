@@ -5,7 +5,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 cat > "$TMP/diamond.qui" <<'QUI'
-int32 seed = 7
+int32 seed := 7
 int32 left
 int32 right
 int32 result
@@ -34,11 +34,11 @@ QUI
 cat > "$TMP/representative.qui" <<'QUI'
 void first()
     time.sleep(time.seconds(0.01))
-    int[] values = [1, 2, 3]
-    int value = values[9]
+    int[] values := [1, 2, 3]
+    int value := values[9]
 void second()
-    int[] values = [1, 2, 3]
-    int value = values[7]
+    int[] values := [1, 2, 3]
+    int value := values[7]
 print("before" + NL)
 parallel
     first()

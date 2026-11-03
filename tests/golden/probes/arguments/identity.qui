@@ -2,7 +2,7 @@
 // part of it never equals the address of the caller's storage. A const
 // local is a copy as well: it keeps its value when the source changes.
 class Holder()
-    int[] values = [1, 2]
+    int[] values := [1, 2]
 
 void elements(const int[] b, int[] &a)
     print(&b[0] == &a[0])
@@ -16,12 +16,12 @@ void reads(const int[] b)
     print(b[1])
     print(NL)
 
-int[] a = [1, 2, 3]
+int[] a := [1, 2, 3]
 elements(a, &a)
-Holder h = Holder()
+Holder h := Holder()
 fields(h, &h)
 reads(a)
-const int[] x = a
+const int[] x := a
 print(&x[0] == &a[0])
 print(NL)
 a[0] = 5

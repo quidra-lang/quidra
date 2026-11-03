@@ -1,8 +1,8 @@
-int[2][3] matrix = [
+int[2][3] matrix := [
     [1, 2, 3],
     [4, 5, 6],
 ]
 print.line(matrix[1][2])
-int[][] independent = array(2, fill = array(3, fill = 0))
+int[][] independent := array(2, fill = array(3, fill = 0))
 independent[0][0] = 9
 print.line(independent[1][0])

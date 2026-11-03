@@ -6,7 +6,7 @@ for 100000000.0 < real32 rounded <= 100000008.0 step 1.0
     print("{rounded} ")
 for -1.0 < real64 d <= 1.0 step 0.1
     print("{d} ")
-real stop = 0.5
+real stop := 0.5
 for 0.0 <= real exact <= stop step 0.1
     print("{exact} {exact + 0.2} {0.2 - exact} {exact * 3.0} {exact < 0.3} {real16(exact)} {real16b(exact)} {real32(exact)} {real64(exact)} ")
     stop = 0.0

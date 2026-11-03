@@ -1,11 +1,11 @@
 // Reading a file that does not exist: as a value, then fail-fast.
-auto | error attempt = file.read("missing-input.txt")
+file.read | error attempt := file.read("missing-input.txt")
 match attempt
     file.read stream
         print("opened")
     error problem
         print("failed: {problem}")
 print(NL)
-file.read forced = file.read("missing-input.txt")
+file.read forced := file.read("missing-input.txt")
 print("unexpected")
 print(NL)

@@ -41,17 +41,17 @@ same bound spelling and require an explicit step.
 Collection headers iterate exactly one level:
 
 ```quidra
-for int value = values[]
+for int value := values[]
     print(value)
-for auto &value = &values[nat i]
+for &value := &values[nat i]
     value = value + int(i)
 ```
 
-`auto` infers the element type. An explicit type must be the exact element
+Omitting the type before a new binding infers the element type. An explicit type must be the exact element
 type. A value loop may also assign each element to an existing value
 binding (`for value = values[]`); a zero-iteration loop preserves its old
-value. `[nat i]` and `[auto i]` declare a new read-only natural index scoped
-to the loop. The index is relative to the iterated collection, including a
+value. `[nat i]` declares a new read-only natural index scoped
+to the loop. A new element binding uses `:=`. The index is relative to the iterated collection, including a
 slice. Write `values[]` to omit the index; an existing index variable and
 `_` in the brackets are not index declarations.
 

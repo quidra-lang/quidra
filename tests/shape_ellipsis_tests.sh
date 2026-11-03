@@ -6,12 +6,12 @@ trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 
 cat > "$TMP/shapes.qui" <<'QUI'
-tensor<real32>{...} scalar = tensor.ones<real32>([])
-tensor<real32>{2, ...} prefix = tensor.zeros<real32>([2])
-tensor<real32>{_, 3, ...} second = tensor.zeros<real32>([2, 3, 4])
-tensor<real32>{..., nat C} suffix = tensor.zeros<real32>([2, 3, 4])
-tensor<real32>{nat N, ..., N} square = tensor.zeros<real32>([2, 3, 2])
-tensor<real32>{2, ..., 4} endpoints = tensor.zeros<real32>([2, 4])
+tensor<real32>{...} scalar := tensor.ones<real32>([])
+tensor<real32>{2, ...} prefix := tensor.zeros<real32>([2])
+tensor<real32>{_, 3, ...} second := tensor.zeros<real32>([2, 3, 4])
+tensor<real32>{..., nat C} suffix := tensor.zeros<real32>([2, 3, 4])
+tensor<real32>{nat N, ..., N} square := tensor.zeros<real32>([2, 3, 2])
+tensor<real32>{2, ..., 4} endpoints := tensor.zeros<real32>([2, 4])
 endpoints = tensor.zeros<real32>([2, 3, 4])
 print("{scalar.item()} {C} {N} {endpoints.shape()[1]}{NL}")
 
@@ -25,7 +25,7 @@ nat shared(tensor<real32>{..., nat W} a, tensor<real32>{W, ...} b)
     return W
 
 print("{last(suffix)} {last(echo(suffix))} {shared(suffix, tensor.zeros<real32>([4, 1]))}{NL}")
-func<nat>(tensor<real32>{..., nat Dimension}) tail = last
+func<nat>(tensor<real32>{..., nat Dimension}) tail := last
 print(tail(suffix))
 print(NL)
 
@@ -57,7 +57,7 @@ exhaustive(scalar)
 
 tensor<real32> make(nat[] dimensions)
     return tensor.zeros<real32>(dimensions)
-tensor<real32>{..., nat Last} dynamic = make([2, 3, 5])
+tensor<real32>{..., nat Last} dynamic := make([2, 3, 5])
 dynamic = make([7, 5])
 print("{Last} {dynamic.shape()[0]}{NL}")
 
@@ -72,7 +72,7 @@ void known_rank(tensor<real32>{_, _} | none value)
 known_rank(tensor.zeros<real32>([3, 4]))
 
 parallel
-    tensor<real32>{2, ..., 4} hoisted = make([2, 3, 4])
+    tensor<real32>{2, ..., 4} hoisted := make([2, 3, 4])
     print("{hoisted.shape()[1]}{NL}")
 QUI
 expected="$(printf '1.0 4 2 3\n4 4 4\n4\n4\ntail 5\nother\nother\nany\n5 7\nfallback\n3')"
@@ -94,12 +94,12 @@ rejects() {
         exit 1
     fi
 }
-rejects 'tensor<real32>{2, ..., 3} x = tensor.zeros<real32>([2])' TYPE_MISMATCH
-rejects 'tensor<real32>{2, ..., 3} x = tensor.zeros<real32>([2, 4])' TYPE_MISMATCH
-rejects 'tensor<real32>{_, 2, ...} x = tensor.zeros<real32>([3])' TYPE_MISMATCH
+rejects 'tensor<real32>{2, ..., 3} x := tensor.zeros<real32>([2])' TYPE_MISMATCH
+rejects 'tensor<real32>{2, ..., 3} x := tensor.zeros<real32>([2, 4])' TYPE_MISMATCH
+rejects 'tensor<real32>{_, 2, ...} x := tensor.zeros<real32>([3])' TYPE_MISMATCH
 rejects 'tensor<real32>{..., ...} x = tensor.zeros<real32>([])' PARSE
 rejects 'void inconsistent(tensor<real32>{2, ...} value)
-    tensor<real32>{3, ...} wrong = value[:]' TYPE_MISMATCH
+    tensor<real32>{3, ...} wrong := value[:]' TYPE_MISMATCH
 
 fails_at_runtime() {
     local shape="$1" dimensions="$2" code="$3"
@@ -121,7 +121,7 @@ fails_at_runtime '{nat N, ..., N}' '[2, 4, 3]' SHAPE_MISMATCH
 cat > "$TMP/captured.qui" <<'QUI'
 tensor<real32> make(nat[] dimensions)
     return tensor.zeros<real32>(dimensions)
-tensor<real32>{..., nat C} x = make([2, 3])
+tensor<real32>{..., nat C} x := make([2, 3])
 x = make([4, 5])
 print("unreachable")
 QUI
@@ -133,8 +133,8 @@ grep -q TENSOR "$TMP/err"
 cat > "$TMP/reference.qui" <<'QUI'
 tensor<real32> make(nat[] dimensions)
     return tensor.zeros<real32>(dimensions)
-tensor<real32>{2, ...} x = make([2, 4])
-tensor<real32>{2, ...} &r = &x
+tensor<real32>{2, ...} x := make([2, 4])
+tensor<real32>{2, ...} &r := &x
 r = make([3, 4])
 print("unreachable")
 QUI

@@ -7,14 +7,14 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-stream-cache"
 
 cat > "$TMP/stream-v2.qui" <<QUI
 void write_sample(string path)
-    file.write output(path)
+    file.write output := file.write(path)
     .output("alpha{NL}beta")
 void append_sample(string path)
-    file.append appended(path)
+    file.append appended := file.append(path)
     .appended("{NL}gamma")
 write_sample("$TMP/stream-v2.txt")
 append_sample("$TMP/stream-v2.txt")
-file.read source("$TMP/stream-v2.txt")
+file.read source := file.read("$TMP/stream-v2.txt")
 while .source(string &line)
     print("{line}{NL}")
 QUI
@@ -26,7 +26,7 @@ class Counter(int value)
         value += 1
         return value
 
-Counter counter = Counter(0)
+Counter counter := Counter(0)
 print(.counter())
 print(",")
 print(.counter())
@@ -58,7 +58,7 @@ if "$QUIDRA" check "$TMP/invalid-condition-v2.qui" >"$TMP/invalid-condition-v2.o
 fi
 
 cat > "$TMP/deprecated-stream-surface.qui" <<'QUI'
-auto handle = file.open("legacy.txt")
+handle := file.open("legacy.txt")
 QUI
 if "$QUIDRA" check "$TMP/deprecated-stream-surface.qui" >"$TMP/deprecated-stream.out" 2>"$TMP/deprecated-stream.err"; then
     echo "Obsolete file.open() remains publicly accessible" >&2
@@ -74,7 +74,7 @@ if "$QUIDRA" check "$TMP/deprecated-handle-type.qui" >"$TMP/deprecated-handle.ou
 fi
 
 cat > "$TMP/deprecated-whole-text.qui" <<'QUI'
-string content = file.read("legacy.txt")
+string content := file.read("legacy.txt")
 QUI
 if "$QUIDRA" check "$TMP/deprecated-whole-text.qui" >"$TMP/deprecated-whole.out" 2>"$TMP/deprecated-whole.err"; then
     echo "Obsolete whole-text file.read() type remains accepted" >&2
@@ -94,7 +94,7 @@ class Addition(int offset)
     int operator(int value)
         return offset + value
 
-Addition add = Addition(7)
+Addition add := Addition(7)
 print(add(5))
 QUI
 [[ "$("$QUIDRA" "$TMP/read-only-operator.qui")" == "12" ]]
@@ -105,7 +105,7 @@ class Counter(int value)
         value += 1
         return value
 
-Counter c = Counter(0)
+Counter c := Counter(0)
 print(c())
 QUI
 if "$QUIDRA" check "$TMP/missing-mutation-marker.qui" >"$TMP/missing-mutation-marker.out" 2>"$TMP/missing-mutation-marker.err"; then
@@ -141,7 +141,7 @@ QUI
 
 printf '\377\n' > "$TMP/invalid-utf8.txt"
 cat > "$TMP/stream-invalid-utf8.qui" <<QUI
-file.read source = file.read("$TMP/invalid-utf8.txt")
+file.read source := file.read("$TMP/invalid-utf8.txt")
 while .source(string &line)
     print(line)
 QUI
@@ -153,11 +153,11 @@ fi
 # lines, and EOF must be distinguishable from I/O failure.
 cat > "$TMP/stream-short-form.qui" <<QUI
 void write_lines(string path)
-    file.write f = file.write(path)
+    file.write f := file.write(path)
     .f("first{NL}{NL}third")
 write_lines("$TMP/stream-short-form.txt")
-file.read f = file.read("$TMP/stream-short-form.txt")
-int number = 0
+file.read f := file.read("$TMP/stream-short-form.txt")
+int number := 0
 while .f(string &line)
     number += 1
     print("{number}:{line}{NL}")
@@ -165,9 +165,9 @@ QUI
 [[ "$("$QUIDRA" "$TMP/stream-short-form.qui")" == "$(printf '1:first\n2:\n3:third')" ]]
 
 cat > "$TMP/stream-empty.qui" <<QUI
-file.write writer = file.write("$TMP/stream-empty.txt")
-file.read reader = file.read("$TMP/stream-empty.txt")
-int lines = 0
+file.write writer := file.write("$TMP/stream-empty.txt")
+file.read reader := file.read("$TMP/stream-empty.txt")
+int lines := 0
 while .reader(string &line)
     lines += 1
 print(lines)
@@ -177,7 +177,7 @@ QUI
 # Typed scalar reads consume one complete line per call.
 printf '42\n-7\n2.5\ntrue\nfalse' > "$TMP/stream-typed.txt"
 cat > "$TMP/stream-typed.qui" <<QUI
-file.read source("$TMP/stream-typed.txt")
+file.read source := file.read("$TMP/stream-typed.txt")
 if .source(int &exact)
     print("i:{exact}|")
 if .source(int64 &fixed)
@@ -188,15 +188,15 @@ if .source(bool &yes)
     print("b:{yes}|")
 if .source(bool &no)
     print("c:{no}|")
-int preserved = 10
-bool eof = .source(&preserved)
+int preserved := 10
+bool eof := .source(&preserved)
 print("eof:{eof}|preserved:{preserved}")
 QUI
 [[ "$("$QUIDRA" "$TMP/stream-typed.qui")" == "i:42|n:-7|r:2.5|b:true|c:false|eof:false|preserved:10" ]]
 
 printf '1\n2\n3' > "$TMP/stream-ints.txt"
 cat > "$TMP/stream-ints.qui" <<QUI
-file.read source("$TMP/stream-ints.txt")
+file.read source := file.read("$TMP/stream-ints.txt")
 while .source(int &value)
     print("{value},")
 QUI
@@ -205,8 +205,8 @@ QUI
 # Conversion errors are not EOF and must not overwrite the output.
 printf '10 20' > "$TMP/stream-invalid-number.txt"
 cat > "$TMP/stream-invalid-number.qui" <<QUI
-file.read source("$TMP/stream-invalid-number.txt")
-int preserved = 99
+file.read source := file.read("$TMP/stream-invalid-number.txt")
+int preserved := 99
 match .source(&preserved)
     bool success
         print("unexpected:{success}")
@@ -217,8 +217,8 @@ QUI
 
 printf '128' > "$TMP/stream-overflow.txt"
 cat > "$TMP/stream-overflow.qui" <<QUI
-file.read source("$TMP/stream-overflow.txt")
-int8 preserved = 7
+file.read source := file.read("$TMP/stream-overflow.txt")
+int8 preserved := 7
 match .source(&preserved)
     bool success
         print("unexpected:{success}")
@@ -229,8 +229,8 @@ QUI
 
 printf 'TRUE' > "$TMP/stream-invalid-bool.txt"
 cat > "$TMP/stream-invalid-bool.qui" <<QUI
-file.read source("$TMP/stream-invalid-bool.txt")
-bool preserved = true
+file.read source := file.read("$TMP/stream-invalid-bool.txt")
+bool preserved := true
 match .source(&preserved)
     bool success
         print("unexpected:{success}")
@@ -242,7 +242,7 @@ QUI
 # Numeric literals are accepted directly by writer and appender.
 cat > "$TMP/stream-write-literals.qui" <<QUI
 void write_literals(string path)
-    file.write output(path)
+    file.write output := file.write(path)
     .output(42)
     .output("|")
     .output(-7)
@@ -251,7 +251,7 @@ void write_literals(string path)
     .output("|")
     .output(true)
 write_literals("$TMP/stream-write-literals.txt")
-file.read source("$TMP/stream-write-literals.txt")
+file.read source := file.read("$TMP/stream-write-literals.txt")
 if .source(string &line)
     print(line)
 QUI
@@ -262,11 +262,11 @@ cmp -s "$TMP/stream-write-literals.expected" "$TMP/stream-write-literals.txt"
 # Writers and appenders accept numeric/bool scalar values without adding line breaks.
 cat > "$TMP/stream-write-typed.qui" <<QUI
 void write_typed(string path)
-    file.write output(path)
-    int big = 9007199254740993
-    nat8 byte = 255
-    real64 decimal = 2.5
-    bool enabled = true
+    file.write output := file.write(path)
+    int big := 9007199254740993
+    nat8 byte := 255
+    real64 decimal := 2.5
+    bool enabled := true
     .output(big)
     .output("{NL}")
     .output(byte)
@@ -278,12 +278,12 @@ void write_typed(string path)
     .output(false)
     .output("{NL}")
 void append_typed(string path)
-    file.append output(path)
+    file.append output := file.append(path)
     .output(-7)
     .output("{NL}")
 write_typed("$TMP/stream-write-typed.txt")
 append_typed("$TMP/stream-write-typed.txt")
-file.read source("$TMP/stream-write-typed.txt")
+file.read source := file.read("$TMP/stream-write-typed.txt")
 if .source(int &big)
     print("{big}|")
 if .source(nat8 &byte)
@@ -302,7 +302,7 @@ printf '9007199254740993\n255\n2.5\ntrue\nfalse\n-7\n' > "$TMP/stream-write-type
 cmp -s "$TMP/stream-write-typed.expected" "$TMP/stream-write-typed.txt"
 
 cat > "$TMP/stream-write-invalid-target.qui" <<'QUI'
-file.write output("unused.txt")
+file.write output := file.write("unused.txt")
 .output([1, 2])
 QUI
 if "$QUIDRA" check "$TMP/stream-write-invalid-target.qui" >"$TMP/stream-write-invalid-target.out" 2>"$TMP/stream-write-invalid-target.err"; then
@@ -311,7 +311,7 @@ if "$QUIDRA" check "$TMP/stream-write-invalid-target.qui" >"$TMP/stream-write-in
 fi
 
 cat > "$TMP/stream-invalid-target.qui" <<'QUI'
-file.read source("unused.txt")
+file.read source := file.read("unused.txt")
 if .source(string[] &values)
     print(len(values))
 QUI
@@ -324,15 +324,15 @@ fi
 # and exact one-line boundary with normal false-at-EOF iteration.
 printf '10 20\n30 40' > "$TMP/stream-format-lines.txt"
 cat > "$TMP/stream-format-lines.qui" <<QUI
-file.read input("$TMP/stream-format-lines.txt")
+file.read input := file.read("$TMP/stream-format-lines.txt")
 while .input("{int &left} {int &right}")
     print("{left}+{right}|")
 QUI
 [[ "$("$QUIDRA" "$TMP/stream-format-lines.qui")" == "10+20|30+40|" ]]
 
 cat > "$TMP/stream-format-mixed.qui" <<QUI
-file.read input("$TMP/stream-format-lines.txt")
-int first = -1
+file.read input := file.read("$TMP/stream-format-lines.txt")
+int first := -1
 if .input("{&first} {int &second}")
     print("{first}:{second}")
 QUI
@@ -341,9 +341,9 @@ QUI
 # Formatting a line containing invalid data does not commit any target.
 printf '10 invalid\n' > "$TMP/stream-format-bad.txt"
 cat > "$TMP/stream-format-bad.qui" <<QUI
-file.read input("$TMP/stream-format-bad.txt")
-int first = 90
-int second = 80
+file.read input := file.read("$TMP/stream-format-bad.txt")
+int first := 90
+int second := 80
 match .input("{&first} {&second}")
     bool ok
         print("unexpected:{ok}")
@@ -354,7 +354,7 @@ QUI
 
 printf 'true,5\nfalse,6' > "$TMP/stream-format-bools.txt"
 cat > "$TMP/stream-format-bools.qui" <<QUI
-file.read input("$TMP/stream-format-bools.txt")
+file.read input := file.read("$TMP/stream-format-bools.txt")
 while .input("{bool &flag},{int &count}")
     print("{flag}:{count}|")
 QUI
@@ -363,7 +363,7 @@ QUI
 # A standalone scan statement may declare an output binding after fail-fast,
 # but the declaration of a file-reader condition is scoped to its branch.
 cat > "$TMP/scan-inline-input.qui" <<'QUI'
-int first = 0
+int first := 0
 scan("{&first} {int &second}")
 print("{first}:{second}")
 QUI
@@ -376,9 +376,9 @@ QUI
 [[ "$(printf 'true 13\n' | "$QUIDRA" "$TMP/scan-boolean-input.qui")" == "true:13" ]]
 
 cat > "$TMP/scan-atomic-failure.qui" <<'QUI'
-int first = 90
-int second = 80
-void | error result = scan("{&first} {&second}")
+int first := 90
+int second := 80
+void | error result := scan("{&first} {&second}")
 match result
     void
         print("unexpected")
@@ -388,7 +388,7 @@ QUI
 [[ "$(printf '10 bad\n' | "$QUIDRA" "$TMP/scan-atomic-failure.qui")" == "INPUT_FORMAT:90:80" ]]
 
 cat > "$TMP/stream-format-adjacent.qui" <<'QUI'
-file.read input("unused.txt")
+file.read input := file.read("unused.txt")
 while .input("{int &first}{int &second}")
     print(first)
 QUI
@@ -398,7 +398,7 @@ if "$QUIDRA" check "$TMP/stream-format-adjacent.qui" >"$TMP/stream-format-adjace
 fi
 
 cat > "$TMP/stream-format-scope.qui" <<'QUI'
-file.read input("unused.txt")
+file.read input := file.read("unused.txt")
 while .input("{int &first} {int &second}")
     print(first)
 print(second)
@@ -439,7 +439,7 @@ if "$QUIDRA" check "$TMP/conditional-else-scope.qui" >"$TMP/conditional-else-sco
 fi
 
 cat > "$TMP/while-output-scope.qui" <<QUI
-file.read f = file.read("$TMP/stream-short-form.txt")
+file.read f := file.read("$TMP/stream-short-form.txt")
 while .f(string &line)
     print(line)
 print(line)
@@ -451,7 +451,7 @@ fi
 
 # The reader and writer have distinct static call contracts.
 cat > "$TMP/writer-as-reader.qui" <<'QUI'
-file.write output = file.write("somewhere.txt")
+file.write output := file.write("somewhere.txt")
 while .output(string &line)
     print(line)
 QUI
@@ -461,7 +461,7 @@ if "$QUIDRA" check "$TMP/writer-as-reader.qui" >"$TMP/writer-as-reader.out" 2>"$
 fi
 
 cat > "$TMP/reader-as-writer.qui" <<'QUI'
-file.read input = file.read("somewhere.txt")
+file.read input := file.read("somewhere.txt")
 .input("data")
 QUI
 if "$QUIDRA" check "$TMP/reader-as-writer.qui" >"$TMP/reader-as-writer.out" 2>"$TMP/reader-as-writer.err"; then
@@ -474,14 +474,14 @@ fi
 # use the corresponding file namespace constructor.
 cat > "$TMP/mode-typed-direct.qui" <<QUI
 void write_direct(string path)
-    file.write output(path)
+    file.write output := file.write(path)
     .output("old")
 void append_direct(string path)
-    file.append extra(path)
+    file.append extra := file.append(path)
     .extra("{NL}new")
 write_direct("$TMP/mode-typed-direct.txt")
 append_direct("$TMP/mode-typed-direct.txt")
-file.read input("$TMP/mode-typed-direct.txt")
+file.read input := file.read("$TMP/mode-typed-direct.txt")
 while .input(string &line)
     print("{line}{NL}")
 QUI
@@ -515,7 +515,7 @@ if "$QUIDRA" check "$TMP/mode-cross-assign.qui" >"$TMP/mode-cross-assign.out" 2>
 fi
 
 cat > "$TMP/deprecated-file-shorthand.qui" <<'QUI'
-file stream = file.read("input.txt")
+file stream := file.read("input.txt")
 QUI
 if "$QUIDRA" check "$TMP/deprecated-file-shorthand.qui" >"$TMP/deprecated-file-shorthand.out" 2>"$TMP/deprecated-file-shorthand.err"; then
     echo "The deprecated unqualified file type was accepted" >&2

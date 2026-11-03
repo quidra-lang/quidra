@@ -8,10 +8,10 @@ trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 
 cat > "$TMP/selection-temporaries.qui" <<'QUI'
-int[] values = [10, 20, 30]
-int[] signed_indices = [2, 0, 2]
-nat[] natural_indices = [0, 2]
-bool[] mask = [false, true, false]
+int[] values := [10, 20, 30]
+int[] signed_indices := [2, 0, 2]
+nat[] natural_indices := [0, 2]
+bool[] mask := [false, true, false]
 print(len(values[signed_indices]) == 3)
 print(NL)
 print(len(values[natural_indices]) == 2)
@@ -40,14 +40,14 @@ expected="$(printf 'true\n%.0s' {1..3})"
 [[ "$("$QUIDRA" "$TMP/selection-temporaries.qui")" == "$expected" ]]
 
 cat > "$TMP/selection-row-copies.qui" <<'QUI'
-int[][] rows = [[1, 2], [3, 4]]
-int[] repeated = [0, 0]
-int[][] gathered = rows[repeated]
+int[][] rows := [[1, 2], [3, 4]]
+int[] repeated := [0, 0]
+int[][] gathered := rows[repeated]
 gathered[0][0] = 99
 print(rows[0][0] == 1 and gathered[1][0] == 1)
 print(NL)
-bool[] mask = [true, false]
-int[][] selected = rows[mask]
+bool[] mask := [true, false]
+int[][] selected := rows[mask]
 selected[0][1] = 77
 print(rows[0][1] == 2 and selected[0][1] == 77)
 print(NL)
@@ -57,7 +57,7 @@ int[][] make_rows()
     return [[5, 6], [7, 8]]
 int[] repeated_indices()
     return [0, 0]
-int[] row = make_rows()[repeated_indices()][0]
+int[] row := make_rows()[repeated_indices()][0]
 print(row[0] == 5 and row[1] == 6)
 print(NL)
 QUI
@@ -84,20 +84,20 @@ int mutate_and_index(int[] &values)
     values[1] = 60
     return 1
 
-int[] source = [10, 20]
-int[] gathered = source[replace_and_indices(&source)]
+int[] source := [10, 20]
+int[] gathered := source[replace_and_indices(&source)]
 print(gathered[0] == 20 and gathered[1] == 10 and source[0] == 50)
 print(NL)
 source = [10, 20]
-int[] selected = source[replace_and_mask(&source)]
+int[] selected := source[replace_and_mask(&source)]
 print(selected[0] == 20 and source[0] == 50)
 print(NL)
 source = [10, 20]
-int[] snapshot = source[mutate_and_indices(&source)]
+int[] snapshot := source[mutate_and_indices(&source)]
 print(snapshot[0] == 10 and source[0] == 99)
 print(NL)
 source = [10, 18446744073709551616]
-int element = source[mutate_and_index(&source)]
+int element := source[mutate_and_index(&source)]
 print(element == 18446744073709551616 and source[1] == 60)
 print(NL)
 QUI
@@ -114,16 +114,16 @@ int[] mutate_and_values(int[] &values)
     values[0] = 99
     return [1, 2]
 
-int[] source = [10, 20]
-int[] sum = source + replace_and_values(&source)
+int[] source := [10, 20]
+int[] sum := source + replace_and_values(&source)
 print(sum[0] == 11 and sum[1] == 22 and source[0] == 50)
 print(NL)
 source = [10, 20]
-int[] snapshot = source + mutate_and_values(&source)
+int[] snapshot := source + mutate_and_values(&source)
 print(snapshot[0] == 11 and snapshot[1] == 22 and source[0] == 99)
 print(NL)
 source = [10, 20]
-int[] owned_sum = [10, 20] + mutate_and_values(&source)
+int[] owned_sum := [10, 20] + mutate_and_values(&source)
 print(owned_sum[0] == 11 and owned_sum[1] == 22 and source[0] == 99)
 print(NL)
 QUI
@@ -148,11 +148,11 @@ int[] | error snapshot_select_borrowed(const int[] values)
 int[] | error snapshot_select_owned()
     return make_values()[try failed_selection()]
 
-int[] values = [10, 20]
-int[] | error first = snapshot_add_borrowed(values)
-int[] | error second = snapshot_add_owned()
-int[] | error third = snapshot_select_borrowed(values)
-int[] | error fourth = snapshot_select_owned()
+int[] values := [10, 20]
+int[] | error first := snapshot_add_borrowed(values)
+int[] | error second := snapshot_add_owned()
+int[] | error third := snapshot_select_borrowed(values)
+int[] | error fourth := snapshot_select_owned()
 QUI
 
 # A try error returns before the ordinary final release. The earlier
@@ -192,19 +192,19 @@ PY
 [[ -z "$("$QUIDRA" "$TMP/selection-try-cleanup.qui")" ]]
 
 cat > "$TMP/literal-array-operators.qui" <<'QUI'
-int[] sum = [1, 2] + [3, 4]
+int[] sum := [1, 2] + [3, 4]
 print(sum[0] == 4 and sum[1] == 6)
 print(NL)
-bool[] ordered = [1, 4] < [2, 3]
+bool[] ordered := [1, 4] < [2, 3]
 print(ordered[0] and not ordered[1])
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/literal-array-operators.qui")" == "$(printf 'true\ntrue')" ]]
 
 cat > "$TMP/array-comparison-chain.qui" <<'QUI'
-int[] first = [1]
-int[] second = [1]
-int[] third = [1]
+int[] first := [1]
+int[] second := [1]
+int[] third := [1]
 print(first == second == third)
 QUI
 if "$QUIDRA" check "$TMP/array-comparison-chain.qui" --json > "$TMP/array-comparison-chain.json"; then
@@ -231,8 +231,8 @@ int replace_rows(int[][] &rows)
     rows = [[7, 8], [9, 10]]
     return 42
 
-int[][] rows = [[1, 2], [3, 4]]
-int calls = 0
+int[][] rows := [[1, 2], [3, 4]]
+int calls := 0
 rows[select_row(&calls)][0] = 77
 print(rows[0][0] == 1 and rows[1][0] == 77 and calls == 1)
 print(NL)

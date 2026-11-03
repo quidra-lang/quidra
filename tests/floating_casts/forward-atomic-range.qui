@@ -1,5 +1,5 @@
-tensor<real32> x = (tensor.ones<real32>([2]) * real32(70000)).track()
-auto | error converted = real16(x)
+tensor<real32> x := (tensor.ones<real32>([2]) * real32(70000)).track()
+tensor<real16> | error converted := real16(x)
 match converted
     tensor<real16> value
         print(false)

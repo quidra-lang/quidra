@@ -21,7 +21,7 @@ EPILOGUE = 'print(NL)\nflush()\nprint("ADV-END")\nprint(NL)\nflush()\n'
 def nesting(depth: int) -> str:
     # No newline may be inserted inside the parenthesis runs.
     expression = "(" * depth + "1" + ")" * depth
-    return PROLOGUE + f"int value = {expression}\n" + 'print("OBS=V:{value}")\n' + EPILOGUE
+    return PROLOGUE + f"int value := {expression}\n" + 'print("OBS=V:{value}")\n' + EPILOGUE
 
 
 def mutations(valid: bytes) -> tuple[bytes, bytes]:

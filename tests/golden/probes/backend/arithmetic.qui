@@ -57,7 +57,7 @@ bool flags_differ(bool left, bool right)
     return left != right or left == right
 
 real32 pi32()
-    real32 value = math.pi
+    real32 value := math.pi
     return value
 
 print(negated(int32(4)))

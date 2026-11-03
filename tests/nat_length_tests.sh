@@ -11,40 +11,40 @@ trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/quidra-cache"
 
 cat > "$TMP/results.qui" <<'QUI'
-string text = "héllo"
-int64[] values = [3, 1, 2]
-bin bits = bin.fill(5, 1)
-nat a = len(text)
-nat b = len(values)
-nat c = len(bits)
+string text := "héllo"
+int64[] values := [3, 1, 2]
+bin bits := bin.fill(5, 1)
+nat a := len(text)
+nat b := len(values)
+nat c := len(bits)
 print("{a} {b} {c}")
 print(NL)
-map<string, int64> table = map<string, int64>()
+map<string, int64> table := map<string, int64>()
 .table.set("x", 1)
-distinct<int64> seen = distinct<int64>()
+distinct<int64> seen := distinct<int64>()
 .seen.add(4)
 .seen.add(5)
-nat d = table.size()
-nat e = seen.size()
+nat d := table.size()
+nat e := seen.size()
 print("{d} {e}")
 print(NL)
-nat | none where = text.find("l")
+nat | none where := text.find("l")
 match where
     nat position
         print(position)
     none
         print("none")
 print(NL)
-json.Value document = json.parse("[1, 2, 3]")
-nat | error count = document.size()
+json.Value document := json.parse("[1, 2, 3]")
+nat | error count := document.size()
 match count
     nat items
         print(items)
     error problem
         print("error")
 print(NL)
-tensor<real32> grid = tensor.zeros<real32>([2, 3])
-nat[] shape = grid.shape()
+tensor<real32> grid := tensor.zeros<real32>([2, 3])
+nat[] shape := grid.shape()
 print("{shape[0]} {shape[1]}")
 print(NL)
 QUI
@@ -54,17 +54,17 @@ results_expected="$(printf '5 3 5\n1 2\n2\n3\n2 3')"
 # len(a) - 1 is a checked nat subtraction: on an empty array it stops, while
 # the signed form int(len(a)) - 1 is -1.
 cat > "$TMP/signed.qui" <<'QUI'
-int64[] empty = []
+int64[] empty := []
 print(int(len(empty)) - 1)
 print(NL)
-int64[] values = [7, 8, 9]
+int64[] values := [7, 8, 9]
 print(len(values) - 1)
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/signed.qui")" == "$(printf -- '-1\n2')" ]]
 
 cat > "$TMP/underflow.qui" <<'QUI'
-int64[] empty = []
+int64[] empty := []
 print(len(empty) - 1)
 QUI
 set +e
@@ -78,17 +78,17 @@ grep -q 'nat subtraction result is negative' "$TMP/underflow.err"
 # Index operands accept every integer kind; old range(...) loops over a
 # length keep compiling, their elements int.
 cat > "$TMP/indices.qui" <<'QUI'
-int64[] values = [10, 20, 30, 40]
-int8 small = 1
-nat16 medium = 2
-int wide = 3
-nat natural = 0
+int64[] values := [10, 20, 30, 40]
+int8 small := 1
+nat16 medium := 2
+int wide := 3
+nat natural := 0
 print("{values[small]} {values[medium]} {values[wide]} {values[natural]}")
 print(NL)
-string text = "abc"
+string text := "abc"
 print(text[small])
 print(NL)
-int64 total = 0
+int64 total := 0
 for 0 <= nat i < len(values)
     total = total + values[i]
 print(total)
@@ -98,7 +98,7 @@ QUI
 
 # A nat result in an int context and an argument of another integer kind at
 # a nat parameter are TYPE_MISMATCH, naming the conversion to write.
-printf 'int64[] values = [1, 2]\nint count = len(values)\n' > "$TMP/to-int.qui"
+printf 'int64[] values := [1, 2]\nint count := len(values)\n' > "$TMP/to-int.qui"
 set +e
 "$QUIDRA" check "$TMP/to-int.qui" >"$TMP/to-int.out" 2>&1
 to_int_rc=$?
@@ -107,7 +107,7 @@ set -e
 grep -q 'TYPE_MISMATCH' "$TMP/to-int.out"
 grep -q "'len(values)' has type nat; convert explicitly: int(len(values))." "$TMP/to-int.out"
 
-printf 'int n = 3\nint64[] values = array(n, fill = 0)\n' > "$TMP/to-nat.qui"
+printf 'int n := 3\nint64[] values := array(n, fill = 0)\n' > "$TMP/to-nat.qui"
 set +e
 "$QUIDRA" check "$TMP/to-nat.qui" >"$TMP/to-nat.out" 2>&1
 to_nat_rc=$?
@@ -117,12 +117,12 @@ grep -q 'TYPE_MISMATCH' "$TMP/to-nat.out"
 grep -q "'n' has type int; this parameter is nat: write nat(n)." "$TMP/to-nat.out"
 
 cat > "$TMP/explicit.qui" <<'QUI'
-int n = 3
-int64[] values = array(nat(n), fill = 7)
+int n := 3
+int64[] values := array(nat(n), fill = 7)
 print(len(values))
 print(NL)
-int32[] dims = [2, 2]
-tensor<real32> grid = tensor.zeros<real32>(nat(dims))
+int32[] dims := [2, 2]
+tensor<real32> grid := tensor.zeros<real32>(nat(dims))
 print(grid.shape()[1])
 print(NL)
 print(string.repeat("a", nat(n)))
@@ -132,7 +132,7 @@ QUI
 
 # nat(n) of a negative value at a success-only nat parameter stops with
 # status 101 (contextual fail-fast).
-printf 'int n = -1\nint64[] values = array(nat(n), fill = 0)\nprint(len(values))\n' > "$TMP/negative.qui"
+printf 'int n := -1\nint64[] values := array(nat(n), fill = 0)\nprint(len(values))\n' > "$TMP/negative.qui"
 set +e
 "$QUIDRA" run "$TMP/negative.qui" >"$TMP/negative.out" 2>"$TMP/negative.err"
 negative_rc=$?

@@ -1,4 +1,4 @@
-tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real16b> low = real16b(x)
-tensor<real32> loss = real32(low)
+tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real16b> low := real16b(x)
+tensor<real32> loss := real32(low)
 loss.backward(&x, track = true)

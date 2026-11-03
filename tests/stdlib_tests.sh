@@ -60,12 +60,12 @@ bash "$ROOT/tests/stream_operator_tests.sh" "$QUIDRA" "$TMP"
 
 cat > "$TMP/file.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -79,10 +79,10 @@ string | error stream_read_text(string path)
     return result
 
 void | error stream_write_text(string path, string text)
-    file.write writer = try file.write(path)
+    file.write writer := try file.write(path)
     return .writer(text)
 
-auto | error written = stream_write_text("$TMP/source.txt", "hello")
+void | error written := stream_write_text("$TMP/source.txt", "hello")
 match written
     void
         print("write")
@@ -91,7 +91,7 @@ match written
         print(e)
         print(NL)
 
-auto | error read = stream_read_text("$TMP/source.txt")
+string | error read := stream_read_text("$TMP/source.txt")
 match read
     string value
         print(value)
@@ -100,7 +100,7 @@ match read
         print(e)
         print(NL)
 
-auto | error present = file.exists("$TMP/source.txt")
+bool | error present := file.exists("$TMP/source.txt")
 match present
     bool value
         print(value)
@@ -109,7 +109,7 @@ match present
         print(e)
         print(NL)
 
-auto | error copied = file.copy("$TMP/source.txt", "$TMP/copied.txt")
+void | error copied := file.copy("$TMP/source.txt", "$TMP/copied.txt")
 match copied
     void
         print("copy")
@@ -118,7 +118,7 @@ match copied
         print(e)
         print(NL)
 
-auto | error moved = file.move("$TMP/copied.txt", "$TMP/moved.txt")
+void | error moved := file.move("$TMP/copied.txt", "$TMP/moved.txt")
 match moved
     void
         print("move")
@@ -127,7 +127,7 @@ match moved
         print(e)
         print(NL)
 
-auto | error removed = file.remove("$TMP/moved.txt")
+void | error removed := file.remove("$TMP/moved.txt")
 match removed
     void
         print("remove")
@@ -136,7 +136,7 @@ match removed
         print(e)
         print(NL)
 
-auto | error absent = file.exists("$TMP/moved.txt")
+bool | error absent := file.exists("$TMP/moved.txt")
 match absent
     bool value
         print(value)
@@ -145,7 +145,7 @@ match absent
         print(e)
         print(NL)
 
-auto | error directory = file.mkdir("$TMP/new-directory")
+void | error directory := file.mkdir("$TMP/new-directory")
 match directory
     void
         print("mkdir")
@@ -160,7 +160,7 @@ QUI
 [[ -d "$TMP/new-directory" ]]
 
 cat > "$TMP/file-reader.qui" <<QUI
-file.read reader = file.read("$TMP/source.txt")
+file.read reader := file.read("$TMP/source.txt")
 if .reader(string &line)
     print(line)
 print(",")
@@ -172,8 +172,8 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-reader.qui")" == "hello,eof" ]]
 
 cat > "$TMP/file-reader-copy.qui" <<QUI
-file.read first = file.read("$TMP/source.txt")
-file.read second = first
+file.read first := file.read("$TMP/source.txt")
+file.read second := first
 if .first(string &line)
     print(line)
 print(",")
@@ -185,14 +185,14 @@ QUI
 printf 'old-resource' > "$TMP/resource-source.txt"
 cat > "$TMP/file-resource-identity.qui" <<QUI
 void | error replace_resource(string path)
-    file.write writer = try file.write(path)
+    file.write writer := try file.write(path)
     try .writer("new-resource")
     return
 
-file.read first = file.read("$TMP/resource-source.txt")
+file.read first := file.read("$TMP/resource-source.txt")
 file.move("$TMP/resource-source.txt", "$TMP/resource-original.txt")
 replace_resource("$TMP/resource-source.txt")
-file.read second = first
+file.read second := first
 if .first(string &line)
     print("{line}{NL}")
 if .second(string &line)
@@ -202,13 +202,13 @@ QUI
 
 cat > "$TMP/file-write.qui" <<QUI
 void | error write_incremental(string path)
-    file.write writer = try file.write(path)
+    file.write writer := try file.write(path)
     try .writer("alpha")
     try .writer(" beta{NL}")
     return
 
 write_incremental("$TMP/incremental.txt")
-file.read reader = file.read("$TMP/incremental.txt")
+file.read reader := file.read("$TMP/incremental.txt")
 if .reader(string &line)
     print("{line}{NL}")
 if .reader(string &line)
@@ -220,8 +220,8 @@ QUI
 
 printf 'one\ntwo\nthree\n' > "$TMP/interleaved-lines.txt"
 cat > "$TMP/file-reader-interleaved-copy.qui" <<QUI
-file.read first = file.read("$TMP/interleaved-lines.txt")
-file.read second = first
+file.read first := file.read("$TMP/interleaved-lines.txt")
+file.read second := first
 if .first(string &line)
     print("{line}{NL}")
 if .first(string &line)
@@ -238,7 +238,7 @@ QUI
 printf 'last' > "$TMP/line-no-newline.txt"
 printf '\377\n' > "$TMP/line-invalid-utf8.bin"
 cat > "$TMP/file-reader-edge.qui" <<QUI
-file.read tail = file.read("$TMP/line-no-newline.txt")
+file.read tail := file.read("$TMP/line-no-newline.txt")
 if .tail(string &line)
     print("{line}{NL}")
 if .tail(string &line)
@@ -246,9 +246,9 @@ if .tail(string &line)
 else
     print("eof{NL}")
 
-file.read invalid = file.read("$TMP/line-invalid-utf8.bin")
-string text = ""
-bool | error result = .invalid(&text)
+file.read invalid := file.read("$TMP/line-invalid-utf8.bin")
+string text := ""
+bool | error result := .invalid(&text)
 match result
     bool ok
         print("unexpected")
@@ -259,12 +259,12 @@ QUI
 
 cat > "$TMP/file-append.qui" <<QUI
 void | error append_tail(string path)
-    file.append writer = try file.append(path)
+    file.append writer := try file.append(path)
     try .writer("tail{NL}")
     return
 
 append_tail("$TMP/incremental.txt")
-file.read reader = file.read("$TMP/incremental.txt")
+file.read reader := file.read("$TMP/incremental.txt")
 while .reader(string &line)
     print("{line}{NL}")
 QUI
@@ -272,7 +272,7 @@ QUI
 
 printf 'hello' > "$TMP/source.txt"
 cat > "$TMP/file-stream-fail-fast.qui" <<QUI
-file.read reader = file.read("$TMP/does-not-exist.txt")
+file.read reader := file.read("$TMP/does-not-exist.txt")
 print("unreachable")
 print(NL)
 QUI
@@ -286,12 +286,12 @@ grep -qF "cannot open \"$TMP/does-not-exist.txt\": file not found" "$TMP/file-st
 
 cat > "$TMP/file-stream-auto-close.qui" <<QUI
 void | error open_and_return(string path)
-    file.read reader = try file.read(path)
+    file.read reader := try file.read(path)
     return
 
-int i = 0
+int i := 0
 while i < 256
-    auto | error result = open_and_return("$TMP/source.txt")
+    void | error result := open_and_return("$TMP/source.txt")
     match result
         void
             void
@@ -305,13 +305,13 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-stream-auto-close.qui")" == "released" ]]
 
 cat > "$TMP/bin-string.qui" <<'QUI'
-bin allocated = bin.fill(5, 1)
+bin allocated := bin.fill(5, 1)
 print(len(allocated))
 print(NL)
 print(allocated)
 print(NL)
 
-auto | error parsed_result = bin.parse("01010000")
+bin | error parsed_result := bin.parse("01010000")
 match parsed_result
     bin parsed
         print(parsed[0])
@@ -322,30 +322,30 @@ match parsed_result
         print("unexpected parse error")
         print(NL)
 
-int8 signed = -1
-bin packed = bin(signed)
+int8 signed := -1
+bin packed := bin(signed)
 print(packed)
 print(NL)
-int8 restored = int8(packed)
+int8 restored := int8(packed)
 print(restored)
 print(NL)
 
-auto | error flag_result = bin.parse("1")
+bin | error flag_result := bin.parse("1")
 match flag_result
     bin bit
-        bool flag = bool(bit)
+        bool flag := bool(bit)
         print(flag)
         print(NL)
     error problem
         print("unexpected parse error")
         print(NL)
 
-string repeated = string.repeat("a", 3)
+string repeated := string.repeat("a", 3)
 print(repeated)
 print(NL)
 
-string original = "héllo"
-bin encoded = original.utf8()
+string original := "héllo"
+bin encoded := original.utf8()
 match string.from_utf8(encoded)
     string decoded
         print(decoded)
@@ -354,8 +354,8 @@ match string.from_utf8(encoded)
         print("unexpected valid UTF-8 error")
         print(NL)
 
-nat8[] invalid_bytes = [255]
-bin invalid = bin(invalid_bytes)
+nat8[] invalid_bytes := [255]
+bin invalid := bin(invalid_bytes)
 match string.from_utf8(invalid)
     string decoded
         print("unexpected invalid UTF-8 success")
@@ -364,8 +364,8 @@ match string.from_utf8(invalid)
         print("invalid")
         print(NL)
 
-nat8[] nul_bytes = [97, 0, 98]
-bin with_nul = bin(nul_bytes)
+nat8[] nul_bytes := [97, 0, 98]
+bin with_nul := bin(nul_bytes)
 match string.from_utf8(with_nul)
     string decoded
         print("unexpected NUL text success")
@@ -374,7 +374,7 @@ match string.from_utf8(with_nul)
         print("nul")
         print(NL)
 
-bin partial = bin.fill(7, 0)
+bin partial := bin.fill(7, 0)
 match string.from_utf8(partial)
     string decoded
         print("unexpected partial-byte success")
@@ -386,8 +386,8 @@ QUI
 [[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa\nhéllo\ninvalid\nnul\npartial' ]]
 
 cat > "$TMP/bin-parse-error.qui" <<'QUI'
-string invalid_text = "012"
-auto | error parsed = bin.parse(invalid_text)
+string invalid_text := "012"
+bin | error parsed := bin.parse(invalid_text)
 match parsed
     bin value
         print("unexpected")
@@ -404,19 +404,19 @@ open(sys.argv[1], "wb").write(bytes([0, 255, 65, 10, 128]))
 PY
 
 cat > "$TMP/file-bin.qui" <<QUI
-auto | error raw = file.read_bin("$TMP/source.bin")
+bin | error raw := file.read_bin("$TMP/source.bin")
 match raw
     bin value
         print(len(value))
         print(NL)
-        nat8[] values = nat8[](value)
+        nat8[] values := nat8[](value)
         print(values[0])
         print(NL)
         print(values[1])
         print(NL)
         values[2] = 66
-        bin changed = bin(values)
-        auto | error saved = file.write_bin("$TMP/copied.bin", changed)
+        bin changed := bin(values)
+        void | error saved := file.write_bin("$TMP/copied.bin", changed)
         match saved
             void
                 print("bin")
@@ -436,8 +436,8 @@ assert data == bytes([0, 255, 66, 10, 128]), data
 PY
 
 cat > "$TMP/file-bin-unaligned.qui" <<QUI
-bin value = bin.fill(3, 1)
-auto | error saved = file.write_bin("$TMP/unaligned.bin", value)
+bin value := bin.fill(3, 1)
+void | error saved := file.write_bin("$TMP/unaligned.bin", value)
 match saved
     void
         print("unexpected")
@@ -452,7 +452,7 @@ QUI
 printf 'b' > "$TMP/new-directory/b.txt"
 printf 'a' > "$TMP/new-directory/a.txt"
 cat > "$TMP/file-list.qui" <<QUI
-auto | error listed = file.list("$TMP/new-directory")
+string[] | error listed := file.list("$TMP/new-directory")
 match listed
     string[] entries
         print(len(entries))
@@ -468,7 +468,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-list.qui")" == $'2\ntrue\ntrue' ]]
 
 cat > "$TMP/file-list-missing.qui" <<QUI
-auto | error listed = file.list("$TMP/no-such-directory")
+string[] | error listed := file.list("$TMP/no-such-directory")
 match listed
     string[] entries
         print(len(entries))
@@ -481,12 +481,12 @@ QUI
 
 cat > "$TMP/missing-file.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -499,7 +499,7 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error read = stream_read_text("$TMP/does-not-exist.txt")
+string | error read := stream_read_text("$TMP/does-not-exist.txt")
 match read
     string value
         print(value)
@@ -516,12 +516,12 @@ open(sys.argv[1], "wb").write(b"\xc0\xaf")
 PY
 cat > "$TMP/invalid-utf8-file.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -534,7 +534,7 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error read = stream_read_text("$TMP/invalid-utf8.txt")
+string | error read := stream_read_text("$TMP/invalid-utf8.txt")
 match read
     string value
         print("unexpected")
@@ -551,12 +551,12 @@ open(sys.argv[1], "wb").write(b"A\x00B")
 PY
 cat > "$TMP/nul-text-file.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -569,7 +569,7 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error read = stream_read_text("$TMP/nul-text.txt")
+string | error read := stream_read_text("$TMP/nul-text.txt")
 match read
     string value
         print("unexpected")
@@ -614,7 +614,7 @@ set -e
 grep -q 'PACKAGE_NOT_INSTALLED' "$TMP/bare-local.json"
 
 cat > "$TMP/environment.qui" <<'QUI'
-auto configured = environment.get("QUIDRA_TEST_ENV")
+configured := environment.get("QUIDRA_TEST_ENV")
 match configured
     string value
         print(value)
@@ -626,7 +626,7 @@ match configured
 print(environment.has("QUIDRA_TEST_ENV"))
 print(NL)
 
-auto absent = environment.get("QUIDRA_TEST_ENV_DEFINITELY_MISSING")
+absent := environment.get("QUIDRA_TEST_ENV_DEFINITELY_MISSING")
 match absent
     string value
         print(value)
@@ -676,8 +676,8 @@ cat > "$TMP/test-module.qui" <<'QUI'
 test.check(true)
 test.equal(int(2) + 3, 5)
 test.equal("Quidra", "Quidra")
-int[] actual = [1, 2, 3]
-int[] expected = [1, 2, 3]
+int[] actual := [1, 2, 3]
+int[] expected := [1, 2, 3]
 test.equal(actual, expected)
 print("test-ok")
 print(NL)
@@ -721,28 +721,28 @@ PY
 [[ ! -s "$TMP/test-failure.out" ]]
 
 cat > "$TMP/time.qui" <<'QUI'
-time.Instant start = time.now()
-time.Duration pause = time.seconds(0.001)
+time.Instant start := time.now()
+time.Duration pause := time.seconds(0.001)
 time.sleep(pause)
-time.Duration elapsed = time.since(start)
+time.Duration elapsed := time.since(start)
 print(elapsed.seconds() >= 0.0)
 print(NL)
 
-time.Instant explicit_async_start = time.now(sync = false)
-time.Duration explicit_async_elapsed = time.since(explicit_async_start, sync = false)
+time.Instant explicit_async_start := time.now(sync = false)
+time.Duration explicit_async_elapsed := time.since(explicit_async_start, sync = false)
 print(explicit_async_elapsed.seconds() >= 0.0)
 print(NL)
 
-time.Instant synchronized_start = time.now(sync = true)
+time.Instant synchronized_start := time.now(sync = true)
 time.sleep(pause)
-time.Duration synchronized_elapsed = time.since(synchronized_start, sync = true)
+time.Duration synchronized_elapsed := time.since(synchronized_start, sync = true)
 print(synchronized_elapsed.seconds() >= 0.0)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/time.qui")" == "$(printf 'true\ntrue\ntrue')" ]]
 
 cat > "$TMP/time-sync-must-be-named.qui" <<'QUI'
-time.Instant invalid = time.now(true)
+time.Instant invalid := time.now(true)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-sync-must-be-named.qui" --json >"$TMP/time-sync-must-be-named.json"
@@ -753,7 +753,7 @@ grep -q 'time.now accepts only optional sync = bool' "$TMP/time-sync-must-be-nam
 
 
 cat > "$TMP/time-now-sync-must-be-bool.qui" <<'QUI'
-time.Instant invalid = time.now(sync = 1)
+time.Instant invalid := time.now(sync = 1)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-now-sync-must-be-bool.qui" --json >"$TMP/time-now-sync-must-be-bool.json"
@@ -762,8 +762,8 @@ set -e
 [[ "$time_now_sync_bool_rc" -eq 1 ]]
 
 cat > "$TMP/time-since-sync-must-be-bool.qui" <<'QUI'
-time.Instant start = time.now()
-time.Duration invalid = time.since(start, sync = 1)
+time.Instant start := time.now()
+time.Duration invalid := time.since(start, sync = 1)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-since-sync-must-be-bool.qui" --json >"$TMP/time-since-sync-must-be-bool.json"
@@ -787,7 +787,7 @@ set -e
 grep -q 'A negative integer literal cannot materialize as nat.' "$TMP/gpu-sync-negative.json"
 
 cat > "$TMP/time-direct-construction.qui" <<'QUI'
-time.Instant impossible = time.Instant()
+time.Instant impossible := time.Instant()
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-direct-construction.qui" --json >"$TMP/time-direct-construction.json"
@@ -797,8 +797,8 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/time-direct-construction.json"
 
 cat > "$TMP/random.qui" <<'QUI'
-random.Generator a = random.generator(seed = 42)
-random.Generator b = random.generator(seed = 42)
+random.Generator a := random.generator(seed = 42)
+random.Generator b := random.generator(seed = 42)
 print(.a.int(1, 10) == .b.int(1, 10))
 print(NL)
 print(.a.real64() == .b.real64())
@@ -806,8 +806,8 @@ print(NL)
 print(.a.bool() == .b.bool())
 print(NL)
 
-random.Generator original = random.generator(seed = 7)
-random.Generator copy = original
+random.Generator original := random.generator(seed = 7)
+random.Generator copy := original
 print(.original.int(-1000, 1000) == .copy.int(-1000, 1000))
 print(NL)
 QUI
@@ -816,7 +816,7 @@ random_expected="$(printf 'true\ntrue\ntrue\ntrue')"
 [[ "$random_output" == "$random_expected" ]]
 
 cat > "$TMP/random-invalid.qui" <<'QUI'
-random.Generator rng = random.generator(seed = 1)
+random.Generator rng := random.generator(seed = 1)
 print(.rng.int(5, 5))
 print(NL)
 QUI
@@ -828,7 +828,7 @@ set -e
 grep -q 'invalid random range' "$TMP/random-invalid.err"
 
 cat > "$TMP/process.qui" <<'QUI'
-process.Result completed = process.run("/bin/sh", ["-c", "printf out; printf err >&2; exit 3"])
+process.Result completed := process.run("/bin/sh", ["-c", "printf out; printf err >&2; exit 3"])
 print(completed.started)
 print(NL)
 print(completed.status)
@@ -838,7 +838,7 @@ print(NL)
 print(completed.error)
 print(NL)
 
-process.Result missing = process.run("/definitely/not/a/real/quidra-program", [])
+process.Result missing := process.run("/definitely/not/a/real/quidra-program", [])
 print(missing.started)
 print(NL)
 print(missing.status)
@@ -851,7 +851,7 @@ process_expected="$(printf 'true\n3\nout\nerr\nfalse\n-1\ntrue')"
 [[ "$process_output" == "$process_expected" ]]
 
 cat > "$TMP/process-shell.qui" <<'QUI'
-process.Result result = process.shell("printf shell-out; printf shell-err >&2; exit 7")
+process.Result result := process.shell("printf shell-out; printf shell-err >&2; exit 7")
 print(result.started)
 print(NL)
 print(result.status)
@@ -861,7 +861,7 @@ print(NL)
 print(result.error)
 print(NL)
 
-process.Result braces = process.shell("printf '{{}}'")
+process.Result braces := process.shell("printf '{{}}'")
 print(braces.output)
 print(NL)
 QUI
@@ -870,7 +870,7 @@ process_shell_expected="$(printf 'true\n7\nshell-out\nshell-err\n{}')"
 [[ "$process_shell_output" == "$process_shell_expected" ]]
 
 cat > "$TMP/process-invalid-text.qui" <<'QUI'
-process.Result result = process.run("/bin/sh", ["-c", "printf '\377'"])
+process.Result result := process.run("/bin/sh", ["-c", "printf '\377'"])
 print(result.output)
 print(NL)
 QUI
@@ -882,7 +882,7 @@ set -e
 grep -q 'process stdout/stderr must be valid UTF-8 text without NUL' "$TMP/process-invalid-text.err"
 
 cat > "$TMP/process-nul-text.qui" <<'QUI'
-process.Result result = process.run("/bin/sh", ["-c", "printf 'A\000B'"])
+process.Result result := process.run("/bin/sh", ["-c", "printf 'A\000B'"])
 print(result.output)
 print(NL)
 QUI
@@ -922,7 +922,7 @@ fi
 [[ ! -s "$TMP/process-exit-bin.err" ]]
 
 cat > "$TMP/process-direct-construction.qui" <<'QUI'
-process.Result impossible = process.Result()
+process.Result impossible := process.Result()
 QUI
 set +e
 "$QUIDRA" check "$TMP/process-direct-construction.qui" --json >"$TMP/process-direct-construction.json"
@@ -938,7 +938,7 @@ print(NL)
 print(counts.has("apple"))
 print(NL)
 
-auto missing = counts.get("apple")
+missing := counts.get("apple")
 match missing
     int value
         print(value)
@@ -953,7 +953,7 @@ match missing
 print(counts.size())
 print(NL)
 
-auto apple = counts.get("apple")
+apple := counts.get("apple")
 match apple
     int value
         print(value)
@@ -962,8 +962,8 @@ match apple
         print("missing")
         print(NL)
 
-string[] keys = counts.keys()
-int[] values = counts.values()
+string[] keys := counts.keys()
+int[] values := counts.values()
 print(keys[0])
 print(NL)
 print(keys[1])
@@ -973,7 +973,7 @@ print(NL)
 print(values[1])
 print(NL)
 
-map<string, int> copied = counts
+map<string, int> copied := counts
 .copied.set("cherry", 4)
 print(counts.has("cherry"))
 print(NL)
@@ -998,7 +998,7 @@ match counts.get("apple")
         print("missing")
         print(NL)
 
-map<string, int> explicit_map = map<string, int>()
+map<string, int> explicit_map := map<string, int>()
 map <string, int> spaced_map
 .spaced_map.set("plum", 9)
 distinct <string> spaced_distinct
@@ -1014,7 +1014,7 @@ distinct<string> tags
 print(tags.size())
 print(NL)
 
-distinct<string> explicit_distinct = distinct<string>()
+distinct<string> explicit_distinct := distinct<string>()
 .explicit_distinct.add("ready")
 print(explicit_distinct.has("ready"))
 print(NL)
@@ -1040,17 +1040,17 @@ QUI
 [[ "$("$QUIDRA" "$TMP/distinct-and-set-name.qui")" == "$(printf '6\ntrue\n1')" ]]
 
 cat > "$TMP/map-get-set-cache.qui" <<'QUI'
-map<int, int> values = map<int, int>()
+map<int, int> values := map<int, int>()
 .values.set(1, 10)
 
-auto present = values.get(1)
+present := values.get(1)
 match present
     int value
         .values.set(1, value + 5)
     none
         process.exit(1)
 
-auto absent = values.get(2)
+absent := values.get(2)
 match absent
     int value
         process.exit(2)
@@ -1059,14 +1059,14 @@ match absent
 
 print(values.size())
 print(NL)
-auto one = values.get(1)
+one := values.get(1)
 match one
     int value
         print(value)
         print(NL)
     none
         process.exit(3)
-auto two = values.get(2)
+two := values.get(2)
 match two
     int value
         print(value)
@@ -1079,10 +1079,10 @@ map_cache_expected="$(printf '2\n15\n20')"
 [[ "$map_cache_output" == "$map_cache_expected" ]]
 
 cat > "$TMP/array-append-cache.qui" <<'QUI'
-int[] values = []
+int[] values := []
 for 0 <= nat i < 10000
     values = values.append(int(i))
-int[] copied = values
+int[] copied := values
 values = values.append(10000)
 print(len(values))
 print(NL)
@@ -1098,7 +1098,7 @@ array_append_cache_expected="$(printf '10001\n10000\n10000\n9999')"
 [[ "$array_append_cache_output" == "$array_append_cache_expected" ]]
 
 cat > "$TMP/map-remove.qui" <<'QUI'
-map<string, int> values = map<string, int>()
+map<string, int> values := map<string, int>()
 .values.set("a", 1)
 .values.set("i", 2)
 .values.set("q", 3)
@@ -1111,7 +1111,7 @@ print(values.size())
 print(NL)
 print(values.has("i"))
 print(NL)
-auto q = values.get("q")
+q := values.get("q")
 match q
     int value
         print(value)
@@ -1119,19 +1119,19 @@ match q
     none
         print(int(-1))
         print(NL)
-string[] remaining_keys = values.keys()
-int[] remaining_values = values.values()
-for auto key = remaining_keys[]
+string[] remaining_keys := values.keys()
+int[] remaining_values := values.values()
+for key := remaining_keys[]
     print(key)
     print(NL)
-for auto value = remaining_values[]
+for value := remaining_values[]
     print(value)
     print(NL)
 .values.set("i", 5)
-string[] reinserted_keys = values.keys()
+string[] reinserted_keys := values.keys()
 print(reinserted_keys[len(reinserted_keys) - 1])
 print(NL)
-map<string, int> copied_values = values
+map<string, int> copied_values := values
 print(.copied_values.remove("q"))
 print(NL)
 print(values.has("q"))
@@ -1154,13 +1154,13 @@ print(tags.has("compiler"))
 print(NL)
 print(tags.has("other"))
 print(NL)
-string[] values = tags.values()
+string[] values := tags.values()
 print(values[0])
 print(NL)
 print(values[1])
 print(NL)
 
-distinct<string> copied = tags
+distinct<string> copied := tags
 .copied.add("new")
 print(tags.has("new"))
 print(NL)
@@ -1172,7 +1172,7 @@ distinct_expected="$(printf '2\ntrue\nfalse\ncompiler\nai\nfalse\ntrue')"
 [[ "$distinct_output" == "$distinct_expected" ]]
 
 cat > "$TMP/distinct-remove.qui" <<'QUI'
-distinct<string> values = distinct<string>()
+distinct<string> values := distinct<string>()
 .values.add("a")
 .values.add("i")
 .values.add("q")
@@ -1185,15 +1185,15 @@ print(values.size())
 print(NL)
 print(values.has("i"))
 print(NL)
-string[] remaining = values.values()
-for auto value = remaining[]
+string[] remaining := values.values()
+for value := remaining[]
     print(value)
     print(NL)
 .values.add("i")
-string[] reinserted = values.values()
+string[] reinserted := values.values()
 print(reinserted[len(reinserted) - 1])
 print(NL)
-distinct<string> copied = values
+distinct<string> copied := values
 print(.copied.remove("q"))
 print(NL)
 print(values.has("q"))
@@ -1206,8 +1206,8 @@ distinct_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntru
 [[ "$distinct_remove_output" == "$distinct_remove_expected" ]]
 
 cat > "$TMP/hash-collection-tombstones.qui" <<'QUI'
-map<int, int> values = map<int, int>()
-distinct<int> unique = distinct<int>()
+map<int, int> values := map<int, int>()
+distinct<int> unique := distinct<int>()
 for 0 <= nat i < 32
     .values.set(int(i), int(i))
     .unique.add(int(i))
@@ -1231,12 +1231,12 @@ tombstone_expected="$(printf '1\n1\ntrue\ntrue')"
 [[ "$tombstone_output" == "$tombstone_expected" ]]
 
 cat > "$TMP/hash-collections.qui" <<'QUI'
-map<string, int> many = map<string, int>()
+map<string, int> many := map<string, int>()
 for 0 <= nat i < 100
     .many.set("k{int(i)}", int(i) * 3)
 print(many.size())
 print(NL)
-auto found = many.get("k73")
+found := many.get("k73")
 match found
     int value
         print(value)
@@ -1245,7 +1245,7 @@ match found
         print(int(-1))
         print(NL)
 .many.set("k73", 999)
-auto replaced = many.get("k73")
+replaced := many.get("k73")
 match replaced
     int value
         print(value)
@@ -1253,7 +1253,7 @@ match replaced
     none
         print(int(-1))
         print(NL)
-string[] ordered_keys = many.keys()
+string[] ordered_keys := many.keys()
 print(ordered_keys[0])
 print(NL)
 print(ordered_keys[99])
@@ -1261,10 +1261,10 @@ print(NL)
 print(many.has("missing"))
 print(NL)
 
-map<int, string> numbers = map<int, string>()
+map<int, string> numbers := map<int, string>()
 .numbers.set(-7, "negative")
 .numbers.set(42, "answer")
-auto number_value = numbers.get(42)
+number_value := numbers.get(42)
 match number_value
     string value
         print(value)
@@ -1273,7 +1273,7 @@ match number_value
         print("missing")
         print(NL)
 
-distinct<string> unique = distinct<string>()
+distinct<string> unique := distinct<string>()
 for 0 <= nat i < 100
     .unique.add("v{i}")
 for 0 <= nat i < 100
@@ -1284,7 +1284,7 @@ print(unique.has("v73"))
 print(NL)
 print(unique.has("absent"))
 print(NL)
-string[] ordered_values = unique.values()
+string[] ordered_values := unique.values()
 print(ordered_values[0])
 print(NL)
 print(ordered_values[99])
@@ -1301,12 +1301,12 @@ grep -q '@quidra_array_grow_move' "$TMP/hash-collections.ll"
 # distinct uniqueness, and value-copy isolation at a scale large enough to catch
 # accidental quadratic regressions in generated collection code.
 cat > "$TMP/hash-collections-stress.qui" <<'QUI'
-map<int, int> large = map<int, int>()
+map<int, int> large := map<int, int>()
 for 0 <= nat i < 5000
     .large.set(int(i), int(i) * 2)
 print(large.size())
 print(NL)
-auto middle = large.get(4097)
+middle := large.get(4097)
 match middle
     int value
         print(value)
@@ -1315,7 +1315,7 @@ match middle
         print(int(-1))
         print(NL)
 .large.set(4097, 123456)
-auto replaced_large = large.get(4097)
+replaced_large := large.get(4097)
 match replaced_large
     int value
         print(value)
@@ -1323,7 +1323,7 @@ match replaced_large
     none
         print(int(-1))
         print(NL)
-int[] large_keys = large.keys()
+int[] large_keys := large.keys()
 print(large_keys[0])
 print(NL)
 print(large_keys[4999])
@@ -1331,14 +1331,14 @@ print(NL)
 print(large.has(6000))
 print(NL)
 
-map<int, int> copied_large = large
+map<int, int> copied_large := large
 .copied_large.set(6000, 42)
 print(large.has(6000))
 print(NL)
 print(copied_large.has(6000))
 print(NL)
 
-distinct<int> large_distinct = distinct<int>()
+distinct<int> large_distinct := distinct<int>()
 for 0 <= nat i < 5000
     .large_distinct.add(int(i))
 for 0 <= nat i < 5000
@@ -1349,7 +1349,7 @@ print(large_distinct.has(4097))
 print(NL)
 print(large_distinct.has(6000))
 print(NL)
-int[] large_values = large_distinct.values()
+int[] large_values := large_distinct.values()
 print(large_values[0])
 print(NL)
 print(large_values[4999])
@@ -1360,8 +1360,8 @@ hash_stress_expected="$(printf '5000\n8194\n123456\n0\n4999\nfalse\nfalse\ntrue\
 [[ "$hash_stress_output" == "$hash_stress_expected" ]]
 
 cat > "$TMP/hash-collection-removal-stress.qui" <<'QUI'
-map<int, int> values = map<int, int>()
-distinct<int> unique = distinct<int>()
+map<int, int> values := map<int, int>()
+distinct<int> unique := distinct<int>()
 for 0 <= nat i < 5000
     .values.set(int(i), int(i) * 3)
     .unique.add(int(i))
@@ -1386,8 +1386,8 @@ print(unique.has(3499))
 print(NL)
 print(unique.has(3500))
 print(NL)
-int[] keys = values.keys()
-int[] distinct_values = unique.values()
+int[] keys := values.keys()
+int[] distinct_values := unique.values()
 print(keys[0])
 print(NL)
 print(keys[len(keys) - 1])
@@ -1398,8 +1398,8 @@ print(distinct_values[len(distinct_values) - 1])
 print(NL)
 .values.set(100, 7)
 .unique.add(100)
-int[] reinserted_keys = values.keys()
-int[] reinserted_values = unique.values()
+int[] reinserted_keys := values.keys()
+int[] reinserted_values := unique.values()
 print(reinserted_keys[len(reinserted_keys) - 1])
 print(NL)
 print(reinserted_values[len(reinserted_values) - 1])
@@ -1412,11 +1412,11 @@ removal_stress_expected="$(printf '1500\n1500\nfalse\ntrue\nfalse\ntrue\n3500\n4
 # "a", "i", and "q" have the same initial bucket modulo the default capacity 8,
 # so this directly exercises deterministic open-addressing collision handling.
 cat > "$TMP/hash-collection-domains.qui" <<'QUI'
-map<string, int> collisions = map<string, int>()
+map<string, int> collisions := map<string, int>()
 .collisions.set("a", 1)
 .collisions.set("i", 2)
 .collisions.set("q", 3)
-auto collision_a = collisions.get("a")
+collision_a := collisions.get("a")
 match collision_a
     int value
         print(value)
@@ -1424,7 +1424,7 @@ match collision_a
     none
         print(int(-1))
         print(NL)
-auto collision_i = collisions.get("i")
+collision_i := collisions.get("i")
 match collision_i
     int value
         print(value)
@@ -1432,7 +1432,7 @@ match collision_i
     none
         print(int(-1))
         print(NL)
-auto collision_q = collisions.get("q")
+collision_q := collisions.get("q")
 match collision_q
     int value
         print(value)
@@ -1440,7 +1440,7 @@ match collision_q
     none
         print(int(-1))
         print(NL)
-string[] collision_keys = collisions.keys()
+string[] collision_keys := collisions.keys()
 print(collision_keys[0])
 print(NL)
 print(collision_keys[1])
@@ -1448,10 +1448,10 @@ print(NL)
 print(collision_keys[2])
 print(NL)
 
-map<bool, string> flags = map<bool, string>()
+map<bool, string> flags := map<bool, string>()
 .flags.set(false, "off")
 .flags.set(true, "on")
-auto flag_false = flags.get(false)
+flag_false := flags.get(false)
 match flag_false
     string value
         print(value)
@@ -1459,7 +1459,7 @@ match flag_false
     none
         print("missing")
         print(NL)
-auto flag_true = flags.get(true)
+flag_true := flags.get(true)
 match flag_true
     string value
         print(value)
@@ -1468,7 +1468,7 @@ match flag_true
         print("missing")
         print(NL)
 
-distinct<int> numbers_distinct = distinct<int>()
+distinct<int> numbers_distinct := distinct<int>()
 .numbers_distinct.add(-1)
 .numbers_distinct.add(42)
 .numbers_distinct.add(-1)
@@ -1477,13 +1477,13 @@ print(NL)
 print(numbers_distinct.has(42))
 print(NL)
 
-distinct<bool> bool_distinct = distinct<bool>()
+distinct<bool> bool_distinct := distinct<bool>()
 .bool_distinct.add(false)
 .bool_distinct.add(true)
 .bool_distinct.add(false)
 print(bool_distinct.size())
 print(NL)
-bool[] bool_values = bool_distinct.values()
+bool[] bool_values := bool_distinct.values()
 print(bool_values[0])
 print(NL)
 print(bool_values[1])
@@ -1494,7 +1494,7 @@ hash_domain_expected="$(printf '1\n2\n3\na\ni\nq\noff\non\n2\ntrue\n2\nfalse\ntr
 [[ "$hash_domain_output" == "$hash_domain_expected" ]]
 
 cat > "$TMP/map-invalid-key.qui" <<'QUI'
-map<real64, int> values = map<real64, int>()
+map<real64, int> values := map<real64, int>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/map-invalid-key.qui" --json >"$TMP/map-invalid-key.json"
@@ -1504,7 +1504,7 @@ set -e
 grep -q 'STANDARD_KEY_TYPE' "$TMP/map-invalid-key.json"
 
 cat > "$TMP/map-hidden-field.qui" <<'QUI'
-map<string, int> values = map<string, int>()
+map<string, int> values := map<string, int>()
 print(values.__keys)
 print(NL)
 QUI
@@ -1518,7 +1518,7 @@ grep -q 'Standard collection internals are not source-visible' "$TMP/map-hidden-
 
 
 cat > "$TMP/uninitialized-array.qui" <<'QUI'
-int[] dynamic = array(3)
+int[] dynamic := array(3)
 dynamic[1] = 7
 print(dynamic[1])
 print(NL)
@@ -1532,9 +1532,9 @@ uninitialized_array_output="$("$QUIDRA" "$TMP/uninitialized-array.qui")"
 [[ "$uninitialized_array_output" == "$(printf '7\n9')" ]]
 
 cat > "$TMP/uninitialized-array-read.qui" <<'QUI'
-int[] values = array(2)
+int[] values := array(2)
 values[0] = 1
-int last = int(len(values)) - 1
+int last := int(len(values)) - 1
 print(values[last])
 print(NL)
 QUI
@@ -1546,10 +1546,10 @@ set -e
 python3 "$ROOT/tests/runtime_report.py" "$TMP/uninitialized-array-read.err" code=UNINITIALIZED "file=$TMP/uninitialized-array-read.qui" "message=value is uninitialized"
 
 cat > "$TMP/tensor.qui" <<'QUI'
-tensor<real32> zeros = tensor.zeros<real32>([2, 3])
-tensor<real32> ones = tensor.ones<real32>([1, 3])
-tensor<real32> combined = zeros + ones
-nat[] combined_shape = combined.shape()
+tensor<real32> zeros := tensor.zeros<real32>([2, 3])
+tensor<real32> ones := tensor.ones<real32>([1, 3])
+tensor<real32> combined := zeros + ones
+nat[] combined_shape := combined.shape()
 print(combined_shape[0])
 print(NL)
 print(combined_shape[1])
@@ -1557,8 +1557,8 @@ print(NL)
 print(combined[1, 2].item())
 print(NL)
 
-tensor<real32> view = combined[:, 1:<3]
-nat[] view_shape = view.shape()
+tensor<real32> view := combined[:, 1:<3]
+nat[] view_shape := view.shape()
 print(view_shape[0])
 print(NL)
 print(view_shape[1])
@@ -1569,15 +1569,15 @@ print(NL)
 print(combined[0, 1].item())
 print(NL)
 
-tensor<real32> reshaped = combined.reshape([3, 2])
-nat[] reshaped_shape = reshaped.shape()
+tensor<real32> reshaped := combined.reshape([3, 2])
+nat[] reshaped_shape := reshaped.shape()
 print(reshaped_shape[0])
 print(NL)
 print(reshaped_shape[1])
 print(NL)
 
-tensor<real64> exact_source = tensor.ones<real64>([1])
-tensor<real32> exact_cast = real32(exact_source)
+tensor<real64> exact_source := tensor.ones<real64>([1])
+tensor<real32> exact_cast := real32(exact_source)
 print(exact_cast[0].item())
 print(NL)
 QUI
@@ -1587,23 +1587,23 @@ tensor_expected="$(printf '2\n3\n1.0\n2\n2\n9.0\n1.0\n3\n2\n1.0')"
 
 
 cat > "$TMP/stats-name-reuse.qui" <<'QUI'
-int stats = 1
+int stats := 1
 print(stats)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/stats-name-reuse.qui")" == "1" ]]
 
 cat > "$TMP/linear-name-reuse.qui" <<'QUI'
-int linear = 1
+int linear := 1
 print(linear)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/linear-name-reuse.qui")" == "1" ]]
 
 cat > "$TMP/tensor-rank-mismatch.qui" <<'QUI'
-tensor<real32> a = tensor.ones<real32>([2, 3])
-tensor<real32> b = tensor.ones<real32>([3])
-tensor<real32> c = a + b
+tensor<real32> a := tensor.ones<real32>([2, 3])
+tensor<real32> b := tensor.ones<real32>([3])
+tensor<real32> c := a + b
 print(c.shape()[0])
 print(NL)
 QUI
@@ -1616,7 +1616,7 @@ grep -q 'TYPE_MISMATCH' "$TMP/tensor-rank-mismatch.json"
 grep -q 'identical rank' "$TMP/tensor-rank-mismatch.json"
 
 cat > "$TMP/tensor-float-int-cast.qui" <<'QUI'
-tensor<real64> source = tensor.ones<real64>([1]) * 1.5
+tensor<real64> source := tensor.ones<real64>([1]) * 1.5
 match int64(source)
     tensor<int64> converted
         print("unexpected" + NL)
@@ -1632,7 +1632,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/tensor-float-int-cast.qui")" == "$(printf 'NOT_INTEGRAL\n1.5')" ]]
 
 cat > "$TMP/tensor-uninitialized.qui" <<'QUI'
-tensor<real32> values = tensor<real32>([2])
+tensor<real32> values := tensor<real32>([2])
 values[0] = 3.0
 print(values[0].item())
 print(NL)
@@ -1649,19 +1649,19 @@ python3 "$ROOT/tests/runtime_report.py" "$TMP/tensor-uninitialized.err" code=UNI
 
 
 cat > "$TMP/autograd-dtype-precision.qui" <<'QUI'
-tensor<real32> source32 = tensor<real32>([1])
+tensor<real32> source32 := tensor<real32>([1])
 source32[0] = 16777216.0
-tensor<real32> value32 = source32.track()
-tensor<real32> plus32 = value32 + real32(1)
-tensor<real32> plus32_again = plus32 + real32(1)
+tensor<real32> value32 := source32.track()
+tensor<real32> plus32 := value32 + real32(1)
+tensor<real32> plus32_again := plus32 + real32(1)
 print(plus32_again.untrack()[0].item() == real32(16777216))
 print(NL)
 
-tensor<real64> source64 = tensor<real64>([1])
+tensor<real64> source64 := tensor<real64>([1])
 source64[0] = 16777216.0
-tensor<real64> value64 = source64.track()
-tensor<real64> plus64 = value64 + 1.0
-tensor<real64> plus64_again = plus64 + 1.0
+tensor<real64> value64 := source64.track()
+tensor<real64> plus64 := value64 + 1.0
+tensor<real64> plus64_again := plus64 + 1.0
 print(plus64_again.untrack()[0].item() == real64(16777218))
 print(NL)
 QUI
@@ -1674,12 +1674,12 @@ JSON
 
 cat > "$TMP/json.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -1692,15 +1692,15 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error loaded = stream_read_text("$TMP/json-data.json")
+string | error loaded := stream_read_text("$TMP/json-data.json")
 match loaded
     string source
-        auto | error parsed = json.parse(source)
+        json.Value | error parsed := json.parse(source)
         match parsed
             json.Value root
                 print(root.kind())
                 print(NL)
-                auto | error size = root.size()
+                nat | error size := root.size()
                 match size
                     nat value
                         print(value)
@@ -1709,10 +1709,10 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error name = root.get("name")
+                json.Value | none | error name := root.get("name")
                 match name
                     json.Value value
-                        auto | error text = value.text()
+                        string | error text := value.text()
                         match text
                             string content
                                 print(content)
@@ -1727,7 +1727,7 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error missing = root.get("missing")
+                json.Value | none | error missing := root.get("missing")
                 match missing
                     json.Value value
                         print(value.kind())
@@ -1739,7 +1739,7 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error nothing = root.get("nothing")
+                json.Value | none | error nothing := root.get("nothing")
                 match nothing
                     json.Value value
                         print(value.kind())
@@ -1751,13 +1751,13 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error items = root.get("items")
+                json.Value | none | error items := root.get("items")
                 match items
                     json.Value items_value
-                        auto | error second = items_value.at(1)
+                        json.Value | none | error second := items_value.at(1)
                         match second
                             json.Value value
-                                auto | error integer = value.integer()
+                                int | error integer := value.integer()
                                 match integer
                                     int number
                                         print(number)
@@ -1778,10 +1778,10 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error ok = root.get("ok")
+                json.Value | none | error ok := root.get("ok")
                 match ok
                     json.Value value
-                        auto | error boolean = value.boolean()
+                        bool | error boolean := value.boolean()
                         match boolean
                             bool bit
                                 print(bit)
@@ -1796,10 +1796,10 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error pi = root.get("pi")
+                json.Value | none | error pi := root.get("pi")
                 match pi
                     json.Value value
-                        auto | error number = value.number()
+                        real64 | error number := value.number()
                         match number
                             real64 scalar
                                 print(scalar)
@@ -1814,10 +1814,10 @@ match loaded
                         print(problem)
                         print(NL)
 
-                string encoded = root.encode()
+                string encoded := root.encode()
                 print(encoded)
                 print(NL)
-                auto | error reparsed = json.parse(encoded)
+                json.Value | error reparsed := json.parse(encoded)
                 match reparsed
                     json.Value other
                         print(root.equal(other))
@@ -1839,10 +1839,10 @@ json_expected="$(printf 'object\n5\nQuidra\nnone\nnull\n2\ntrue\n3.5\n%s\ntrue' 
 [[ "$json_output" == "$json_expected" ]]
 
 cat > "$TMP/json-kind-error.qui" <<'QUI'
-auto | error parsed = json.parse("1")
+json.Value | error parsed := json.parse("1")
 match parsed
     json.Value value
-        auto | error text = value.text()
+        string | error text := value.text()
         match text
             string content
                 print(content)
@@ -1857,7 +1857,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/json-kind-error.qui")" == "JSON value has incompatible kind" ]]
 
 cat > "$TMP/json-invalid.qui" <<'QUI'
-auto | error parsed = json.parse("[")
+json.Value | error parsed := json.parse("[")
 match parsed
     json.Value value
         print(value.kind())
@@ -1873,12 +1873,12 @@ cat > "$TMP/json-duplicate.json" <<'JSON'
 JSON
 cat > "$TMP/json-duplicate.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -1891,10 +1891,10 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error loaded = stream_read_text("$TMP/json-duplicate.json")
+string | error loaded := stream_read_text("$TMP/json-duplicate.json")
 match loaded
     string source
-        auto | error parsed = json.parse(source)
+        json.Value | error parsed := json.parse(source)
         match parsed
             json.Value value
                 print(value.kind())
@@ -1909,7 +1909,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/json-duplicate.qui")" == "error" ]]
 
 cat > "$TMP/json-direct-construction.qui" <<'QUI'
-json.Value impossible = json.Value()
+json.Value impossible := json.Value()
 QUI
 set +e
 "$QUIDRA" check "$TMP/json-direct-construction.qui" --json >"$TMP/json-direct-construction.json"
@@ -1919,8 +1919,8 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/json-direct-construction.json"
 
 cat > "$TMP/json-equality.qui" <<'QUI'
-auto | error left = json.parse("1")
-auto | error right = json.parse("1")
+json.Value | error left := json.parse("1")
+json.Value | error right := json.parse("1")
 match left
     json.Value a
         match right
@@ -1945,7 +1945,7 @@ grep -q '"code"[[:space:]]*:[[:space:]]*"TYPE_MISMATCH"' "$TMP/json-equality.jso
 # Math is an ordinary package, not a Core standard namespace. Core owns only
 # the import boundary here; Math owns the function semantics and their tests.
 cat > "$TMP/math-requires-import.qui" <<'QUI'
-real64 value = math.sqrt(4.0)
+real64 value := math.sqrt(4.0)
 print(value)
 print(NL)
 QUI
@@ -1957,8 +1957,8 @@ set -e
 grep -Eq 'UNKNOWN|unknown|namespace|name' "$TMP/math-requires-import.json"
 
 cat > "$TMP/tensor-math-methods-removed.qui" <<'QUI'
-tensor<real64> value = tensor.ones<real64>([1])
-tensor<real64> result = value.sqrt()
+tensor<real64> value := tensor.ones<real64>([1])
+tensor<real64> result := value.sqrt()
 print(result[0].item())
 print(NL)
 QUI
@@ -1970,13 +1970,13 @@ set -e
 grep -Eq 'UNKNOWN|unknown|method' "$TMP/tensor-math-methods-removed.json"
 
 cat > "$TMP/scalar-power.qui" <<'QUI'
-int integer_base = 2
-int integer_power = integer_base ^ 10
+int integer_base := 2
+int integer_power := integer_base ^ 10
 print(integer_power)
 print(NL)
 
-real64 float_base = 4.0
-real64 float_power = float_base ^ 0.5
+real64 float_base := 4.0
+real64 float_power := float_base ^ 0.5
 print(float_power)
 print(NL)
 QUI
@@ -1984,20 +1984,20 @@ scalar_power_output="$("$QUIDRA" run "$TMP/scalar-power.qui")"
 [[ "$scalar_power_output" == "$(printf '1024\n2.0')" ]]
 
 cat > "$TMP/tensor-power.qui" <<'QUI'
-tensor<int64> integer_base = tensor.ones<int64>([2]) * 2
-tensor<int64> integer_power = integer_base ^ 3
+tensor<int64> integer_base := tensor.ones<int64>([2]) * 2
+tensor<int64> integer_power := integer_base ^ 3
 print(integer_power[0].item())
 print(NL)
 print(integer_power[1].item())
 print(NL)
 
-tensor<real64> float_base = tensor.ones<real64>([1]) * 4.0
-tensor<real64> float_power = float_base ^ 0.5
+tensor<real64> float_base := tensor.ones<real64>([1]) * 4.0
+tensor<real64> float_power := float_base ^ 0.5
 print(float_power[0].item())
 print(NL)
 
-tensor<real64> root = (tensor.ones<real64>([1]) * 2.0).track()
-tensor<real64> loss = root ^ 3.0
+tensor<real64> root := (tensor.ones<real64>([1]) * 2.0).track()
+tensor<real64> loss := root ^ 3.0
 loss.backward(&root)
 print(loss.untrack()[0].item())
 print(NL)
@@ -2008,9 +2008,9 @@ tensor_power_output="$("$QUIDRA" run "$TMP/tensor-power.qui")"
 [[ "$tensor_power_output" == "$(printf '8\n8\n2.0\n8.0\n12.0')" ]]
 
 cat > "$TMP/tensor-power-negative-runtime.qui" <<'QUI'
-tensor<int64> base = tensor.ones<int64>([1]) * 2
-int64 exponent = -1
-tensor<int64> result = base ^ exponent
+tensor<int64> base := tensor.ones<int64>([1]) * 2
+int64 exponent := -1
+tensor<int64> result := base ^ exponent
 print(result[0].item())
 print(NL)
 QUI
@@ -2023,11 +2023,11 @@ grep -q 'invalid tensor power domain' "$TMP/tensor-power-negative-runtime.err"
 
 cat > "$TMP/task-bounded-workers.qui" <<'QUI'
 void noop()
-    int value = 1
+    int value := 1
 
-func<void>()[] operations = array(4096, fill = noop)
+func<void>()[] operations := array(4096, fill = noop)
 parallel
-    for auto operation = operations[]
+    for operation := operations[]
         operation()
 print("bounded")
 print(NL)
@@ -2036,12 +2036,12 @@ QUI
 
 cat > "$TMP/task-worker-lifetime.qui" <<'QUI'
 void slow()
-    time.Duration pause = time.seconds(0.05)
+    time.Duration pause := time.seconds(0.05)
     time.sleep(pause)
 
-func<void>()[] operations = array(128, fill = slow)
+func<void>()[] operations := array(128, fill = slow)
 parallel
-    for auto operation = operations[]
+    for operation := operations[]
         operation()
 print("joined")
 print(NL)
@@ -2050,14 +2050,14 @@ QUI
 
 cat > "$TMP/task-result-worker-lifetime.qui" <<'QUI'
 int slow_value()
-    time.Duration pause = time.seconds(0.05)
+    time.Duration pause := time.seconds(0.05)
     time.sleep(pause)
     return 7
 
-func<int>()[] operations = array(128, fill = slow_value)
-int[] values = array(len(operations), fill = 0)
+func<int>()[] operations := array(128, fill = slow_value)
+int[] values := array(len(operations), fill = 0)
 parallel
-    for auto operation = operations[nat index]
+    for operation := operations[nat index]
         values[index] = operation()
 print(len(values))
 print(NL)
@@ -2079,7 +2079,7 @@ int parallel_result_4_1
 parallel
     parallel_result_4_0 = first_value()
     parallel_result_4_1 = second_value()
-int[] values = [parallel_result_4_0, parallel_result_4_1]
+int[] values := [parallel_result_4_0, parallel_result_4_1]
 print(values[0] + values[1])
 print(NL)
 QUI
@@ -2087,7 +2087,7 @@ QUI
 
 cat > "$TMP/task-result-order.qui" <<'QUI'
 int slow_first()
-    time.Duration pause = time.seconds(0.05)
+    time.Duration pause := time.seconds(0.05)
     time.sleep(pause)
     return 20
 
@@ -2099,7 +2099,7 @@ int parallel_result_5_1
 parallel
     parallel_result_5_0 = slow_first()
     parallel_result_5_1 = fast_second()
-int[] values = [parallel_result_5_0, parallel_result_5_1]
+int[] values := [parallel_result_5_0, parallel_result_5_1]
 print(values[0])
 print(NL)
 print(values[1])
@@ -2112,12 +2112,12 @@ class Holder this(local int32 &value_initial)
     int32 &value
 
     &this.value = &value_initial
-int32 first_value = 5
-int32 other_value = 5
-Holder first = Holder(&first_value)
-Holder[] holders = [first]
-Holder second = holders[0]
-Holder equal_value = Holder(&other_value)
+int32 first_value := 5
+int32 other_value := 5
+Holder first := Holder(&first_value)
+Holder[] holders := [first]
+Holder second := holders[0]
+Holder equal_value := Holder(&other_value)
 print(&first.value == &second.value)
 print(NL)
 print(&first.value == &equal_value.value)
@@ -2133,7 +2133,7 @@ reference_field_expected="$(printf 'true\nfalse\n9\n9')"
 
 cat > "$TMP/reflect-collect.qui" <<'QUI'
 class Marker()
-    int value = 0
+    int value := 0
 
 class Inner()
     Marker marker
@@ -2142,16 +2142,16 @@ class Outer()
     Inner inner
     Marker direct
 
-Marker inner_marker = Marker()
+Marker inner_marker := Marker()
 inner_marker.value = 7
-Inner inner = Inner()
+Inner inner := Inner()
 inner.marker = inner_marker
-Marker direct = Marker()
+Marker direct := Marker()
 direct.value = 11
-Outer model = Outer()
+Outer model := Outer()
 model.inner = inner
 model.direct = direct
-Marker[] markers = reflect.collect<Marker>(model)
+Marker[] markers := reflect.collect<Marker>(model)
 print(len(markers))
 print(NL)
 print(markers[0].value)
@@ -2164,18 +2164,18 @@ reflect_collect_expected="$(printf '2\n7\n11')"
 
 cat > "$TMP/reflect-collect-fixed-array.qui" <<'QUI'
 class Marker()
-    int value = 0
+    int value := 0
 
 class Model()
     Marker[2] markers
 
-Marker first = Marker()
+Marker first := Marker()
 first.value = 13
-Marker second = Marker()
+Marker second := Marker()
 second.value = 17
-Model model = Model()
+Model model := Model()
 model.markers = [first, second]
-Marker[] markers = reflect.collect<Marker>(model)
+Marker[] markers := reflect.collect<Marker>(model)
 print(len(markers))
 print(NL)
 print(markers[0].value)
@@ -2188,7 +2188,7 @@ reflect_collect_fixed_expected="$(printf '2\n13\n17')"
 
 cat > "$TMP/reflect-collect-runtime-array.qui" <<'QUI'
 class Marker()
-    int value = 0
+    int value := 0
 
 class Block()
     Marker marker
@@ -2196,22 +2196,22 @@ class Block()
 class Model()
     Block[] blocks
 
-Marker first = Marker()
+Marker first := Marker()
 first.value = 19
-Block first_block = Block()
+Block first_block := Block()
 first_block.marker = first
-Marker second = Marker()
+Marker second := Marker()
 second.value = 29
-Block second_block = Block()
+Block second_block := Block()
 second_block.marker = second
 
-Block[] blocks = []
+Block[] blocks := []
 blocks = blocks.append(first_block)
 blocks = blocks.append(second_block)
-Model model = Model()
+Model model := Model()
 model.blocks = blocks
 
-Marker[] markers = reflect.collect<Marker>(model)
+Marker[] markers := reflect.collect<Marker>(model)
 print(len(markers))
 print(NL)
 print(markers[0].value)
@@ -2224,7 +2224,7 @@ reflect_collect_runtime_expected="$(printf '2\n19\n29')"
 
 cat > "$TMP/reflect-metadata.qui" <<'QUI'
 class Marker()
-    int value = 0
+    int value := 0
 
 class Block()
     Marker marker
@@ -2233,24 +2233,24 @@ class Model()
     Block[] blocks
     Marker direct
 
-Marker first = Marker()
+Marker first := Marker()
 first.value = 31
-Block first_block = Block()
+Block first_block := Block()
 first_block.marker = first
-Marker second = Marker()
+Marker second := Marker()
 second.value = 37
-Block second_block = Block()
+Block second_block := Block()
 second_block.marker = second
-Block[] blocks = []
+Block[] blocks := []
 blocks = blocks.append(first_block)
 blocks = blocks.append(second_block)
-Marker direct = Marker()
+Marker direct := Marker()
 direct.value = 41
-Model model = Model()
+Model model := Model()
 model.blocks = blocks
 model.direct = direct
 
-string[] paths = reflect.paths<Marker>(model)
+string[] paths := reflect.paths<Marker>(model)
 print(reflect.type_name(model))
 print(NL)
 print(len(paths))
@@ -2261,7 +2261,7 @@ print(paths[1])
 print(NL)
 print(paths[2])
 print(NL)
-Marker[] values = reflect.collect<Marker>(model)
+Marker[] values := reflect.collect<Marker>(model)
 print(values[0].value)
 print(NL)
 print(values[1].value)
@@ -2274,22 +2274,22 @@ reflect_metadata_expected="$(printf 'Model\n3\nblocks[0].marker\nblocks[1].marke
 
 cat > "$TMP/reflect-collect-reference-effects.qui" <<'QUI'
 class Marker()
-    int value = 0
+    int value := 0
 
 class Model()
     Marker marker
     int unrelated
 
 void print_markers<M>(M &model)
-    Marker[] markers = reflect.collect<Marker>(model)
+    Marker[] markers := reflect.collect<Marker>(model)
     print(len(markers))
     print(NL)
     print(markers[0].value)
     print(NL)
 
-Marker marker = Marker()
+Marker marker := Marker()
 marker.value = 23
-Model model = Model()
+Model model := Model()
 model.marker = marker
 print_markers(&model)
 QUI
@@ -2297,8 +2297,8 @@ reflect_collect_reference_expected="$(printf '1\n23')"
 [[ "$("$QUIDRA" run "$TMP/reflect-collect-reference-effects.qui")" == "$reflect_collect_reference_expected" ]]
 
 cat > "$TMP/exact-noninteger-cast.qui" <<'QUI'
-real value = 4.5
-int converted = int(value)
+real value := 4.5
+int converted := int(value)
 print(converted)
 print(NL)
 QUI
@@ -2310,12 +2310,12 @@ set -e
 python3 "$ROOT/tests/runtime_report.py" "$TMP/exact-noninteger-cast.err" code=NUMERIC_CONVERSION 'message=numeric conversion failed: value is not an integer and cannot be represented as int'
 
 cat > "$TMP/exact-collections.qui" <<'QUI'
-int key = 123456789012345678901234567890
-map<int, string> table = map<int, string>()
+int key := 123456789012345678901234567890
+map<int, string> table := map<int, string>()
 .table.set(key, "exact")
 print(table.has(key))
 print(NL)
-distinct<int> keys = distinct<int>()
+distinct<int> keys := distinct<int>()
 .keys.add(key)
 print(keys.has(key))
 print(NL)
@@ -2328,30 +2328,30 @@ QUI
 # survive storage in fields, arrays and unions.
 cat > "$TMP/exact-real-forms.qui" <<'QUI'
 class Account()
-    real balance = 0.0
-    bool open = true
+    real balance := 0.0
+    bool open := true
 
-real third = real(1) / real(3)
-real whole = third + third + third
+real third := real(1) / real(3)
+real whole := third + third + third
 print(whole == real(1))
 print(NL)
 print(whole)
 print(NL)
-real[] values = [0.5, 0.25, third]
-real total = 0.0
-for auto value = values[]
+real[] values := [0.5, 0.25, third]
+real total := 0.0
+for value := values[]
     total = total + value
 print(total)
 print(NL)
-real largest = 9223372036854775807.0
-real beyond = largest + 1.0
+real largest := 9223372036854775807.0
+real beyond := largest + 1.0
 print(beyond)
 print(NL)
 print(beyond - 1.0 == largest)
 print(NL)
 print(beyond > largest)
 print(NL)
-real | none maybe = third
+real | none maybe := third
 match maybe
     real value
         print(value * real(3))
@@ -2359,12 +2359,12 @@ match maybe
     none
         print("none")
         print(NL)
-Account account = Account()
+Account account := Account()
 account.balance = account.balance + 2.5
 account.balance = account.balance * beyond
 print(account.balance)
 print(NL)
-real[] copied = values
+real[] copied := values
 copied[0] = beyond
 print(copied == values)
 print(NL)
@@ -2387,13 +2387,13 @@ exact_real_forms_expected="$(printf 'true\n1.0\n13/12\n9223372036854775808.0\ntr
 # gives the exact value, and equal boxed values compare equal.
 cat > "$TMP/bigint-words.qui" <<'QUI'
 class Tally()
-    int count = 0
-    string label = "t"
+    int count := 0
+    string label := "t"
 
-int top = 4611686018427387903
-int bottom = -4611686018427387904
-int above = top + 1
-int below = bottom - 1
+int top := 4611686018427387903
+int bottom := -4611686018427387904
+int above := top + 1
+int below := bottom - 1
 print("{top} {above} {bottom} {below}")
 print(NL)
 print(above - 1 == top)
@@ -2418,8 +2418,8 @@ print(above % 1000)
 print(NL)
 print(int(2) ^ 100)
 print(NL)
-int huge = 123456789012345678901234567890
-int same = 123456789012345678901234567890
+int huge := 123456789012345678901234567890
+int same := 123456789012345678901234567890
 print(huge == same)
 print(NL)
 print(huge != same + 1)
@@ -2430,27 +2430,27 @@ print(below < bottom)
 print(NL)
 print(huge > top)
 print(NL)
-int[] values = [top, above, huge, bottom, below, 0]
-int[] copied = values
+int[] values := [top, above, huge, bottom, below, 0]
+int[] copied := values
 copied[1] = top + 1
 print(copied == values)
 print(NL)
 copied[2] = huge + 1
 print(copied == values)
 print(NL)
-int total = 0
-for auto value = values[]
+int total := 0
+for value := values[]
     total = total + value
 print(total)
 print(NL)
-Tally tally = Tally()
+Tally tally := Tally()
 tally.count = tally.count + above
 tally.count = tally.count * 3
-Tally other = tally
+Tally other := tally
 other.count = other.count - 1
 print("{tally.count} {other.count}")
 print(NL)
-int | none maybe = huge
+int | none maybe := huge
 match maybe
     int value
         print(value + 1)
@@ -2470,7 +2470,7 @@ print(real32(huge))
 print(NL)
 print(real(huge) / real(10))
 print(NL)
-auto | error narrow = int16(huge)
+int16 | error narrow := int16(huge)
 match narrow
     int16 value
         print(value)
@@ -2478,7 +2478,7 @@ match narrow
     error problem
         print("narrow failed")
         print(NL)
-auto | error fits = int64(above)
+int64 | error fits := int64(above)
 match fits
     int64 value
         print(value)
@@ -2486,7 +2486,7 @@ match fits
     error problem
         print(problem)
         print(NL)
-auto | error parsed = int.parse("-00340282366920938463463374607431768211456")
+int | error parsed := int.parse("-00340282366920938463463374607431768211456")
 match parsed
     int value
         print(value)
@@ -2494,7 +2494,7 @@ match parsed
     error problem
         print(problem)
         print(NL)
-auto | error bad = int.parse("12x")
+int | error bad := int.parse("12x")
 match bad
     int value
         print(value)
@@ -2504,7 +2504,7 @@ match bad
         print(NL)
 print("{huge}|{bottom}")
 print(NL)
-string text = "{above}"
+string text := "{above}"
 print(len(text))
 print(NL)
 QUI
@@ -2517,40 +2517,40 @@ bigint_words_expected="$(printf '4611686018427387903 4611686018427387904 -461168
 # negative, and int -> nat is a checked conversion.
 cat > "$TMP/int-exact.qui" <<'QUI'
 int large_result()
-    int base = 4611686018427387904
+    int base := 4611686018427387904
     return base * 4
 
 int small_result()
     return -5
 
-int top = 9223372036854775807
+int top := 9223372036854775807
 print(top + 1)
 print(NL)
 print(top * top)
 print(NL)
-int low = -9223372036854775807 - 1
+int low := -9223372036854775807 - 1
 print(low - 1)
 print(NL)
 print(-low)
 print(NL)
-nat count = 18446744073709551615
+nat count := 18446744073709551615
 print(count + 1)
 print(NL)
-nat small = 3
+nat small := 3
 print(small - 3)
 print(NL)
-int signed_value = 7
-nat converted = nat(signed_value)
+int signed_value := 7
+nat converted := nat(signed_value)
 print(converted)
 print(NL)
-nat | error rejected = nat(int(-1))
+nat | error rejected := nat(int(-1))
 match rejected
     nat value
         print(value)
     error e
         print("rejected")
 print(NL)
-int64 fixed = int64(top)
+int64 fixed := int64(top)
 print(fixed)
 print(NL)
 int parallel_result_6_0
@@ -2558,7 +2558,7 @@ int parallel_result_6_1
 parallel
     parallel_result_6_0 = large_result()
     parallel_result_6_1 = small_result()
-int[] results = [parallel_result_6_0, parallel_result_6_1]
+int[] results := [parallel_result_6_0, parallel_result_6_1]
 print("{results[0]} {results[1]}")
 print(NL)
 QUI
@@ -2566,7 +2566,7 @@ int_exact_expected="$(printf '9223372036854775808\n85070591730234615847396907784
 [[ "$("$QUIDRA" run "$TMP/int-exact.qui")" == "$int_exact_expected" ]]
 
 cat > "$TMP/int64-overflow.qui" <<'QUI'
-int64 top = 9223372036854775807
+int64 top := 9223372036854775807
 print(top + 1)
 QUI
 set +e
@@ -2577,8 +2577,8 @@ set -e
 grep -q 'INTEGER_OVERFLOW' "$TMP/int64-overflow.err"
 
 cat > "$TMP/nat-underflow.qui" <<'QUI'
-nat a = 3
-nat b = 5
+nat a := 3
+nat b := 5
 print(a - b)
 QUI
 set +e
@@ -2594,11 +2594,11 @@ grep -q 'nat subtraction result is negative' "$TMP/nat-underflow.err"
 # negative literal does not materialize as `nat`.
 for case_name in bitwise shift tensor extern negative-nat; do
     case "$case_name" in
-        bitwise) printf 'int a = 6\nprint(a AND 3)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
-        shift) printf 'nat a = 6\nprint(a << 1)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
+        bitwise) printf 'int a := 6\nprint(a AND 3)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
+        shift) printf 'nat a := 6\nprint(a << 1)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
         tensor) printf 'tensor<int> t = tensor.zeros<int>([2])\n' > "$TMP/int-reject-$case_name.qui"; code=INVALID_TYPE ;;
         extern) printf 'extern int abs(int value) = "llabs"\n' > "$TMP/int-reject-$case_name.qui"; code=FFI_TYPE ;;
-        negative-nat) printf 'nat a = -1\n' > "$TMP/int-reject-$case_name.qui"; code=NUMERIC_FAMILY ;;
+        negative-nat) printf 'nat a := -1\n' > "$TMP/int-reject-$case_name.qui"; code=NUMERIC_FAMILY ;;
     esac
     set +e
     "$QUIDRA" check "$TMP/int-reject-$case_name.qui" >"$TMP/int-reject-$case_name.out" 2>&1
@@ -2638,34 +2638,34 @@ power_domain_case real64-base real64 -2.0 0.5 'a negative base requires an integ
 power_domain_case real32-base real32 -8.0 0.25 'a negative base requires an integer exponent'
 
 cat > "$TMP/power-defined.qui" <<'QUI'
-int8 a = 0
-int8 b = 3
+int8 a := 0
+int8 b := 3
 print(a ^ b)
 print(NL)
-int c = 0
-int d = 1
+int c := 0
+int d := 1
 print(c ^ d)
 print(NL)
-real64 e = -2.0
-real64 f = 3.0
+real64 e := -2.0
+real64 f := 3.0
 print(e ^ f)
 print(NL)
-real64 g = 0.0
-real64 h = 2.0
+real64 g := 0.0
+real64 h := 2.0
 print(g ^ h)
 print(NL)
-real32 i = 2.0
-real32 j = 0.0
+real32 i := 2.0
+real32 j := 0.0
 print(i ^ j)
 print(NL)
-real64 negative = -1.0
+real64 negative := -1.0
 print(g ^ negative)
 print(NL)
-real exact_zero = 0.0
-real exact_negative = -2.0
+real exact_zero := 0.0
+real exact_negative := -2.0
 print(exact_zero ^ exact_negative)
 print(NL)
-real64 constant = 0.0 ^ -1.0
+real64 constant := 0.0 ^ -1.0
 print(constant)
 print(NL)
 QUI
@@ -2674,8 +2674,8 @@ power_defined_expected="$(printf '0\n0\n-8.0\n0.0\n1.0\ninf\n∞\ninf')"
 
 for literal in '0 ^ 0' '0.0 ^ 0.0' '(-2.0) ^ 0.5'; do
     case "$literal" in
-        0.*|\(*) printf 'real64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
-        *) printf 'int64 value = %s\n' "$literal" > "$TMP/power-literal.qui" ;;
+        0.*|\(*) printf 'real64 value := %s\n' "$literal" > "$TMP/power-literal.qui" ;;
+        *) printf 'int64 value := %s\n' "$literal" > "$TMP/power-literal.qui" ;;
     esac
     set +e
     "$QUIDRA" check "$TMP/power-literal.qui" >"$TMP/power-literal.out" 2>&1
@@ -2686,7 +2686,7 @@ for literal in '0 ^ 0' '0.0 ^ 0.0' '(-2.0) ^ 0.5'; do
 done
 
 cat > "$TMP/bigreal-map-key.qui" <<'QUI'
-map<real, string> invalid = map<real, string>()
+map<real, string> invalid := map<real, string>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/bigreal-map-key.qui" --json >"$TMP/bigreal-map-key.json"
@@ -2696,7 +2696,7 @@ set -e
 grep -q 'STANDARD_KEY_TYPE' "$TMP/bigreal-map-key.json"
 
 cat > "$TMP/bigreal-set-key.qui" <<'QUI'
-distinct<real> invalid = distinct<real>()
+distinct<real> invalid := distinct<real>()
 QUI
 set +e
 "$QUIDRA" check "$TMP/bigreal-set-key.qui" --json >"$TMP/bigreal-set-key.json"
@@ -2710,12 +2710,12 @@ cat > "$TMP/json-exact-data.json" <<'JSON'
 JSON
 cat > "$TMP/json-exact-numerics.qui" <<QUI
 string | error stream_read_text(string path)
-    file.read reader = try file.read(path)
-    string result = ""
-    bool first = true
-    string line = ""
+    file.read reader := try file.read(path)
+    string result := ""
+    bool first := true
+    string line := ""
     while true
-        bool | error state = .reader(&line)
+        bool | error state := .reader(&line)
         match state
             bool has_line
                 if not has_line
@@ -2728,16 +2728,16 @@ string | error stream_read_text(string path)
                 return problem
     return result
 
-auto | error loaded = stream_read_text("$TMP/json-exact-data.json")
+string | error loaded := stream_read_text("$TMP/json-exact-data.json")
 match loaded
     string source
-        auto | error parsed = json.parse(source)
+        json.Value | error parsed := json.parse(source)
         match parsed
             json.Value root
-                auto | error huge_value = root.get("huge")
+                json.Value | none | error huge_value := root.get("huge")
                 match huge_value
                     json.Value value
-                        auto | error huge = value.integer()
+                        int | error huge := value.integer()
                         match huge
                             int integer
                                 print(integer)
@@ -2752,20 +2752,20 @@ match loaded
                         print(problem)
                         print(NL)
 
-                auto | error real_value = root.get("real")
+                json.Value | none | error real_value := root.get("real")
                 match real_value
                     json.Value value
-                        auto | error exact_value = value.real()
+                        real | error exact_value := value.real()
                         match exact_value
                             real number
-                                real expected = 1.25e1000
+                                real expected := 1.25e1000
                                 print(number == expected)
                                 print(NL)
                             error problem
                                 print(problem)
                                 print(NL)
 
-                        auto | error narrow = value.number()
+                        real64 | error narrow := value.number()
                         match narrow
                             real64 number
                                 print(number)
@@ -2854,7 +2854,7 @@ fi
 HTTP_PORT="$(cat "$TMP/http-port")"
 
 cat > "$TMP/http.qui" <<QUI
-auto | error successful = http.get("http://127.0.0.1:$HTTP_PORT/ok")
+http.Response | error successful := http.get("http://127.0.0.1:$HTTP_PORT/ok")
 match successful
     http.Response ok_response
         print(ok_response.status)
@@ -2865,7 +2865,7 @@ match successful
         print(NL)
         print(ok_response.body[1])
         print(NL)
-        auto marker = ok_response.header("X-Quidra")
+        marker := ok_response.header("X-Quidra")
         match marker
             string value
                 print(value)
@@ -2873,7 +2873,7 @@ match successful
             none
                 print("none")
                 print(NL)
-        auto absent = ok_response.header("missing-header")
+        absent := ok_response.header("missing-header")
         match absent
             string value
                 print(value)
@@ -2885,7 +2885,7 @@ match successful
         print(problem)
         print(NL)
 
-auto | error missing = http.get("http://127.0.0.1:$HTTP_PORT/missing")
+http.Response | error missing := http.get("http://127.0.0.1:$HTTP_PORT/missing")
 match missing
     http.Response missing_response
         print(missing_response.status)
@@ -2896,7 +2896,7 @@ match missing
         print(problem)
         print(NL)
 
-auto | error transport = http.get("file:///etc/passwd")
+http.Response | error transport := http.get("file:///etc/passwd")
 match transport
     http.Response unexpected_response
         print(unexpected_response.status)
@@ -2913,7 +2913,7 @@ http_expected="$(printf '200\n24\n0\n1\npresent\nnone\n404\n56\ntransport-error'
 [[ "$http_output" == "$http_expected" ]]
 
 cat > "$TMP/http-direct-construction.qui" <<'QUI'
-http.Response impossible = http.Response()
+http.Response impossible := http.Response()
 QUI
 set +e
 "$QUIDRA" check "$TMP/http-direct-construction.qui" --json >"$TMP/http-direct-construction.json"
@@ -2923,7 +2923,7 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/http-direct-construction.json"
 
 cat > "$TMP/http-equality.qui" <<QUI
-auto | error first = http.get("http://127.0.0.1:1/")
+http.Response | error first := http.get("http://127.0.0.1:1/")
 match first
     http.Response a
         print(a == a)
@@ -2948,7 +2948,7 @@ cat > "$TMP/named-writable.qui" <<'QUI'
 void set_value(int &value)
     value = 9
 
-int x = 1
+int x := 1
 set_value(&value = &x)
 print(x)
 print(NL)
@@ -2959,7 +2959,7 @@ cat > "$TMP/named-writable-old-shape.qui" <<'QUI'
 void set_value(int &value)
     value = 9
 
-int x = 1
+int x := 1
 set_value(value = &x)
 QUI
 set +e
@@ -2984,16 +2984,16 @@ QUI
 
 # Practical explicit casts remain Core language semantics; rounding APIs live in Math.
 cat > "$TMP/practical-casts.qui" <<'QUI'
-int large = 16777217
-real32 rounded = real32(large)
+int large := 16777217
+real32 rounded := real32(large)
 print(rounded)
 print(NL)
-real64 value = 1.75
-real32 narrowed = real32(value)
+real64 value := 1.75
+real32 narrowed := real32(value)
 print(narrowed)
 print(NL)
-tensor<real64> source = tensor.ones<real64>([1]) * 1.25
-tensor<real32> converted = real32(source)
+tensor<real64> source := tensor.ones<real64>([1]) * 1.25
+tensor<real32> converted := real32(source)
 print(converted[0].item())
 print(NL)
 QUI
@@ -3001,8 +3001,8 @@ practical_cast_output="$("$QUIDRA" "$TMP/practical-casts.qui")"
 [[ "$practical_cast_output" == "$(printf '1.6777216e+07\n1.75\n1.25')" ]]
 
 cat > "$TMP/contextual-tensor-dtype.qui" <<'QUI'
-tensor<real32> zeros = tensor.zeros([2, 3])
-tensor<real32>{2, 3} ones = tensor.ones([2, 3])
+tensor<real32> zeros := tensor.zeros([2, 3])
+tensor<real32>{2, 3} ones := tensor.ones([2, 3])
 print(zeros.shape()[0])
 print(NL)
 print(zeros.shape()[1])
@@ -3016,14 +3016,14 @@ contextual_tensor_dtype_output="$("$QUIDRA" "$TMP/contextual-tensor-dtype.qui")"
 [[ "$contextual_tensor_dtype_output" == "$(printf '2\n3\n2\n3')" ]]
 
 cat > "$TMP/captured-shapes.qui" <<'QUI'
-int n = 3
-int m = 2
-tensor<real64>{nat(n), 4} first = tensor.ones<real64>([3, 4])
+int n := 3
+int m := 2
+tensor<real64>{nat(n), 4} first := tensor.ones<real64>([3, 4])
 n = 5
 first = tensor.ones<real64>([3, 4])
-tensor<real64>{nat(n), 4} second = tensor.zeros()
-tensor<real64>{nat(n * m), 2} product = tensor.ones<real64>([10, 2])
-tensor<real64>{_, 4} explicit_shape = tensor.zeros([5, 4])
+tensor<real64>{nat(n), 4} second := tensor.zeros()
+tensor<real64>{nat(n * m), 2} product := tensor.ones<real64>([10, 2])
+tensor<real64>{_, 4} explicit_shape := tensor.zeros([5, 4])
 print(first.shape()[0])
 print(NL)
 print(second.shape()[0])
@@ -3038,12 +3038,12 @@ captured_shapes_output="$("$QUIDRA" "$TMP/captured-shapes.qui")"
 
 cat > "$TMP/flow-shape-runtime.qui" <<'QUI'
 tensor<real32> choose_shape(bool wider)
-    tensor<real32> value = tensor.zeros<real32>([3, 4])
+    tensor<real32> value := tensor.zeros<real32>([3, 4])
     if wider
         value = tensor.zeros<real32>([3, 5])
     return value
 
-tensor<real32>{3, 4} checked = choose_shape(false)
+tensor<real32>{3, 4} checked := choose_shape(false)
 print(checked.shape()[1])
 print(NL)
 QUI
@@ -3052,12 +3052,12 @@ flow_shape_output="$("$QUIDRA" "$TMP/flow-shape-runtime.qui")"
 
 cat > "$TMP/flow-shape-runtime-fail.qui" <<'QUI'
 tensor<real32> choose_shape(bool wider)
-    tensor<real32> value = tensor.zeros<real32>([3, 4])
+    tensor<real32> value := tensor.zeros<real32>([3, 4])
     if wider
         value = tensor.zeros<real32>([3, 5])
     return value
 
-tensor<real32>{3, 4} checked = choose_shape(true)
+tensor<real32>{3, 4} checked := choose_shape(true)
 print(checked.shape()[1])
 print(NL)
 QUI
@@ -3071,8 +3071,8 @@ grep -q 'captured shape constraint' "$TMP/flow-shape-runtime-fail.out"
 cat > "$TMP/dependent-signature-shape.qui" <<'QUI'
 tensor<real64>{nat(n), 2} keep_shape(int n, tensor<real64>{nat(n), 2} value)
     return value
-tensor<real64> source = tensor.ones<real64>([3, 2])
-tensor<real64>{3, 2} checked = keep_shape(3, source)
+tensor<real64> source := tensor.ones<real64>([3, 2])
+tensor<real64>{3, 2} checked := keep_shape(3, source)
 print(checked.shape()[0])
 print(NL)
 QUI
@@ -3083,12 +3083,12 @@ cat > "$TMP/dependent-signature-shape-fail.qui" <<'QUI'
 tensor<real64>{nat(n), 2} keep_shape(int n, tensor<real64>{nat(n), 2} value)
     return value
 tensor<real64> make_source(bool wider)
-    tensor<real64> value = tensor.ones<real64>([3, 2])
+    tensor<real64> value := tensor.ones<real64>([3, 2])
     if wider
         value = tensor.ones<real64>([4, 2])
     return value
-tensor<real64> source = make_source(true)
-auto checked = keep_shape(3, source)
+tensor<real64> source := make_source(true)
+checked := keep_shape(3, source)
 print(checked.shape()[0])
 print(NL)
 QUI
@@ -3101,8 +3101,8 @@ grep -q 'captured shape constraint' "$TMP/dependent-signature-shape-fail.err"
 
 # The original literal workload is a statically known contradiction.
 cat > "$TMP/captured-shape-reassign-known-fail.qui" <<'QUI'
-int n = 3
-tensor<real64>{nat(n), 4} value = tensor.ones<real64>([3, 4])
+int n := 3
+tensor<real64>{nat(n), 4} value := tensor.ones<real64>([3, 4])
 n = 5
 value = tensor.ones<real64>([5, 4])
 QUI
@@ -3124,7 +3124,7 @@ PY
 # A parameter's captured extent remains fixed after that parameter changes.
 cat > "$TMP/captured-shape-reassign-fail.qui" <<'QUI'
 void reassign_captured_shape(int n)
-    tensor<real64>{nat(n), 4} value = tensor.ones<real64>([3, 4])
+    tensor<real64>{nat(n), 4} value := tensor.ones<real64>([3, 4])
     n = 5
     value = tensor.ones<real64>([5, 4])
 
@@ -3138,15 +3138,15 @@ set -e
 grep -q 'captured shape constraint' "$TMP/captured-shape-reassign-fail.err"
 
 cat > "$TMP/captured-arrays.qui" <<'QUI'
-int n = 2
-int m = 2
+int n := 2
+int m := 2
 int[nat(n * m)] values
 values[3] = 7
 print(len(values))
 print(NL)
 print(values[3])
 print(NL)
-int[][nat(n)] rows = [[1, 2], [3, 4]]
+int[][nat(n)] rows := [[1, 2], [3, 4]]
 n = 3
 rows = [[5, 6], [7, 8]]
 print(rows[1][1])
@@ -3156,8 +3156,8 @@ captured_arrays_output="$("$QUIDRA" "$TMP/captured-arrays.qui")"
 [[ "$captured_arrays_output" == "$(printf '4\n7\n8')" ]]
 
 cat > "$TMP/captured-array-reassign-fail.qui" <<'QUI'
-int n = 2
-int[nat(n)] values = [1, 2]
+int n := 2
+int[nat(n)] values := [1, 2]
 n = 3
 values = [1, 2, 3]
 QUI
@@ -3169,8 +3169,8 @@ set -e
 grep -q 'Quidra runtime error' "$TMP/captured-array-reassign-fail.out"
 
 cat > "$TMP/captured-nested-array-fail.qui" <<'QUI'
-int n = 2
-int[][nat(n)] rows = [[1, 2], [3, 4]]
+int n := 2
+int[][nat(n)] rows := [[1, 2], [3, 4]]
 n = 3
 rows = [[1, 2, 3], [4, 5, 6]]
 QUI
@@ -3182,7 +3182,7 @@ set -e
 grep -q 'Quidra runtime error' "$TMP/captured-nested-array-fail.out"
 
 cat > "$TMP/contextual-wildcard-zero.qui" <<'QUI'
-tensor<real64>{_, 4} value = tensor.zeros()
+tensor<real64>{_, 4} value := tensor.zeros()
 QUI
 set +e
 "$QUIDRA" check "$TMP/contextual-wildcard-zero.qui" --json >"$TMP/contextual-wildcard-zero.json"
@@ -3192,18 +3192,18 @@ set -e
 grep -q 'Contextual tensor allocation cannot infer' "$TMP/contextual-wildcard-zero.json"
 
 cat > "$TMP/container-casts.qui" <<'QUI'
-int[][] dynamic = [[1, 2], [3, 4]]
-real64[][] dynamic_float = real64(dynamic)
+int[][] dynamic := [[1, 2], [3, 4]]
+real64[][] dynamic_float := real64(dynamic)
 print(dynamic_float[1][0])
 print(NL)
 
-int[2][2] fixed = [[5, 6], [7, 8]]
-real64[2][2] fixed_float = real64(fixed)
+int[2][2] fixed := [[5, 6], [7, 8]]
+real64[2][2] fixed_float := real64(fixed)
 print(fixed_float[0][1])
 print(NL)
 
-tensor<int64>{2, 2} matrix = tensor.ones<int64>([2, 2])
-tensor<real64>{2, 2} matrix_float = real64(matrix)
+tensor<int64>{2, 2} matrix := tensor.ones<int64>([2, 2])
+tensor<real64>{2, 2} matrix_float := real64(matrix)
 print(matrix_float[1, 1].item())
 print(NL)
 QUI
@@ -3211,8 +3211,8 @@ container_cast_output="$("$QUIDRA" "$TMP/container-casts.qui")"
 [[ "$container_cast_output" == "$(printf '3.0\n6.0\n1.0')" ]]
 
 cat > "$TMP/container-cast-range.qui" <<'QUI'
-int[] values = [1, 300]
-int8[] converted = int8(values)
+int[] values := [1, 300]
+int8[] converted := int8(values)
 print(converted[0])
 print(NL)
 QUI
@@ -3225,8 +3225,8 @@ grep -q 'Quidra runtime error\[NUMERIC_CONVERSION\]' "$TMP/container-cast-range.
 grep -q 'numeric conversion out of range: array element cannot be represented as int8' "$TMP/container-cast-range.err"
 
 cat > "$TMP/container-cast-preserved-error.qui" <<'QUI'
-int[] values = [1, 300]
-auto | error converted = int8(values)
+int[] values := [1, 300]
+int8[] | error converted := int8(values)
 match converted
     int8[] narrowed
         print(narrowed[0])
@@ -3239,8 +3239,8 @@ container_preserved_output="$("$QUIDRA" "$TMP/container-cast-preserved-error.qui
 [[ "$container_preserved_output" == "numeric conversion out of range: array element cannot be represented as int8" ]]
 
 cat > "$TMP/tensor-cast-preserved-error.qui" <<'QUI'
-tensor<int64> safe = tensor.ones<int64>([2])
-auto | error safe_result = int8(safe)
+tensor<int64> safe := tensor.ones<int64>([2])
+tensor<int8> | error safe_result := int8(safe)
 match safe_result
     tensor<int8> narrowed
         print(narrowed[0].item())
@@ -3249,9 +3249,9 @@ match safe_result
         print(problem)
         print(NL)
 
-tensor<int64> unsafe = tensor.ones<int64>([2])
+tensor<int64> unsafe := tensor.ones<int64>([2])
 unsafe[1] = 300
-auto | error unsafe_result = int8(unsafe)
+tensor<int8> | error unsafe_result := int8(unsafe)
 match unsafe_result
     tensor<int8> narrowed
         print(narrowed[0].item())
@@ -3266,7 +3266,7 @@ tensor_preserved_output="$("$QUIDRA" "$TMP/tensor-cast-preserved-error.qui")"
 cat > "$TMP/container-cast-uninitialized.qui" <<'QUI'
 int[2] values
 values[0] = 7
-real64[2] converted = real64(values)
+real64[2] converted := real64(values)
 print(converted[0])
 print(NL)
 QUI
@@ -3278,16 +3278,16 @@ set -e
 grep -q 'UNINITIALIZED' "$TMP/container-cast-uninitialized.err"
 
 cat > "$TMP/float-int-cast-integral.qui" <<'QUI'
-real64 value = 1.0
-int converted = int(value)
+real64 value := 1.0
+int converted := int(value)
 print(converted)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/float-int-cast-integral.qui")" == "1" ]]
 
 cat > "$TMP/bin-cast-length-fail.qui" <<'QUI'
-bin value = bin.fill(3, 0)
-int8 decoded = int8(value)
+bin value := bin.fill(3, 0)
+int8 decoded := int8(value)
 print(decoded)
 print(NL)
 QUI
@@ -3299,8 +3299,8 @@ set -e
 grep -q 'bin length does not match destination type width' "$TMP/bin-cast-length-fail.err"
 
 cat > "$TMP/bin-bool-length-fail.qui" <<'QUI'
-bin value = bin.fill(2, 0)
-bool decoded = bool(value)
+bin value := bin.fill(2, 0)
+bool decoded := bool(value)
 print(decoded)
 print(NL)
 QUI
@@ -3312,8 +3312,8 @@ set -e
 grep -q 'bin length does not match destination type width' "$TMP/bin-bool-length-fail.err"
 
 cat > "$TMP/bin-array-length-fail.qui" <<'QUI'
-bin value = bin.fill(3, 0)
-nat8[] decoded = nat8[](value)
+bin value := bin.fill(3, 0)
+nat8[] decoded := nat8[](value)
 print(len(decoded))
 print(NL)
 QUI
@@ -3385,12 +3385,12 @@ for index in 0 1 2 3
      done
  done
 cat > "$TMP/time-numeric-kinds.qui" <<'QUI'
-nat natural = 2
-int integer = -2
-real16 half = 1.5
-real16b bfloat = 1.5
-real32 single = 1.5
-real exact = 1.5
+nat natural := 2
+int integer := -2
+real16 half := 1.5
+real16b bfloat := 1.5
+real32 single := 1.5
+real exact := 1.5
 print(time.seconds(natural).seconds() == 2.0)
 print(NL)
 print(time.seconds(integer).seconds() == -2.0)
@@ -3406,8 +3406,8 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/time-numeric-kinds.qui")" == "$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue')" ]]
 cat > "$TMP/time-complex-rejected.qui" <<'QUI'
-com32 value = 2.0 + 0.0i
-time.Duration duration = time.seconds(value)
+com32 value := 2.0 + 0.0i
+time.Duration duration := time.seconds(value)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-complex-rejected.qui" --json >"$TMP/time-complex-rejected.json"
@@ -3416,11 +3416,11 @@ set -e
 [[ "$time_complex_rc" -eq 1 ]]
 grep -q 'TYPE_MISMATCH' "$TMP/time-complex-rejected.json"
 cat > "$TMP/random-wide.qui" <<'QUI'
-random.Generator positive = random.generator(seed = 42)
-random.Generator negative = random.generator(seed = 42)
-int base = 184467440737095516160000000000000000000
-int forward = .positive.int(base, base + 1000)
-int backward = .negative.int(-base, -base + 1000)
+random.Generator positive := random.generator(seed = 42)
+random.Generator negative := random.generator(seed = 42)
+int base := 184467440737095516160000000000000000000
+int forward := .positive.int(base, base + 1000)
+int backward := .negative.int(-base, -base + 1000)
 print(forward >= base and forward < base + 1000)
 print(NL)
 print(backward >= -base and backward < -base + 1000)
@@ -3429,7 +3429,7 @@ print(forward - base == backward + base)
 print(NL)
 print(.positive.real64() == .negative.real64())
 print(NL)
-int unique = .positive.int(base, base + 1)
+int unique := .positive.int(base, base + 1)
 print(unique == base)
 print(NL)
 QUI
@@ -3437,7 +3437,7 @@ QUI
 
 # The old int64 range path also preserves subsequent generator state.
 cat > "$TMP/random-compat.qui" <<'QUI'
-random.Generator rng = random.generator(seed = 42)
+random.Generator rng := random.generator(seed = 42)
 print(.rng.int(1, 10))
 print(NL)
 print(.rng.int(-1000, 1000))

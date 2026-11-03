@@ -5,16 +5,16 @@
 // evaluated after it. Values that are not borrowed (int, string) behave the
 // same.
 class Box this()
-    int[] items = [1, 2, 3]
-    int total = 0
+    int[] items := [1, 2, 3]
+    int total := 0
 
     void .keep(const int[] values)
         this.items[0] = 9
         this.total = values[0]
 
 class Point()
-    int x = 0
-    int y = 0
+    int x := 0
+    int y := 0
 
 void through(const int[] values, int[] &same)
     same[0] = 7
@@ -70,30 +70,30 @@ void untouched(const int[] values, int[] &other)
     print("untouched: {values[0]} {other[0]}")
     print(NL)
 
-int[] a = [1, 2, 3]
+int[] a := [1, 2, 3]
 through(a, &a)
 print("after: {a[0]}")
 print(NL)
-int[] p = [1, 2, 3]
+int[] p := [1, 2, 3]
 plain(p, &p)
-int[] b = [1, 2, 3]
+int[] b := [1, 2, 3]
 replace(b, &b)
-Point point = Point()
+Point point := Point()
 move(point, &point)
-int[][] rows = [[1, 2], [3]]
+int[][] rows := [[1, 2], [3]]
 row(rows[0], &rows)
-int[] c = [1, 2, 3]
+int[] c := [1, 2, 3]
 later(c, grow(&c))
-Box box = Box()
+Box box := Box()
 .box.keep(box.items)
 print("receiver: {box.total} {box.items[0]}")
 print(NL)
-tensor<real32> t = tensor.ones<real32>([2])
+tensor<real32> t := tensor.ones<real32>([2])
 tensors(t, &t)
-int n = 1
+int n := 1
 scalar(n, &n)
-string s = "orig"
+string s := "orig"
 text(s, &s)
-int[] d = [3]
-int[] e = [4]
+int[] d := [3]
+int[] e := [4]
 untouched(d, &e)

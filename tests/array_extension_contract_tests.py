@@ -39,92 +39,92 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
             print(f'PASS {name}', flush=True)
 
     case('contextual-array', '''
-        int[] a = [1, 2] + [3, 4]
-        int[] b = [1, 2] * 2
-        int[] c = 2 * [1, 2]
-        int[] sum = [4, 6]
-        int[] product = [2, 4]
+        int[] a := [1, 2] + [3, 4]
+        int[] b := [1, 2] * 2
+        int[] c := 2 * [1, 2]
+        int[] sum := [4, 6]
+        int[] product := [2, 4]
         print(a == sum and b == product and c == product)
     ''')
     case('typed-literal-comparison', '''
-        bool[] mask = [real32(1.0)] < [real32(2.0)]
-        bool[] expected = [true]
+        bool[] mask := [real32(1.0)] < [real32(2.0)]
+        bool[] expected := [true]
         print(mask == expected)
     ''')
     case('contextual-comparison', '''
-        bool[] mask = [1, 5, 3] < [2, 4, 3]
-        bool[] expected = [true, false, false]
+        bool[] mask := [1, 5, 3] < [2, 4, 3]
+        bool[] expected := [true, false, false]
         print(mask == expected)
     ''')
     case('mixed-index-literals', '''
-        nat i = 1
-        int[] a = [10, 20]
-        int[] b = a[[0, i]]
-        int[] expected = [10, 20]
+        nat i := 1
+        int[] a := [10, 20]
+        int[] b := a[[0, i]]
+        int[] expected := [10, 20]
         print(b == expected)
     ''')
     case('negative-range', '''
-        int[] a = -3:0
-        int[] expected = [-3, -2, -1, 0]
+        int[] a := -3:0
+        int[] expected := [-3, -2, -1, 0]
         print(a == expected)
     ''')
     case('signed-range-power', '''
-        int[] a = 0:-3 ^ 2
-        int[] b = -3:0 ^ 2
-        int[] c = 0:-3:-2
-        int[] expected_a = [0, 1, 4, 9]
-        int[] expected_b = [9, 4, 1, 0]
-        int[] expected_c = [0, -2]
+        int[] a := 0:-3 ^ 2
+        int[] b := -3:0 ^ 2
+        int[] c := 0:-3:-2
+        int[] expected_a := [0, 1, 4, 9]
+        int[] expected_b := [9, 4, 1, 0]
+        int[] expected_c := [0, -2]
         print(a == expected_a and b == expected_b and c == expected_c)
     ''')
     case('equal-end-negative-step', '''
-        int begin = 3
-        int step = -2
-        int[] values = begin:begin:step
-        int[] expected = [3]
+        int begin := 3
+        int step := -2
+        int[] values := begin:begin:step
+        int[] expected := [3]
         print(values == expected)
     ''')
     case('array-rhs-mutation', '''
         int mutate(int[] &a)
             a = [8, 9]
             return 1
-        int[] a = [1, 2]
-        int[] result = a + mutate(&a)
-        int[] expected = [2, 3]
+        int[] a := [1, 2]
+        int[] result := a + mutate(&a)
+        int[] expected := [2, 3]
         print(result == expected)
     ''')
     case('selector-mutation', '''
         int[] selector(int[] &value)
             value = [8, 9]
             return [1, 0, 1]
-        int[] value = [1, 2]
-        int[] selected = value[selector(&value)]
-        int[] expected = [2, 1, 2]
+        int[] value := [1, 2]
+        int[] selected := value[selector(&value)]
+        int[] expected := [2, 1, 2]
         print(selected == expected)
     ''')
     case('large-step', '''
-        int[] a = 0:18446744073709551616:18446744073709551616
-        int[] expected = [0, 18446744073709551616]
+        int[] a := 0:18446744073709551616:18446744073709551616
+        int[] expected := [0, 18446744073709551616]
         print(a == expected)
     ''')
     case('empty-marked-range', '''
-        int[] a = 3:<0
-        int[] b = 0:>3
+        int[] a := 3:<0
+        int[] b := 0:>3
         print(len(a) == 0 and len(b) == 0)
     ''')
     case('uninitialized-arithmetic', '''
         int[1] a
-        int[] b = a + 1
+        int[] b := a + 1
     ''', 'UNINITIALIZED')
     case('array-comparison-chain', '''
-        int[] a = [1, 2]
-        bool result = 0 < a < 10
+        int[] a := [1, 2]
+        bool result := 0 < a < 10
     ''', 'CHAINED_COMPARISON')
 
     write('stats', '''
         int total(extend int[] values)
-            int result = 0
-            for int value = values[]
+            int result := 0
+            for int value := values[]
                 result += value
             return result
         int twice(extend int value)
@@ -132,18 +132,18 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     ''')
     case('gather-method', '''
         import stats = "./stats.qui"
-        int[] values = [1, 2, 3]
-        int[] idx = [2, 0]
+        int[] values := [1, 2, 3]
+        int[] idx := [2, 0]
         print(values[idx].total() == 4 and values[values > 1].total() == 5)
     ''')
     case('slice-method', '''
         import stats = "./stats.qui"
-        int[] values = [1, 2, 3]
+        int[] values := [1, 2, 3]
         print(values[1:].total() == 5)
     ''')
     case('chain-method', '''
         import stats = "./stats.qui"
-        int[] values = [1, 2, 3]
+        int[] values := [1, 2, 3]
         print(values.total().twice() == 12)
     ''')
     case('contextual-extension-arguments', '''
@@ -151,13 +151,13 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
             return value[0]
         int plus(extend int value, int[] other)
             return value + other[0]
-        int value = 2
+        int value := 2
         print([1, 2].first() == first([1, 2]) and value.plus([3, 4]) == 5)
     ''')
     case('native-chain-and-unary', '''
         import stats = "./stats.qui"
-        int[] values = [1, 2]
-        int value = 3
+        int[] values := [1, 2]
+        int value := 3
         print(values.append(3).total() == 6 and (-value).twice() == -6 and
               (values + value).total() == 9)
     ''')
@@ -166,15 +166,15 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
             return value + value
         T[] twice<T: numeric>(extend T[] value)
             return value + value
-        int value = 3
-        int[] values = [1, 2]
-        int[] expected = [2, 4]
+        int value := 3
+        int[] values := [1, 2]
+        int[] expected := [2, 4]
         print(value.twice() == 6 and values.twice() == expected)
     ''')
     case('const-explicit-and-named', '''
-        T plus<T: numeric>(extend const T value, T other = T(2))
+        T plus<T: numeric>(extend const T value, T other := T(2))
             return value + other
-        int value = 3
+        int value := 3
         print(value.plus<int>() == 5 and value.plus(other = 4) == 7)
     ''')
     write('private_extension', '''
@@ -189,7 +189,7 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     ''')
     case('private-extension-hidden', '''
         import lib = "./private_extension.qui"
-        int[] value = [4, 5]
+        int[] value := [4, 5]
         print(value.total())
     ''', 'UNKNOWN_MEMBER')
     write('internal_user', '''
@@ -199,18 +199,18 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     ''')
     case('module-local-import', '''
         import lib = "./internal_user.qui"
-        int[] values = [1, 2, 3]
+        int[] values := [1, 2, 3]
         print(lib.run(values) == 6)
     ''')
     case('no-transitive-extension', '''
         import lib = "./internal_user.qui"
-        int[] values = [1, 2, 3]
+        int[] values := [1, 2, 3]
         print(values.total())
     ''', 'UNKNOWN_MEMBER')
     write('public_stats', 'public import stats = "./stats.qui"\n')
     case('public-extension-import', '''
         import lib = "./public_stats.qui"
-        int[] values = [1, 2, 3]
+        int[] values := [1, 2, 3]
         print(values.total() == 6)
     ''')
     write('int_ext', '''
@@ -224,8 +224,8 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('tensor-element-resolution', '''
         import ints = "./int_ext.qui"
         import reals = "./real_ext.qui"
-        tensor<int32> a = tensor.zeros<int32>([1])
-        tensor<real32> b = tensor.zeros<real32>([1])
+        tensor<int32> a := tensor.zeros<int32>([1])
+        tensor<real32> b := tensor.zeros<real32>([1])
         print(a.tagged() == 1 and b.tagged() == 2)
     ''')
     write('integer_ext', '''
@@ -239,8 +239,8 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('constrained-extension-resolution', '''
         import ints = "./integer_ext.qui"
         import reals = "./floating_ext.qui"
-        int a = 1
-        real32 b = 1.0
+        int a := 1
+        real32 b := 1.0
         print(a.tagged() == 1 and b.tagged() == 2)
     ''')
     write('numeric_argument', '''
@@ -254,14 +254,14 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('generic-literal-argument-resolution', '''
         import nums = "./numeric_argument.qui"
         import texts = "./text_argument.qui"
-        int value = 1
+        int value := 1
         print(value.tagged(2) == 1 and value.tagged<int>(2) == 1 and
               value.tagged("text") == 2)
     ''')
     case('generic-whole-array', '''
         nat count<T>(extend T values)
             return len(values)
-        int[] a = [1, 2]
+        int[] a := [1, 2]
         print(a.count() == 2)
     ''')
     case('string-method-collision', '''
@@ -272,20 +272,20 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('tensor-method-collision', '''
         int device(extend tensor<real32> value)
             return 1
-        tensor<real32> a = tensor.zeros<real32>([1])
+        tensor<real32> a := tensor.zeros<real32>([1])
         print(a.device())
     ''', 'EXTENSION_COLLISION')
     case('autograd-method-collision', '''
         bool has_grad(extend autograd.Target value)
             return true
-        autograd.Target target = autograd.target()
+        autograd.Target target := autograd.target()
         print(target.has_grad())
     ''', 'EXTENSION_COLLISION')
     case('file-method-collision', '''
         bool operator(extend file.read &value)
             return true
-        file.read handle = file.read("unused")
-        string line = ""
+        file.read handle := file.read("unused")
+        string line := ""
         .handle.operator(&line)
     ''', 'EXTENSION_COLLISION')
     case('receiver-once-order', '''

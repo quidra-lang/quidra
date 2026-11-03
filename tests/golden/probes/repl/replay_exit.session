@@ -1,4 +1,4 @@
-int y = 3
+int y := 3
 // only a comment
 y + 1
 process.exit(0)

@@ -32,10 +32,10 @@ POINT = """class Point()
     real64 y
 
 """
-POINT_GENERATION = """class Point point(real64 x, real64 y, local real64 scale = 2.0)
+POINT_GENERATION = """class Point point(real64 x, real64 y, local real64 scale := 2.0)
     x *= scale
     y *= scale
-    real64 length_squared = x * x + y * y
+    real64 length_squared := x * x + y * y
 
     real64 sum()
         return x + y
@@ -45,8 +45,8 @@ POINT_GENERATION = """class Point point(real64 x, real64 y, local real64 scale =
 
 """
 CONFIG = """class Config()
-    int retries = 3
-    real64 timeout = 5.0
+    int retries := 3
+    real64 timeout := 5.0
     string endpoint
 
 """
@@ -75,13 +75,13 @@ def prelude(root: Path, path: Path, code: str) -> str:
     if rel == "README.md":
         if code.lstrip().startswith("int | none | error doubled("):
             return LOOKUP
-        if code.strip().startswith("auto result = lookup(1)") or code.strip().startswith("auto | error result = lookup(1)"):
+        if code.strip().startswith("result := lookup(1)") or code.strip().startswith("int | none | error result := lookup(1)"):
             return LOOKUP
     if rel == "docs/spec/language.md":
         stripped = code.lstrip()
-        if stripped.startswith("auto point = Point(") and "class Point" not in code:
+        if stripped.startswith("point := Point(") and "class Point" not in code:
             return "class Point(real64 x, real64 y)\n\n"
-        if "class Point" not in code and (stripped.startswith("Point pending\n") or "\nPoint point = Point(" in code):
+        if "class Point" not in code and (stripped.startswith("Point pending\n") or "\nPoint point := Point(" in code):
             return POINT_GENERATION
         if stripped.startswith("Box<int> box"):
             return GENERIC
@@ -115,7 +115,7 @@ def fixtures(directory: Path) -> None:
     plotting = packages / "plotting"
     plotting.mkdir(parents=True)
     (plotting / "main.qui").write_text(
-        "const int answer = 42\n\nint placeholder()\n    return 0\n",
+        "const int answer := 42\n\nint placeholder()\n    return 0\n",
         encoding="utf-8",
     )
 
@@ -146,18 +146,18 @@ reflect.Each<Parameter<T>> parameters<T: floating, M>(M &model)
     return reflect.each<Parameter<T>>(&model)
 
 void clear_grad<M>(M &model)
-    for Parameter<real16> &parameter = &parameters(&model)[]
+    for Parameter<real16> &parameter := &parameters(&model)[]
         .parameter.clear_grad()
-    for Parameter<real16b> &parameter = &parameters(&model)[]
+    for Parameter<real16b> &parameter := &parameters(&model)[]
         .parameter.clear_grad()
-    for Parameter<real32> &parameter = &parameters(&model)[]
+    for Parameter<real32> &parameter := &parameters(&model)[]
         .parameter.clear_grad()
-    for Parameter<real64> &parameter = &parameters(&model)[]
+    for Parameter<real64> &parameter := &parameters(&model)[]
         .parameter.clear_grad()
 
-class Adam<M> this(local M &model_initial, local real64 learning_rate = 0.001) | error
+class Adam<M> this(local M &model_initial, local real64 learning_rate := 0.001) | error
     private M &model
-    private int marker = 0
+    private int marker := 0
 
 
     &this.model = &model_initial
@@ -177,7 +177,7 @@ class Adam<M> this(local M &model_initial, local real64 learning_rate = 0.001) |
         """public import mode = "./mode.qui"
 
 class FC this(local int features_in, local int features_out) | error
-    int marker = 0
+    int marker := 0
 
 
     this.marker = features_in + features_out
@@ -192,7 +192,7 @@ class FC this(local int features_in, local int features_out) | error
     math = packages / "math"
     math.mkdir()
     (math / "main.qui").write_text(
-        """const real pi = real(3.141592653589793)
+        """const real pi := real(3.141592653589793)
 
 real64 sqrt(real64 value)
     return value ^ 0.5

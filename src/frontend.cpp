@@ -599,37 +599,37 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         declarations.push_back(std::move(result));
     } else if (module == "map") {
         constexpr std::string_view source = R"QUI(class Map<K, V>()
-    K[] __keys = []
-    V[] __values = []
-    int64[] __hashes = []
-    bool[] __active = []
-    int64[] __slots = array(8, fill = -1)
-    int64 __size = 0
-    int64 __tombstones = 0
-    int64 __empty_slot = -1
-    int64 __last_index = -1
-    int64 __last_hash = -1
-    int64 __last_slot = -1
-    K[] __last_key = []
-    int64 __version = 0
-    int64 __last_version = -1
+    K[] __keys := []
+    V[] __values := []
+    int64[] __hashes := []
+    bool[] __active := []
+    int64[] __slots := array(8, fill = -1)
+    int64 __size := 0
+    int64 __tombstones := 0
+    int64 __empty_slot := -1
+    int64 __last_index := -1
+    int64 __last_hash := -1
+    int64 __last_slot := -1
+    K[] __last_key := []
+    int64 __version := 0
+    int64 __last_version := -1
 
     int64 __hash(K key)
-        int[] __encoded = key.string().codepoints()
-        int64 __result = 0
-        for auto __unit = __encoded[]
-            int64 __unit64 = int64(__unit)
+        int[] __encoded := key.string().codepoints()
+        int64 __result := 0
+        for __unit := __encoded[]
+            int64 __unit64 := int64(__unit)
             __result = (__result * 131 + __unit64) % 2147483647
         return __result
 
     int64 __slot_of(K key, int64 hash)
-        int64 __capacity = int64(len(__slots))
-        int64 __mask = __capacity - 1
-        int64 __slot = hash AND __mask
-        int64 __scanned = 0
-        int64 __first_tombstone = -1
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := hash AND __mask
+        int64 __scanned := 0
+        int64 __first_tombstone := -1
         while __scanned < __capacity
-            int64 __index = __slots[__slot]
+            int64 __index := __slots[__slot]
             if __index == -1
                 if __first_tombstone >= 0
                     __empty_slot = __first_tombstone
@@ -646,15 +646,15 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return -1
 
     int64 __find(K key, int64 hash)
-        int64 __slot = __slot_of(key, hash)
+        int64 __slot := __slot_of(key, hash)
         if __slot < 0
             return -1
         return __slots[__slot]
 
     void __place(int64 index)
-        int64 __capacity = int64(len(__slots))
-        int64 __mask = __capacity - 1
-        int64 __slot = __hashes[index] AND __mask
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := __hashes[index] AND __mask
         while __slots[__slot] >= 0
             __slot = (__slot + 1) AND __mask
         __slots[__slot] = index
@@ -668,11 +668,11 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     void __compact()
-        K[] __new_keys = array(nat(__size))
-        V[] __new_values = array(nat(__size))
-        int64[] __new_hashes = array(nat(__size), fill = 0)
-        bool[] __new_active = array(nat(__size), fill = false)
-        int64 __write = 0
+        K[] __new_keys := array(nat(__size))
+        V[] __new_values := array(nat(__size))
+        int64[] __new_hashes := array(nat(__size), fill = 0)
+        bool[] __new_active := array(nat(__size), fill = false)
+        int64 __write := 0
         for 0 <= nat __index < len(__keys)
             if __active[__index]
                 __new_keys[__write] = __keys[__index]
@@ -690,12 +690,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     bool has(K key)
-        int64 __hash_value = __hash(key)
+        int64 __hash_value := __hash(key)
         return __find(key, __hash_value) >= 0
 
     V | none get(K key)
-        int64 __hash_value = __hash(key)
-        int64 __index = __find(key, __hash_value)
+        int64 __hash_value := __hash(key)
+        int64 __index := __find(key, __hash_value)
         __last_hash = __hash_value
         __last_index = __index
         __last_slot = __empty_slot
@@ -709,21 +709,21 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return none
 
     void .set(K key, V value)
-        int64 __hash_value = -1
+        int64 __hash_value := -1
         if __last_version == __version and __last_index >= 0
-            int64 __cached = __last_index
+            int64 __cached := __last_index
             if __keys[__cached] == key
                 __values[__cached] = value
                 return void
 
-        bool __reuse_missing = false
+        bool __reuse_missing := false
         if __last_version == __version and __last_index < 0 and len(__last_key) == 1
             if __last_key[0] == key
                 __reuse_missing = true
                 __hash_value = __last_hash
 
-        int64 __index = -1
-        int64 __insert_slot = -1
+        int64 __index := -1
+        int64 __insert_slot := -1
         if __reuse_missing
             __insert_slot = __last_slot
         else
@@ -738,14 +738,14 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             __last_version = __version
             return void
 
-        int64 __new_index = int64(len(__keys))
+        int64 __new_index := int64(len(__keys))
         __keys = __keys.append(key)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
         __active = __active.append(true)
         __size += 1
 
-        int64 __slot_count = int64(len(__slots))
+        int64 __slot_count := int64(len(__slots))
         if __size > __slot_count - __slot_count / 4
             __rehash(__slot_count * 2)
         else
@@ -756,7 +756,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __last_version = -1
         return void
 
-    void .increment(K key, V by = V(1))
+    void .increment(K key, V by := V(1))
         match get(key)
             V previous
                 .set(key, previous + by)
@@ -765,20 +765,20 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     bool .remove(K key)
-        int64 __hash_value = __hash(key)
-        int64 __slot = __slot_of(key, __hash_value)
+        int64 __hash_value := __hash(key)
+        int64 __slot := __slot_of(key, __hash_value)
         if __slot < 0
             return false
 
-        int64 __removed_index = __slots[__slot]
+        int64 __removed_index := __slots[__slot]
         __active[__removed_index] = false
         __slots[__slot] = -2
         __size -= 1
         __tombstones += 1
         __version += 1
         __last_version = -1
-        int64 __key_count = int64(len(__keys))
-        int64 __slot_count = int64(len(__slots))
+        int64 __key_count := int64(len(__keys))
+        int64 __slot_count := int64(len(__slots))
         if __key_count > 64 and __size * 2 <= __key_count
             __compact()
         elif __tombstones > __slot_count / 4
@@ -789,13 +789,13 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return nat(__size)
 
     K[] keys()
-        int64 __count = int64(len(__keys))
+        int64 __count := int64(len(__keys))
         if __size != __count
             __compact()
         return __keys
 
     V[] values()
-        int64 __count = int64(len(__values))
+        int64 __count := int64(len(__values))
         if __size != __count
             __compact()
         return __values
@@ -885,30 +885,30 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         declarations.push_back(std::move(value));
     } else if (module == "distinct") {
         constexpr std::string_view source = R"QUI(class Distinct<T>()
-    T[] __values = []
-    int64[] __hashes = []
-    bool[] __active = []
-    int64[] __slots = array(8, fill = -1)
-    int64 __size = 0
-    int64 __tombstones = 0
-    int64 __empty_slot = -1
+    T[] __values := []
+    int64[] __hashes := []
+    bool[] __active := []
+    int64[] __slots := array(8, fill = -1)
+    int64 __size := 0
+    int64 __tombstones := 0
+    int64 __empty_slot := -1
 
     int64 __hash(T value)
-        int[] __encoded = value.string().codepoints()
-        int64 __result = 0
-        for auto __unit = __encoded[]
-            int64 __unit64 = int64(__unit)
+        int[] __encoded := value.string().codepoints()
+        int64 __result := 0
+        for __unit := __encoded[]
+            int64 __unit64 := int64(__unit)
             __result = (__result * 131 + __unit64) % 2147483647
         return __result
 
     int64 __slot_of(T value, int64 hash)
-        int64 __capacity = int64(len(__slots))
-        int64 __mask = __capacity - 1
-        int64 __slot = hash AND __mask
-        int64 __scanned = 0
-        int64 __first_tombstone = -1
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := hash AND __mask
+        int64 __scanned := 0
+        int64 __first_tombstone := -1
         while __scanned < __capacity
-            int64 __index = __slots[__slot]
+            int64 __index := __slots[__slot]
             if __index == -1
                 if __first_tombstone >= 0
                     __empty_slot = __first_tombstone
@@ -925,15 +925,15 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return -1
 
     int64 __find(T value, int64 hash)
-        int64 __slot = __slot_of(value, hash)
+        int64 __slot := __slot_of(value, hash)
         if __slot < 0
             return -1
         return __slots[__slot]
 
     void __place(int64 index)
-        int64 __capacity = int64(len(__slots))
-        int64 __mask = __capacity - 1
-        int64 __slot = __hashes[index] AND __mask
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := __hashes[index] AND __mask
         while __slots[__slot] >= 0
             __slot = (__slot + 1) AND __mask
         __slots[__slot] = index
@@ -947,10 +947,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     void __compact()
-        T[] __new_values = array(nat(__size))
-        int64[] __new_hashes = array(nat(__size), fill = 0)
-        bool[] __new_active = array(nat(__size), fill = false)
-        int64 __write = 0
+        T[] __new_values := array(nat(__size))
+        int64[] __new_hashes := array(nat(__size), fill = 0)
+        bool[] __new_active := array(nat(__size), fill = false)
+        int64 __write := 0
         for 0 <= nat __index < len(__values)
             if __active[__index]
                 __new_values[__write] = __values[__index]
@@ -964,13 +964,13 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     bool has(T value)
-        int64 __hash_value = __hash(value)
-        int64 __capacity = int64(len(__slots))
-        int64 __mask = __capacity - 1
-        int64 __slot = __hash_value AND __mask
-        int64 __scanned = 0
+        int64 __hash_value := __hash(value)
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := __hash_value AND __mask
+        int64 __scanned := 0
         while __scanned < __capacity
-            int64 __index = __slots[__slot]
+            int64 __index := __slots[__slot]
             if __index == -1
                 return false
             if __index >= 0 and __hashes[__index] == __hash_value and __values[__index] == value
@@ -980,18 +980,18 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return false
 
     void .add(T value)
-        int64 __hash_value = __hash(value)
+        int64 __hash_value := __hash(value)
         if __find(value, __hash_value) >= 0
             return void
 
-        int64 __new_index = int64(len(__values))
-        int64 __insert_slot = __empty_slot
+        int64 __new_index := int64(len(__values))
+        int64 __insert_slot := __empty_slot
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
         __active = __active.append(true)
         __size += 1
 
-        int64 __slot_count = int64(len(__slots))
+        int64 __slot_count := int64(len(__slots))
         if __size > __slot_count - __slot_count / 4
             __rehash(__slot_count * 2)
         else
@@ -1001,18 +1001,18 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     bool .remove(T value)
-        int64 __hash_value = __hash(value)
-        int64 __slot = __slot_of(value, __hash_value)
+        int64 __hash_value := __hash(value)
+        int64 __slot := __slot_of(value, __hash_value)
         if __slot < 0
             return false
 
-        int64 __removed_index = __slots[__slot]
+        int64 __removed_index := __slots[__slot]
         __active[__removed_index] = false
         __slots[__slot] = -2
         __size -= 1
         __tombstones += 1
-        int64 __value_count = int64(len(__values))
-        int64 __slot_count = int64(len(__slots))
+        int64 __value_count := int64(len(__values))
+        int64 __slot_count := int64(len(__slots))
         if __value_count > 64 and __size * 2 <= __value_count
             __compact()
         elif __tombstones > __slot_count / 4
@@ -1023,7 +1023,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return nat(__size)
 
     T[] values()
-        int64 __count = int64(len(__values))
+        int64 __count := int64(len(__values))
         if __size != __count
             __compact()
         return __values
@@ -1900,9 +1900,18 @@ void reject_private_exposure(const Program& program) {
 }
 
 void resolve_local_prototypes(Program& program, std::string_view source) {
+    const auto require_explicit_prototype_parameters = [](const FunctionDecl& prototype) {
+        for (const auto& parameter : prototype.parameters) {
+            if (parameter.type.name == "auto")
+                frontend_error("PROTOTYPE_MISMATCH",
+                    "Write an explicit parameter type in a prototype.", parameter.span);
+        }
+    };
     std::unordered_map<std::string, std::vector<std::size_t>> functions;
     for (std::size_t i = 0; i < program.functions.size(); ++i) {
         if (!program.functions[i].external_symbol) {
+            if (program.functions[i].is_prototype)
+                require_explicit_prototype_parameters(program.functions[i]);
             functions[function_prototype_key(program.functions[i], source)].push_back(i);
         }
     }
@@ -1974,7 +1983,11 @@ void resolve_local_prototypes(Program& program, std::string_view source) {
     program.functions = std::move(kept_functions);
 
     std::unordered_map<std::string, std::vector<std::size_t>> classes;
-    for (std::size_t i = 0; i < program.classes.size(); ++i) classes[program.classes[i].name].push_back(i);
+    for (std::size_t i = 0; i < program.classes.size(); ++i) {
+        if (program.classes[i].is_prototype)
+            require_explicit_prototype_parameters(program.classes[i].methods.front());
+        classes[program.classes[i].name].push_back(i);
+    }
     std::vector<bool> remove_classes(program.classes.size());
     for (const auto& [name, indices] : classes) {
         std::vector<std::size_t> prototypes, definitions;
@@ -3308,18 +3321,18 @@ std::optional<std::vector<StmtPtr>> standard_collection_hash_body(
         const auto hash=[&](const auto& self,const TypeName& t,const std::string& value)->std::string {
             const auto id=std::to_string(serial++);const auto result="__tuple_hash_"+id;
             if(t.name=="$tuple") {
-                std::vector<std::string> names;source<<"    (";for(std::size_t i=0;i<t.arguments.size();++i){if(i)source<<", ";names.push_back("__tuple_key_"+id+"_"+std::to_string(i));source<<spelling(spelling,t.arguments[i])<<" "<<names.back();}source<<") = "<<value<<"\n";
-                source<<"    int64 "<<result<<" = 0\n";
+                std::vector<std::string> names;source<<"    (";for(std::size_t i=0;i<t.arguments.size();++i){if(i)source<<", ";names.push_back("__tuple_key_"+id+"_"+std::to_string(i));source<<spelling(spelling,t.arguments[i])<<" "<<names.back();}source<<") := "<<value<<"\n";
+                source<<"    int64 "<<result<<" := 0\n";
                 for(std::size_t i=0;i<t.arguments.size();++i){const auto child=self(self,t.arguments[i],names[i]);source<<"    "<<result<<" = ("<<result<<" * 1000003 + ("<<child<<" % 2147483647)) % 2147483647\n";}
             } else if(t.name=="string") {
-                source<<"    int[] __tuple_units_"<<id<<" = "<<value<<".codepoints()\n    int64 "<<result<<" = 0\n    for auto __tuple_unit_"<<id<<" = __tuple_units_"<<id<<"[]\n        int64 __tuple_unit64_"<<id<<" = int64(__tuple_unit_"<<id<<")\n        "<<result<<" = ("<<result<<" * 131 + __tuple_unit64_"<<id<<") % 2147483647\n";
+                source<<"    int[] __tuple_units_"<<id<<" := "<<value<<".codepoints()\n    int64 "<<result<<" := 0\n    for __tuple_unit_"<<id<<" := __tuple_units_"<<id<<"[]\n        int64 __tuple_unit64_"<<id<<" := int64(__tuple_unit_"<<id<<")\n        "<<result<<" = ("<<result<<" * 131 + __tuple_unit64_"<<id<<") % 2147483647\n";
             } else if(t.name=="bool") {
-                source<<"    int64 "<<result<<" = 0\n    if "<<value<<"\n        "<<result<<" = 1\n";
+                source<<"    int64 "<<result<<" := 0\n    if "<<value<<"\n        "<<result<<" = 1\n";
             } else {
                 const auto* numeric=numeric_type_name(t.name);
-                if(numeric->kind==TypeKind::Int || numeric->kind==TypeKind::Nat){source<<"    int __tuple_mod_"<<id<<" = int("<<value<<") % 2147483647\n    if __tuple_mod_"<<id<<" < 0\n        __tuple_mod_"<<id<<" += 2147483647\n    int64 "<<result<<" = int64(__tuple_mod_"<<id<<")\n";}
-                else if(numeric->kind==TypeKind::Nat64)source<<"    int64 "<<result<<" = int64("<<value<<" AND nat64(9223372036854775807))\n";
-                else source<<"    int64 "<<result<<" = int64("<<value<<") AND 9223372036854775807\n";
+                if(numeric->kind==TypeKind::Int || numeric->kind==TypeKind::Nat){source<<"    int __tuple_mod_"<<id<<" := int("<<value<<") % 2147483647\n    if __tuple_mod_"<<id<<" < 0\n        __tuple_mod_"<<id<<" += 2147483647\n    int64 "<<result<<" := int64(__tuple_mod_"<<id<<")\n";}
+                else if(numeric->kind==TypeKind::Nat64)source<<"    int64 "<<result<<" := int64("<<value<<" AND nat64(9223372036854775807))\n";
+                else source<<"    int64 "<<result<<" := int64("<<value<<") AND 9223372036854775807\n";
             }
             return result;
         };
@@ -3342,7 +3355,7 @@ std::optional<std::vector<StmtPtr>> standard_collection_hash_body(
         kind == TypeKind::Int64 || kind == TypeKind::Int8 ||
         kind == TypeKind::Int16 || kind == TypeKind::Int32) {
         source << "int64 __hash(" << numeric->spelling << " " << parameter << ")\n"
-               << "    int64 __value = int64(" << parameter << ")\n"
+               << "    int64 __value := int64(" << parameter << ")\n"
                << "    return __value AND 9223372036854775807\n";
     } else if (
         kind == TypeKind::Nat8 || kind == TypeKind::Nat16 ||
@@ -3351,16 +3364,16 @@ std::optional<std::vector<StmtPtr>> standard_collection_hash_body(
                << "    return int64(" << parameter << ")\n";
     } else if (kind == TypeKind::Nat64) {
         source << "int64 __hash(nat64 " << parameter << ")\n"
-               << "    nat64 __result = " << parameter
+               << "    nat64 __result := " << parameter
                << " AND nat64(9223372036854775807)\n"
-               << "    int64 __code = int64(__result)\n"
+               << "    int64 __code := int64(__result)\n"
                << "    return __code\n";
     } else if (kind == TypeKind::Int || kind == TypeKind::Nat) {
         source << "int64 __hash(" << numeric->spelling << " " << parameter << ")\n"
-               << "    int __result = int(" << parameter << ") % 2147483647\n"
+               << "    int __result := int(" << parameter << ") % 2147483647\n"
                << "    if __result < 0\n"
                << "        __result += 2147483647\n"
-               << "    int64 __code = int64(__result)\n"
+               << "    int64 __code := int64(__result)\n"
                << "    return __code\n";
     } else {
         return std::nullopt;
@@ -3939,6 +3952,12 @@ private:
         std::vector<const FunctionDecl*> concretes;
 
         for (const auto* function : family) {
+            for (const auto& parameter : function->parameters) {
+                if (parameter.type.name == "auto")
+                    frontend_error("INFERRED_DECLARATION_TYPE",
+                        "Write an explicit parameter type in a specialization family.",
+                        parameter.span);
+            }
             if (function->parameters.size() != arity) {
                 frontend_error(
                     "DUPLICATE_NAME",
@@ -4700,7 +4719,8 @@ private:
             if (const auto* numeric = numeric_type_name(call->callee)) {
                 return simple_type(std::string(numeric->spelling));
             }
-            if (class_index_.contains(call->callee)) {
+            if (call->callee == "len") return simple_type("nat");
+            if (class_index_.contains(call->callee) || concrete_classes_.contains(call->callee)) {
                 TypeName result;
                 result.name = call->callee;
                 result.span = expression.span;
@@ -4709,6 +4729,10 @@ private:
             if (const auto function = function_return_types_.find(call->callee);
                 function != function_return_types_.end()) {
                 return clone_type(function->second);
+            }
+            if (const auto function = concrete_functions_.find(call->callee);
+                function != concrete_functions_.end()) {
+                return clone_type(function->second->return_type);
             }
             if (!current_class.empty()) {
                 if (const auto result = method_return_type(current_class, call->callee)) return result;
@@ -5110,6 +5134,10 @@ private:
             if (index >= callee_parameters.size() || filled[index]) return std::nullopt;
             filled[index] = true;
 
+            // Omitted declaration types are fixed by their own default, not
+            // by a supplied call argument. The checker matches the concrete
+            // argument against that type after this generic solve.
+            if (callee_parameters[index].type.name == "auto") continue;
             const auto actual = infer_call_argument_type(
                 *argument.value, callee_parameters[index].type, current_class);
             if (!actual) continue;
@@ -6420,6 +6448,58 @@ private:
         return out;
     }
 
+    std::optional<TypeName> infer_declaration_type(
+        const Expr& initializer, const std::string& current_class, bool reference = false) const {
+        auto inferred = infer_expression_type(initializer, current_class);
+        if (!inferred || inferred->name == "auto" || inferred->name == "void" ||
+            inferred->name == "never") return std::nullopt;
+        if (!reference) {
+            if (auto success = non_error_type(*inferred)) inferred = std::move(success);
+            if (!inferred->dimensions.empty() &&
+                std::holds_alternative<ArrayExpr>(initializer.data)) {
+                inferred->dimensions.front() = -1;
+                if (!inferred->dimension_expressions.empty())
+                    inferred->dimension_expressions.front().reset();
+            }
+        }
+        return inferred;
+    }
+
+    TypeName require_declaration_type(
+        const Expr& initializer, const std::string& current_class,
+        const std::string& name, std::string_view kind, bool reference = false) const {
+        auto inferred = infer_declaration_type(initializer, current_class, reference);
+        if (!inferred)
+            frontend_error("INFERRED_DECLARATION_TYPE",
+                "Cannot infer the type of " + std::string(kind) + " '" + name +
+                    "' from its initializer. Write its explicit type.", initializer.span);
+        return std::move(*inferred);
+    }
+
+    void materialize_initializer_field(
+        const std::string& class_name, const Stmt& statement) {
+        const auto* assignment = std::get_if<AssignStmt>(&statement.data);
+        const auto* reference = std::get_if<RebindStmt>(&statement.data);
+        const auto* place = assignment ? assignment->target.get()
+                                       : reference ? reference->place.get() : nullptr;
+        if (!place) return;
+        const auto* target = std::get_if<NameExpr>(&place->data);
+        if (!target || !target->this_qualifier) return;
+        const auto class_index = class_index_.at(class_name);
+        const auto& fields = output_.classes.at(class_index).fields;
+        const auto field = std::find_if(fields.begin(), fields.end(), [&](const FieldDecl& candidate) {
+            return candidate.type.name == "auto" && candidate.name == target->name &&
+                   candidate.span.start.offset == statement.span.start.offset;
+        });
+        if (field == fields.end()) return;
+        const auto& initializer = assignment ? *assignment->value : *reference->target;
+        const auto field_index = static_cast<std::size_t>(field - fields.begin());
+        const auto inferred = require_declaration_type(initializer, class_name, field->name,
+                                                        "class field", field->reference);
+        auto type = materialize_type(inferred, {}, {});
+        output_.classes[class_index].fields[field_index].type = std::move(type);
+    }
+
     FunctionDecl clone_function(
         const FunctionDecl& source,
         const Substitution& substitution,
@@ -6464,15 +6544,38 @@ private:
                 copy.is_const = parameter.is_const;
                 copy.is_local = parameter.is_local;
                 copy.is_extension = parameter.is_extension;
-                if (parameter.default_value) {
+                if (parameter.default_value && parameter.type.name == "auto") {
+                    // Defaults are evaluated in the caller's lexical context,
+                    // without this function's receiver or argument bindings.
+                    auto parameter_environment = std::exchange(type_environment_, {});
+                    copy.default_value = clone_expr(*parameter.default_value, substitution, deferred, "");
+                    auto inferred = infer_declaration_type(*copy.default_value, "");
+                    type_environment_ = std::move(parameter_environment);
+                    if (inferred) {
+                        copy.type = materialize_type(*inferred, {}, deferred);
+                    } else if (deferred.empty()) {
+                        frontend_error("INFERRED_DECLARATION_TYPE",
+                            "Cannot infer the type of parameter '" + copy.name +
+                                "' from its default. Write its explicit type.",
+                            copy.default_value->span);
+                    }
+                } else if (parameter.default_value) {
                     copy.default_value = clone_expr(
                         *parameter.default_value, substitution, deferred, current_class);
+                }
+                if (source.is_constructor && !parameter.is_local && parameter.type.name == "auto") {
+                    auto& fields = output_.classes.at(class_index_.at(current_class)).fields;
+                    const auto field = std::find_if(fields.begin(), fields.end(),
+                        [&](const FieldDecl& member) { return member.name == parameter.name; });
+                    if (field != fields.end()) field->type = clone_type(copy.type);
                 }
                 type_environment_[copy.name] = clone_type(copy.type);
                 out.parameters.push_back(std::move(copy));
             }
             for (const auto& statement : source.body) {
-                out.body.push_back(clone_stmt(*statement, substitution, deferred, current_class));
+                auto cloned = clone_stmt(*statement, substitution, deferred, current_class);
+                if (source.is_constructor) materialize_initializer_field(current_class, *cloned);
+                out.body.push_back(std::move(cloned));
             }
             type_environment_ = saved_environment;traversal_expected_result_=saved_expected;
             return out;

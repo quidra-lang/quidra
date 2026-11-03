@@ -1,5 +1,5 @@
-tensor<real32> x = (tensor.ones<real32>([]) * real32(1.25)).track()
-tensor<real32> y = real32(x)
+tensor<real32> x := (tensor.ones<real32>([]) * real32(1.25)).track()
+tensor<real32> y := real32(x)
 print(y.is_tracked())
 print(NL)
 print(y.untrack().item() == real32(1.25))

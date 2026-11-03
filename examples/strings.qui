@@ -1,7 +1,7 @@
-auto name = "Quidra"
-int n = 42
-auto ready = true
-string separator = HT
+name := "Quidra"
+int n := 42
+ready := true
+string separator := HT
 
 print.line("Hello, {name}")
 print.line("n = {n}; ready = {ready}")

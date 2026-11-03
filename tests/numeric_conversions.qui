@@ -1,39 +1,39 @@
-int n = 7
-nat natural = 9
-com exact = com(n)
-com16 h = com16(n)
-com16b b = com16b(natural)
-com32 f = com32(n)
-com64 d = com64(natural)
+int n := 7
+nat natural := 9
+com exact := com(n)
+com16 h := com16(n)
+com16b b := com16b(natural)
+com32 f := com32(n)
+com64 d := com64(natural)
 print("{exact} {h} {b} {f} {d}")
 print(NL)
-int[] integers = [1, 2, 3]
-com[] exact_parts = com(integers)
-com16[] half_parts = com16(integers)
-com64[] double_parts = com64(integers)
+int[] integers := [1, 2, 3]
+com[] exact_parts := com(integers)
+com16[] half_parts := com16(integers)
+com64[] double_parts := com64(integers)
 print("{exact_parts[1]} {half_parts[1]} {double_parts[1]}")
 print(NL)
-real midpoint = 1.0 + 1.0 / 2048.0 + 1.0 / (2.0 ^ 60.0)
-real bmidpoint = 1.0 + 1.0 / 256.0 + 1.0 / (2.0 ^ 60.0)
-real[] reals = [midpoint, 2.0]
-real16[] narrowed = real16(reals)
-real16b[] bnarrowed = real16b([bmidpoint, 2.0])
-real[] widened = real(narrowed)
+real midpoint := 1.0 + 1.0 / 2048.0 + 1.0 / (2.0 ^ 60.0)
+real bmidpoint := 1.0 + 1.0 / 256.0 + 1.0 / (2.0 ^ 60.0)
+real[] reals := [midpoint, 2.0]
+real16[] narrowed := real16(reals)
+real16b[] bnarrowed := real16b([bmidpoint, 2.0])
+real[] widened := real(narrowed)
 print("{real64(narrowed[0])} {real64(bnarrowed[0])} {widened[0]}")
 print(NL)
-com[] complexes = [com(midpoint) + com(bmidpoint) * 1.0i, 2.0 - 3.0i]
-com16[] converted = com16(complexes)
-com16b[] bconverted = com16b(complexes)
-com32[] converted_again = com32(converted)
-com[] exact_again = com(converted)
+com[] complexes := [com(midpoint) + com(bmidpoint) * 1.0i, 2.0 - 3.0i]
+com16[] converted := com16(complexes)
+com16b[] bconverted := com16b(complexes)
+com32[] converted_again := com32(converted)
+com[] exact_again := com(converted)
 print("{real64(converted[0].real)} {real64(bconverted[0].imag)} {converted_again[1]} {exact_again[1]}")
 print(NL)
-real16[][] matrix = [[1.0, 2.0], [3.0, 4.0]]
-com32[][] complex_matrix = com32(matrix)
+real16[][] matrix := [[1.0, 2.0], [3.0, 4.0]]
+com32[][] complex_matrix := com32(matrix)
 print(complex_matrix[1][0])
 print(NL)
-real64[] too_large = [1.0, 70000.0, 2.0]
-real16[] | error atomic = real16(too_large)
+real64[] too_large := [1.0, 70000.0, 2.0]
+real16[] | error atomic := real16(too_large)
 match atomic
     real16[] value
         print("unexpected")
@@ -42,20 +42,20 @@ match atomic
 print(NL)
 print(too_large[1])
 print(NL)
-com64[] complex_large = [1.0 + 0.0i, 70000.0 + 0.0i]
-com16[] | error complex_atomic = com16(complex_large)
+com64[] complex_large := [1.0 + 0.0i, 70000.0 + 0.0i]
+com16[] | error complex_atomic := com16(complex_large)
 match complex_atomic
     com16[] value
         print("unexpected")
     error problem
         print(problem)
 print(NL)
-real16[2] fixed = [1.0, 2.0]
-com16b[2] fixed_complex = com16b(fixed)
-com[2] fixed_exact = com(fixed_complex)
+real16[2] fixed := [1.0, 2.0]
+com16b[2] fixed_complex := com16b(fixed)
+com[2] fixed_exact := com(fixed_complex)
 print("{fixed_complex[0]} {fixed_exact[1]}")
 print(NL)
-int[][] nested_int = [[1, 2], [3, 4]]
-com16[][] nested_complex = com16(nested_int)
+int[][] nested_int := [[1, 2], [3, 4]]
+com16[][] nested_complex := com16(nested_int)
 print(nested_complex[1][1])
 print(NL)

@@ -50,19 +50,19 @@ void actual_scoped_sources() {
     std::string program=R"(class Item(int32 value)
 class Model(Item first, Item second)
 int32 examine(Model input)
-    int32 stride = 1
-    int32 result = 1 + 2
+    int32 stride := 1
+    int32 result := 1 + 2
     for 0 <= int counter < 2 step int(stride)
         print(counter)
-    for auto item = reflect.each<Item>(input)[]
+    for item := reflect.each<Item>(input)[]
         print(item.value)
     return result
 int32 drive(Model input)
-    int32 padding = 0
+    int32 padding := 0
 )";
     for(std::size_t i=0;i<40;++i)program+="    padding = padding + 1\n";
-    program+=R"(    int32 result = examine(input)
-    for auto item = reflect.each<Item>(input)[]
+    program+=R"(    int32 result := examine(input)
+    for item := reflect.each<Item>(input)[]
         print(item.value)
     return result
 )";

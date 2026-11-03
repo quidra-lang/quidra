@@ -55,18 +55,18 @@ int | error parse_port(string text)
     return try int.parse(text)
 
 int | error read_port(string path)
-    string text = try string.from_utf8(try file.read_bin(path))
+    string text := try string.from_utf8(try file.read_bin(path))
     return try parse_port(text)
 
 int | error load_settings(string path)
-    int port = try read_port(path)
+    int port := try read_port(path)
     return port
 
 int | error start_server(string path)
-    int port = try load_settings(path)
+    int port := try load_settings(path)
     return port + 1
 
-int port = start_server("port.txt")
+int port := start_server("port.txt")
 print(port)
 print(NL)
 QUI
@@ -79,9 +79,9 @@ Quidra runtime error[CONFIG_PORT] at main.qui:3:16
   | port is empty
   |
   | propagated through parse_port() at main.qui:8:16
-  | propagated through read_port() at main.qui:11:20
-  | propagated through load_settings() at main.qui:15:20
-  | propagated through start_server() at main.qui:18:12
+  | propagated through read_port() at main.qui:11:21
+  | propagated through load_settings() at main.qui:15:21
+  | propagated through start_server() at main.qui:18:13
 TXT
 
 # --- A four-deep wrap chain: each cause with the hop where it left its
@@ -111,7 +111,7 @@ int | error start(string text)
         error problem
             return error("server did not start", cause = problem, code = "SERVER_START")
 
-int port = start("80x")
+int port := start("80x")
 print(port)
 print(NL)
 QUI
@@ -122,7 +122,7 @@ Quidra runtime error[SERVER_START] at main.qui:23:20
    |                    ^
    | server did not start
    |
-   | propagated through start() at main.qui:25:12
+   | propagated through start() at main.qui:25:13
    | caused by: [CONFIG_LOAD] cannot load configuration (at main.qui:16:20)
    |     propagated through load_config() at main.qui:19:11
    | caused by: [CONFIG_PORT] invalid port (at main.qui:9:20)
@@ -138,7 +138,7 @@ string | error read_file(string path)
     return try string.from_utf8(try file.read_bin(path))
 
 string | error read_dataset(string path)
-    string text = try read_file(path)
+    string text := try read_file(path)
     return text
 
 string | error load_dataset(string path)
@@ -149,10 +149,10 @@ string | error load_dataset(string path)
             return error("dataset loading failed", cause = problem, code = "DATASET_LOAD")
 
 int | error train(string path)
-    string data = try load_dataset(path)
+    string data := try load_dataset(path)
     return int(len(data))
 
-int steps = train("data.csv")
+int steps := train("data.csv")
 print(steps)
 print(NL)
 QUI
@@ -166,10 +166,10 @@ Quidra runtime error[DATASET_LOAD] at main.qui:13:20
    |                    ^
    | dataset loading failed
    |
-   | propagated through load_dataset() at main.qui:16:23
-   | propagated through train() at main.qui:19:13
+   | propagated through load_dataset() at main.qui:16:24
+   | propagated through train() at main.qui:19:14
    | caused by: [FILE_READ] cannot read "data.csv": permission denied (at main.qui:2:37)
-   |     propagated through read_file() at main.qui:5:23
+   |     propagated through read_file() at main.qui:5:24
    |     propagated through read_dataset() at main.qui:9:11
 TXT
     # The JSON report carries every hop with how the error left it, and the
@@ -181,7 +181,7 @@ report = json.loads(open(sys.argv[1]).read().splitlines()[0])
 assert report["code"] == "DATASET_LOAD", report
 assert report["details"] == {"text": "dataset loading failed"}, report
 assert [(h["function"], h["line"], h["column"], h["count"], h["via"]) for h in report["hops"]] == [
-    ("load_dataset", 16, 23, 1, "try"), ("train", 19, 13, 1, "fail_fast")], report["hops"]
+    ("load_dataset", 16, 24, 1, "try"), ("train", 19, 14, 1, "fail_fast")], report["hops"]
 assert report["unhandled_at"] is None, report
 cause = report["causes"][0]
 assert len(report["causes"]) == 1 and cause["code"] == "FILE_READ", report["causes"]
@@ -206,11 +206,11 @@ int | error check(int value)
     return value
 
 int total(int[] values)
-    int | error last = check(values[0])
-    int checked = last
+    int | error last := check(values[0])
+    int checked := last
     return checked + 1
 
-int[] data = [-1]
+int[] data := [-1]
 print(total(data))
 print(NL)
 QUI
@@ -221,7 +221,7 @@ Quidra runtime error[VALUE_RANGE] at main.qui:3:16
   |                ^
   | negative value
   |
-  | unhandled at main.qui:8:19
+  | unhandled at main.qui:8:20
   | propagated through total() at main.qui:12:7
 TXT
 
@@ -230,10 +230,10 @@ program recursion <<'QUI'
 int | error down(int n)
     if n == 0
         return error("bottom", code = "BOTTOM")
-    int value = try down(n - 1)
+    int value := try down(n - 1)
     return value
 
-int r = down(30)
+int r := down(30)
 QUI
 expect recursion <<'TXT'
 Quidra runtime error[BOTTOM] at main.qui:3:16
@@ -242,8 +242,8 @@ Quidra runtime error[BOTTOM] at main.qui:3:16
   |                ^
   | bottom
   |
-  | propagated through down() at main.qui:4:21 (30 times)
-  | propagated through down() at main.qui:7:9
+  | propagated through down() at main.qui:4:22 (30 times)
+  | propagated through down() at main.qui:7:10
 TXT
 
 # --- More than 20 lines: the first 10, "… N more …" and the last 10.
@@ -253,28 +253,28 @@ int | error odd(int n);
 int | error even(int n)
     if n == 0
         return error("end", code = "END")
-    int value = try odd(n - 1)
+    int value := try odd(n - 1)
     return value
 
 int | error odd(int n)
-    int value = try even(n - 1)
+    int value := try even(n - 1)
     return value
 
-int r = even(30)
+int r := even(30)
 QUI
 {
     printf '%s\n' 'Quidra runtime error[END] at main.qui:5:16' '' \
         '5 |         return error("end", code = "END")' '  |                ^' '  | end' '  |'
     for i in 1 2 3 4 5; do
-        printf '%s\n' '  | propagated through even() at main.qui:10:21' \
-            '  | propagated through odd() at main.qui:6:21'
+        printf '%s\n' '  | propagated through even() at main.qui:10:22' \
+            '  | propagated through odd() at main.qui:6:22'
     done
     printf '%s\n' '  | … 11 more …'
     for i in 1 2 3 4 5; do
-        printf '%s\n' '  | propagated through odd() at main.qui:6:21' \
-            '  | propagated through even() at main.qui:10:21'
+        printf '%s\n' '  | propagated through odd() at main.qui:6:22' \
+            '  | propagated through even() at main.qui:10:22'
     done | head -n 9
-    printf '%s\n' '  | propagated through even() at main.qui:13:9'
+    printf '%s\n' '  | propagated through even() at main.qui:13:10'
 } | expect elided
 
 # --- Copy on write: a hop on an error that a stored value also holds goes to
@@ -287,10 +287,10 @@ int | error again(error problem)
     return problem
 
 int | error relay(error problem)
-    int value = try again(problem)
+    int value := try again(problem)
     return value
 
-error[] kept = []
+error[] kept := []
 match make()
     int value
         print(value)
@@ -301,8 +301,8 @@ match relay(kept[0])
         print(value)
     error relayed
         print("{relayed == kept[0]}{NL}")
-int | error stored = kept[0]
-int stopped = stored
+int | error stored := kept[0]
+int stopped := stored
 QUI
 expect copy-on-write <<'TXT'
 Quidra runtime error[BOOM] at main.qui:2:12
@@ -312,7 +312,7 @@ Quidra runtime error[BOOM] at main.qui:2:12
   | boom
   |
   | propagated through make() at main.qui:12:7
-  | unhandled at main.qui:23:15
+  | unhandled at main.qui:23:16
 TXT
 if [[ "$(cat "$TMP/copy-on-write/out.txt" 2>/dev/null)" != "true" ]]; then
     fail "copy-on-write: equality across hops"; cat "$TMP/copy-on-write/out.txt"
@@ -328,7 +328,7 @@ program trap-one-deep <<'QUI'
 int64 scale(int64 x)
     return x * 1000000000000
 
-int64 big = int64.parse("10000000")
+int64 big := int64.parse("10000000")
 print(scale(big))
 print(NL)
 QUI
@@ -348,8 +348,8 @@ int pick(int[] values, int i)
     return values[i]
 
 int sum_first(int[] values, int n)
-    int first = pick(values, 0)
-    int last = pick(values, n)
+    int first := pick(values, 0)
+    int last := pick(values, n)
     return first + last
 
 int score(int[] values)
@@ -358,8 +358,8 @@ int score(int[] values)
 int report(int[] values)
     return score(values) + 1
 
-int[] data = [1, 2, 3, 4]
-int total = report(data)
+int[] data := [1, 2, 3, 4]
+int total := report(data)
 print(total)
 print(NL)
 QUI
@@ -369,10 +369,10 @@ plain_four_deep='Quidra runtime error[INDEX_BOUNDS] at main.qui:2:19
   |                   ^
   | index 4 out of bounds for length 4
   |
-  | propagated through pick() at main.qui:6:16
+  | propagated through pick() at main.qui:6:17
   | propagated through sum_first() at main.qui:10:12
   | propagated through score() at main.qui:13:12
-  | propagated through report() at main.qui:16:13'
+  | propagated through report() at main.qui:16:14'
 expect plain-four-deep <<< "$plain_four_deep"
 
 # The JSON report's path: every frame with its function, position, count
@@ -383,7 +383,7 @@ import json, sys
 report = json.loads(open(sys.argv[1]).read().splitlines()[0])
 assert report["path_complete"] is True, report
 assert [(p["function"], p["line"], p["column"], p["count"]) for p in report["path"]] == [
-    ("pick", 6, 16, 1), ("sum_first", 10, 12, 1), ("score", 13, 12, 1), ("report", 16, 13, 1)], report["path"]
+    ("pick", 6, 17, 1), ("sum_first", 10, 12, 1), ("score", 13, 12, 1), ("report", 16, 14, 1)], report["path"]
 assert all(p["via"] in ("call", "inline") and p["file"] == "main.qui" for p in report["path"]), report["path"]
 assert report["details"] == {"index": 4, "length": 4}, report
 PY
@@ -428,39 +428,39 @@ expect plain-four-deep-debug 101 --debug <<< "$plain_four_deep"
 # stopped.
 program library-fail-fast <<'QUI'
 string read_config(string path)
-    string text = string.from_utf8(file.read_bin(path))
+    string text := string.from_utf8(file.read_bin(path))
     return text
 
 int config_length(string path)
-    string text = read_config(path)
+    string text := read_config(path)
     return int(len(text))
 
-int n = config_length("settings.toml")
+int n := config_length("settings.toml")
 print(n)
 print(NL)
 QUI
 expect library-fail-fast <<'TXT'
-Quidra runtime error[FILE_READ] at main.qui:2:36
+Quidra runtime error[FILE_READ] at main.qui:2:37
 
-2 |     string text = string.from_utf8(file.read_bin(path))
-  |                                    ^
+2 |     string text := string.from_utf8(file.read_bin(path))
+  |                                     ^
   | cannot read "settings.toml": file not found
   |
-  | propagated through read_config() at main.qui:6:19
-  | propagated through config_length() at main.qui:9:9
+  | propagated through read_config() at main.qui:6:20
+  | propagated through config_length() at main.qui:9:10
 TXT
 
 # --- Without a snippet: the same, after main.qui was deleted.
 program no-snippet <<'QUI'
 string read_config(string path)
-    string text = string.from_utf8(file.read_bin(path))
+    string text := string.from_utf8(file.read_bin(path))
     return text
 
 int config_length(string path)
-    string text = read_config(path)
+    string text := read_config(path)
     return int(len(text))
 
-int n = config_length("settings.toml")
+int n := config_length("settings.toml")
 print(n)
 print(NL)
 QUI
@@ -468,11 +468,11 @@ if (cd "$TMP/no-snippet" && "$QUIDRA" build main.qui -o prog > build.log 2>&1); 
     rm "$TMP/no-snippet/main.qui"
     rc=0
     (cd "$TMP/no-snippet" && ./prog > /dev/null 2> err.txt) || rc=$?
-    if [[ "$rc" -ne 101 ]] || [[ "$(cat "$TMP/no-snippet/err.txt")" != 'Quidra runtime error[FILE_READ] at main.qui:2:36
+    if [[ "$rc" -ne 101 ]] || [[ "$(cat "$TMP/no-snippet/err.txt")" != 'Quidra runtime error[FILE_READ] at main.qui:2:37
 | cannot read "settings.toml": file not found
 |
-| propagated through read_config() at main.qui:6:19
-| propagated through config_length() at main.qui:9:9' ]]; then
+| propagated through read_config() at main.qui:6:20
+| propagated through config_length() at main.qui:9:10' ]]; then
         fail "no-snippet"; cat "$TMP/no-snippet/err.txt"
     else
         echo "ok   no-snippet"
@@ -540,8 +540,8 @@ program uncoded <<'QUI'
 string[] fields(string line, string separator)
     return line.split(separator)
 
-string separator = ""
-string[] parts = fields("a,b", separator)
+string separator := ""
+string[] parts := fields("a,b", separator)
 print(len(parts))
 print(NL)
 QUI
@@ -552,7 +552,7 @@ Quidra runtime error at main.qui:2:5
   |     ^
   | string split separator cannot be empty
   |
-  | propagated through fields() at main.qui:5:18
+  | propagated through fields() at main.qui:5:19
 TXT
 
 # --- A test assertion (status 1): no message, then the path.
@@ -561,7 +561,7 @@ bool all_positive(int[] values)
     test.check(len(values) > 3)
     return true
 
-bool ok = all_positive([1, 2])
+bool ok := all_positive([1, 2])
 QUI
 expect assertion 1 <<'TXT'
 Quidra test assertion failed at main.qui:2:5
@@ -569,7 +569,7 @@ Quidra test assertion failed at main.qui:2:5
 2 |     test.check(len(values) > 3)
   |     ^
   |
-  | propagated through all_positive() at main.qui:5:11
+  | propagated through all_positive() at main.qui:5:12
 TXT
 
 # --- A failing task body: its path ends with the parallel call.
@@ -578,11 +578,11 @@ int pick(int[] values, nat i)
     return values[i]
 
 void fails()
-    int[] values = [1, 2, 3]
+    int[] values := [1, 2, 3]
     print(pick(values, len(values)))
 
 void waits()
-    int unused = 0
+    int unused := 0
 
 parallel
     fails()
@@ -604,21 +604,21 @@ TXT
 # become one machine call; the line names both candidate sites.
 program merged <<'QUI'
 int heavy(int[] values, int at)
-    int total = 0
-    for auto v = values[]
+    int total := 0
+    for v := values[]
         total = total + v * v
     return total + values[at]
 
 int choose(int[] values, bool first, int a, int b)
-    int r = 0
+    int r := 0
     if first
         r = heavy(values, a)
     else
         r = heavy(values, b)
     return r + 1
 
-int[] values = [1, 2, 3]
-int one = int.parse("1")
+int[] values := [1, 2, 3]
+int one := int.parse("1")
 print(choose(values, one == 1, 7, 8))
 print(NL)
 QUI
@@ -668,10 +668,10 @@ int | error parse_value(string text)
     return try int.parse(text)
 
 int | error apply(func<int | error>(string) op, string text)
-    int value = try op(text)
+    int value := try op(text)
     return value
 
-int r = apply(parse_value, "x")
+int r := apply(parse_value, "x")
 QUI
 expect indirect-hop <<'TXT'
 Quidra runtime error[NUMERIC_PARSE] at main.qui:2:16
@@ -680,8 +680,8 @@ Quidra runtime error[NUMERIC_PARSE] at main.qui:2:16
   |                ^
   | cannot parse numeric input as int
   |
-  | propagated through parse_value() at main.qui:5:21
-  | propagated through apply() at main.qui:8:9
+  | propagated through parse_value() at main.qui:5:22
+  | propagated through apply() at main.qui:8:10
 TXT
 
 if [[ "$failures" -ne 0 ]]; then

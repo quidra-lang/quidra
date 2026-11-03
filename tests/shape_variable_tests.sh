@@ -29,18 +29,18 @@ cat > "$TMP/values.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
     return tensor.zeros<real32>([a, b])
 
-tensor<real32>{nat R, nat W} d = make(2, 3)
+tensor<real32>{nat R, nat W} d := make(2, 3)
 print("{R} x {W}{NL}")
-nat rows = 4
-nat cols = 5
-tensor<real32>{nat H = rows * cols, nat C} img = make(20, 3)
+nat rows := 4
+nat cols := 5
+tensor<real32>{nat H = rows * cols, nat C} img := make(20, 3)
 print("{H} {C}{NL}")
-tensor<real32>{nat M = 2 * N, nat N} pair = make(4, 2)
+tensor<real32>{nat M = 2 * N, nat N} pair := make(4, 2)
 print("{M} {N}{NL}")
-tensor<real32>{nat K, K} square = make(3, 3)
+tensor<real32>{nat K, K} square := make(3, 3)
 print(int(K) - 4)
 print(NL)
-tensor<real32>{R, W} same = make(2, 3)
+tensor<real32>{R, W} same := make(2, 3)
 print(same.shape()[1])
 print(NL)
 QUI
@@ -52,8 +52,8 @@ cat > "$TMP/square.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
     return tensor.zeros<real32>([a, b])
 
-nat width = nat(tensor.ones<real32>([]).item())
-tensor<real32>{nat K, K} sq = make(width * 2, 3)
+nat width := nat(tensor.ones<real32>([]).item())
+tensor<real32>{nat K, K} sq := make(width * 2, 3)
 print("unreachable")
 QUI
 fails_with "$TMP/square.qui" SHAPE_MISMATCH "shape variable 'K' is 2, but axis 1 of 'sq' is 3"
@@ -62,10 +62,10 @@ cat > "$TMP/named.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
     return tensor.zeros<real32>([a, b])
 
-nat rows = 4
-nat cols = 5
-nat unit = nat(tensor.ones<real32>([]).item())
-tensor<real32>{nat H = rows * cols, nat W} img = make(unit * 21, 3)
+nat rows := 4
+nat cols := 5
+nat unit := nat(tensor.ones<real32>([]).item())
+tensor<real32>{nat H = rows * cols, nat W} img := make(unit * 21, 3)
 QUI
 fails_with "$TMP/named.qui" SHAPE_MISMATCH "shape variable 'H' is 20, but axis 0 of 'img' is 21"
 
@@ -75,9 +75,9 @@ cat > "$TMP/reuse.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
     return tensor.zeros<real32>([a, b])
 
-tensor<real32>{nat B, nat C} x = make(2, 3)
-nat unit = nat(tensor.ones<real32>([]).item())
-tensor<real32>{B, C} y = make(2, unit * 4)
+tensor<real32>{nat B, nat C} x := make(2, 3)
+nat unit := nat(tensor.ones<real32>([]).item())
+tensor<real32>{B, C} y := make(2, unit * 4)
 QUI
 fails_with "$TMP/reuse.qui" SHAPE_MISMATCH "shape variable 'C' is 3, but axis 1 of 'y' is 4"
 
@@ -85,11 +85,11 @@ cat > "$TMP/reassign.qui" <<'QUI'
 tensor<real32> make(nat a, nat b)
     return tensor.zeros<real32>([a, b])
 
-tensor<real32>{nat B, nat C} x = make(2, 3)
+tensor<real32>{nat B, nat C} x := make(2, 3)
 x = make(2, 3)
 print("same")
 print(NL)
-nat unit = nat(tensor.ones<real32>([]).item())
+nat unit := nat(tensor.ones<real32>([]).item())
 x = make(2, unit * 5)
 QUI
 fails_with "$TMP/reassign.qui" TENSOR "tensor extent does not satisfy captured shape constraint"
@@ -102,7 +102,7 @@ tensor<real32> line(nat n)
         return tensor.zeros<real32>([n])
     return tensor.zeros<real32>([n, n, n])
 
-tensor<real32>{nat C, nat H, nat W} img = line(3)
+tensor<real32>{nat C, nat H, nat W} img := line(3)
 QUI
 fails_with "$TMP/rank.qui" TENSOR "tensor rank does not satisfy captured shape constraint"
 
@@ -114,15 +114,15 @@ tensor<real32> grow(int &n)
     n = n + 1
     return tensor.zeros<real32>([nat(n)])
 
-int unit = int(tensor.ones<real32>([]).item())
-int n = unit * 2
-tensor<real32>{nat(n)} x = grow(&n)
+int unit := int(tensor.ones<real32>([]).item())
+int n := unit * 2
+tensor<real32>{nat(n)} x := grow(&n)
 QUI
 fails_with "$TMP/order.qui" TENSOR "tensor extent does not satisfy captured shape constraint"
 
 cat > "$TMP/negative.qui" <<'QUI'
-int n = -1
-tensor<real32>{nat(n)} x = tensor.zeros<real32>([2])
+int n := -1
+tensor<real32>{nat(n)} x := tensor.zeros<real32>([2])
 QUI
 fails_with "$TMP/negative.qui" TENSOR "captured tensor extent cannot be negative"
 
@@ -131,9 +131,9 @@ cat > "$TMP/loop.qui" <<'QUI'
 tensor<real32> line(nat n)
     return tensor.zeros<real32>([n])
 
-nat i = 1
+nat i := 1
 while i <= 3
-    tensor<real32>{nat L} v = line(i)
+    tensor<real32>{nat L} v := line(i)
     print(L)
     i = i + 1
 print(NL)

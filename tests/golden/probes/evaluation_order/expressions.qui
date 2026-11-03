@@ -11,12 +11,12 @@ string s(string text)
     print(text + " ")
     return text
 
-int three(int a, int b, int c = p(9))
+int three(int a, int b, int c := p(9))
     return a + b + c
 
 class Box this(local int given_initial)
-    int first = p(20)
-    int second = p(21)
+    int first := p(20)
+    int second := p(21)
     int given
 
 
@@ -30,7 +30,7 @@ Box make(int value)
     print("make ")
     return Box(value)
 
-int r = three(p(1), p(2))
+int r := three(p(1), p(2))
 print("| {r}")
 print(NL)
 r = three(b = p(2), a = p(1), c = p(3))
@@ -42,22 +42,22 @@ print(NL)
 r = p(6) + p(7) * p(8)
 print("| {r}")
 print(NL)
-string text = s("a") + s("b") + s("c")
+string text := s("a") + s("b") + s("c")
 print("| {text}")
 print(NL)
-bool both = p(1) == 1 and p(2) == 2
+bool both := p(1) == 1 and p(2) == 2
 print("| {both}")
 print(NL)
-int[] values = [p(10), p(11), p(12)]
+int[] values := [p(10), p(11), p(12)]
 print("| {len(values)}")
 print(NL)
-string joined = "{p(13)}-{p(14)}"
+string joined := "{p(13)}-{p(14)}"
 print("| {joined}")
 print(NL)
-int[][] grid = [[1, 2], [3, 4]]
+int[][] grid := [[1, 2], [3, 4]]
 r = grid[p(1)][p(0)]
 print("| {r}")
 print(NL)
-Box box = Box(p(30))
+Box box := Box(p(30))
 print("| {box.first} {box.second} {box.given}")
 print(NL)

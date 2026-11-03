@@ -8,33 +8,33 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run onl
 
 cat > "$TMP/reduction_helpers.qui" <<'QUI'
 int element_count(tensor<real32> value)
-    int count = 1
-    for auto extent = value.shape()[]
+    int count := 1
+    for extent := value.shape()[]
         count = count * int(extent)
     return count
 
 tensor<real32> sum(tensor<real32> value)
-    int count = element_count(value)
+    int count := element_count(value)
     if count == 0
         if value.device() >= 0
             return tensor.zeros<real32>([], gpu = nat(value.device()))
         return tensor.zeros<real32>([])
-    tensor<real32> result = value.gather([0], [])
+    tensor<real32> result := value.gather([0], [])
     for 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
 tensor<real32> mean(tensor<real32> value)
-    int count = element_count(value)
+    int count := element_count(value)
     if count == 0
         error("test mean requires at least one element")
-    real32 scale = real32(count)
+    real32 scale := real32(count)
     return sum(value) / scale
 QUI
 
 cat > "$TMP/tensor-device-metadata.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> value = tensor.ones<real32>([1])
+tensor<real32> value := tensor.ones<real32>([1])
 print(value.device() == -1)
 print(NL)
 QUI
@@ -43,8 +43,8 @@ QUI
 
 cat > "$TMP/backward-target-required.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real32> loss = x * x
+tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real32> loss := x * x
 loss.backward()
 QUI
 set +e
@@ -62,8 +62,8 @@ fi
 
 cat > "$TMP/backward-const-target.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-const tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real32> loss = x * x
+const tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real32> loss := x * x
 loss.backward(&x)
 QUI
 set +e
@@ -81,8 +81,8 @@ fi
 
 cat > "$TMP/backward-target-ampersand-required.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real32> loss = x * x
+tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real32> loss := x * x
 loss.backward(x)
 QUI
 set +e
@@ -100,7 +100,7 @@ fi
 
 cat > "$TMP/const-tensor-clear-grad.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-const tensor<real32> x = tensor.ones<real32>([]).track()
+const tensor<real32> x := tensor.ones<real32>([]).track()
 x.clear_grad()
 QUI
 set +e
@@ -130,14 +130,14 @@ class Model this()
 
     this.leaves = [Leaf(), Leaf()]
 
-Model model = Model()
-tensor<real32> left = tensor.ones<real32>([]).track(
+Model model := Model()
+tensor<real32> left := tensor.ones<real32>([]).track(
     &model.leaves[0].target
 )
-tensor<real32> right = tensor.ones<real32>([]).track(
+tensor<real32> right := tensor.ones<real32>([]).track(
     &model.leaves[1].target
 )
-tensor<real32> loss = left * right
+tensor<real32> loss := left * right
 loss.backward(&model)
 print(model.leaves[0].target.has_grad())
 print(NL)
@@ -168,14 +168,14 @@ class Model this()
     this.leaves = this.leaves.append(Leaf())
     this.leaves = this.leaves.append(Leaf())
 
-Model model = Model()
-tensor<real32> left = tensor.ones<real32>([]).track(
+Model model := Model()
+tensor<real32> left := tensor.ones<real32>([]).track(
     &model.leaves[0].target
 )
-tensor<real32> right = tensor.ones<real32>([]).track(
+tensor<real32> right := tensor.ones<real32>([]).track(
     &model.leaves[1].target
 )
-tensor<real32> loss = left * right
+tensor<real32> loss := left * right
 loss.backward(&model)
 print(model.leaves[0].target.has_grad())
 print(NL)
@@ -192,12 +192,12 @@ fi
 
 cat > "$TMP/broadcast-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> left_values = tensor.zeros<real32>([2, 1])
+tensor<real32> left_values := tensor.zeros<real32>([2, 1])
 left_values[0, 0] = real32(2)
 left_values[1, 0] = real32(3)
-tensor<real32> left = left_values.track()
-tensor<real32> right = tensor.ones<real32>([2, 3]).track()
-tensor<real32> output = left * right
+tensor<real32> left := left_values.track()
+tensor<real32> right := tensor.ones<real32>([2, 3]).track()
+tensor<real32> output := left * right
 print(output.shape()[0] == 2 and output.shape()[1] == 3)
 print(NL)
 reductions.mean(output).backward(&left, &right, track = true)
@@ -205,8 +205,8 @@ print(left.grad.is_tracked())
 print(NL)
 print(right.grad.is_tracked())
 print(NL)
-tensor<real32> left_grad = left.grad.untrack()
-tensor<real32> right_grad = right.grad.untrack()
+tensor<real32> left_grad := left.grad.untrack()
+tensor<real32> right_grad := right.grad.untrack()
 print(left_grad[0, 0].item() == real32(0.5))
 print(NL)
 print(left_grad[1, 0].item() == real32(0.5))
@@ -216,7 +216,7 @@ print(NL)
 print(right_grad[1, 2].item() == real32(0.5))
 print(NL)
 reductions.mean(left.grad).backward(&right)
-tensor<real32> accumulated = right.grad.untrack()
+tensor<real32> accumulated := right.grad.untrack()
 print(accumulated[0, 0].item() > real32(0.4166) and accumulated[0, 0].item() < real32(0.4168))
 print(NL)
 print(accumulated[1, 2].item() > real32(0.5832) and accumulated[1, 2].item() < real32(0.5834))
@@ -233,13 +233,13 @@ fi
 
 cat > "$TMP/autograd-contracts.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> weight = tensor.ones<real32>([1, 2])
-tensor<real32> bias = tensor.zeros<real32>([1])
-tensor<real32> samples = tensor.ones<real32>([1, 2])
-tensor<real32> tracked = samples.track()
-tensor<real32> tracked_weight = weight.track()
-tensor<real32> tracked_bias = bias.track()
-tensor<real32> prediction = tracked * tracked_weight
+tensor<real32> weight := tensor.ones<real32>([1, 2])
+tensor<real32> bias := tensor.zeros<real32>([1])
+tensor<real32> samples := tensor.ones<real32>([1, 2])
+tensor<real32> tracked := samples.track()
+tensor<real32> tracked_weight := weight.track()
+tensor<real32> tracked_bias := bias.track()
+tensor<real32> prediction := tracked * tracked_weight
 prediction = prediction + tracked_bias.gather([0, 0], [1, 2])
 reductions.mean(prediction).backward(&tracked, &weight, &bias)
 
@@ -258,9 +258,9 @@ reductions.mean(prediction).backward(&tracked, &weight, &bias)
 print(weight.grad[0, 0].item())
 print(NL)
 
-tensor<real32> tracked_value = tensor.ones<real32>([]).track()
-tensor<real32> constant_value = tensor.ones<real32>([]) * real32(4)
-tensor<real32> mixed = tracked_value * constant_value
+tensor<real32> tracked_value := tensor.ones<real32>([]).track()
+tensor<real32> constant_value := tensor.ones<real32>([]) * real32(4)
+tensor<real32> mixed := tracked_value * constant_value
 mixed.backward(&tracked_value)
 print(tracked_value.grad.item())
 print(NL)
@@ -276,10 +276,10 @@ fi
 
 cat > "$TMP/untracked-forward.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> weight = tensor.ones<real32>([1, 2])
-tensor<real32> bias = tensor.zeros<real32>([1])
-tensor<real32> samples = tensor.ones<real32>([1, 2])
-tensor<real32> prediction = samples * weight
+tensor<real32> weight := tensor.ones<real32>([1, 2])
+tensor<real32> bias := tensor.zeros<real32>([1])
+tensor<real32> samples := tensor.ones<real32>([1, 2])
+tensor<real32> prediction := samples * weight
 prediction = prediction + bias.gather([0, 0], [1, 2])
 reductions.mean(prediction).backward(&samples)
 QUI
@@ -298,7 +298,7 @@ fi
 
 cat > "$TMP/untracked-leaf-grad.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([1])
+tensor<real32> source := tensor.ones<real32>([1])
 print(source.grad[0].item())
 print(NL)
 QUI
@@ -317,10 +317,10 @@ fi
 
 cat > "$TMP/retrack-cut.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> root = tensor.ones<real32>([]).track()
-tensor<real32> before_cut = root * real32(2)
-tensor<real32> after_cut = before_cut.retrack()
-tensor<real32> loss = after_cut * real32(3)
+tensor<real32> root := tensor.ones<real32>([]).track()
+tensor<real32> before_cut := root * real32(2)
+tensor<real32> after_cut := before_cut.retrack()
+tensor<real32> loss := after_cut * real32(3)
 loss.backward(&after_cut, &root)
 print(after_cut.grad.item())
 print(NL)
@@ -347,8 +347,8 @@ fi
 
 cat > "$TMP/tensor-grad-state.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> root = tensor.ones<real32>([]).track()
-tensor<real32> loss = root * real32(2)
+tensor<real32> root := tensor.ones<real32>([]).track()
+tensor<real32> loss := root * real32(2)
 print(not root.has_grad())
 print(NL)
 loss.backward(&root)
@@ -375,10 +375,10 @@ fi
 
 cat > "$TMP/explicit-gradient-selection-and-accumulation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real32> y_value = tensor.ones<real32>([]) * real32(3)
-tensor<real32> y = y_value.track()
-tensor<real32> loss = x * y
+tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real32> y_value := tensor.ones<real32>([]) * real32(3)
+tensor<real32> y := y_value.track()
+tensor<real32> loss := x * y
 
 loss.backward(&x)
 print(x.grad.item() == real32(3))
@@ -409,9 +409,9 @@ fi
 
 cat > "$TMP/untrack-cut.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> root = tensor.ones<real32>([]).track()
-tensor<real32> detached = (root * real32(2)).untrack()
-tensor<real32> loss = detached * real32(3)
+tensor<real32> root := tensor.ones<real32>([]).track()
+tensor<real32> detached := (root * real32(2)).untrack()
+tensor<real32> loss := detached * real32(3)
 loss.backward(&root)
 QUI
 set +e
@@ -429,9 +429,9 @@ fi
 
 cat > "$TMP/untracked-constant-grad.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> tracked = tensor.ones<real32>([]).track()
-tensor<real32> constant = tensor.ones<real32>([]) * real32(4)
-tensor<real32> loss = tracked * constant
+tensor<real32> tracked := tensor.ones<real32>([]).track()
+tensor<real32> constant := tensor.ones<real32>([]) * real32(4)
+tensor<real32> loss := tracked * constant
 loss.backward(&tracked, &constant)
 QUI
 set +e
@@ -449,7 +449,7 @@ fi
 
 cat > "$TMP/tracked-mutation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> tracked = tensor.ones<real32>([2]).track()
+tensor<real32> tracked := tensor.ones<real32>([2]).track()
 tracked[0] = real32(2)
 QUI
 set +e
@@ -468,10 +468,10 @@ fi
 for transform in contiguous indexing; do
     case "$transform" in
         contiguous)
-            body='tensor<real32> ignored = tracked.contiguous()'
+            body='tensor<real32> ignored := tracked.contiguous()'
             ;;
         indexing)
-            body='tensor<real32> ignored = tracked[0:<1, 0:<2]'
+            body='tensor<real32> ignored := tracked[0:<1, 0:<2]'
             ;;
     esac
     cat > "$TMP/tracked-transform.qui" <<QUI
@@ -495,11 +495,11 @@ done
 cat > "$TMP/tensor-power-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
 
-tensor<real32> values = tensor.ones<real32>([1, 3]).track()
-tensor<real32> squared = values ^ real32(2)
-tensor<real32> total = reductions.sum(squared)
+tensor<real32> values := tensor.ones<real32>([1, 3]).track()
+tensor<real32> squared := values ^ real32(2)
+tensor<real32> total := reductions.sum(squared)
 total.backward(&values, track = true)
-tensor<real32> first = values.grad
+tensor<real32> first := values.grad
 print(first.is_tracked())
 print(NL)
 print(first.untrack()[0, 2].item() == real32(2))
@@ -519,12 +519,12 @@ fi
 
 cat > "$TMP/tensor-sum.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> values = tensor.ones<real32>([2, 3]).track()
-tensor<real32> total = reductions.sum(values)
+tensor<real32> values := tensor.ones<real32>([2, 3]).track()
+tensor<real32> total := reductions.sum(values)
 print(total.untrack().item() == real32(6))
 print(NL)
 (total * total).backward(&values, track = true)
-tensor<real32> first = values.grad
+tensor<real32> first := values.grad
 print(first.is_tracked())
 print(NL)
 print(first.untrack()[0, 0].item() == real32(12))
@@ -533,7 +533,7 @@ print(NL)
 reductions.sum(first).backward(&values)
 print(values.grad.untrack()[1, 2].item() == real32(12))
 print(NL)
-tensor<real32> empty = tensor.zeros<real32>([0])
+tensor<real32> empty := tensor.zeros<real32>([0])
 print(reductions.sum(empty).item() == real32(0))
 print(NL)
 QUI
@@ -561,15 +561,15 @@ done
 
 cat > "$TMP/tensor-grad-copy-isolation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([2])
-tensor<real32> alias = source
-tensor<real32> tracked = source.track()
+tensor<real32> source := tensor.ones<real32>([2])
+tensor<real32> alias := source
+tensor<real32> tracked := source.track()
 reductions.mean((tracked * tracked)).backward(&source)
 print(source.has_grad())
 print(NL)
 print(not alias.has_grad())
 print(NL)
-tensor<real32> gradient = source.grad
+tensor<real32> gradient := source.grad
 print(gradient[0].item() == real32(1))
 print(NL)
 print(gradient[1].item() == real32(1))
@@ -590,16 +590,16 @@ fi
 
 cat > "$TMP/tracked-copy-gradient-identity.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([1]).track()
-tensor<real32> copy = source
-tensor<real32> source_loss = source * real32(2)
+tensor<real32> source := tensor.ones<real32>([1]).track()
+tensor<real32> copy := source
+tensor<real32> source_loss := source * real32(2)
 source_loss.backward(&source)
 print(source.has_grad())
 print(NL)
 print(not copy.has_grad())
 print(NL)
 
-tensor<real32> copy_loss = copy * real32(3)
+tensor<real32> copy_loss := copy * real32(3)
 copy_loss.backward(&copy)
 print(copy.has_grad())
 print(NL)
@@ -621,8 +621,8 @@ source_loss.backward(&source, &source)
 print(source.grad[0].item() == real32(2))
 print(NL)
 
-tensor<real32> explicit_track = source.track()
-tensor<real32> explicit_loss = explicit_track * real32(4)
+tensor<real32> explicit_track := source.track()
+tensor<real32> explicit_loss := explicit_track * real32(4)
 explicit_loss.backward(&explicit_track)
 print(explicit_track.has_grad())
 print(NL)
@@ -641,9 +641,9 @@ fi
 
 cat > "$TMP/tracked-dtype-cast.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([2])
-tensor<real32> tracked = source.track()
-tensor<real64> converted = real64(tracked)
+tensor<real32> source := tensor.ones<real32>([2])
+tensor<real32> tracked := source.track()
+tensor<real64> converted := real64(tracked)
 print(converted.shape()[0] == 2)
 print(NL)
 print(converted.is_tracked())
@@ -651,7 +651,7 @@ print(NL)
 print(converted.untrack()[0].item() == real64(1))
 print(NL)
 (converted.gather([0], []) * real64(2)).backward(&tracked)
-tensor<real32> gradient = tracked.grad
+tensor<real32> gradient := tracked.grad
 print(gradient.shape()[0] == 2)
 print(NL)
 print(gradient[0].item() == real32(2))
@@ -667,9 +667,9 @@ fi
 
 cat > "$TMP/tracked-nonfloating-cast.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([2])
-tensor<real32> tracked = source.track()
-tensor<int32> invalid = int32(tracked)
+tensor<real32> source := tensor.ones<real32>([2])
+tensor<real32> tracked := source.track()
+tensor<int32> invalid := int32(tracked)
 print(invalid.shape()[0])
 print(NL)
 QUI
@@ -690,9 +690,9 @@ fi
 
 cat > "$TMP/untracked-dtype-cast.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([2])
-tensor<real32> tracked = source.track()
-tensor<real64> converted = real64(tracked.untrack())
+tensor<real32> source := tensor.ones<real32>([2])
+tensor<real32> tracked := source.track()
+tensor<real64> converted := real64(tracked.untrack())
 print(converted.shape()[0])
 print(NL)
 print(converted[0].item())
@@ -706,8 +706,8 @@ fi
 
 cat > "$TMP/value-copy-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> tensor_original = tensor.ones<real32>([2])
-tensor<real32> tensor_copy = tensor_original
+tensor<real32> tensor_original := tensor.ones<real32>([2])
+tensor<real32> tensor_copy := tensor_original
 print(&tensor_original != &tensor_copy)
 print(NL)
 tensor_copy[0] = 9.0
@@ -729,8 +729,8 @@ cat > "$TMP/primitive-inference.qui" <<'QUI'
 X identity<X>(X value)
     return value
 
-tensor<real32> values = tensor.ones<real32>([1, 3])
-tensor<real32> tracked = values.track()
+tensor<real32> values := tensor.ones<real32>([1, 3])
+tensor<real32> tracked := values.track()
 print(identity(tracked ^ real32(2)).untrack().shape()[1])
 print(NL)
 QUI
@@ -743,7 +743,7 @@ fi
 
 cat > "$TMP/tracked-mutation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> value = tensor.ones<real32>([2]).track()
+tensor<real32> value := tensor.ones<real32>([2]).track()
 value[0] = real32(3)
 QUI
 set +e
@@ -758,8 +758,8 @@ grep -Fq "tracked tensor mutation is forbidden; call untrack() before writing" "
 
 cat > "$TMP/tracked-alias-mutation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> value = tensor.ones<real32>([2]).track()
-tensor<real32> alias = value
+tensor<real32> value := tensor.ones<real32>([2]).track()
+tensor<real32> alias := value
 alias[0] = real32(3)
 QUI
 set +e
@@ -778,11 +778,11 @@ fi
 for transform in contiguous index; do
     case "$transform" in
         contiguous)
-            body='tensor<real32> changed = value.contiguous()'
+            body='tensor<real32> changed := value.contiguous()'
             expected='contiguous() on a tracked tensor requires explicit untrack() first'
             ;;
         index)
-            body='tensor<real32> changed = value[0]'
+            body='tensor<real32> changed := value[0]'
             expected='indexing on a tracked tensor requires explicit untrack() first'
             ;;
     esac
@@ -808,7 +808,7 @@ done
 
 cat > "$TMP/untracked-mutation.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> value = tensor.ones<real32>([2]).track().untrack()
+tensor<real32> value := tensor.ones<real32>([2]).track().untrack()
 value[0] = real32(3)
 print(value[0].item())
 print(NL)
@@ -820,16 +820,16 @@ fi
 
 cat > "$TMP/higher-order.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> x = tensor.ones<real32>([]).track()
-tensor<real32> loss = x * x * x
+tensor<real32> x := tensor.ones<real32>([]).track()
+tensor<real32> loss := x * x * x
 loss.backward(&x, track = true)
 print(x.grad.item())
 print(NL)
-tensor<real32> first = x.grad
+tensor<real32> first := x.grad
 first.backward(&x, track = true)
 print(x.grad.item())
 print(NL)
-tensor<real32> second = x.grad
+tensor<real32> second := x.grad
 second.backward(&x)
 print(x.grad.item())
 print(NL)
@@ -852,24 +852,24 @@ fi
 # track() and clear_grad() on a by-value tensor parameter never
 # change the caller's tensor.
 cat > "$TMP/autograd-defects.qui" <<'QUI'
-autograd.Target negation_target = autograd.target()
-tensor<real32> negation_x = tensor.ones<real32>([]).track(&negation_target)
-tensor<real32> negated = -negation_x
+autograd.Target negation_target := autograd.target()
+tensor<real32> negation_x := tensor.ones<real32>([]).track(&negation_target)
+tensor<real32> negated := -negation_x
 print(negated.is_tracked())
 print(NL)
 (negation_x * negated).backward(&negation_target)
 print(negation_target.gradient<real32>().item())
 print(NL)
-tensor<real32> cube = (tensor.ones<real32>([]) * real32(2)).track()
+tensor<real32> cube := (tensor.ones<real32>([]) * real32(2)).track()
 (-(cube * cube * cube)).backward(&cube, track = true)
-tensor<real32> cube_first = cube.grad
+tensor<real32> cube_first := cube.grad
 print(cube_first.untrack().item())
 print(NL)
 .cube.clear_grad()
 (-cube_first).backward(&cube)
 print(cube.grad.item())
 print(NL)
-tensor<real64> pair = (tensor.ones<real64>([2]) * 3.0).track()
+tensor<real64> pair := (tensor.ones<real64>([2]) * 3.0).track()
 (-pair).reshape([2]).gather([1], []).backward(&pair)
 print(pair.grad[0].item() == 0.0 and pair.grad[1].item() == -1.0)
 print(NL)
@@ -877,18 +877,18 @@ print(NL)
 // a loss that overflowed, which now stops at the operation), and a leaf that
 // the loss reaches only through the seed still receives its zero second
 // derivative.
-autograd.Target seed_target = autograd.target()
-tensor<real32> seed_x = (tensor.ones<real32>([]) * real32(2)).track(&seed_target)
-tensor<real32> huge = tensor.ones<real32>([]) * real32(150000000000000000000000000000000000000.0)
-tensor<real32> large = seed_x * huge
+autograd.Target seed_target := autograd.target()
+tensor<real32> seed_x := (tensor.ones<real32>([]) * real32(2)).track(&seed_target)
+tensor<real32> huge := tensor.ones<real32>([]) * real32(150000000000000000000000000000000000000.0)
+tensor<real32> large := seed_x * huge
 print(large.untrack().cpu().item())
 print(NL)
 large.backward(&seed_target, track = true)
 print(seed_target.gradient<real32>().untrack().cpu().item())
 print(NL)
-tensor<real32> linear = (tensor.ones<real32>([]) * real32(5)).track()
+tensor<real32> linear := (tensor.ones<real32>([]) * real32(5)).track()
 (linear * real32(3)).backward(&linear, track = true)
-tensor<real32> slope = linear.grad
+tensor<real32> slope := linear.grad
 .linear.clear_grad()
 slope.backward(&linear)
 print(linear.grad.cpu().item())
@@ -911,7 +911,7 @@ tensor<real32> start_owned(tensor<real32> value)
     value = value
     return value.track()
 
-tensor<real32> cleared = tensor.ones<real32>([1]).track()
+tensor<real32> cleared := tensor.ones<real32>([1]).track()
 (cleared * 3.0).reshape([]).backward(&cleared)
 wipe(cleared)
 print(cleared.has_grad())
@@ -919,22 +919,22 @@ print(NL)
 wipe_owned(cleared)
 print(cleared.has_grad())
 print(NL)
-tensor<real32> source = tensor.ones<real32>([1])
-tensor<real32> started = start(source)
-tensor<real32> tracked_source = source.track()
+tensor<real32> source := tensor.ones<real32>([1])
+tensor<real32> started := start(source)
+tensor<real32> tracked_source := source.track()
 (started * 2.0 + tracked_source * 5.0).reshape([]).backward(&started)
 print(started.grad[0].item())
 print(NL)
-tensor<real32> owned_source = tensor.ones<real32>([1])
-tensor<real32> owned_started = start_owned(owned_source)
-tensor<real32> owned_tracked = owned_source.track()
+tensor<real32> owned_source := tensor.ones<real32>([1])
+tensor<real32> owned_started := start_owned(owned_source)
+tensor<real32> owned_tracked := owned_source.track()
 (owned_started * 2.0 + owned_tracked * 5.0).reshape([]).backward(&owned_started)
 print(owned_started.grad[0].item())
 print(NL)
 // The same rule for a match binder borrowed from the variant's payload.
-tensor<real32> | error choice = tensor.ones<real32>([1])
-tensor<real32> matched = tensor.zeros<real32>([1])
-tensor<real32> matched_again = tensor.zeros<real32>([1])
+tensor<real32> | error choice := tensor.ones<real32>([1])
+tensor<real32> matched := tensor.zeros<real32>([1])
+tensor<real32> matched_again := tensor.zeros<real32>([1])
 match choice
     tensor<real32> payload
         matched = payload.track()
@@ -961,51 +961,51 @@ fi
 
 cat > "$TMP/tensor-view-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source_values = tensor.zeros<real32>([2, 3])
+tensor<real32> source_values := tensor.zeros<real32>([2, 3])
 source_values[0, 0] = real32(1)
 source_values[0, 1] = real32(2)
 source_values[0, 2] = real32(3)
 source_values[1, 0] = real32(4)
 source_values[1, 1] = real32(5)
 source_values[1, 2] = real32(6)
-tensor<real32> source = source_values.track()
-tensor<real32> transposed = source.transpose(0, 1)
+tensor<real32> source := source_values.track()
+tensor<real32> transposed := source.transpose(0, 1)
 print(transposed.is_tracked())
 print(NL)
 print(transposed.shape()[0] == 3 and transposed.shape()[1] == 2)
 print(NL)
 print(transposed.untrack()[0, 1].item() == real32(4))
 print(NL)
-tensor<real32> loss = reductions.mean((transposed * transposed))
+tensor<real32> loss := reductions.mean((transposed * transposed))
 loss.backward(&source, track = true)
-tensor<real32> first = source.grad
+tensor<real32> first := source.grad
 print(first.is_tracked())
 print(NL)
-tensor<real32> first_values = first.untrack()
+tensor<real32> first_values := first.untrack()
 print(first_values[0, 0].item() > real32(0.33) and first_values[0, 0].item() < real32(0.34))
 print(NL)
 print(first_values[1, 2].item() == real32(2))
 print(NL)
 reductions.mean(first).backward(&source)
-tensor<real32> accumulated = source.grad.untrack()
+tensor<real32> accumulated := source.grad.untrack()
 print(accumulated[0, 0].item() > real32(0.38) and accumulated[0, 0].item() < real32(0.40))
 print(NL)
 print(accumulated[1, 2].item() > real32(2.05) and accumulated[1, 2].item() < real32(2.06))
 print(NL)
 
-tensor<real32> reshape_source = tensor.ones<real32>([2, 3]).track()
-tensor<real32> reshaped = reshape_source.reshape([3, 2])
+tensor<real32> reshape_source := tensor.ones<real32>([2, 3]).track()
+tensor<real32> reshaped := reshape_source.reshape([3, 2])
 print(reshaped.is_tracked())
 print(NL)
 reductions.mean((reshaped * reshaped)).backward(&reshape_source, track = true)
-tensor<real32> reshape_first = reshape_source.grad
+tensor<real32> reshape_first := reshape_source.grad
 print(reshape_first.is_tracked())
 print(NL)
-tensor<real32> reshape_values = reshape_first.untrack()
+tensor<real32> reshape_values := reshape_first.untrack()
 print(reshape_values[0, 0].item() > real32(0.33) and reshape_values[0, 0].item() < real32(0.34))
 print(NL)
 reductions.mean(reshape_first).backward(&reshape_source)
-tensor<real32> reshape_accumulated = reshape_source.grad.untrack()
+tensor<real32> reshape_accumulated := reshape_source.grad.untrack()
 print(reshape_accumulated[0, 0].item() > real32(0.38) and reshape_accumulated[0, 0].item() < real32(0.40))
 print(NL)
 QUI
@@ -1019,14 +1019,14 @@ fi
 
 cat > "$TMP/tensor-scatter-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> values = tensor.zeros<real32>([3]).track()
-tensor<real32> seeded = values.untrack()
+tensor<real32> values := tensor.zeros<real32>([3]).track()
+tensor<real32> seeded := values.untrack()
 seeded[0] = real32(1)
 seeded[1] = real32(2)
 seeded[2] = real32(3)
 values = seeded.track()
-tensor<real32> scattered = values.scatter([0, 0, 2], [4])
-tensor<real32> scattered_values = scattered.untrack()
+tensor<real32> scattered := values.scatter([0, 0, 2], [4])
+tensor<real32> scattered_values := scattered.untrack()
 print(scattered_values[0].item() == real32(3))
 print(NL)
 print(scattered_values[1].item() == real32(0))
@@ -1042,11 +1042,11 @@ reductions.mean(values.grad).backward(&values)
 print(values.grad.untrack().shape()[0] == 3)
 print(NL)
 
-tensor<int64> integer_values = tensor.zeros<int64>([3])
+tensor<int64> integer_values := tensor.zeros<int64>([3])
 integer_values[0] = 1
 integer_values[1] = 2
 integer_values[2] = 3
-tensor<int64> integer_scattered = integer_values.scatter([0, 0, 2], [4])
+tensor<int64> integer_scattered := integer_values.scatter([0, 0, 2], [4])
 print(integer_scattered[0].item() == 3)
 print(NL)
 print(integer_scattered[1].item() == 0)
@@ -1056,11 +1056,11 @@ print(NL)
 print(integer_scattered[3].item() == 0)
 print(NL)
 
-tensor<int64> long_values = tensor.ones<int64>([72])
-int[] long_scatter_indices = array(72, fill = 0)
+tensor<int64> long_values := tensor.ones<int64>([72])
+int[] long_scatter_indices := array(72, fill = 0)
 for 0 <= nat index < 72
     long_scatter_indices[index] = int(index)
-tensor<int64> long_scattered = long_values.scatter(long_scatter_indices, [72])
+tensor<int64> long_scattered := long_values.scatter(long_scatter_indices, [72])
 print(long_scattered.shape()[0] == 72 and long_scattered[71].item() == 1)
 print(NL)
 QUI
@@ -1074,27 +1074,27 @@ fi
 
 cat > "$TMP/tensor-gather-autograd.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> source = tensor.ones<real32>([3]).track()
+tensor<real32> source := tensor.ones<real32>([3]).track()
 print(source.is_tracked())
 print(NL)
-tensor<real32> gathered = source.gather([2, 0, 2], [3])
+tensor<real32> gathered := source.gather([2, 0, 2], [3])
 print(gathered.is_tracked())
 print(NL)
-tensor<real32> loss = reductions.mean((gathered * gathered))
+tensor<real32> loss := reductions.mean((gathered * gathered))
 loss.backward(&source, track = true)
-tensor<real32> first = source.grad
+tensor<real32> first := source.grad
 print(first.is_tracked())
 print(NL)
-tensor<real32> first_values = first.untrack()
+tensor<real32> first_values := first.untrack()
 print(first_values[0].item() > real32(0.66) and first_values[0].item() < real32(0.67))
 print(NL)
 print(first_values[1].item() == real32(0))
 print(NL)
 print(first_values[2].item() > real32(1.33) and first_values[2].item() < real32(1.34))
 print(NL)
-tensor<real32> second_loss = reductions.mean(first)
+tensor<real32> second_loss := reductions.mean(first)
 second_loss.backward(&source)
-tensor<real32> accumulated = source.grad.untrack()
+tensor<real32> accumulated := source.grad.untrack()
 print(accumulated[0].item() > real32(0.88) and accumulated[0].item() < real32(0.90))
 print(NL)
 print(accumulated[1].item() == real32(0))
@@ -1102,11 +1102,11 @@ print(NL)
 print(accumulated[2].item() > real32(1.77) and accumulated[2].item() < real32(1.79))
 print(NL)
 
-tensor<int64> long_source = tensor.ones<int64>([72])
-int[] long_gather_indices = array(72, fill = 0)
+tensor<int64> long_source := tensor.ones<int64>([72])
+int[] long_gather_indices := array(72, fill = 0)
 for 0 <= nat index < 72
     long_gather_indices[index] = int(index)
-tensor<int64> long_gathered = long_source.gather(long_gather_indices, [72])
+tensor<int64> long_gathered := long_source.gather(long_gather_indices, [72])
 print(long_gathered.shape()[0] == 72 and long_gathered[71].item() == 1)
 print(NL)
 QUI
@@ -1126,19 +1126,19 @@ fi
 # must print the same.
 cat > "$TMP/tensor-autograd-shared-snapshots.qui" <<'QUI'
 import reductions = "./reduction_helpers.qui"
-tensor<real32> a = tensor.ones<real32>([3]) * real32(2)
-tensor<real32> b = tensor.ones<real32>([3]) * real32(3)
-tensor<real32> x = a.track()
-tensor<real32> y = b.track()
-tensor<real32> product = x * y
-tensor<real32> loss = reductions.mean(product * x)
+tensor<real32> a := tensor.ones<real32>([3]) * real32(2)
+tensor<real32> b := tensor.ones<real32>([3]) * real32(3)
+tensor<real32> x := a.track()
+tensor<real32> y := b.track()
+tensor<real32> product := x * y
+tensor<real32> loss := reductions.mean(product * x)
 a[0] = real32(100)
 b[1] = real32(100)
-tensor<real32> plain = product.untrack()
+tensor<real32> plain := product.untrack()
 plain[2] = real32(-1)
 loss.backward(&a, &b)
-tensor<real32> a_grad = a.grad
-tensor<real32> b_grad = b.grad
+tensor<real32> a_grad := a.grad
+tensor<real32> b_grad := b.grad
 print(a_grad[0].item() == real32(4) and a_grad[1].item() == real32(4) and a_grad[2].item() == real32(4))
 print(NL)
 print(b_grad[0].item() > real32(1.3333) and b_grad[0].item() < real32(1.3334))
@@ -1155,21 +1155,21 @@ print(NL)
 // backward allocated). A parent that later accumulates another contribution
 // copies it instead of changing its sibling's, and keeps its full size for
 // its own (scalar) backward.
-tensor<real32> fives = tensor.ones<real32>([3]) * real32(5)
-tensor<real32> c = tensor.ones<real32>([3]) * real32(2)
-tensor<real32> d = tensor.ones<real32>([3]) * real32(3)
-tensor<real32> u = c.track() * real32(2)
-tensor<real32> v = d.track() * real32(3)
+tensor<real32> fives := tensor.ones<real32>([3]) * real32(5)
+tensor<real32> c := tensor.ones<real32>([3]) * real32(2)
+tensor<real32> d := tensor.ones<real32>([3]) * real32(3)
+tensor<real32> u := c.track() * real32(2)
+tensor<real32> v := d.track() * real32(3)
 reductions.mean((u + v) * fives + u * v).backward(&c, &d)
 // d/dc = 2 (5 + v) / 3 = 28/3, d/dd = 3 (5 + u) / 3 = 9
 print(c.grad[0].item() > real32(9.3333) and c.grad[0].item() < real32(9.3334) and c.grad[2].item() > real32(9.3333))
 print(NL)
 print(d.grad[1].item() > real32(8.9999) and d.grad[1].item() < real32(9.0001) and d.grad[2].item() > real32(8.9999))
 print(NL)
-tensor<real32> e = tensor.ones<real32>([3]) * real32(2)
-tensor<real32> f = tensor.ones<real32>([3]) * real32(3)
-tensor<real32> p = e.track() * real32(2)
-tensor<real32> q = f.track() * real32(3)
+tensor<real32> e := tensor.ones<real32>([3]) * real32(2)
+tensor<real32> f := tensor.ones<real32>([3]) * real32(3)
+tensor<real32> p := e.track() * real32(2)
+tensor<real32> q := f.track() * real32(3)
 reductions.mean(p * q + (p + q) * fives).backward(&e, &f)
 print(e.grad[0].item() > real32(9.3333) and e.grad[0].item() < real32(9.3334) and f.grad[1].item() > real32(8.9999) and f.grad[1].item() < real32(9.0001))
 print(NL)

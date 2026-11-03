@@ -1,7 +1,7 @@
 print("ADV-START")
 print(NL)
 flush()
-int value = 9223372036854775809
+int value := 9223372036854775809
 print("OBS=V:{value}")
 print(NL)
 flush()

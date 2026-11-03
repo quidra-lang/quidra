@@ -25,9 +25,9 @@ void | error assert(bool condition)
     if not condition
         return error("tensor-array fixture assertion failed", code = "TEST_ASSERT")
     return
-tensor<real32> original = tensor.ones<real32>([4])
-tensor<real32>[] values = [original, original[1:<3]]
-tensor<real32>[] saved = values
+tensor<real32> original := tensor.ones<real32>([4])
+tensor<real32>[] values := [original, original[1:<3]]
+tensor<real32>[] saved := values
 assert(probe.count(values) == int64(2))
 assert(probe.bump(&values, int32(0)) == int32(0))
 assert(values[0][0].item() == real32(2.0))
@@ -35,7 +35,7 @@ assert(values[1][0].item() == real32(2.0))
 assert(original[0].item() == real32(1.0))
 assert(saved[0][0].item() == real32(1.0))
 assert(saved[1][0].item() == real32(1.0))
-tensor<real32>[] empty = []
+tensor<real32>[] empty := []
 assert(probe.count(empty) == int64(0))
 assert(probe.bump(&empty, int32(0)) == int32(0))
 assert(probe.count([original]) == int64(1))
@@ -56,22 +56,22 @@ expect_failure() {
 }
 cat > "$TMP/readonly.qui" <<'QUI'
 import probe = array_fixture
-tensor<real32>[] values = [tensor.ones<real32>([1])]
+tensor<real32>[] values := [tensor.ones<real32>([1])]
 probe.readonly(values)
 QUI
 cat > "$TMP/bounds.qui" <<'QUI'
 import probe = array_fixture
-tensor<real32>[] values = [tensor.ones<real32>([1])]
+tensor<real32>[] values := [tensor.ones<real32>([1])]
 probe.bounds(values)
 QUI
 cat > "$TMP/nonfinite.qui" <<'QUI'
 import probe = array_fixture
-tensor<real32>[] values = [tensor.ones<real32>([1])]
+tensor<real32>[] values := [tensor.ones<real32>([1])]
 probe.bump(&values, int32(1))
 QUI
 cat > "$TMP/tracked.qui" <<'QUI'
 import probe = array_fixture
-tensor<real32>[] values = [tensor.ones<real32>([1]).track()]
+tensor<real32>[] values := [tensor.ones<real32>([1]).track()]
 probe.bump(&values, int32(0))
 QUI
 cat > "$TMP/uninitialized.qui" <<'QUI'
@@ -90,8 +90,8 @@ expect_failure nonfinite NONFINITE_RESULT 'bump'
 # remains independent and no NaN can reach the public array.
 cat > "$TMP/infinity.qui" <<'QUI'
 import probe = array_fixture
-tensor<real32>[] values = [tensor.ones<real32>([1])]
-tensor<real32>[] saved = values
+tensor<real32>[] values := [tensor.ones<real32>([1])]
+tensor<real32>[] saved := values
 print(probe.bump(&values, int32(2)) == int32(0))
 print(NL)
 print(values[0][0].item() == real32(inf) and saved[0][0].item() == real32(1))

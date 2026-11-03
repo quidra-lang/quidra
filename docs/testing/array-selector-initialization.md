@@ -4,9 +4,9 @@ Array gathering and boolean masking read every element of the selector. Knowing
 its length does not establish that its elements have values. For example:
 
 ```quidra
-int[2] values = [10, 20]
+int[2] values := [10, 20]
 int[2] indices
-int[] selected = values[indices] // UNINITIALIZED: no index has a value
+int[] selected := values[indices] // UNINITIALIZED: no index has a value
 ```
 
 The same rule applies to `nat` indices and `bool` masks. A tracked fixed-length

@@ -1573,7 +1573,15 @@ func<int>(int) operation = twice
 print.line(apply(operation, 21))
 ```
 
-A function declaration becomes a value only when an explicit `func<...>(...)` context supplies the complete signature. `auto operation = twice` is rejected rather than inferring an implicit function type. Conversion requires an exact result/parameter match and currently represents only by-value parameters; a function with a reference parameter cannot be converted to an `func` value. `extern` C declarations are not function values, and methods are not implicitly converted into bound closures. Function-value calls use positional by-value arguments only.
+A function declaration becomes a value when its context supplies a complete
+`func<...>(...)` signature. At a generic call with a declared `func` parameter,
+the signature of a named non-generic function can also determine the call's
+type arguments. For example, `apply(twice, 21)` can pass the function directly
+when `apply` takes a `func<R>(T)`. A standalone `auto operation = twice`
+still has no function-value context. Conversion requires an exact result and
+parameter match and represents only by-value parameters. Extern C declarations
+and bound methods are excluded. Function-value calls use positional by-value
+arguments only.
 
 The value contains only the statically known code target: it captures no local, receiver, top-level, or hidden environment. Ordinary assignment/pass/return therefore does not create a closure allocation or hidden lifetime. Function identity is not part of source semantics, so `==` and `!=` are not defined for function values. Calling an uninitialized function binding is a definite-initialization error. A function value stored behind an explicit reference still follows the ordinary reference read-before-use rules.
 

@@ -4848,6 +4848,39 @@ int result = operation(3)
 func<int>(int) operation = twice
 int result = operation(3)
 )", "select i1 true, ptr @n_twice, ptr null");
+ ir_contains(R"(R apply<T, R>(T value, func<R>(T) operation)
+    return operation(value)
+
+R apply_to<T, R>(extend T value, func<R>(T) operation)
+    return operation(value)
+
+class Entry<T>(T value)
+
+(int, bool) key(Entry<int> item)
+    return (item.value, true)
+
+Entry<int> item(3)
+(int, bool) direct = apply(item, key)
+(int, bool) extension = item.apply_to(key)
+)", "call.indirect");
+ if (imported_check_code(R"(import lib = "./lib.qui"
+
+bool callback_key(bool value)
+    return value
+
+print.line(lib.run())
+)", R"(private int callback_key(int value)
+    return value
+
+R invoke<T, R>(T value, func<R>(T) operation)
+    return operation(value)
+
+int run()
+    return invoke(int(3), callback_key)
+)") != "") {
+     std::cerr << "generic callback inference must use the declaring module's function\n";
+     std::exit(1);
+ }
  bad_code(R"(int twice(int value)
     return value * 2
 func<real64>(int) operation = twice

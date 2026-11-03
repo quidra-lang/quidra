@@ -4406,6 +4406,55 @@ private:
             : std::optional<TypeName>{clone_type(result->second)};
     }
 
+    void resolve_known_class_instances(TypeName& type) const {
+        for (auto& argument : type.arguments) resolve_known_class_instances(argument);
+        for (auto& parameter : type.function_parameters) resolve_known_class_instances(parameter);
+        if (type.arguments.empty() || !class_templates_.contains(type.name)) return;
+        if (const auto found = class_instances_.find(instance_key(type.name, type.arguments));
+            found != class_instances_.end()) {
+            type.name = found->second;
+            type.arguments.clear();
+        }
+    }
+
+    std::optional<TypeName> infer_call_argument_type(
+        const Expr& value, const TypeName& parameter, const std::string& current_class) const {
+        auto actual = infer_expression_type(value, current_class);
+        if (actual || parameter.name != "func" || !parameter.dimensions.empty()) return actual;
+
+        const auto* name = std::get_if<NameExpr>(&value.data);
+        if (!name || name->this_qualifier || name->self_reference) return std::nullopt;
+        auto lookup = name->name;
+        const bool module_scope = !current_module_namespace_.empty() &&
+                                  !current_module_namespace_.starts_with("$std.");
+        if (module_scope) {
+            auto own = qualify(current_module_namespace_, lookup);
+            if (function_families_.contains(own)) lookup = std::move(own);
+        }
+        const auto found = concrete_functions_.find(lookup);
+        if (found == concrete_functions_.end()) return std::nullopt;
+        const auto& function = *found->second;
+        if (module_scope && function.module_namespace.empty()) return std::nullopt;
+        if (function.external_symbol || function.return_type.name == "$std.reflect.Each" ||
+            (function.is_private && function.module_namespace != current_module_namespace_) ||
+            std::any_of(function.parameters.begin(), function.parameters.end(),
+                        [](const Parameter& input) { return input.writable; })) {
+            return std::nullopt;
+        }
+
+        TypeName signature;
+        signature.name = "func";
+        signature.span = value.span;
+        signature.arguments.push_back(clone_type(function.return_type));
+        for (const auto& input : function.parameters) {
+            signature.function_parameters.push_back(clone_type(input.type));
+        }
+        // The callback declaration can still name generic classes whose
+        // instances have already been materialized in the caller.
+        resolve_known_class_instances(signature);
+        return signature;
+    }
+
     std::optional<TypeName> infer_expression_type(
         const Expr& expression,
         const std::string& current_class) const {
@@ -5061,7 +5110,8 @@ private:
             if (index >= callee_parameters.size() || filled[index]) return std::nullopt;
             filled[index] = true;
 
-            const auto actual = infer_expression_type(*argument.value, current_class);
+            const auto actual = infer_call_argument_type(
+                *argument.value, callee_parameters[index].type, current_class);
             if (!actual) continue;
             if (!infer_generic_pattern(
                     callee_parameters[index].type, *actual, parameters, inferred)) {
@@ -5185,7 +5235,7 @@ private:
         if (!targets) return false;
         const auto contextual_match = [&](const auto& self, const Expr& value,
                                           const TypeName& expected, bool allow_error_unwrap) -> bool {
-            if (const auto actual = infer_expression_type(value, current_class)) {
+            if (const auto actual = infer_call_argument_type(value, expected, current_class)) {
                 return concrete_argument_type_match(expected, *actual, allow_error_unwrap);
             }
             if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {

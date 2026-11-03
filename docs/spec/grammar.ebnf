@@ -258,8 +258,10 @@ statement_end    = NEWLINE | EOF ;
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;
    - `func<R>(P...)` is a capture-free function-value type. Converting a declared
-     function to it requires the complete explicit function-value context and an exact
-     by-value signature; extern functions, reference-parameter functions, and bound
+     function to it requires a complete function-value context and an exact
+     by-value signature. A generic call with a declared func parameter can infer
+     type arguments from a named non-generic callback. Extern functions,
+     reference-parameter functions, and bound
      methods do not implicitly become function values;
    - `T(...)` runs the class header and ordered initialization body. Header defaults
      or free factories express alternate forms; `construct` is an ordinary name.

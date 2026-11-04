@@ -27,12 +27,12 @@ case=0
 def value_case(source,target,value,want):
     global case
     name=f'source_{case}';out=f'converted_{case}';case+=1
-    program.extend([f'{source} {name} = {value}',f'{target} {out} = {target}({name})',f'print({out} == {want})','print(NL)'])
+    program.extend([f'{source} {name} := {value}',f'{target} {out} := {target}({name})',f'print({out} == {want})','print(NL)'])
     expected.append('true')
 def failure_case(source,target,value,reason):
     global case
     name=f'source_{case}';case+=1
-    program.extend([f'{source} {name} = {value}',f'match {target}({name})',f'    {target} converted','        print("unexpected" + NL)','    error problem','        match problem.reason','            string reason','                print(reason + NL)','            none','                print("missing reason" + NL)'])
+    program.extend([f'{source} {name} := {value}',f'match {target}({name})',f'    {target} converted','        print("unexpected" + NL)','    error problem','        match problem.reason','            string reason','                print(reason + NL)','            none','                print("missing reason" + NL)'])
     expected.append(reason)
 for source in ordered:
     for target in ordered:
@@ -63,10 +63,10 @@ for source in ordered:
                 # Halfway between 1 and its next value: ties-to-even selects 1.
                 midpoint='1.0 + 1.0 / '+str(1<<precision[target])+'.0'
                 value_case(source,target,midpoint,'1.0')
-program += ['real64 signed_edge = 9223372036854775808.0','real64 unsigned_edge = 18446744073709551616.0']
+program += ['real64 signed_edge := 9223372036854775808.0','real64 unsigned_edge := 18446744073709551616.0']
 for target,name in [('int64','signed_edge'),('nat64','unsigned_edge')]:
     program += [f'match {target}({name})',f'    {target} value','        print("unexpected" + NL)','    error problem','        match problem.reason','            string reason','                print(reason + NL)','            none','                print("missing reason" + NL)'];expected.append('OUT_OF_RANGE')
-program += ['real64[] original = [1.0, 2.5, 3.0]', 'match int8(original)', '    int8[] values','        print("unexpected" + NL)','    error problem','        print(problem.code + NL)','print("{original[0]} {original[1]} {original[2]}" + NL)', 'real16[] zeros = [-0.0, 2.0]', 'int[] exact = int(zeros)', 'nat[] natural = nat(zeros)', 'print("{exact[0]} {exact[1]} {natural[0]} {natural[1]}" + NL)']
+program += ['real64[] original := [1.0, 2.5, 3.0]', 'match int8(original)', '    int8[] values','        print("unexpected" + NL)','    error problem','        print(problem.code + NL)','print("{original[0]} {original[1]} {original[2]}" + NL)', 'real16[] zeros := [-0.0, 2.0]', 'int[] exact := int(zeros)', 'nat[] natural := nat(zeros)', 'print("{exact[0]} {exact[1]} {natural[0]} {natural[1]}" + NL)']
 expected += ['NUMERIC_CONVERSION','1.0 2.5 3.0','0 2 0 2']
 (root/'matrix.qui').write_text('\n'.join(program)+'\n');(root/'expected').write_text('\n'.join(expected)+'\n')
 PYGEN
@@ -79,7 +79,7 @@ import sys
 root=Path(sys.argv[1]);program=['cli args','    int device = option(default = -1)'];expected=[]
 for source in ['real16','real16b','real32','real64']:
     name='source_'+source
-    program += [f'tensor<{source}> {name} = tensor.zeros<{source}>([3])',f'{name}[0] = 1.0',f'{name}[1] = 2.5',f'{name}[2] = -0.0']
+    program += [f'tensor<{source}> {name} := tensor.zeros<{source}>([3])',f'{name}[0] = 1.0',f'{name}[1] = 2.5',f'{name}[2] = -0.0']
     # Existing Metal real64 arithmetic capability limits are separate from the new casts.
     if source!='real64':program += ['if args.device >= 0',f'    {name} = {name}.gpu(nat(args.device))']
     for target in ['int8','int64','nat8','nat64']:
@@ -89,7 +89,7 @@ for source in ['real16','real16b','real32','real64']:
     expected.append('true')
     for target in ['int8','int64','nat8','nat64']:
         name_out=f'{source}_{target}'
-        program += [f'tensor<{target}> {name_out} = {target}({name})',f'print({name_out}.cpu()[0].item() == 1 and {name_out}.cpu()[1].item() == 2 and {name_out}.cpu()[2].item() == 0)','print(NL)']
+        program += [f'tensor<{target}> {name_out} := {target}({name})',f'print({name_out}.cpu()[0].item() == 1 and {name_out}.cpu()[1].item() == 2 and {name_out}.cpu()[2].item() == 0)','print(NL)']
         expected.append('true')
 (root/'tensors.qui').write_text('\n'.join(program)+'\n');(root/'tensor-expected').write_text('\n'.join(expected)+'\n')
 PYTENSOR

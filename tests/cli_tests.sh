@@ -495,7 +495,7 @@ json.dump({
 },open(sys.argv[2],"w"))
 PY
 "$QUIDRA" patch "$TMP/if-expression-format.qui" "$TMP/if-expression-change.json" --write >/dev/null
-grep -q '^int x = if ready then 10 else 20$' "$TMP/if-expression-format.qui"
+grep -q '^int x := if ready then 10 else 20$' "$TMP/if-expression-format.qui"
 [[ "$("$QUIDRA" run "$TMP/if-expression-format.qui")" == "13" ]]
 
 # GPU discovery is always safe, including on hosts with no supported GPU.
@@ -889,7 +889,7 @@ uri=(tmp/"lsp-private-completion.qui").as_uri()
 source=(
     "class Secret()\n"
     "    int visible := 1\n"
-    "    private int hidden = 2\n"
+    "    private int hidden := 2\n"
     "\n"
     "    void open()\n"
     "        return\n"
@@ -903,7 +903,7 @@ source=(
 inside_source=(
     "class Secret()\n"
     "    int visible := 1\n"
-    "    private int hidden = 2\n"
+    "    private int hidden := 2\n"
     "\n"
     "    void open()\n"
     "        return\n"
@@ -967,7 +967,7 @@ tmp=pathlib.Path(sys.argv[2])
 uri=(tmp/"lsp-private-tools.qui").as_uri()
 source=(
     "class Vault this()\n"
-    "    private int secret = 1\n"
+    "    private int secret := 1\n"
     "\n"
     "    private int reveal()\n"
     "        return this.secret\n"
@@ -3124,8 +3124,8 @@ grep -q 'SHADOWING' "$TMP/generic-constructor-shadow.json"
 # A construction call of a generic class may omit its type arguments when the
 # constructor's arguments determine them, with the rules of generic functions:
 # by-value and & arguments, nested generic arguments, a generic factory,
-# and a fallible initializer. An untyped numeric
-# literal determines nothing, as for generic functions.
+# and a fallible initializer. An untyped integer literal defaults to int
+# and can determine a generic argument, as for generic functions.
 cat > "$TMP/project/src/class-inference-lib.qui" <<'QUI'
 class Box<T> this(local T initial)
     T value
@@ -3226,13 +3226,17 @@ class Box<T> this(local T initial)
     this.value = initial
 
 boxed := Box(7)
+Box<int> typed := boxed
+print(typed.value)
 QUI
-set +e
-(cd "$TMP/project" && "$QUIDRA" check src/class-inference-literal.qui --json) >"$TMP/class-inference-literal.json" 2>&1
-class_inference_status=$?
-set -e
-[[ $class_inference_status -ne 0 ]]
-grep -q 'GENERIC_INFERENCE' "$TMP/class-inference-literal.json"
+(cd "$TMP/project" && "$QUIDRA" check src/class-inference-literal.qui --json) >"$TMP/class-inference-literal.json" 2>"$TMP/class-inference-literal.err"
+python3 - "$TMP/class-inference-literal.json" <<'PYTHON'
+import json,sys
+x=json.load(open(sys.argv[1]))
+assert x["ok"] is True
+assert not x["diagnostics"]
+PYTHON
+[[ "$(cd "$TMP/project" && "$QUIDRA" run src/class-inference-literal.qui)" == "7" ]]
 
 cat > "$TMP/project/src/class-inference-no-constructor.qui" <<'QUI'
 class Slot<T>()
@@ -3509,7 +3513,7 @@ cases = {
     "write": "size = 2",
     "compound": "size += 2",
     "address": "bump(&size)",
-    "loop": "for int item = items[]\n            print(item)",
+    "loop": "for item := items[]\n            print(item)",
     "interpolation": 'print("{size}")',
     "shape": "tensor<real32>{nat(n)} values := tensor.zeros<real32>([2])",
 }
@@ -4728,7 +4732,7 @@ err=open(sys.argv[2]).read()
 expected=[
     "3","5","8","36","9","7",
     "[1, 2, 3]","111","Box(value = 9)",
-    "Box(value = <uninitialized>)","none","\"hello\"",
+    "Box(value = <uninitialized>)","none","\"hello\"","3",
     "8","8","4.0","real64"
 ]
 position=0
@@ -4737,7 +4741,7 @@ for value in expected:
     assert found >= 0, (value, out, err)
     position=found+len(value)
 assert "TYPE_MISMATCH" in err
-assert "AMBIGUOUS_NUMERIC_LITERAL" in err
+assert "AMBIGUOUS_NUMERIC_LITERAL" not in err
 assert "DIVIDE_BY_ZERO" in err
 PY
 
@@ -5552,17 +5556,19 @@ PY
 
 cat > "$TMP/default-int-too-large.qui" <<'QUI'
 value := 10000000000000000000
+print(value)
 QUI
 set +e
 "$QUIDRA" check "$TMP/default-int-too-large.qui" --json > "$TMP/default-int-too-large.json"
 default_large_rc=$?
 set -e
-[[ "$default_large_rc" -eq 1 ]]
+[[ "$default_large_rc" -eq 0 ]]
 python3 - "$TMP/default-int-too-large.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
-assert any(d["code"] == "AMBIGUOUS_NUMERIC_LITERAL" for d in x["diagnostics"])
+assert not x["diagnostics"]
 PY
+[[ "$("$QUIDRA" run "$TMP/default-int-too-large.qui")" == "10000000000000000000" ]]
 
 cat > "$TMP/deep-recursion.qui" <<'QUI'
 int deep(int n)
@@ -5638,7 +5644,7 @@ open(sys.argv[1] + '/nest-eager.qui', 'w').write('int x := 1' + ' + 1' * 1599 + 
 open(sys.argv[1] + '/nest-shortcircuit.qui', 'w').write('bool b := true\nbool c := b' + ' and b' * 900 + '\n')
 open(sys.argv[1] + '/nest-postfix.qui', 'w').write(
     'class P(local int start)\n    int v\n\n\n    v = start\n\n    P grow()\n        return P(v + 1)\n\n'
-    'P p := P(1)\nP q = p' + '.grow()' * 600 + '\n')
+    'P p := P(1)\nP q := p' + '.grow()' * 600 + '\n')
 open(sys.argv[1] + '/nest-statements.qui', 'w').write(
     'void f()\n' + ''.join(' ' * (4 * (i + 1)) + 'if true\n' for i in range(300))
     + ' ' * (4 * 301) + 'print(\"x\")\n')
@@ -5673,11 +5679,11 @@ set -e
 [[ "$nest_rc" -eq 1 ]]
 
 # Control for the depth-versus-size decision: a large but flat program must
-# still compile. 40,000 statements, 737,780 bytes, zero nesting.
+# still compile. 40,000 statements, 777,780 bytes, zero nesting.
 python3 -c "
 import sys
 open(sys.argv[1] + '/flat-program.qui', 'w').write(
-    ''.join('int v%d = %d\n' % (i, i) for i in range(40000)))
+    ''.join('int v%d := %d\n' % (i, i) for i in range(40000)))
 " "$TMP"
 "$QUIDRA" check "$TMP/flat-program.qui"
 

@@ -57,14 +57,14 @@ real32 big := inf
 real32 sum := big + -big
 print(sum)
 QUI
-fails add32 101 NONFINITE_RESULT 'real32 addition produced NaN' '2:14'
+fails add32 101 NONFINITE_RESULT 'real32 addition produced NaN' '2:15'
 
 cat > "$TMP/subtract.qui" <<'QUI'
 real64 big := inf
 real64 low := big - big
 print(low)
 QUI
-fails subtract 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:14'
+fails subtract 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:15'
 
 cat > "$TMP/divide_overflow.qui" <<'QUI'
 real64 big := inf
@@ -108,7 +108,7 @@ real64 big := inf
 real64 r := big * 0.0 - big * 0.0
 print(r)
 QUI
-fails first 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:12'
+fails first 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '2:13'
 
 cat > "$TMP/second.qui" <<'QUI'
 real64 big := inf
@@ -116,14 +116,14 @@ real64 one := 1.0
 real64 r := one * 2.0 - big * 0.0
 print(r)
 QUI
-fails second 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:24'
+fails second 101 NONFINITE_RESULT 'real64 multiplication produced NaN' '3:25'
 
 cat > "$TMP/consumer.qui" <<'QUI'
 real64 big := inf
 real64 r := big * 1.5 - big * 1.5
 print(r)
 QUI
-fails consumer 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:12'
+fails consumer 101 NONFINITE_RESULT 'real64 subtraction produced NaN' '2:13'
 
 # The checks of one expression merge into one hot-path test; the loop with
 # one checked addition and a fixed-width counter keeps a flag and tests it
@@ -218,7 +218,7 @@ tensor<real32> infinity := tensor.ones<real32>([3]) * real32(inf)
 print("before")
 tensor<real32> invalid := infinity - infinity
 QUI
-fails tensor_nan 101 NONFINITE_RESULT 'tensor<real32> subtraction produced NaN' '3:26'
+fails tensor_nan 101 NONFINITE_RESULT 'tensor<real32> subtraction produced NaN' '3:27'
 [[ "$(cat "$TMP/tensor_nan.out")" == "before" ]]
 
 cat > "$TMP/tensor_divide.qui" <<'QUI'
@@ -232,7 +232,7 @@ cat > "$TMP/tensor_zero_zero.qui" <<'QUI'
 tensor<real64> zeros := tensor.zeros<real64>([2, 2])
 tensor<real64> quotient := zeros / zeros
 QUI
-fails tensor_zero_zero 101 DIVISION_BY_ZERO 'tensor<real64> division by zero' '2:27'
+fails tensor_zero_zero 101 DIVISION_BY_ZERO 'tensor<real64> division by zero' '2:28'
 
 cat > "$TMP/tensor_power.qui" <<'QUI'
 tensor<real32> zeros := tensor.zeros<real32>([2])
@@ -241,19 +241,19 @@ print(fine[0].item())
 print(NL)
 tensor<real32> undefined := zeros ^ real32(0.0)
 QUI
-fails tensor_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '5:28'
+fails tensor_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '5:29'
 
 cat > "$TMP/tensor_negative_base.qui" <<'QUI'
 tensor<real64> negative := tensor.ones<real64>([2]) * -2.0
 tensor<real64> root := negative ^ 0.5
 QUI
-fails tensor_negative_base 101 POWER_DOMAIN 'a negative base requires an integer exponent' '2:23'
+fails tensor_negative_base 101 POWER_DOMAIN 'a negative base requires an integer exponent' '2:24'
 
 cat > "$TMP/tensor_integer_power.qui" <<'QUI'
 tensor<int32> zeros := tensor.zeros<int32>([2])
 tensor<int32> result := zeros ^ int32(0)
 QUI
-fails tensor_integer_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '2:24'
+fails tensor_integer_power 101 POWER_DOMAIN '0 ^ 0 is undefined' '2:25'
 
 # A gradient a backward pass delivers is tested: 1 / w with w = 1e-20 is
 # finite, its gradient -1 / w^2 overflows real32.

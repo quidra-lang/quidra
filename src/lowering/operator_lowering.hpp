@@ -46,6 +46,8 @@ private:
     ValueId lower_short_circuit(const BinaryExpr& n);
     ValueId lower_array_elementwise(const Expr& e, const BinaryExpr& n);
     ValueId lower_operator_tree(const Expr& e);
+    ValueId convert_numeric_operand(ValueId value, const Type& from,
+                                    const Type& to, SourcePosition position);
 
     Lowerer& lowerer_;
     const CheckedProgram& checked_;

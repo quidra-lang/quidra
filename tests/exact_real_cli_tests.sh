@@ -395,9 +395,11 @@ real64 twice(real64 value)
     return result
 print("{twice(1.0)} {twice(2.0)}")
 QUI
-rejects contextual-auto AMBIGUOUS_NUMERIC_LITERAL <<'QUI'
+ok contextual-auto "true" <<'QUI'
 const literal real c := 1.0 / 3.0
 value := c
+real typed := value
+print(typed == 1.0 / 3.0)
 QUI
 rejects contextual-integer NUMERIC_FAMILY <<'QUI'
 const literal real c := 1.0 / 3.0
@@ -475,9 +477,12 @@ QUI
 rejects op-no-value ARGUMENT_MISMATCH <<'QUI'
 real value := real.op("exactprobe", 102)
 QUI
-rejects op-value-type TYPE_MISMATCH <<'QUI'
+ok op-value-type "true" <<'QUI'
+import exactprobe
 real64 x := 1.0
 real value := real.op("exactprobe", 102, x, real(2))
+real explicit_value := real.op("exactprobe", 102, real(x), real(2))
+print(value == explicit_value)
 QUI
 
 if [[ "$failures" -ne 0 ]]; then

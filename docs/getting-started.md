@@ -49,7 +49,7 @@ print("count = ")
 println(count)
 ```
 
-Omit the type by default when the initializer determines it, as in `label := "ready"`. In `int count := 7`, the annotation gives the numeric literal its type.
+Omit the type by default when the initializer determines it, as in `label := "ready"`. Numeric literals default to `int`, exact `real`, or exact `com`, so `count := 7` infers `int`. In `int32 count := 7`, the annotation supplies a narrower context; `nat` requires context.
 
 The example also shows how values and references are passed:
 

@@ -40,13 +40,13 @@ drive(model)
     // Authored caller statements supply headroom for the fixed per-caller
     // growth bound, separately from the unrelated module reserve below.
     const auto padding=[](std::string_view name,std::size_t count,std::string_view indent) {
-        std::string text=std::string(indent)+"int32 "+std::string(name)+" = 0\n";
+        std::string text=std::string(indent)+"int32 "+std::string(name)+" := 0\n";
         for(std::size_t i=0;i<count;++i)text+=std::string(indent)+std::string(name)+" = "+std::string(name)+" + 1\n";
         return text;
     };
     for(const auto& [header,count]:std::vector<std::pair<std::string,std::size_t>>{{"void relay(Model input)\n",24},{"void drive(Model input)\n",80}})
         program.insert(program.find(header)+header.size(),padding("padding",count,"    "));
-    program.insert(program.find("Model model ="),padding("entry_padding",80,""));
+    program.insert(program.find("Model model :="),padding("entry_padding",80,""));
     auto module=lower(check(program));
     const auto scan=named(module,"walk_items"),relay=named(module,"relay");
     const auto original=module.binding_origins->functions.at(scan).source;

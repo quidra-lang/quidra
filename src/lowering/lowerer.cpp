@@ -46,7 +46,7 @@ Lowerer::Lowerer(
       http_(*this, checked_, builder_, enclosing_class_, lifetime_),
       concurrency_(*this, checked_, builder_, lifetime_),
       random_(*this, builder_, enclosing_class_),
-      checks_(*this, checked_, builder_, lifetime_),
+      checks_(*this, builder_),
       reflection_(*this, checked_, builder_, scope_, lifetime_),
       scan_(*this, checked_, builder_, scope_, lifetime_),
       statements_(*this, checked_, builder_, scope_, facts_, nesting_depth_,

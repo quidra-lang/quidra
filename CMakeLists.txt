@@ -1390,6 +1390,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   if(UNIX)
     add_test(NAME quidra_numeric_conversions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_conversions_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_numeric_conversion_matrix COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_conversion_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_numeric_common_type COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_common_type_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_numeric_call_conversion COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_call_conversion_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     # The run cache end to end: changed inputs, damaged entries, permissions,
     # concurrent runs, the replayed toolchain output, the cached program

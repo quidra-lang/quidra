@@ -31,6 +31,34 @@ int main() {
     require(type_name(t(TypeKind::Bin)) == "bin", "bin name");
     require(is_pointer_runtime_type(t(TypeKind::Bin)), "bin uses managed runtime storage");
 
+    // Family priority is resolved before widths: a lower family's width
+    // cannot widen the operator type, even when its values need checking.
+    require(numeric_common_type(t(TypeKind::Nat64), t(TypeKind::Int32)) == t(TypeKind::Int32),
+            "nat64 + int32 computes in int32");
+    require(numeric_common_type(t(TypeKind::Nat), t(TypeKind::Int32)) == t(TypeKind::Int32),
+            "arbitrary natural width does not affect integer result");
+    require(numeric_common_type(t(TypeKind::Int), t(TypeKind::Nat64)) == t(TypeKind::Int),
+            "arbitrary precision wins within the highest family");
+    require(numeric_common_type(t(TypeKind::Int32), t(TypeKind::Real16)) == t(TypeKind::Real16),
+            "integer width does not affect real precision");
+    require(numeric_common_type(t(TypeKind::Real), t(TypeKind::Com16)) == t(TypeKind::Com16),
+            "real precision does not affect complex precision");
+    require(numeric_common_type(t(TypeKind::Real16), t(TypeKind::Real16b)) == t(TypeKind::Real32),
+            "incomparable half formats join at real32");
+    require(numeric_common_type(t(TypeKind::Com16), t(TypeKind::Com16b)) == t(TypeKind::Com32),
+            "incomparable complex half formats join at com32");
+    require(!numeric_common_type(t(TypeKind::String), t(TypeKind::Int)),
+            "non-numeric operands have no numeric common type");
+    for (const auto& a : numeric_kinds) {
+        for (const auto& b : numeric_kinds) {
+            const auto common = numeric_common_type(t(a.kind), t(b.kind));
+            require(common == numeric_common_type(t(b.kind), t(a.kind)),
+                    "numeric common type is symmetric");
+            require(common && numeric_info(*common)->family == std::max(a.family, b.family),
+                    "numeric common type selects the highest family");
+        }
+    }
+
     const auto n = ShapeExtent::symbol(2);
     const auto m = ShapeExtent::symbol(7);
     const auto nm = broadcast_extent(n, m);

@@ -33,6 +33,8 @@ public:
                               const Type& target, bool owned, SourceSpan span,
                               const ErrorHopCall* hop = nullptr);
     ValueId convert(ValueId v,const Type& from,const Type& to,bool copy=false);
+    ValueId convert_numeric_argument(ValueId value, const Type& source,
+                                     const Type& target, SourceSpan span);
     ValueId lower_numeric_cast(
         const Expr& e, const CallExpr& n, const CallResolution& resolution);
 

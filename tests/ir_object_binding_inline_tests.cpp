@@ -53,11 +53,11 @@ void drive(Pair &input, Pair &other)
     text += "        .held.reset(&other)\n";
   text += R"(        .held.step()
     return
-Pair first = Pair(Cell(1), Cell(2))
-Pair second = Pair(Cell(3), Cell(4))
+Pair first := Pair(Cell(1), Cell(2))
+Pair second := Pair(Cell(3), Cell(4))
 drive(&first, &second)
 void reserve()
-    int32 value = 0
+    int32 value := 0
 )";
   for (int i = 0; i < 100; ++i)
     text += "    value = value + 1\n";

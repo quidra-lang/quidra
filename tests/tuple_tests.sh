@@ -97,6 +97,10 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/union-string.qui")" == $'7\nnone' ]]
 
+# An unresolved discarded numeric literal now uses its default int type.
+printf '(int kept, _) := (5, 6)\nprint(kept)\n' > "$TMP/discard.qui"
+[[ "$("$QUIDRA" "$TMP/discard.qui")" == '5' ]]
+
 check_rejected() {
     local code="$1" source="$2"
     printf '%s\n' "$source" > "$TMP/reject.qui"
@@ -106,14 +110,14 @@ import json,sys
 assert any(d['code']==sys.argv[2] for d in json.load(open(sys.argv[1]))['diagnostics'])
 PYJSON
 }
-check_rejected TUPLE $'(int, int) p = (1, 2)\nprint(p[0])'
-check_rejected TUPLE $'(int, int) p = (1, 2)\nprint(p.string())'
+check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p[0])'
+check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p.string())'
 check_rejected TUPLE $'int a := 1\n(a, a) = (1, 2)'
 check_rejected TUPLE $'int a := 1\nint b := 2\n(a, b) += (1, 2)'
-check_rejected UNINITIALIZED $'(string, int) p\n(string &s, int &n) = &p'
-check_rejected MATCH_CASE $'(int, int) initial = (1, 2)\n(int, int) | (int, string) v = initial\nmatch v\n    (int a, _)\n        print(a)'
-check_rejected MATCH_CASE $'(int, string) | none v = (1, "x")\nmatch v\n    (int &a, string &b)\n        print(a)\n    none\n        print("none")'
-check_rejected DISCARD $'(int a, _) := (1, 2)'
+check_rejected UNINITIALIZED $'(string, int) p\n(string &s, int &n) := &p'
+check_rejected MATCH_CASE $'(int, int) initial := (1, 2)\n(int, int) | (int, string) v := initial\nmatch v\n    (int a, _)\n        print(a)'
+check_rejected MATCH_CASE $'(int, string) | none v := (1, "x")\nmatch v\n    (int &a, string &b)\n        print(a)\n    none\n        print("none")'
+check_rejected DISCARD $'(int a, _) := (1, 2)\nprint(_)'
 for name in values loops match keys; do
     cp "$TMP/$name.qui" "$TMP/$name.formatted.qui"
     "$QUIDRA" fmt "$TMP/$name.formatted.qui"

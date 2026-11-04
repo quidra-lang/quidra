@@ -318,6 +318,8 @@ struct CheckedProgram {
     std::unordered_map<const Expr*,std::unordered_set<std::string>> reference_invalidations;
     std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
     std::shared_ptr<const semantics::BindingEntryInitializations> binding_entry_initialization{};
+    // Value-call conversions preserve each expression's original static type.
+    std::unordered_map<const Expr*, Type> implicit_numeric_argument_conversions{};
 };
 
 // What a compilation produces: an executable (quidra build, run, a direct
@@ -345,6 +347,7 @@ private:
     std::unordered_set<std::string> unknown_reference_targets_;
     std::unordered_map<const Expr*, Type> expr_types_;
     std::unordered_map<const Expr*, Type> raw_types_;
+    std::unordered_map<const Expr*, Type> implicit_numeric_argument_conversions_;
     std::unordered_map<const Expr*, FieldAccessInfo> field_accesses_;
     std::unordered_set<const Expr*> tensor_grad_accesses_;
     std::unordered_map<const Expr*, MethodCallInfo> method_calls_;
@@ -659,6 +662,7 @@ private:
         const FunctionParameterType* parameter{};
         SourceSpan span{};
     };
+    Type check_value_argument(const Expr& expression, const Type* expected);
     bool check_call_arguments(const Expr& expression, const std::vector<CallArg>& args,
                               const FunctionType& function,
                               std::vector<PendingReferenceEffect>& pending);

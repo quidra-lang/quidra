@@ -23,6 +23,17 @@
 
 namespace quidra::lowering {
 
+// Operator conversions check the selected static type's range before the
+// operation. Keep the source expression/storage type intact: its value may be
+// reused by a later operator (in particular a comparison chain).
+ValueId OperatorLowering::convert_numeric_operand(
+    ValueId value, const Type& from, const Type& to, SourcePosition position) {
+    if (from == to) return value;
+    auto converted = builder_.fresh();
+    builder_.emit(NumericConvert{converted, value, from, to, true, position});
+    return converted;
+}
+
 ValueId OperatorLowering::lower_binary(const Expr& e, const BinaryExpr& n) {
     if((n.op=="=="||n.op=="!=") && type_of(checked_, e).kind==TypeKind::Bool){
         if (const auto out = lower_empty_string_test(n)) return *out;
@@ -72,9 +83,15 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
     apply = [&](ValueId l, const Type& lt, ValueId r, const Type& rt,
                 const Type& ot) -> ValueId {
         if (ot.kind != TypeKind::Array) {
+            const auto common = numeric_common_type(lt, rt);
+            const auto operand = common.value_or(lt);
+            const auto left = common ? convert_numeric_operand(l, lt, operand, site) : l;
+            const auto right = common ? convert_numeric_operand(r, rt, operand, site) : r;
             auto result = builder_.fresh();
             emit_checked_binary(builder_, Binary{
-                result, n.op, l, r, lt, ot, site.line, site.column});
+                result, n.op, left, right, operand, ot, site.line, site.column});
+            if (left != l) release_owned(builder_, left, operand);
+            if (right != r) release_owned(builder_, right, operand);
             return result;
         }
         const bool l_array = lt.kind == TypeKind::Array;
@@ -153,9 +170,19 @@ ValueId OperatorLowering::lower_comparison_chain(const Expr& e, const Comparison
     const auto compare=[&](std::size_t link, ValueId left, ValueId right){
         auto out=builder_.fresh();
         const auto& at=n.operands[link]->span.start;
+        const SourcePosition site{static_cast<std::uint32_t>(at.line),
+                                  static_cast<std::uint32_t>(at.column)};
+        const auto left_type = type_of(checked_, *n.operands[link]);
+        const auto right_type = type_of(checked_, *n.operands[link + 1]);
+        const auto common = numeric_common_type(left_type, right_type);
+        const auto operand = common.value_or(left_type);
+        const auto converted_left = common ? convert_numeric_operand(left, left_type, operand, site) : left;
+        const auto converted_right = common ? convert_numeric_operand(right, right_type, operand, site) : right;
         builder_.emit(Binary{
-            out,n.ops[link],left,right,type_of(checked_,*n.operands[link]),bool_type,
+            out,n.ops[link],converted_left,converted_right,operand,bool_type,
             static_cast<std::uint32_t>(at.line),static_cast<std::uint32_t>(at.column)});
+        if (converted_left != left) release_owned(builder_, converted_left, operand);
+        if (converted_right != right) release_owned(builder_, converted_right, operand);
         return out;
     };
     auto left=lowerer_.lower(*n.operands[0]);
@@ -375,11 +402,30 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
         auto left_type=type_of(checked_,*binary->left);
         auto right_type=type_of(checked_,*binary->right);
         auto out=builder_.fresh();
+        const SourcePosition site{
+            static_cast<std::uint32_t>(current->span.start.line),
+            static_cast<std::uint32_t>(current->span.start.column)};
 
         if(left_type.kind==TypeKind::Tensor || right_type.kind==TypeKind::Tensor){
-            const auto tensor_type=
-                left_type.kind==TypeKind::Tensor?left_type:right_type;
-            const auto element=*tensor_type.first;
+            const auto left_element = left_type.kind == TypeKind::Tensor ? *left_type.first : left_type;
+            const auto right_element = right_type.kind == TypeKind::Tensor ? *right_type.first : right_type;
+            const auto element = numeric_common_type(left_element, right_element).value_or(left_element);
+            const auto convert = [&](ValueId value, Type& type) {
+                if (type.kind != TypeKind::Tensor) {
+                    auto converted = convert_numeric_operand(value, type, element, site);
+                    type = element;
+                    return converted;
+                }
+                if (*type.first == element) return value;
+                auto target = type;
+                target.first = std::make_shared<Type>(element);
+                auto converted = builder_.fresh();
+                builder_.emit(TensorCast{converted, value, type, target, target, site});
+                type = std::move(target);
+                return converted;
+            };
+            left = convert(left, left_type);
+            right = convert(right, right_type);
             const bool comparison=
                 binary->op=="==" || binary->op=="!=" || binary->op=="<" ||
                 binary->op=="<=" || binary->op==">" || binary->op==">=";
@@ -389,20 +435,18 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
                     {static_cast<std::uint32_t>(current->span.start.line),
                     static_cast<std::uint32_t>(current->span.start.column)}});
             }else{
-                if(left_type.kind!=TypeKind::Tensor && left_type!=element){
-                    left=conversions_.convert(left,left_type,element);
-                    left_type=element;
-                }
-                if(right_type.kind!=TypeKind::Tensor && right_type!=element){
-                    right=conversions_.convert(right,right_type,element);
-                    right_type=element;
-                }
                 builder_.emit(TensorBinary{
                     out,binary->op,left,right,left_type,right_type,type_of(checked_,*current),
                     {static_cast<std::uint32_t>(current->span.start.line),
                     static_cast<std::uint32_t>(current->span.start.column)}});
             }
         }else{
+            const auto common = numeric_common_type(left_type, right_type);
+            if (common) {
+                left = convert_numeric_operand(left, left_type, *common, site);
+                right = convert_numeric_operand(right, right_type, *common, site);
+                left_type = right_type = *common;
+            }
             emit_checked_binary(builder_,Binary{
                 out,binary->op,left,right,left_type,checked_.raw_types.at(current),
                 static_cast<std::uint32_t>(current->span.start.line),
@@ -411,8 +455,11 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
                 facts_.integer_ranges.inline_proven(*current)});
         }
 
+        if (left != left_value) release_owned(builder_, left, left_type);
+        if (right != right_value) release_owned(builder_, right, right_type);
+
         // Source operands are evaluated once. Release the original values;
-        // tensor scalar conversions above are non-owning numeric values.
+        // converted operands above have their own temporary ownership.
         lifetime_.release_temporary(*binary->left,left_value);
         lifetime_.release_temporary(*binary->right,right_value);
 
@@ -459,13 +506,13 @@ ValueId OperatorLowering::lower_exact_unary(const Expr& e, const CallExpr& n) {
         throw std::logic_error(
             "checked real.unary lost its literal contract");
     }
-    auto input=lowerer_.lower(*n.args[2].value);
+    auto input=lowerer_.lower_argument(*n.args[2].value);
     auto out=builder_.fresh();
     builder_.emit(ExactUnary{
         out,provider->value,
         static_cast<std::uint32_t>(opcode->value),
         input,checked_.raw_types.at(&e)});
-    lifetime_.release_temporary(*n.args[2].value,input);
+    lowerer_.release_argument(*n.args[2].value,input);
     return out;
 }
 
@@ -483,14 +530,14 @@ ValueId OperatorLowering::lower_exact_op(const Expr& e, const CallExpr& n) {
     std::vector<ValueId> inputs;
     inputs.reserve(n.args.size()-2);
     for(std::size_t i=2;i<n.args.size();++i)
-        inputs.push_back(lowerer_.lower(*n.args[i].value));
+        inputs.push_back(lowerer_.lower_argument(*n.args[i].value));
     auto out=builder_.fresh();
     builder_.emit(ExactOp{
         out,provider->value,
         static_cast<std::uint32_t>(opcode->value),
         inputs,checked_.raw_types.at(&e)});
     for(std::size_t i=2;i<n.args.size();++i)
-        lifetime_.release_temporary(*n.args[i].value,inputs[i-2]);
+        lowerer_.release_argument(*n.args[i].value,inputs[i-2]);
     return out;
 }
 } // namespace quidra::lowering

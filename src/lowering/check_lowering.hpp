@@ -8,15 +8,11 @@
 namespace quidra::lowering {
 
 class Lowerer;
-class LifetimeLowering;
 
 class CheckLowering {
 public:
-    CheckLowering(
-        Lowerer& lowerer, const CheckedProgram& checked,
-        ir::FunctionBuilder& builder, LifetimeLowering& lifetime)
-        : lowerer_(lowerer), checked_(checked), builder_(builder),
-          lifetime_(lifetime) {}
+    CheckLowering(Lowerer& lowerer, ir::FunctionBuilder& builder)
+        : lowerer_(lowerer), builder_(builder) {}
 
     // test.check, test.equal
     ValueId lower_test_check(const CallExpr& n);
@@ -24,9 +20,7 @@ public:
 
 private:
     Lowerer& lowerer_;
-    const CheckedProgram& checked_;
     ir::FunctionBuilder& builder_;
-    LifetimeLowering& lifetime_;
 };
 
 } // namespace quidra::lowering

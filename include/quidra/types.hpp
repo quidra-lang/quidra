@@ -263,6 +263,26 @@ inline const NumericKindInfo* numeric_info(const Type& type) {
     return numeric_kind_info(type.kind);
 }
 
+// Numeric operators choose their family first, and compare widths only
+// inside that family. This depends exclusively on static operand types.
+inline std::optional<Type> numeric_common_type(const Type& left, const Type& right) {
+    const auto* a = numeric_info(left);
+    const auto* b = numeric_info(right);
+    if (!a || !b) return std::nullopt;
+    if (a->family != b->family) return a->family > b->family ? left : right;
+    if (a->width == 0) return left;
+    if (b->width == 0) return right;
+    // binary16 and bfloat16 trade precision for exponent range. Neither
+    // covers the other; binary32 is the first existing format covering both.
+    if ((left.kind == TypeKind::Real16 && right.kind == TypeKind::Real16b) ||
+        (left.kind == TypeKind::Real16b && right.kind == TypeKind::Real16))
+        return Type::simple(TypeKind::Real32);
+    if ((left.kind == TypeKind::Com16 && right.kind == TypeKind::Com16b) ||
+        (left.kind == TypeKind::Com16b && right.kind == TypeKind::Com16))
+        return Type::simple(TypeKind::Com32);
+    return a->width >= b->width ? left : right;
+}
+
 inline bool is_fixed_integer(const Type& type) {
     const auto* numeric = numeric_info(type);
     return numeric && numeric->width != 0 &&

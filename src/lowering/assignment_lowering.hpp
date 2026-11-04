@@ -45,6 +45,8 @@ private:
     // the kinds of assignment, which lower_assignment dispatches to
     void lower_compound_assignment(
         const Stmt& s, const AssignStmt& n, const Type& t);
+    ValueId lower_compound_rhs(const Expr& expression, const Type& target);
+    void release_compound_rhs(const Expr& expression, ValueId value, const Type& target);
     // A compound assignment whose right-hand side may write the target's root
     // storage: the target is resolved again after the right-hand side.
     void lower_compound_store_into_current_storage(

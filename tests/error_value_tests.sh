@@ -154,12 +154,12 @@ match described(-1)
 QUI
 
 # --- Core codes from their sources.
-stops utf8-decode UTF8_DECODE 3 15 "invalid UTF-8 text" <<'QUI'
+stops utf8-decode UTF8_DECODE 3 16 "invalid UTF-8 text" <<'QUI'
 bin data := bin.parse("11111111")
 print("before" + NL)
 string text := string.from_utf8(data)
 QUI
-stops json-parse JSON_PARSE 2 20 "expected JSON value at byte 1" <<'QUI'
+stops json-parse JSON_PARSE 2 21 "expected JSON value at byte 1" <<'QUI'
 print("before" + NL)
 json.Value value := json.parse("[")
 QUI
@@ -171,7 +171,7 @@ int n := 0
 print("before" + NL)
 scan("{&n}")
 QUI
-stops conversion-int8 NUMERIC_CONVERSION 3 14 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
+stops conversion-int8 NUMERIC_CONVERSION 3 15 "numeric conversion out of range: value cannot be represented as int8" <<'QUI'
 int value := 300
 print("before" + NL)
 int8 small := int8(value)
@@ -281,7 +281,7 @@ match bin.parse(bits)
     error problem
         print(problem)
 QUI
-stops parse-fail-fast NUMERIC_PARSE 3 10 "cannot parse numeric input as int8: value out of range" <<'QUI'
+stops parse-fail-fast NUMERIC_PARSE 3 11 "cannot parse numeric input as int8: value out of range" <<'QUI'
 string text := "300"
 print("before" + NL)
 int8 n := int8.parse(text)

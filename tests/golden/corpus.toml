@@ -14307,7 +14307,7 @@ sha256 = "dd399cd66ac6fe5f5f8880f467c5c97243499e1f8c5314c2699e5bf15a56d93b"
 [[entry]]
 name = "probes/numeric/literal_rejected.qui"
 status = "error:NUMERIC_FAMILY"
-sha256 = "a2bdeaa6f17cb1bfff0800985f45d8b541180c9bef242c86cbc68569d84676a1"
+sha256 = "6dea924dd5796fe6364d07f4559060f7370b8bfe62da0d0ae2d687c14c4e5ad6"
 
 [[entry]]
 name = "probes/numeric/nonfinite.qui"

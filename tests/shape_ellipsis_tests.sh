@@ -97,7 +97,7 @@ rejects() {
 rejects 'tensor<real32>{2, ..., 3} x := tensor.zeros<real32>([2])' TYPE_MISMATCH
 rejects 'tensor<real32>{2, ..., 3} x := tensor.zeros<real32>([2, 4])' TYPE_MISMATCH
 rejects 'tensor<real32>{_, 2, ...} x := tensor.zeros<real32>([3])' TYPE_MISMATCH
-rejects 'tensor<real32>{..., ...} x = tensor.zeros<real32>([])' PARSE
+rejects 'tensor<real32>{..., ...} x := tensor.zeros<real32>([])' PARSE
 rejects 'void inconsistent(tensor<real32>{2, ...} value)
     tensor<real32>{3, ...} wrong := value[:]' TYPE_MISMATCH
 
@@ -106,7 +106,7 @@ fails_at_runtime() {
     cat > "$TMP/dynamic.qui" <<QUI
 tensor<real32> make(nat[] dimensions)
     return tensor.zeros<real32>(dimensions)
-tensor<real32>$shape x = make($dimensions)
+tensor<real32>$shape x := make($dimensions)
 print("unreachable")
 QUI
     local status=0

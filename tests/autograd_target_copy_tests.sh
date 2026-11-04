@@ -8,7 +8,7 @@ cat > "$TMP/copies.template" <<'QUI'
 cli args
     int64 device = argument(default = -1)
 class Leaf this()
-    private autograd.Target target = autograd.target()
+    private autograd.Target target := autograd.target()
 
     return
     tensor<@TYPE@> .tracked(tensor<@TYPE@> value)
@@ -20,20 +20,20 @@ class Leaf this()
     void .clear()
         .this.target.clear_grad()
 class Model()
-    Leaf[] leaves = [Leaf(), Leaf()]
+    Leaf[] leaves := [Leaf(), Leaf()]
 
     return
-tensor<@TYPE@> raw = tensor.ones<@TYPE@>([])
+tensor<@TYPE@> raw := tensor.ones<@TYPE@>([])
 if args.device >= 0
     raw = raw.gpu(nat(args.device))
-autograd.Target original = autograd.target()
-autograd.Target before = original
-tensor<@TYPE@> x = raw.track(&original)
-tensor<@TYPE@> loss = x * x
+autograd.Target original := autograd.target()
+autograd.Target before := original
+tensor<@TYPE@> x := raw.track(&original)
+tensor<@TYPE@> loss := x * x
 loss.backward(&original)
 print(original.has_grad() and not before.has_grad())
 print(NL)
-autograd.Target after = original
+autograd.Target after := original
 print(after.has_grad() and after.gradient<@TYPE@>().cpu().item() == @TYPE@(2.0))
 print(NL)
 print(after.gradient<@TYPE@>().device() == int(args.device))
@@ -44,18 +44,18 @@ print(NL)
 loss.backward(&after)
 print(not after.has_grad())
 print(NL)
-tensor<@TYPE@> fresh = raw.track(&after)
+tensor<@TYPE@> fresh := raw.track(&after)
 (fresh * fresh).backward(&after)
 .original.clear_grad()
 print(not original.has_grad() and after.has_grad())
 print(NL)
-Model model = Model()
-tensor<@TYPE@> left = .model.leaves[0].tracked(raw)
-tensor<@TYPE@> right = .model.leaves[1].tracked(raw)
+Model model := Model()
+tensor<@TYPE@> left := .model.leaves[0].tracked(raw)
+tensor<@TYPE@> right := .model.leaves[1].tracked(raw)
 (left * right).backward(&model)
 print(model.leaves[0].ready() and model.leaves[1].ready())
 print(NL)
-Model copy = model
+Model copy := model
 .copy.leaves[0].clear()
 print(model.leaves[0].ready() and not copy.leaves[0].ready())
 print(NL)
@@ -63,7 +63,7 @@ print(NL)
 (left * right).backward(&copy)
 print(not copy.leaves[0].ready() and not copy.leaves[1].ready())
 print(NL)
-Leaf[] leaves_copy = model.leaves
+Leaf[] leaves_copy := model.leaves
 .leaves_copy[0].clear()
 print(model.leaves[0].ready() and not leaves_copy[0].ready() and leaves_copy[1].gradient() == @TYPE@(1.0))
 print(NL)

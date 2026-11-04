@@ -228,4 +228,4 @@ cat > "$TMP/tensor_nan16.qui" <<'QUI'
 tensor<real16> infinite := tensor.ones<real16>([2]) * real16(inf)
 tensor<real16> invalid := infinite - infinite
 QUI
-fails tensor_nan16 NONFINITE_RESULT 'tensor<real16> subtraction produced NaN' '2:26'
+fails tensor_nan16 NONFINITE_RESULT 'tensor<real16> subtraction produced NaN' '2:27'

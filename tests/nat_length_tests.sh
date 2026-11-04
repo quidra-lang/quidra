@@ -2,7 +2,7 @@
 # Lengths, counts, shapes, sizes and API index values are nat: the result
 # types of every API of the nat list, checked nat subtraction against the
 # signed form, index operands of every integer kind, nat parameters taking
-# nat(n) for other integer kinds, and the old range(...) over a length.
+# checked implicit conversion of other integer kinds, and range(...) over a length.
 set -euo pipefail
 set -x
 QUIDRA="$1"
@@ -96,8 +96,7 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/indices.qui")" == "$(printf '20 30 40 10\nb\n100')" ]]
 
-# A nat result in an int context and an argument of another integer kind at
-# a nat parameter are TYPE_MISMATCH, naming the conversion to write.
+# Assignment from nat to int still requires an explicit destination cast.
 printf 'int64[] values := [1, 2]\nint count := len(values)\n' > "$TMP/to-int.qui"
 set +e
 "$QUIDRA" check "$TMP/to-int.qui" >"$TMP/to-int.out" 2>&1
@@ -107,14 +106,18 @@ set -e
 grep -q 'TYPE_MISMATCH' "$TMP/to-int.out"
 grep -q "'len(values)' has type nat; convert explicitly: int(len(values))." "$TMP/to-int.out"
 
-printf 'int n := 3\nint64[] values := array(n, fill = 0)\n' > "$TMP/to-nat.qui"
+# A by-value nat parameter converts a named integer exactly as nat(n).
+printf 'int n := 3\nint64[] values := array(n, fill = 0)\nprint(len(values))\n' > "$TMP/to-nat.qui"
+[[ "$("$QUIDRA" run "$TMP/to-nat.qui")" == '3' ]]
+
+printf 'int n := -1\nint64[] values := array(n, fill = 0)\n' > "$TMP/implicit-negative.qui"
 set +e
-"$QUIDRA" check "$TMP/to-nat.qui" >"$TMP/to-nat.out" 2>&1
-to_nat_rc=$?
+"$QUIDRA" run "$TMP/implicit-negative.qui" >"$TMP/implicit-negative.out" 2>"$TMP/implicit-negative.err"
+implicit_negative_rc=$?
 set -e
-[[ "$to_nat_rc" -ne 0 ]]
-grep -q 'TYPE_MISMATCH' "$TMP/to-nat.out"
-grep -q "'n' has type int; this parameter is nat: write nat(n)." "$TMP/to-nat.out"
+[[ "$implicit_negative_rc" -eq 101 ]]
+grep -q 'NUMERIC_CONVERSION' "$TMP/implicit-negative.err"
+grep -q 'value cannot be represented as nat' "$TMP/implicit-negative.err"
 
 cat > "$TMP/explicit.qui" <<'QUI'
 int n := 3

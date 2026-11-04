@@ -23,6 +23,16 @@
 namespace quidra::lowering {
 
 ValueId ExpressionLowering::lower_into(const Expr& expression, const Type& target) {
+    if (const auto argument = checked_.implicit_numeric_argument_conversions.find(&expression);
+        argument != checked_.implicit_numeric_argument_conversions.end()) {
+        const auto source = type_of(checked_, expression);
+        const auto value = lower(expression);
+        const auto converted = conversions_.convert_numeric_argument(value, source, argument->second, expression.span);
+        lifetime_.release_temporary(expression, value);
+        const auto result = conversions_.convert(converted, argument->second, target);
+        if (array_shape_conversion(argument->second, target)) release_owned(builder_, converted, argument->second);
+        return result;
+    }
     auto value = lower_at_raw_type(expression);
     const auto source = checked_.raw_types.at(&expression);
     const bool owned = lifetime_.expression_owns_result(expression);
@@ -45,6 +55,17 @@ ValueId ExpressionLowering::lower_into(const Expr& expression, const Type& targe
 
 ValueId ExpressionLowering::lower_int64(const Expr& e) {
     if(const auto captured=captured_.find(&e);captured!=captured_.end()) return captured->second;
+    if (const auto argument = checked_.implicit_numeric_argument_conversions.find(&e);
+        argument != checked_.implicit_numeric_argument_conversions.end()) {
+        const auto value = lower_into(e, argument->second);
+        const auto integer = Type::simple(TypeKind::Int64);
+        if (argument->second == integer) return value;
+        const auto out = builder_.fresh();
+        builder_.emit(NumericConvert{out, value, argument->second, integer, false,
+            {static_cast<std::uint32_t>(e.span.start.line), static_cast<std::uint32_t>(e.span.start.column)}});
+        release_owned(builder_, value, argument->second);
+        return out;
+    }
     const auto source = type_of(checked_, e);
     const auto target = Type::simple(TypeKind::Int64);
     // A `nat(n)` argument is consumed by contextual fail-fast: its success

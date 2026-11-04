@@ -16,118 +16,86 @@ There is no `char`, `bit`, `byte`, or `bytes` source type. Text uses `string`; a
 
 ## Numeric literal families
 
-A numeric literal does not have a default concrete numeric type.
-
-- `3` is an **integer-family literal**.
-- `3.0` is a **real-family literal**.
-
-The integer family can materialize as a fixed-width integer type, `int` or `nat`. The real family can materialize as `real16`, `real16b`, `real32`, `real64`, or `real`.
-
-A literal becomes concrete only when surrounding source code determines exactly one type in the same family:
+Numeric literals take a compatible concrete type from a resolved context. Without one, integer literals default to `int`, real literals to exact `real`, and imaginary or complex literals to exact `com`. A natural type (`nat` or a fixed-width `nat*`) requires context.
 
 ```quidra
-int32 count := 3
-nat8 channel := 3
-real32 ratio := 3.0
-real64 precise := 3.0
+a := 5 + 6          // int
+int32 b := 5 + 6    // int32
+c := b + 1          // int32
+nat d := 5          // nat
+ratio := 0.1        // exact real
+z := 1.0 + 2.0i     // com
 ```
 
-This contextual materialization is not an implicit cast. The literal was never an `int` or `real64` value first.
+Contextual materialization is not a conversion: the literal was never a default-typed value first. Binding, assignment, field, compatible parameter, return, tuple and array element contexts may determine literal types. A numeric value argument not directly materialized in its parameter category may convert to the formal type under the call conversion rule. A context with several compatible numeric union alternatives remains ambiguous; defaulting does not choose an alternative of such a union.
 
-Literal materialization never crosses families:
+### Literal categories
+
+| Category | Formed by | Directly materializes into | Default |
+|---|---|---|---|
+| non-negative integer | `10` | `nat*`, `int*` | `int` |
+| negative integer | unary `-` on an integer literal (`-10`, `-0`) | `int*` | `int` |
+| real | `10.0`, `0.5`, `-10.0`, `1.0e8` | `real*` | `real` |
+| imaginary | a real literal followed by `i` (`2.0i`) | `com*` | `com` |
+| complex | real and imaginary literals joined by `+` or `-` (`1.0 + 2.0i`) | `com*` | `com` |
+
+Direct materialization preserves categories: `real32 x := 10` and `int y := 3.0` are errors; write `10.0` or an explicit `real32(10)` conversion. `nat8 n := -1` is also an error. In a mixed numeric operator, a literal may first materialize in its own category and then participate in the common-type conversion below: `real32 y := 1.0; y + 2` has type `real32`. The integer form `2i` is rejected; write `2.0i`.
+
+A compound literal expression computes in its resolved context type with checked arithmetic: `nat8 x := 3 - 5` and `int8 y := 100 + 100` are compile-time errors. Contextual/default literal typing does not permit assignments between already-typed representations: `nat32 n := 10` followed by `int32 x := n` is an error.
+
+A real-family literal materialized as an IEEE type is rounded once to nearest, ties to even, with subnormals included, and must stay within the finite destination range. It is not rounded through `real64` first. `real32 x := 0.1` therefore deterministically rounds to binary32. In exact `real`, the decimal spelling is an exact rational. Explicit integer-to-real conversion such as `real32(16777217)` uses destination rounding too.
+
+Integer literal syntax has no implementation-width ceiling in `int` or `nat`, including the default `int` context:
 
 ```quidra
-real64 x := 3      // error
-int y := 3.0      // error
+exact := 1234567890123456789012345678901234567890 // int
 ```
 
-Use an explicit conversion when a representation change is intended:
+Fixed-width contexts enforce their normal ranges. Integer literals are decimal only; `0x`, `0b` and `0o` prefixes are not source syntax. Exponent notation requires a decimal point: `1e8` is an error, while `1.0e8` and `1.0e-8` are real-family literals.
 
-```quidra
-x := real64(3)
-```
+## Common numeric operator types
 
-When a real-family literal materializes as `real32` or `real64`, destination rounding is allowed, but the literal must remain inside the finite range of that IEEE type after rounding. The exact decimal value is rounded once to the nearest value of the destination, ties to even, subnormal values included; a `real32` literal is not rounded to `real64` first. Thus `real32 x := 0.1` is valid and deterministically rounds to binary32. An integer-family literal converted explicitly to an IEEE type, as in `real32(16777217)`, rounds the same way. When the same literal materializes as `real`, its decimal spelling becomes an exact rational value; it is not routed through `real64` first.
+Scalar numeric binary operators, including arithmetic, comparisons and fixed-width bitwise operators, resolve their common operand type statically. Supported elementwise array and tensor numeric operators use the same rule for their element/scalar types. Whole-array `==` and `!=` retain their matching-container-type value equality contract.
 
-Integer literal syntax has no implementation-width ceiling when the unique context is `int` or `nat`:
+For numeric operators:
 
-```quidra
-int exact := 1234567890123456789012345678901234567890
-```
+1. Select the highest family present: **Natural < Integer < Real < Complex**.
+2. Among operands in that family only, select the widest type. The arbitrary-precision/exact type of that family wins over its fixed-width types. Lower-family widths never participate.
+3. `real16` and `real16b` join at `real32`; `com16` and `com16b` join at `com32`, since neither half format covers the other's precision and range.
+4. Convert both operand values to the selected type **before** applying the operator. Check each conversion and the result; do not widen from runtime values or after an overflow. Real and complex conversions may use the destination's normal rounding. Signed infinity and NaN retain the [existing real arithmetic policy](#signed-infinity-without-nan).
 
-Fixed-width integer contexts still enforce their normal ranges.
+| Operand types | Common type |
+|---|---|
+| `nat64`, `int32` | `int32` |
+| `nat`, `int32` | `int32` |
+| `int`, `nat64` | `int` |
+| `int32`, `real16` | `real16` |
+| `real64`, `com16` | `com16` |
+| `real16`, `real16b` | `real32` |
+| `com16`, `com16b` | `com32` |
+| `real`, `com32` | `com32` |
 
-Integer literals use decimal notation only. Base-prefixed forms such as `0x`, `0b`, and `0o` are not source syntax. Floating exponent notation requires an explicit decimal point:
+For example, `nat64` plus `int32` uses `int32` even if the natural operand currently exceeds its range. That operand's conversion fails before addition; cancellation cannot rescue it. Similarly, an integer combined with `real16` is rounded to `real16` before arithmetic, and a finite out-of-range conversion fails. The original variables retain their declared types. Complex precision comes only from complex operands, and complex values still have no ordering.
 
-```quidra
-1e8      // error
-1.0e8    // real-family literal
-1.0e-8   // real-family literal
-```
-
-## Literal categories
-
-A numeric literal has a category, not a type, and materializes only into the
-types of its category:
-
-| Category | Formed by | Materializes into |
-|---|---|---|
-| non-negative integer | `10` | `nat*`, `int*` |
-| negative integer | unary `-` applied to an integer literal (`-10`, `-0`) | `int*` |
-| real | `10.0`, `0.5`, `-10.0`, `1.0e8` | `real*` |
-| imaginary | a real literal followed by `i` (`2.0i`) | `com*` |
-| complex | a real and an imaginary literal joined by `+` or `-` (`1.0 + 2.0i`) | `com*` |
-
-Categories never cross and none has a default type: `real32 x := 10` is an
-error (write `10.0` or `real32(10)`), `nat8 n := -1` is an error, and
-`x := 10` has no type to infer. Materialization is not a conversion:
-`nat32 n := 10` followed by `int32 x := n` is an error. A literal operand materializes into
-the other operand's type when its category allows it (`x + 2` with `int32 x`;
-`y + 2` with `real32 y` is an error), and the literal argument of an explicit
-conversion converts from its exact value (`real32(10)`). A compound literal
-expression materializes every literal into the context type and computes in
-it with checked arithmetic, so `nat8 x := 3 - 5` and `int8 y := 100 + 100` are
-compile-time errors. The integer form `2i` is rejected: write `2.0i`.
+Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion.
 
 ## Type inference in declarations
 
-A declaration without an explicit type infers the type that the initializer determines independently and never chooses a concrete numeric representation. If that inferred type is an unnamed union containing `error`, an inferred declaration removes only `error` from the binding type and makes the initialization fail fast on error; an explicit union destination retains the failure channel explicitly.
+An inferred declaration uses the initializer's type, including the numeric defaults:
 
 ```quidra
 int32 source := 3
 copy := source       // int32
+x := 3               // int
+y := 1.5             // real
+values := [1, 2]     // int[] with inferred length
 text := "hello"      // string
 flag := true         // bool
-result := function() // the declared return type of function()
 ```
 
-A bare numeric-family expression has no concrete type for a declaration to infer:
+If the inferred type is an unnamed union containing `error`, an inferred declaration removes only `error` from the binding type and fails fast on error. An explicit union destination retains that failure channel.
 
-```quidra
-x := 3           // error
-y := 1.5         // error
-values := [1, 2] // error
-```
-
-A function parameter can provide the required context:
-
-```quidra
-int32 identity32(int32 value)
-    return value
-
-value := identity32(3) // int32
-```
-
-Generic inference does not choose a concrete numeric type for a bare literal. `identity<T>(3)` therefore cannot infer `T` unless some independent concrete context determines it.
-
-The same rule applies to built-ins. A built-in such as `print` accepts already-typed printable values but does not choose a numeric representation:
-
-```quidra
-print(1)       // error
-print(int(1))  // valid
-```
-
-There are no display-only, interpolation-only, or other special exceptions for numeric-family literals.
+A compatible concrete function parameter supplies literal context; a cross-category numeric argument instead converts to the formal type under the call rule above: `identity32(3)` materializes `3` as `int32` when that parameter is `int32`. Without a concrete generic context, the numeric default supplies a type for inference: `identity(3)` can infer `T = int` for `T identity<T>(T value)`. Printable literals use the same defaults, so `print(1)` is valid with `int`; display and interpolation do not create a separate numeric default policy.
 
 ## Exponentiation
 
@@ -144,8 +112,8 @@ root := x ^ 0.5
 ```
 
 Integer exponentiation requires a non-negative integer exponent. Fixed-width results retain the language's checked-overflow semantics.
-Floating and `real` operands support real exponents. The operands have the
-same concrete numeric type; `^` does not introduce implicit numeric conversion.
+Floating and `real` operands support real exponents. Both operands use the
+common numeric type selected by the rules above before exponentiation.
 
 Powers without a value are `POWER_DOMAIN` failures in every numeric family:
 `0 ^ 0`, a negative integer exponent,
@@ -238,9 +206,12 @@ part: it is deterministic on one platform but not correctly rounded. `0 ^ w`
 is 0 when the real part of `w` is positive and `POWER_DOMAIN` otherwise.
 `com` arithmetic is exact; `^` of `com` values is not available.
 
-A complex value never mixes with a real or integer one: `real32 + com32` is
-an error. A real or fixed-width integer value, or a literal, converts
-explicitly with its imaginary part 0, as its real part converts
+Mixed numeric operators convert real/integer operands to the selected complex
+type with imaginary part zero: `real64 + com16` uses `com16`, so the
+real operand is checked and rounded to `real16` before the operation.
+Numeric value call arguments convert to their resolved parameter type; assignments and returns still require explicit conversion. A real
+or integer value, or a literal, converts explicitly with imaginary part 0,
+as its real part converts
 (`com32(1.0)`, `com64(n)` for `int32 n`); complex types convert part by part
 (`com32(z)` for `com64 z` is `com32 | error`). A complex value has no real
 value: use `z.real`, `z.imag` or `math.abs(z)`.
@@ -248,7 +219,7 @@ value: use `z.real`, `z.imag` or `math.abs(z)`.
 ```quidra
 com32 a := 1.0 + 1.0i
 real32 x := 2.0
-b := a * com32(x)
+b := a * x // com32; x stays real32
 same := a == b
 ```
 
@@ -282,11 +253,11 @@ right := flags >> 2
 
 Bitwise operations bind more tightly than comparison, equality, and lowercase boolean logic. Therefore `flags AND mask == expected` means `(flags AND mask) == expected`, avoiding a comparison-first interpretation.
 
-Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `int`, `nat`, `real32`, `real64`, `real`, `bool`, `bin`, and tensor values do not accept these operators.
+Binary bitwise operands use the common numeric type, which must be a fixed-width integer type. Eligibility is checked after common-type selection; a selected arbitrary-precision `int` or `nat` is not allowed. A bare integer-family literal may materialize from that operator context in the normal way. `int`, `nat`, `real32`, `real64`, `real`, `bool`, `bin`, and tensor values do not accept these operators.
 
-Signed fixed-width integers use a two's-complement bit representation; unsigned integers use the ordinary modulo-`2^N` N-bit representation. `NOT` flips every bit of that fixed-width representation. `AND`, `OR`, and `XOR` operate on it directly. `<<` shifts the N-bit representation left and discards bits shifted beyond the width; it is a representation operation and does not raise arithmetic overflow. `>>` is arithmetic with sign extension for signed integer types and logical with zero fill for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
+Signed fixed-width integers use a two's-complement bit representation; unsigned integers use the ordinary modulo-`2^N` N-bit representation. `NOT` flips every bit of that fixed-width representation. `AND`, `OR`, and `XOR` operate on it directly. `<<` shifts the N-bit representation left and discards bits shifted beyond the width; it is a representation operation and does not raise arithmetic overflow. `>>` is arithmetic with sign extension for signed integer types and logical with zero fill for unsigned integer types. Shift counts must be nonnegative and smaller than the common operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
 
-These operations are representation operations rather than arithmetic conversions. They never change the operand type and never imply a cast.
+After checked common-type conversion, these operators work on the selected fixed-width representation. They leave original variable types unchanged; shifts retain their representation semantics rather than checked arithmetic overflow.
 
 ## Exact integers and reals
 
@@ -296,7 +267,7 @@ These operations are representation operations rather than arithmetic conversion
 
 Equality and ordering of exact symbolic values must not silently fall back to rounded IEEE guesses. Core decides them by certified refinement: it encloses the difference of the two values in intervals with dyadic bounds, rounded outward, that narrow as the precision doubles from 64 to 4096 bits, using the enclosures that the providers of the atoms and operations supply, until the interval excludes zero. Rationals are compared exactly. If a result cannot be established within this deterministic budget (precision, node visits and nesting, never time), the program stops with `EXACT_UNPROVEN` instead of returning an unproved Boolean, the same way on every run and platform. Decimal formatting is an observation of the exact stored value and does not mutate it.
 
-A contextual constant is declared with `const literal real` or `const literal com`: its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use of the constant is a literal of the real category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
+A contextual constant is declared with `const literal real` or `const literal com`: its initializer is a constant exact expression (literals, arithmetic, other contextual constants, and `real.atom`, `real.unary` and `real.op` with their literal provider and opcode), and every use is a literal of its declared real or complex category. `math.pi` and `math.e` are such constants, and a package or program may declare its own:
 
 ```quidra
 import math
@@ -309,11 +280,11 @@ real32 single_pi := math.pi
 real64 h := planck
 ```
 
-A use materializes into the type its context expects, as a real literal does: in `real` it is the exact value; in `real32` or `real64` it is the exact value rounded once, correctly (a lone literal at compile time; any other initializer once per constant and type, before the first statement, by certified refinement, so every use is a load). `real64(math.pi)` is that same one rounding, an operand takes the other operand's type (`x * math.pi` with a `real32 x` is `real32`), and a compound expression evaluates in the materialized type. Without a unique real-family context a contextual constant is ambiguous for the same reason as a bare real-family literal (`x := math.pi` is `AMBIGUOUS_NUMERIC_LITERAL`), and it never materializes as an integer (`NUMERIC_FAMILY`). A constant whose rounding refinement cannot certify stops the program before its first statement with `EXACT_UNPROVEN` at its first use. `real.atom(...)` itself has type `real`: in a fixed-width context write `real64(real.atom(...))` or declare a contextual constant. Any other typed constant, imported ones included, keeps its declared type at every use (`const real32 eps := 1.0e-5` is a `real32` everywhere); converting it to another type is an explicit conversion of that value.
+A use materializes into the type its context expects, as a real literal does: in `real` it is the exact value; in `real32` or `real64` it is the exact value rounded once, correctly (a lone literal at compile time; any other initializer once per constant and type, before the first statement, by certified refinement, so every use is a load). `real64(math.pi)` is that same one rounding, an operand takes the other operand's type (`x * math.pi` with a `real32 x` is `real32`), and a compound expression evaluates in the materialized type. Without a resolved context a contextual real constant defaults to exact `real` (`x := math.pi` is `real`); a context with multiple compatible numeric union alternatives remains ambiguous. It never directly materializes as an integer (`NUMERIC_FAMILY`). A constant whose rounding refinement cannot certify stops the program before its first statement with `EXACT_UNPROVEN` at its first use. `real.atom(...)` itself has type `real`: in a fixed-width context write `real64(real.atom(...))` or declare a contextual constant. Any other typed constant, imported ones included, keeps its declared type at every use (`const real32 eps := 1.0e-5` is a `real32` everywhere); assignment/return conversion to another type is explicit, while numeric operators convert it to their common type and numeric value call arguments convert it to the resolved parameter type.
 
 ## Conversion
 
-Already-typed values never change concrete type implicitly.
+Outside numeric operators and numeric value call arguments, already-typed values never change concrete type implicitly.
 
 ```quidra
 int32 small := 3
@@ -400,7 +371,7 @@ An index result is a one-bit `bin`. Bin elements do not expose addressable refer
 All conversions between `bin` and other concrete types are explicit. Integer sources must have a fixed-width bit representation; arbitrary-precision `int` and `nat` have no fixed bit width and cannot be converted directly to `bin`:
 
 ```quidra
-bin raw := bin(3567446)          // error: integer-family literal has no width
+bin raw := bin(3567446)          // error: default int has no fixed bit width
 bin raw32 := bin(int32(3567446)) // 32-bit representation
 bin raw64 := bin(int64(3567446)) // 64-bit representation
 ```

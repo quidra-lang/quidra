@@ -175,6 +175,20 @@ public:
     void capture_loop_operand(const Expr& e) { expressions_.capture_loop_operand(e); }
     void forget_loop_operand(const Expr& e) { expressions_.forget_loop_operand(e); }
     ValueId lower(const Expr& e) { return expressions_.lower(e); }
+    const Type& argument_type(const Expr& e) const {
+        const auto converted = checked_.implicit_numeric_argument_conversions.find(&e);
+        return converted == checked_.implicit_numeric_argument_conversions.end()
+            ? checked_.expr_types.at(&e) : converted->second;
+    }
+    ValueId lower_argument(const Expr& e) {
+        return checked_.implicit_numeric_argument_conversions.contains(&e)
+            ? lower_into(e, argument_type(e)) : lower(e);
+    }
+    void release_argument(const Expr& e, ValueId value) {
+        if (checked_.implicit_numeric_argument_conversions.contains(&e))
+            release_owned(builder_, value, argument_type(e));
+        else lifetime_.release_temporary(e, value);
+    }
     std::optional<ValueId> try_scaled_expression(const Expr& e,const Type* target=nullptr) { return expressions_.try_scaled_expression(e,target); }
     ValueId lower_int64(const Expr& e) { return expressions_.lower_int64(e); }
     SliceBounds lower_slice_bounds(const Expr& e, const IndexPart& item) {

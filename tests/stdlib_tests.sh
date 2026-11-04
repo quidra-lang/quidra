@@ -784,7 +784,13 @@ set +e
 gpu_sync_negative_rc=$?
 set -e
 [[ "$gpu_sync_negative_rc" -eq 1 ]]
-grep -q 'A negative integer literal cannot materialize as nat.' "$TMP/gpu-sync-negative.json"
+python3 - "$TMP/gpu-sync-negative.json" <<'PYTHON'
+import json,sys
+x=json.load(open(sys.argv[1]))
+assert any(d["code"] == "ARGUMENT_MISMATCH" and
+           d["message"] == "gpu.sync(index) requires a non-negative GPU index."
+           for d in x["diagnostics"])
+PYTHON
 
 cat > "$TMP/time-direct-construction.qui" <<'QUI'
 time.Instant impossible := time.Instant()
@@ -2596,7 +2602,7 @@ for case_name in bitwise shift tensor extern negative-nat; do
     case "$case_name" in
         bitwise) printf 'int a := 6\nprint(a AND 3)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
         shift) printf 'nat a := 6\nprint(a << 1)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
-        tensor) printf 'tensor<int> t = tensor.zeros<int>([2])\n' > "$TMP/int-reject-$case_name.qui"; code=INVALID_TYPE ;;
+        tensor) printf 'tensor<int> t := tensor.zeros<int>([2])\n' > "$TMP/int-reject-$case_name.qui"; code=INVALID_TYPE ;;
         extern) printf 'extern int abs(int value) = "llabs"\n' > "$TMP/int-reject-$case_name.qui"; code=FFI_TYPE ;;
         negative-nat) printf 'nat a := -1\n' > "$TMP/int-reject-$case_name.qui"; code=NUMERIC_FAMILY ;;
     esac
@@ -2614,8 +2620,8 @@ done
 power_domain_case() {
     local name="$1" type="$2" base="$3" exponent="$4" message="$5"
     cat > "$TMP/power-$name.qui" <<QUI
-$type base = $base
-$type exponent = $exponent
+$type base := $base
+$type exponent := $exponent
 print(base ^ exponent)
 QUI
     set +e

@@ -117,6 +117,24 @@ void AssignmentLowering::lower_assignment(const Stmt& s, const AssignStmt& n) {
     lower_plain_assignment(s,n,t);
 }
 
+ValueId AssignmentLowering::lower_compound_rhs(const Expr& expression, const Type& target) {
+    const auto source = type_of(checked_, expression);
+    const auto value = lowerer_.lower(expression);
+    if (source == target || !is_numeric(source) || !is_numeric(target)) return value;
+    const auto converted = builder_.fresh();
+    builder_.emit(NumericConvert{converted, value, source, target, true,
+        {static_cast<std::uint32_t>(expression.span.start.line),
+         static_cast<std::uint32_t>(expression.span.start.column)}});
+    lifetime_.release_temporary(expression, value);
+    return converted;
+}
+
+void AssignmentLowering::release_compound_rhs(const Expr& expression, ValueId value, const Type& target) {
+    const auto source = type_of(checked_, expression);
+    if (source != target && is_numeric(source) && is_numeric(target)) release_owned(builder_, value, target);
+    else lifetime_.release_temporary(expression, value);
+}
+
 void AssignmentLowering::lower_compound_assignment(
     const Stmt& s, const AssignStmt& n, const Type& t) {
     // Compiler-owned Map/Set fields are all initialized by their
@@ -135,13 +153,13 @@ void AssignmentLowering::lower_compound_assignment(
             auto old=builder_.fresh();
             builder_.emit(
                 FieldGet{old,object,field.index,t});
-            auto rhs=lowerer_.lower(*n.value);
+            auto rhs=lower_compound_rhs(*n.value,t);
             auto result=builder_.fresh();
             emit_checked_binary(builder_,Binary{
                 result,n.compound_op,old,rhs,t,t,
                 static_cast<std::uint32_t>(s.span.start.line),
                 static_cast<std::uint32_t>(s.span.start.column)});
-            lifetime_.release_temporary(*n.value,rhs);
+            release_compound_rhs(*n.value,rhs,t);
             builder_.emit(
                 FieldSet{object,field.index,result,t});
             return;
@@ -165,36 +183,36 @@ void AssignmentLowering::lower_compound_assignment(
             builder_.emit(Branch{can_move,fast,fallback});
 
             builder_.enter(builder_.add_block(fast));
-            auto rhs=lowerer_.lower(*n.value);
+            auto rhs=lower_compound_rhs(*n.value,t);
             auto moved=builder_.fresh();
             builder_.emit(
                 StringAppendMove{moved,old,std::vector<ValueId>{rhs}});
-            lifetime_.release_temporary(*n.value,rhs);
+            release_compound_rhs(*n.value,rhs,t);
             builder_.emit(
                 StoreLocal{local_name,moved,t,false,true});
             builder_.emit(Jump{done});
 
             builder_.enter(builder_.add_block(fallback));
-            auto copied_rhs=lowerer_.lower(*n.value);
+            auto copied_rhs=lower_compound_rhs(*n.value,t);
             auto result=builder_.fresh();
             emit_checked_binary(builder_,Binary{
                 result,n.compound_op,old,copied_rhs,t,t,
                 static_cast<std::uint32_t>(s.span.start.line),
                 static_cast<std::uint32_t>(s.span.start.column)});
-            lifetime_.release_temporary(*n.value,copied_rhs);
+            release_compound_rhs(*n.value,copied_rhs,t);
             builder_.emit(StoreLocal{local_name,result,t});
             builder_.emit(Jump{done});
 
             builder_.enter(builder_.add_block(done));
             return;
         }
-        auto rhs=lowerer_.lower(*n.value);
+        auto rhs=lower_compound_rhs(*n.value,t);
         auto result=builder_.fresh();
         emit_checked_binary(builder_,Binary{
             result,n.compound_op,old,rhs,t,t,
             static_cast<std::uint32_t>(s.span.start.line),
             static_cast<std::uint32_t>(s.span.start.column)});
-        lifetime_.release_temporary(*n.value,rhs);
+        release_compound_rhs(*n.value,rhs,t);
         builder_.emit(
             StoreLocal{local_name,result,t});
         return;
@@ -205,9 +223,9 @@ void AssignmentLowering::lower_compound_assignment(
         return lower_compound_store_into_current_storage(s,n,t);
     auto address=lowerer_.lower_address(*n.target_expr());
     auto old=builder_.fresh(); builder_.emit(LoadAddress{old,address,t});
-    auto rhs=lowerer_.lower(*n.value);
+    auto rhs=lower_compound_rhs(*n.value,t);
     auto result=builder_.fresh(); emit_checked_binary(builder_,Binary{result,n.compound_op,old,rhs,t,t,static_cast<std::uint32_t>(s.span.start.line),static_cast<std::uint32_t>(s.span.start.column)});
-    lifetime_.release_temporary(*n.value,rhs);
+    release_compound_rhs(*n.value,rhs,t);
     builder_.emit(StoreAddress{address,result,t});
 }
 
@@ -222,13 +240,13 @@ void AssignmentLowering::lower_compound_store_into_current_storage(
     if(managed){
         old=copy_owned(builder_,old,t);
     }
-    auto rhs=lowerer_.lower(*n.value);
+    auto rhs=lower_compound_rhs(*n.value,t);
     auto result=builder_.fresh();
     emit_checked_binary(builder_,Binary{
         result,n.compound_op,old,rhs,t,t,
         static_cast<std::uint32_t>(s.span.start.line),
         static_cast<std::uint32_t>(s.span.start.column)});
-    lifetime_.release_temporary(*n.value,rhs);
+    release_compound_rhs(*n.value,rhs,t);
     if(managed) release_owned(builder_,old,t);
     std::optional<std::size_t> replay=0;
     auto current=lower_target_address(*n.target_expr(),indices,replay);

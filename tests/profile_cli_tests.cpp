@@ -245,9 +245,9 @@ int main(int argc, char** argv) {
                               callback, output, errors) == 101 && calls == 1, "program status/callback changed");
         const auto text = output.str();
         check(text.find("H=8.0000us W=3.0000us G=5.0000us I=2.5000us") != std::string::npos, "exact medians missing");
-        check(text.find("first node:=a") < text.find("second node:=b"), "stable host tie ordering");
+        check(text.find("first node=a") < text.find("second node=b"), "stable host tie ordering");
         check(text.find("legacy schema 1") != std::string::npos, "unclassified legacy GPU spans presented as activity");
-        check(text.find("Roofline unavailable") != std::string::npos && text.find("capture step:=12") != std::string::npos,
+        check(text.find("Roofline unavailable") != std::string::npos && text.find("capture step=12") != std::string::npos,
               "availability/config flags missing");
         check(errors.str().empty(), "valid reports emitted error");
         const auto typed = read_profile_report(typed_profile);
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
               typed_errors.str().empty(), "typed report extraction failed");
         const auto typed_text = typed_output.str();
         const auto gpu_top = typed_text.substr(typed_text.find("Top GPU"));
-        check(gpu_top.find("shared node:=mixed") != std::string::npos &&
+        check(gpu_top.find("shared node=mixed") != std::string::npos &&
               gpu_top.find("large-container node=") == std::string::npos &&
               gpu_top.find("time=3.0000us calls=3 timed=2 unknown=1 bytes=56") != std::string::npos &&
               gpu_top.find("saturated") == std::string::npos,
@@ -376,7 +376,7 @@ int main(int argc, char** argv) {
         check(run_profile_cli("unit.qui", {"--top", "2", "--trace", explicit_trace.string(),
               "--timeline", explicit_timeline.string()}, precise, precise_output, precise_errors) == 0,
               "precise fixture failed");
-        check(precise_output.str().find("second node:=b") < precise_output.str().find("first node:=a") &&
+        check(precise_output.str().find("second node=b") < precise_output.str().find("first node=a") &&
               precise_output.str().find("H=0.0015us") != std::string::npos && precise_errors.str().empty(),
               "uint64 sorting or half-nanosecond median rounded");
         std::cout << "profile CLI parsing, extraction and callback contracts: ok\n";

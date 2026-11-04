@@ -19,8 +19,8 @@
 
 namespace quidra {
 
-// The family a numeric kind belongs to. Values of different families never
-// convert implicitly.
+// Numeric operator priority, from lowest to highest. Explicit destination
+// conversions outside operators retain their separate conversion policy.
 enum class NumericFamily {
     Natural,
     Integer,

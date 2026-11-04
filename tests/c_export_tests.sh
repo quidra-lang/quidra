@@ -270,7 +270,7 @@ if compile nonfinite_result_driver && build nonfinite_result --link "$TMP/nonfin
     elif [[ "$(cat "$TMP/nonfinite_result.out")" != "2.5" ]]; then
         fail "nonfinite_result: output"; cat "$TMP/nonfinite_result.out"
     elif ! python3 "$HELPER" "$TMP/nonfinite_result.err" kind=runtime_error code=NONFINITE_RESULT \
-            'file=/nonfinite_result\.qui$/' line=5 column=16 \
+            'file=/nonfinite_result\.qui$/' line=5 column=17 \
             "message=extern 'make_value' produced a NaN real32 value"; then
         fail "nonfinite_result: report"; cat "$TMP/nonfinite_result.err"
     fi

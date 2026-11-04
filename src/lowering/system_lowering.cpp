@@ -15,18 +15,18 @@ ValueId SystemLowering::lower_cli_argument(const Expr& e, const CallExpr& n) {
 }
 
 ValueId SystemLowering::lower_cli_argument_optional(const Expr& e, const CallExpr& n) {
-    auto name=lowerer_.lower(*n.args[0].value),index=lowerer_.lower_int64(*n.args[1].value),fallback=lowerer_.lower(*n.args[2].value),out=builder_.fresh();
+    auto name=lowerer_.lower(*n.args[0].value),index=lowerer_.lower_int64(*n.args[1].value),fallback=lowerer_.lower_argument(*n.args[2].value),out=builder_.fresh();
     builder_.emit(CliArgumentOptional{out,name,index,fallback,checked_.raw_types.at(&e)});
     lifetime_.release_temporary(*n.args[0].value,name);
-    lifetime_.release_temporary(*n.args[2].value,fallback);
+    lowerer_.release_argument(*n.args[2].value,fallback);
     return out;
 }
 
 ValueId SystemLowering::lower_cli_option(const Expr& e, const CallExpr& n) {
-    auto name=lowerer_.lower(*n.args[0].value),fallback=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
+    auto name=lowerer_.lower(*n.args[0].value),fallback=lowerer_.lower_argument(*n.args[1].value),out=builder_.fresh();
     builder_.emit(CliOption{out,name,fallback,checked_.raw_types.at(&e)});
     lifetime_.release_temporary(*n.args[0].value,name);
-    lifetime_.release_temporary(*n.args[1].value,fallback);
+    lowerer_.release_argument(*n.args[1].value,fallback);
     return out;
 }
 

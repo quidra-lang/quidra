@@ -177,17 +177,17 @@ for int item := values[], string other := values[]
 QUI
 rejects reference FOR_HEADER <<'QUI'
 int[] values := [1]
-for int &item := &values[], int other = values[]
+for int &item := &values[], int other := values[]
     print(item)
 QUI
 rejects extra_reference FOR_HEADER <<'QUI'
 int[] values := [1]
-for int item := values[], int &other = &values[]
+for int item := values[], &other := &values[]
     print(item)
 QUI
 rejects range FOR_HEADER <<'QUI'
 int[] values := [1]
-for int item < 1, int other = values[]
+for int item < 1, int other := values[]
     print(item)
 QUI
 rejects bin FOR_HEADER <<'QUI'
@@ -199,12 +199,12 @@ QUI
 rejects pattern FOR_HEADER <<'QUI'
 (int, int)[] pairs := [(1, 2)]
 int[] values := [1]
-for (int a, int b) := pairs[], int other = values[]
+for (int a, int b) := pairs[], int other := values[]
     print(a)
 QUI
 rejects index FOR_HEADER <<'QUI'
 int[] values := [1]
-for int item := values[nat index], int other = values[]
+for int item := values[nat index], int other := values[]
     print(item)
 QUI
 # The old single-source loop remains a mutable value copy.

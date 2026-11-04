@@ -191,7 +191,7 @@ python3 - "$QUIDRA" "$TMP" <<'PYLSP'
 import json,pathlib,subprocess,sys
 quidra,tmp=sys.argv[1],pathlib.Path(sys.argv[2])
 uri=(tmp/'class-scopes.qui').as_uri()
-source=("class Point point(int x, local int factor = 2)\n"
+source=("class Point point(int x, local int factor := 2)\n"
         "    local int scale := factor\n"
         "    x *= scale\n"
         "    int read()\n"

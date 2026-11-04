@@ -577,23 +577,23 @@ ValueId CallLowering::lower_constructor_call(
         return lowerer_.lower_error_constructor(e,n);
     }
     if(resolution.target=="string.repeat"){
-        auto count=lowerer_.lower(*n.args[0].value),fill=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
+        auto count=lowerer_.lower_argument(*n.args[0].value),fill=lowerer_.lower_argument(*n.args[1].value),out=builder_.fresh();
         builder_.emit(StringRepeat{out,count,fill});
-        lifetime_.release_temporary(*n.args[1].value,fill);
+        lowerer_.release_argument(*n.args[1].value,fill);
         return out;
     }
     if(resolution.type.kind==TypeKind::Bin){
         if(resolution.target=="bin.cast"){
-            auto value=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
+            auto value=lowerer_.lower_argument(*n.args[0].value),out=builder_.fresh();
             builder_.emit(BinConvert{
-                out,value,type_of(checked_,*n.args[0].value),Type::simple(TypeKind::Bin),
+                out,value,lowerer_.argument_type(*n.args[0].value),Type::simple(TypeKind::Bin),
                 {static_cast<std::uint32_t>(e.span.start.line),
                 static_cast<std::uint32_t>(e.span.start.column)}});
-            lifetime_.release_temporary(*n.args[0].value,value);
+            lowerer_.release_argument(*n.args[0].value,value);
             return out;
         }
-        auto length=lowerer_.lower(*n.args[0].value);
-        auto fill=lowerer_.lower(*n.args[1].value);
+        auto length=lowerer_.lower_argument(*n.args[0].value);
+        auto fill=lowerer_.lower_argument(*n.args[1].value);
         auto out=builder_.fresh();
         builder_.emit(BinAlloc{out,length,fill});
         return out;

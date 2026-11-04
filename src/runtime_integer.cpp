@@ -487,8 +487,10 @@ extern "C" unsigned long long quidra_bigint_to_u64(
 extern "C" bool quidra_bigint_try_float64(void*p,double*out){
     if(!p||!out)exact_fail("null bigint conversion storage");
     *out=0.0;
-    long double value=0;
-    try{value=std::stold(bi(p)->value.text());}
+    double value=0;
+    // Parse directly into the destination format. A long-double or double
+    // intermediate can erase an integer just above a rounding midpoint.
+    try{value=std::stod(bi(p)->value.text());}
     catch(...){return exact_conversion_declined(abi::ConversionReason::out_of_range);}
     const double result=static_cast<double>(value);
     if(!std::isfinite(result))return exact_conversion_declined(abi::ConversionReason::out_of_range);
@@ -498,9 +500,9 @@ extern "C" bool quidra_bigint_try_float64(void*p,double*out){
 extern "C" bool quidra_bigint_try_float32(void*p,float*out){
     if(!p||!out)exact_fail("null bigint conversion storage");
     *out=0.0F;
-    double value=0.0;
-    if(!quidra_bigint_try_float64(p,&value))return false;
-    const float result=static_cast<float>(value);
+    float result=0.0F;
+    try{result=std::stof(bi(p)->value.text());}
+    catch(...){return exact_conversion_declined(abi::ConversionReason::out_of_range);}
     if(!std::isfinite(result))return exact_conversion_declined(abi::ConversionReason::out_of_range);
     *out=result;
     return true;
@@ -796,12 +798,11 @@ extern "C" bool quidra_int_try_float64(long long value, double* out) {
 extern "C" bool quidra_int_try_float32(long long value, float* out) {
     if (!out) exact_fail("null bigint conversion storage");
     *out = 0.0F;
-    double wide = 0.0;
-    if (!quidra_int_try_float64(value, &wide)) return false;
-    const float result = static_cast<float>(wide);
-    if (!std::isfinite(result)) return false;
-    *out = result;
-    return true;
+    if (!word_boxed(value)) {
+        *out = static_cast<float>(word_small(value));
+        return true;
+    }
+    return quidra_bigint_try_float32(word_box(value), out);
 }
 extern "C" double quidra_int_to_float64(
     long long value, unsigned long long line, unsigned long long column) {

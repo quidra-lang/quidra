@@ -261,6 +261,10 @@ real
 
 `int` is an exact arbitrary-precision integer and `nat` an exact arbitrary-precision natural number: they never overflow, and a `nat` result below zero is an error. Lengths, counts, shapes, sizes and the index values APIs return are `nat` (`len`, `size()`, `.shape()`, `find`); indexing accepts every integer kind, and `int(len(values)) - 1` is the signed form of `len(values) - 1`, which fails on an empty array. Fixed-width signed integers have a defined two's-complement bit representation. `real64` is IEEE-754 binary64. `real32` is IEEE-754 binary32. `real16` is IEEE-754 binary16 and `real16b` bfloat16; each of their operations rounds the exact result once. `real` represents exact rational and symbolic real values rather than a configurable floating-point precision.
 
+Numeric literals use compatible context, otherwise default to `int`, exact `real`, or exact `com`; `nat` requires context. `a := 5 + 6` is `int`, `int32 b := 5 + 6` is `int32`, and `c := b + 1` stays `int32`. A numeric union context with multiple compatible alternatives remains ambiguous.
+
+Numeric binary operators choose a static common type: select Natural < Integer < Real < Complex, then the widest operand type only within the highest family; arbitrary precision/exact wins within that family. `real16` with `real16b` selects `real32`, and `com16` with `com16b` selects `com32`. Convert both operands before the operation with checked range and normal real/complex rounding; do not widen based on values or alter operand storage types. Thus `nat64 + int32` uses `int32`, and `int32 + real16` uses `real16`. Complex values have no ordering. Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion. See [numeric semantics](docs/spec/numeric-and-bin.md) for the full rules.
+
 Fixed-width integers use explicit bitwise syntax:
 
 ```quidra
@@ -480,7 +484,7 @@ println(first<int>([4, 5]))
 
 Generic class type arguments are explicit in type positions. Class generation, generic function and method calls may infer them when every generic parameter is uniquely determined by typed call arguments; otherwise write them explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
 
-Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, narrower statically ordered constraints win over broader ones, and an overlap with no unique most-specific member is a compile error.
+Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, and narrower statically ordered constraints win over broader ones. Concrete candidates requiring numeric value-argument conversion are considered only if no exact concrete or inferred generic candidate matches. An overlap with no unique most-specific member is a compile error.
 
 ### Control flow
 
@@ -724,7 +728,7 @@ The static checker rejects, among other things:
 - invalid field initialization paths,
 - attempts to write, rebind, or regain write authority through const access paths,
 - reference type mismatches,
-- implicit representation-changing numeric conversions,
+- representation-changing assignments or returns without explicit numeric conversion, and mismatched reference argument storage types,
 - incomplete union matches,
 - use of partially initialized class values where fully initialized values are required,
 - import cycles and namespace collisions,
@@ -734,14 +738,14 @@ The native runtime checks invariant and safety failures that depend on runtime v
 
 - integer overflow at each supported integer width,
 - integer division and remainder by zero,
-- `real32` and `real64` operations, on scalars and tensor elements, whose result would be NaN or an infinity (an overflow or a division by zero),
+- numeric operator conversions outside the destination range, and real/complex operations whose result would be NaN (signed infinity follows the defined real arithmetic policy),
 - array and bin bounds,
 - invalid allocation sizes,
 - zero range steps.
 
 These runtime safety failures terminate deterministically with status `101`. A range-checked numeric cast is different: an out-of-range value produces the cast's typed `error` alternative. Arrays and tensors use the whole converted container as the success alternative and expose no partial conversion when one leaf fails. The cast terminates only when a success-only context deliberately consumes that alternative via the ordinary fail-fast rule.
 
-Floating-point arithmetic follows IEEE-754 rounding for its width, but no scalar `real32` or `real64` value is ever NaN or an infinity: the operation that would produce one stops the program.
+Floating-point arithmetic follows IEEE-754 rounding for its width and admits signed infinity. NaN is never observable: an operation that would produce one stops the program. Finite operand conversions that would overflow the destination remain checked; they cannot silently become infinity.
 
 ## Value equality
 
@@ -781,7 +785,7 @@ The current implementation includes:
 - definite-initialization analysis for bindings, fields, arrays, and tensors,
 - receiver and reference-parameter effect summaries, and isolation of const arguments a call may change,
 - unions, exhaustive matching, and explicit `error` propagation,
-- fixed-width numeric checking with no implicit representation-changing conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
+- fixed-width numeric checking with static common operator types and checked value-call conversions and explicit assignment/return conversions, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
 - partially initialized classes, explicit composition, and value equality,
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,

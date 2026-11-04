@@ -455,17 +455,17 @@ for n, (sf, ef, stepped, rows) in enumerate(cases(range(0, 6), [1, -1, 2, -2, 3,
         continue
     total += len(valid)
     name = f"c{n}"
-    program.append(f"nat[] {name}len = [{', '.join(str(r[0]) for r in valid)}]\n")
-    program.append(f"int[] {name}s = [{', '.join(str(r[1]) for r in valid)}]\n")
-    program.append(f"int[] {name}e = [{', '.join(str(r[2]) for r in valid)}]\n")
+    program.append(f"nat[] {name}len := [{', '.join(str(r[0]) for r in valid)}]\n")
+    program.append(f"int[] {name}s := [{', '.join(str(r[1]) for r in valid)}]\n")
+    program.append(f"int[] {name}e := [{', '.join(str(r[2]) for r in valid)}]\n")
     if stepped:
-        program.append(f"int[] {name}k = [{', '.join(str(r[3]) for r in valid)}]\n")
+        program.append(f"int[] {name}k := [{', '.join(str(r[3]) for r in valid)}]\n")
     start = "" if sf == "omit" else f"{name}s[{name}i]"
     end = "" if ef == "omit" else f"{name}e[{name}i]"
     text = start + {"asc": "<", "desc": ">"}.get(sf, "") + ":" + {"asc": "<", "desc": ">"}.get(ef, "") + end
     if stepped:
         text += f":{name}k[{name}i]"
-    program.append(f"nat {name}i = 0\nwhile {name}i < len({name}len)\n"
+    program.append(f"nat {name}i := 0\nwhile {name}i < len({name}len)\n"
                    f"    int[] values := ramp({name}len[{name}i])\n"
                    f"    show(values[{text}])\n"
                    f"    string word := letters({name}len[{name}i])\n"
@@ -483,8 +483,8 @@ valid_program, valid_expected = [HELPERS], []
 invalid_program, bounds, steps = [], 0, 0
 for length in range(1, 5):
     literal = "[" + ", ".join(str(i) for i in range(length)) + "]"
-    valid_program.append(f"int[{length}] f{length} = {literal}\n")
-    invalid_program.append(f"int[{length}] f{length} = {literal}\n")
+    valid_program.append(f"int[{length}] f{length} := {literal}\n")
+    invalid_program.append(f"int[{length}] f{length} := {literal}\n")
 for sf, ef, stepped, rows in cases(range(1, 5), [1, -1, 2, -3, 0]):
     for length, s, e, k, outcome in rows:
         text = item(sf, s, ef, e, k)
@@ -492,7 +492,7 @@ for sf, ef, stepped, rows in cases(range(1, 5), [1, -1, 2, -3, 0]):
             valid_program.append(f"show(f{length}[{text}])\n")
             valid_expected.append("[" + " ".join(str(i) for i in outcome) + "]")
         else:
-            invalid_program.append(f"int[] x{bounds + steps} = f{length}[{text}]\n")
+            invalid_program.append(f"int[] x{bounds + steps} := f{length}[{text}]\n")
             if outcome == "bounds":
                 bounds += 1
             else:
@@ -548,23 +548,23 @@ for collection in ("bin", "tensor"):
             continue
         other_total += len(valid)
         name = f"d{n}"
-        other_program.append(f"nat[] {name}len = [{', '.join(str(r[0]) for r in valid)}]\n")
-        other_program.append(f"int[] {name}s = [{', '.join(str(r[1]) for r in valid)}]\n")
-        other_program.append(f"int[] {name}e = [{', '.join(str(r[2]) for r in valid)}]\n")
+        other_program.append(f"nat[] {name}len := [{', '.join(str(r[0]) for r in valid)}]\n")
+        other_program.append(f"int[] {name}s := [{', '.join(str(r[1]) for r in valid)}]\n")
+        other_program.append(f"int[] {name}e := [{', '.join(str(r[2]) for r in valid)}]\n")
         if stepped:
-            other_program.append(f"int[] {name}k = [{', '.join(str(r[3]) for r in valid)}]\n")
+            other_program.append(f"int[] {name}k := [{', '.join(str(r[3]) for r in valid)}]\n")
         start = "" if sf == "omit" else f"{name}s[{name}i]"
         end = "" if ef == "omit" else f"{name}e[{name}i]"
         text = start + {"asc": "<", "desc": ">"}.get(sf, "") + ":" + {"asc": "<", "desc": ">"}.get(ef, "") + end
         if stepped:
             text += f":{name}k[{name}i]"
         if collection == "bin":
-            body = (f"    bin values = bits({name}len[{name}i])\n"
+            body = (f"    bin values := bits({name}len[{name}i])\n"
                     f"    print(\"<\" + values[{text}].string() + \">\" + NL)\n")
         else:
-            body = (f"    tensor<real32> values = tensor_ramp({name}len[{name}i])\n"
+            body = (f"    tensor<real32> values := tensor_ramp({name}len[{name}i])\n"
                     f"    show_tensor(values[{text}])\n")
-        other_program.append(f"nat {name}i = 0\nwhile {name}i < len({name}len)\n" + body +
+        other_program.append(f"nat {name}i := 0\nwhile {name}i < len({name}len)\n" + body +
                              f"    {name}i = {name}i + 1\n")
         for row in valid:
             if collection == "bin":
@@ -1059,7 +1059,7 @@ json.dump({"schema_version": 3, "base_revision": x["revision"], "operations": [{
     open(sys.argv[2], "w"))
 PY
 "$QUIDRA" patch "$TMP/format.qui" "$TMP/format-patch.json" --write > /dev/null
-sed 's/^int n = 5$/int n = 4/' "$TMP/format.original" > "$TMP/format.expected"
+sed 's/^int n := 5$/int n := 4/' "$TMP/format.original" > "$TMP/format.expected"
 cmp -s "$TMP/format.expected" "$TMP/format.qui" || { fail "patch changed slice markers"; diff "$TMP/format.expected" "$TMP/format.qui"; }
 [[ "$("$QUIDRA" "$TMP/format.qui")" == "30" ]] || fail "patched program output"
 

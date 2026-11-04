@@ -1916,7 +1916,7 @@ static void if_expressions_are_typed_like_initializers() {
     good(ready + "string a := \"a\"\ns := if ready then a else \"b\"\nprint(s)\nprint(NL)\n");
     bad_code(ready + "int64 n := 5\nx := if ready then n else 2.5\n", "NUMERIC_FAMILY");
     bad(ready + "x := if ready then 1 else 2.0\n");
-    bad_code(ready + "x := if ready then 1 else 2\n", "AMBIGUOUS_NUMERIC_LITERAL");
+    good(ready + "x := if ready then 1 else 2\n");
     bad_message(ready + "int64 a := 1\nreal64 b := 2.0\nx := if ready then a else b\n",
                 "TYPE_MISMATCH", "different types: 'int64' and 'real64'");
     bad_message("int k := 1\nint x := if k then 1 else 2\n", "TYPE_MISMATCH",
@@ -2462,9 +2462,9 @@ static void comparison_chains_keep_one_direction() {
     bad_message(values + "int64 d := 4\nbool x := a < b < c > (d)\n", "CHAINED_COMPARISON",
                 "write '(c > d)' if '>' starts a new comparison");
     // Each link follows the single comparison's rules.
-    bad_code("int64 a := 1\nint32 b := 2\nbool x := 0 <= a < b\n", "TYPE_MISMATCH");
+    good("int64 a := 1\nint32 b := 2\nbool x := 0 <= a < b\n");
     bad_code("bool p := true\nbool x := p < p < p\n", "TYPE_MISMATCH");
-    bad_code("bool x := 1 < 2 < 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
+    good("bool x := 1 < 2 < 3\n");
     // Lowering and tools.
     ir_contains(values + "bool x := a < b < c\nprint(x)\n", "chain.result");
     inspect_contains(values + "bool x := a < b < c\n", "\"comparison_chain\"");
@@ -3895,6 +3895,112 @@ indirect := operation(tensor.ones<real32>([2, 2]))
 }
 
 int main(){
+ good("x := 9223372036854775808\nint exact := x\n");
+ // Defaults remain arbitrary precision until a concrete context is present.
+ good("a := 5 + 6\nint32 b := 5 + 6\nc := b + 1\nnat d := 5\nint verify_a := a\nint32 verify_c := c\n");
+ good("a := 1.5\nz := 1.0 + 2.0i\nreal verify_a := a\ncom verify_z := z\n");
+ good("nat64 n := 5\nint32 i := 6\nresult := n + i\nint32 verify := result\nbool less := n < i\n");
+ good("nat n := 5\nint32 i := 6\nint32 result := n + i\n");
+ good("int32 i := 5\nreal16 r := 1.0\nreal16 result := i + r\n");
+ good("real64 r := 1.0\ncom16 c := 1.0 + 2.0i\ncom16 result := r + c\n");
+ good("real16 a := 1.0\nreal16b b := 2.0\nreal32 result := a + b\n");
+ good("int8 a := 1\nint32 b := 2\nnat64 c := 3\nbool ascending := a < b < c\n");
+ good("int32[2] a := [1, 2]\nnat64[2] b := [3, 4]\nint32[2] result := a + b\nbool[2] ordered := a < b\n");
+ good("tensor<int32> a := tensor.zeros<int32>([2])\ntensor<nat64> b := tensor.zeros<nat64>([2])\ntensor<int32> result := a + b\n");
+ bad_code("int32 | int64 ambiguous := 5\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("com16 | com32 ambiguous := 2.0i\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("int32 a := 1\nreal16 b := 2.0\nreal16 result := a + b\nint32 unchanged := a\n");
+ good("int8 a := 1\nnat64 b := 2\nint8 bits := a AND b\nint8 shifted := a << b\n");
+ bad_code("int32 x := 5\nreal32 y := 1.0\nx = x + y\n", "TYPE_MISMATCH");
+ good("int32 x := 5\nnat64 n := 2\nx += n\nint32 verify := x\n");
+ bad_code("int32 x := 5\nreal32 r := 2.0\nx += r\n", "TYPE_MISMATCH");
+ good("values := (1, 2.0, 3.0i)\n(int a, real b, com c) := values\n");
+ // Value calls convert to the chosen formal type; references retain identity.
+ good("real32 f(real32 x)\n    return x\nint64 value := 7\nreal32 result := f(value)\nint64 original := value\n");
+ good("int8 f(int8 x)\n    return x\nint64 value := 7\nint8 result := f(value)\n");
+ good("int f(int x)\n    return x\nreal value := 3.0\nint result := f(value)\nint literal_result := f(3.0)\n");
+ good("real32[] f(real32[] x)\n    return x\nint16[2] values := [1, 2]\nreal32[] result := f(values)\n");
+ good("tensor<real32> f(tensor<real32> x)\n    return x\ntensor<int16> values := tensor.zeros<int16>([2])\ntensor<real32> result := f(values)\n");
+ bad_code("void f(int32 &x)\n    x = 1\nint64 value := 7\nf(&value)\n", "TYPE_MISMATCH");
+ bad_code("real64 f(real64 x)\n    return x\ncom32 value := 1.0 + 2.0i\nreal64 result := f(value)\n", "TYPE_MISMATCH");
+ {
+     const auto checked = quidra::check("real32 f(real32 x)\n    return x\nint64 source := 7\nreal32 result := f(source)\nint64 unchanged := source\n");
+     if (checked.implicit_numeric_argument_conversions.size() != 1) {
+         std::cerr << "expected one implicit value-call conversion\n"; std::exit(1);
+     }
+     for (const auto& [argument, target] : checked.implicit_numeric_argument_conversions) {
+         if (target.kind != quidra::TypeKind::Real32 ||
+             checked.raw_types.at(argument).kind != quidra::TypeKind::Int64 ||
+             checked.expr_types.at(argument).kind != quidra::TypeKind::Int64) {
+             std::cerr << "argument conversions must preserve the source expression type\n"; std::exit(1);
+         }
+     }
+ }
+ good("real32 f(real32 x)\n    return x\nfunc<real32>(real32) callable := f\nint16 source := 3\nreal32 result := callable(source)\n");
+ good("class Box this(local real32 initial)\n    real32 value\n    this.value = initial\n    real32 add(real32 amount)\n        return value + amount\nint16 source := 3\nBox box := Box(source)\nreal32 result := box.add(source)\n");
+ good("int16 amount := 2\nstring text := string.repeat(\"x\", amount)\n");
+ good("T identity<T>(T x)\n    return x\nint result := identity(3)\nreal other := identity(2.0)\ncom imaginary := identity(2.0i)\n");
+ good("T identity<T>(T x)\n    return x\nint32 a := 1\nnat64 b := 2\nint32 result := identity(a + b)\nint32 adjacent := identity(a + 1)\n");
+ good("int64 widen(extend int64 value)\n    return value\nint8 source := 3\nint64 result := source.widen()\n");
+ good("T keep<T>(T value, real32 factor)\n    return value\nint32 source := 3\nint16 factor := 2\nint32 result := keep(source, factor)\n");
+ bad_code("void take(tensor<int8>[] values)\n    return\ntensor<int64>[] values := [tensor.ones<int64>([1])]\ntake(values)\n", "TYPE_MISMATCH");
+ bad_code("tensor<int64>[] values := [tensor.ones<int64>([1])]\nconverted := int8(values)\n", "NUMERIC_CAST");
+ good("T choose<T>(T a, T b)\n    return a + b\nint32 x := 3\nint32 first := choose(x, 1)\nint32 second := choose(1, x)\n");
+ bad_code("T choose<T>(T a, T b)\n    return a\nint32 x := 3\nreal32 y := 2.0\nresult := choose(x, y)\n", "GENERIC_INFERENCE");
+ good("int32 integer := 2049\nreal16 half := 0.0\nreal16[2] result := integer + [half, half]\nreal16[2] other := [half, half] + integer\n");
+ good("real16 half := 0.0\nreal16[2] result := half + [1, 2]\n");
+ good("int32 narrow := 1\nnat64 natural := 2\nint32[1] result := [narrow] + [natural]\nbool[1] ordered := [narrow] < [natural]\n");
+ good("int32 value := 1\nint32[][] result := value + [[1, 2]]\n");
+ good("T identity<T>(T x)\n    return x\nint32 value := 1\nint32[][] result := identity(value + [[1, 2]])\n");
+ good("T identity<T>(T x)\n    return x\nint32[] value := [1, 2]\nint32[] result := identity(value + [1, 2])\nint32[] reversed := identity([1, 2] + value)\n");
+ bad_code("string kind<T: floating>(T value)\n    return \"floating\"\nstring kind(int8 value)\n    return \"byte\"\nstring kind(int16 value)\n    return \"short\"\nint64 source := 3\nprint(kind(source))\n", "AMBIGUOUS_SPECIALIZATION");
+ good("string kind<T: floating>(T value)\n    return \"floating\"\nstring kind(int8 value)\n    return \"byte\"\nstring kind(int16 value)\n    return \"short\"\nint8 source := 3\nprint(kind(source))\nreal32 real_source := 2.0\nprint(kind(real_source))\n");
+ bad_code("void take(int8[2] values)\n    return\nint64[] values := [1]\ntake(values)\n", "TYPE_MISMATCH");
+ bad_code("void take(int8[2] values)\n    return\nint64[1] values := [1]\ntake(values)\n", "TYPE_MISMATCH");
+ bad_code("void take(int8[2][1] values)\n    return\nint64[][] values := [[1]]\ntake(values)\n", "TYPE_MISMATCH");
+ good("T identity<T>(T value)\n    return value\nint32 source := 3\nreal32 result := identity<real32>(source)\nint32 unchanged := source\n");
+ good("z := 1 + 2.0i\ncom result := z\n");
+ good("com16 z := 1 + 2.0i\n");
+ good("cli args\n    string source = argument()\n    int count = option(default = 1)\n    bool verbose = flag()\nprintln(args.count)\n");
+ good("int[] values := [9, 4, 6]\nprintln(values == [int(9), 4, 6])\nstring[] names := [\"a\"]\nprintln(names == [\"a\"])\n");
+ good("real32[] take(real32[] values)\n    return values\nreal32[] result := take(array(2, fill = 1))\n");
+ good("int[] take(int[] values)\n    return values\nint[] result := take(array(2))\n");
+ good("tensor<real32> take(tensor<real32> values)\n    return values\ntensor<real32> result := take(tensor.zeros([2]))\n");
+ good("cli args\n    real64 value = argument(default = real32(0.1))\n    real64 ratio = option(default = real32(0.1))\nprintln(args.value)\n");
+ good("int rows := 2\ntensor<real64> value := tensor.zeros<real64>([nat(rows), nat(rows)])\n");
+ good("nat | error extent()\n    return 2\ntensor<real64> value := tensor.zeros<real64>([extent()])\n");
+ good(R"(class Shape()
+    nat | error length := 2
+    nat | error extent()
+        return 2
+Shape shape := Shape()
+lengths := [shape.extent()]
+tensor<real64> via_method := tensor.zeros<real64>([shape.extent()])
+tensor<real64> via_member := tensor.zeros<real64>([shape.length])
+tensor<real64> via_index := tensor.zeros<real64>([lengths[0]])
+tensor<real64> via_constructor := tensor.zeros<real64>([Shape().extent()])
+Shape make_shape()
+    return Shape()
+tensor<real64> via_factory := tensor.zeros<real64>([make_shape().extent()])
+)");
+ good(R"(tensor<T> identity<T: numeric>(tensor<T> value)
+    return value
+T[] array_identity<T: numeric>(T[] value)
+    return value
+tensor<int64> | error make_tensor()
+    return tensor.ones<int64>([2])
+tensor<nat8>{2} source := tensor.ones<nat8>([2])
+converted := int64(source)
+result := identity(converted)
+direct := identity(int64(source))
+from_function := make_tensor()
+function_result := identity(from_function)
+nat8[] bytes := [1, 2]
+converted_array := int64(bytes)
+array_result := array_identity(converted_array)
+println(result[0].item() == 1 and direct[1].item() == 1 and function_result[0].item() == 1)
+println(array_result == [int64(1), 2])
+)");
     string_templates_release_owned_inputs();
     function_values_consume_managed_parameters();
     inspect_contains("int[] x := [1]\nint[] y := [2]\nfor int a := x[], int b := y[]\n    print(a + b)\n", "\"collection_count\":2");
@@ -4499,9 +4605,9 @@ nat b := twice(nat(4))
  bad_message("nat8 x := 5 + -3\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
  bad_message("real64 z := 2i\n", "NUMERIC_FAMILY", "An imaginary literal requires real form: write 2.0i.");
  bad_message("real64 z := 1.0 + 2.0i\n", "NUMERIC_FAMILY", "A complex literal cannot materialize as real64.");
- bad_message("real64 z := 1 + 2.0i\n", "NUMERIC_FAMILY", "Complex literal parts require real form: write 1.0 + 2.0i.");
- bad_code("z := 2.0i\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("x := 10\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("real64 z := 1 + 2.0i\n", "TYPE_MISMATCH");
+ good("z := 2.0i\n");
+ good("x := 10\n");
  good("real32 x := real32(10)\nint8 y := -128\nint8 z := 100 - 101\n");
  // A compound literal expression computes in its context type, with checked
  // arithmetic at every step.
@@ -6128,7 +6234,7 @@ print(NL)
  "int f(int x)\n    return x\nprint(f(x: 1))\n", "int f(int x, int y)\n    return x\nprint(f(x = 1, 2))\n",
  "int | none x := 1\nmatch x\n    int\n        print(x)\n", "int | none x := 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
  "int | none x := 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
- "x := 9223372036854775808\n", "x := []\n", "x := range(3)\n",
+ "x := []\n", "x := range(3)\n",
  "int8 x := 128\n", "nat8 x := -1\n", "int8 x := int8(300)\n",
  "bin x := bin(2, fill = 0)\n", "bin x := bin.fill(-1, 0)\n", "bin x := bin.fill(2, 2)\n", "string x := string(2, fill = \"a\")\n", "string x := string.repeat(\"a\", -1)\n",
  "string HT := \"x\"\n", "void f(string NL)\n    return\n",
@@ -6806,7 +6912,7 @@ print(classify(real32(1.0)))
 print(NL)
 )");
  // A concrete primitive member outside every constrained generic domain
- // may retain a different cross-argument relationship, with no implicit cast.
+ // may retain a different cross-argument relationship.
  good(R"(string select<T: floating, K: floating>(tensor<T> pixels, tensor<K> kernel, K divisor := 1.0, K offset := 0.0)
     return "floating"
 string select(tensor<nat8> pixels, tensor<int64> kernel, int divisor := 1, int offset := 0)
@@ -6864,8 +6970,8 @@ tensor<int64> select(tensor<nat8> pixels, tensor<int64> kernel, int divisor)
 string select(nat8[2] pixels, int64 second, int divisor)
     return "concrete"
 )", "DUPLICATE_NAME");
- // Admission does not invent a call conversion for an unmatched mixed input.
- bad_code(R"(string select<T: floating, K: floating>(tensor<T> pixels, tensor<K> kernel, K divisor)
+ // With no exact or inferred match, a unique concrete signature may convert values.
+ good(R"(string select<T: floating, K: floating>(tensor<T> pixels, tensor<K> kernel, K divisor)
     return "floating"
 string select(tensor<nat8> pixels, tensor<int64> kernel, int divisor)
     return "integer"
@@ -6873,7 +6979,7 @@ tensor<real32> pixels := tensor.ones<real32>([1])
 tensor<int64> kernel := tensor.ones<int64>([1])
 int divisor := 1
 print(select(pixels, kernel, divisor))
-)", "SPECIALIZATION_NO_MATCH");
+)");
  good(R"(int domain<T: numeric>(T value)
     return 1
 int domain<T: floating>(T value)
@@ -7083,10 +7189,10 @@ DefaultConstructorParameter item := DefaultConstructorParameter()
 print(item.value)
 print(NL)
 )");
- bad_code(R"(T identity<T>(T value)
+ good(R"(T identity<T>(T value)
     return value
 result := identity(1)
-)", "GENERIC_INFERENCE");
+)");
  good(R"(T identity<T>(T value)
     return value
 result := identity(int32(1))
@@ -7367,20 +7473,20 @@ print(NL)
  bad_code("int | none x := 1\nmatch x\n    int\n        print(int(1))\n    int y\n        print(y)\n    none\n        print(int(0))\n", "MATCH_CASE");
  bad_code("int f(bool yes)\n    if yes\n        return 1\n", "MISSING_RETURN");
  bad_code("int8 x := int8(300)\n", "NUMERIC_CAST");
- bad_code("int x := int(3.5)\n", "NUMERIC_CAST");
+ good("int | error x := int(3.5)\nint exact := int(3.0)\n");
  good("int8 minimum := -128\nint minimum64 := -9223372036854775808\n");
  bad_code("int8 too_small := -129\n", "INTEGER_RANGE");
  good("int8 minimum := int8(-128)\n");
  bad_code("int8 too_small := int8(-129)\n", "NUMERIC_CAST");
 
- // Numeric literals carry families, not default concrete types.
+ // Numeric literals take contextual types, with int/real/com defaults.
  good("int32 x := 3\nreal32 y := 3.0\nreal32 z := 0.1\n");
- bad_code("x := 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("x := 1.5\n", "AMBIGUOUS_NUMERIC_LITERAL");
- bad_code("print(1)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("x := 3\n");
+ good("x := 1.5\n");
+ good("print(1)\n");
  bad_code("real64 x := 3\n", "NUMERIC_FAMILY");
  bad_code("int x := 3.0\n", "NUMERIC_FAMILY");
- bad_code("x := [1, 2, 3]\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("x := [1, 2, 3]\n");
  good(R"(int32 seed := 1
 values := [2, seed, 3]
 print(values[0])
@@ -7392,7 +7498,7 @@ result := fixed_identity(3)
 print(result)
 print(NL)
 )");
- bad_code("bin raw := bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("bin raw := bin(3567446)\n", "TYPE_MISMATCH");
  good("bin raw := bin(int32(3567446))\nprint(raw)\n");
  bad_code("int value := 1\nbin raw := bin(value)\n", "TYPE_MISMATCH");
  bad_code("real value := 1.0\nbin raw := bin(value)\n", "TYPE_MISMATCH");
@@ -7702,9 +7808,9 @@ tensor<bool> same := a == b
 tensor<bool>{2} same := a == 1
 tensor<bool>{2} reverse := 1 == a
 )");
- bad_code(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
-tensor<bool> bad := a == int32(1)
-)", "TYPE_MISMATCH");
+ good(R"(tensor<int64>{2} a := tensor.ones<int64>([2])
+tensor<bool>{2} same := a == int32(1)
+)");
  good(R"(tensor<bool> empty := tensor.zeros<bool>([0])
 bool all_empty := empty.all()
 bool any_empty := empty.any()
@@ -8074,22 +8180,20 @@ tensor<real32> copied := cpu.gpu(0)
 tensor<real32> returned := copied.cpu()
 )");
  good("gpu.sync(0)\ngpu.sync(index = 1)\n");
- bad_message("gpu.sync(-1)\n",
-             "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat.");
+ bad_message("gpu.sync(-1)\n", "ARGUMENT_MISMATCH", "non-negative GPU index");
  bad_code("gpu.sync()\n", "ARGUMENT_MISMATCH");
  bad_code("gpu.sync(0, 1)\n", "ARGUMENT_MISMATCH");
- bad_code("gpu.sync(1.0)\n", "NUMERIC_FAMILY");
+ good("gpu.sync(1.0)\n");
  llvm_contains("gpu.sync(0)\n", "@quidra_gpu_sync");
  bad_message("value := tensor.zeros<real32>([1], gpu = -1)\n",
-             "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat.");
- bad_message("value := tensor.zeros<real32>([1], gpu = 1.5)\n",
-             "NUMERIC_FAMILY", "A real literal cannot materialize as nat.");
+             "ARGUMENT_MISMATCH", "non-negative");
+ good("value := tensor.zeros<real32>([1], gpu = 1.5)\n");
  bad_code("value := tensor.zeros<real32>([1], device = 0)\n",
           "ARGUMENT_MISMATCH");
  bad_message("value := tensor.zeros<real32>([1])\nmoved := value.gpu()\n",
              "ARGUMENT_MISMATCH", "requires exactly one positional integer GPU index");
  bad_message("value := tensor.zeros<real32>([1])\nmoved := value.gpu(-1)\n",
-             "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat.");
+             "ARGUMENT_MISMATCH", "non-negative GPU index");
  bad_message("value := tensor.zeros<real32>([1])\nmoved := value.cpu(0)\n",
              "ARGUMENT_MISMATCH", "takes no arguments");
 
@@ -8306,8 +8410,8 @@ print(count)
     return (7.0, "x")
 (int count, _) := make()
 )", "TYPE_MISMATCH");
- bad_code(R"((int count, _) := (7, 2)
-)", "DISCARD");
+ good(R"((int count, _) := (7, 2)
+)");
  bad_code(R"((int, string) make()
     return (7, "x")
 (int, bool) other()
@@ -8699,8 +8803,9 @@ test.equal(greeting.message(), "hello!")
 test.equal(greeting.loud, true)
 test.equal(render(label = "override"), "override")
 )");
- bad(R"(int limit(value := 100)
+ good(R"(int limit(value := 100)
     return value
+int value := limit()
 )");
  good(R"(enum Level
     Intro

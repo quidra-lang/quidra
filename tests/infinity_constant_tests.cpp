@@ -17,7 +17,7 @@ int main() {
             diagnostics += d.code + ": " + d.message + "\n";
         };
         try {
-            auto program = quidra::Parser(quidra::Lexer(type + " result = " + expression + "\n").scan()).parse();
+            auto program = quidra::Parser(quidra::Lexer(type + " result := " + expression + "\n").scan()).parse();
             (void)quidra::Checker().check({std::move(program), {}});
             accepted = true;
         } catch (const quidra::CompileError& error) {

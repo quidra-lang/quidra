@@ -243,7 +243,7 @@ tensor<com32> big := tensor.ones<com32>([2]) * (3.0e38 + 0.0i)
 tensor<com32> infinite := big + big
 tensor<com32> invalid := infinite - infinite
 QUI
-fails tensor_nan NONFINITE_RESULT 'tensor<com32> subtraction produced NaN' '3:25'
+fails tensor_nan NONFINITE_RESULT 'tensor<com32> subtraction produced NaN' '3:26'
 
 # Compile-time errors.
 cat > "$TMP/ordering.qui" <<'QUI'
@@ -256,8 +256,9 @@ cat > "$TMP/mixing.qui" <<'QUI'
 real32 x := 1.0
 com32 z := 1.0i
 com32 sum := x + z
+print(sum)
 QUI
-rejects mixing TYPE_MISMATCH 'real32 and com32 do not mix; convert explicitly with com32(x).'
+[[ "$("$QUIDRA" run "$TMP/mixing.qui")" == "1.0+1.0i" ]]
 cat > "$TMP/real_literal.qui" <<'QUI'
 com32 z := 1.0
 QUI

@@ -214,8 +214,9 @@ statement_end    = NEWLINE | EOF ;
      and rejected by the checker;
    - literals carry categories, not types: non-negative integer, negative integer
      (unary `-` applied to an integer literal), real, imaginary, and complex (a real
-     and an imaginary literal joined by + or -); each materializes only into the
-     types of its category;
+     and an imaginary literal joined by + or -); direct materialization stays
+     in that category. Without a resolved context defaults are int, real, com;
+     nat requires context and ambiguous numeric union contexts remain errors;
    - in a nat or int context an integer literal has no width ceiling; fixed-width
      contexts keep their ranges; a real literal rounds correctly to realN and is
      exact for real;

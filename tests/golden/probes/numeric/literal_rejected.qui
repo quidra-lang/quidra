@@ -1,5 +1,5 @@
-// Literals of one family in a context of another, rejected today: an
-// integer literal where a real is expected.
-real64 from_integer := 3
-print("{from_integer}")
+// A negative integer literal cannot materialize in a natural-number
+// context. Mixed numeric operators and value calls have separate conversion rules.
+nat from_negative := -3
+print("{from_negative}")
 print(NL)

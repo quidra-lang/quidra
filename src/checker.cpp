@@ -183,7 +183,7 @@ Type literal_target(const Type& expected, bool (*family)(const Type&)) {
 // The complex type a literal materializes as in `expected`: the type itself,
 // or the one complex case of a union.
 std::optional<Type> complex_literal_target(const Type* expected) {
-    if (!expected) return std::nullopt;
+    if (!expected) return simple(TypeKind::Com);
     if (is_complex(*expected)) return *expected;
     std::optional<Type> found;
     if (expected->kind == TypeKind::Union) {
@@ -3704,8 +3704,8 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         !node->items.front().slice && node->items.front().index) {
         const auto& selector = *node->items.front().index;
         // Index literals are contextually int; an all-integer array literal
-        // also needs that context (bare numeric arrays are otherwise
-        // ambiguous). Do not accidentally reject the legacy scalar a[1].
+        // also needs that context to preserve the expected index type.
+        // Do not accidentally reject the legacy scalar a[1].
         Type selector_type;
         if (const auto* items = std::get_if<ArrayExpr>(&selector.data);
             items && std::all_of(items->elements.begin(), items->elements.end(),
@@ -3870,7 +3870,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 error("ARGUMENT_MISMATCH", "Payload-free enum variant '" + receiver_name->name + "." + node->method + "' is a value; write it without ().", expression.span);
             if (node->args.size() != 1 || node->args[0].writable || node->args[0].name)
                 error("ARGUMENT_MISMATCH", "Enum payload variant '" + receiver_name->name + "." + node->method + "' requires exactly one positional value.", expression.span);
-            const auto actual = check_expr(*node->args[0].value, &payload);
+            const auto actual = check_value_argument(*node->args[0].value, &payload);
             if (!poisoned(actual) && !assignable(actual, payload))
                 error("TYPE_MISMATCH", "Enum payload expected " + type_name(payload) + ", got " + type_name(actual) + ".", node->args[0].span);
             enum_constructions_[&expression] = EnumConstructionInfo{enum_type, tag, payload};
@@ -3886,8 +3886,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
             }
             auto int_type = simple(TypeKind::Int);
             auto nat_type = simple(TypeKind::Nat);
-            auto count = check_expr(*node->args[0].value, &nat_type);
-            auto fill = check_expr(*node->args[1].value, &int_type);
+            auto count = check_value_argument(*node->args[0].value, &nat_type);
+            auto fill = check_value_argument(*node->args[1].value, &int_type);
             if (const auto value = constant_eval::integer(*node->args[0].value);
                 value && *value < 0) {
                 error("ARGUMENT_MISMATCH", "bin.fill length cannot be negative.",
@@ -3912,7 +3912,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                       expression.span);
             }
             auto bin_type = simple(TypeKind::Bin);
-            auto data = check_expr(*node->args[0].value, &bin_type);
+            auto data = check_value_argument(*node->args[0].value, &bin_type);
             expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
             type = poisoned(data)
                 ? simple(TypeKind::Invalid)
@@ -3928,8 +3928,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
             }
             auto string_type = simple(TypeKind::String);
             auto nat_type = simple(TypeKind::Nat);
-            auto value = check_expr(*node->args[0].value, &string_type);
-            auto count = check_expr(*node->args[1].value, &nat_type);
+            auto value = check_value_argument(*node->args[0].value, &string_type);
+            auto count = check_value_argument(*node->args[1].value, &nat_type);
             if (const auto amount = constant_eval::integer(*node->args[1].value);
                 amount && *amount < 0) {
                 error("ARGUMENT_MISMATCH", "string.repeat count cannot be negative.",
@@ -3950,7 +3950,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 error("ARGUMENT_MISMATCH", "Type.parse requires one string argument.", expression.span);
             }
             auto string_type = simple(TypeKind::String);
-            auto argument = check_expr(*node->args[0].value, &string_type);
+            auto argument = check_value_argument(*node->args[0].value, &string_type);
             expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
             if (poisoned(argument)) {
                 type = simple(TypeKind::Invalid);
@@ -4102,7 +4102,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                               expression.span);
                     }
                     auto string_type = simple(TypeKind::String);
-                    auto argument = check_expr(*node->args[0].value, &string_type);
+                    auto argument = check_value_argument(*node->args[0].value, &string_type);
                     if (!poisoned(argument) && argument != string_type) {
                         error("TYPE_MISMATCH",
                               "file.Handle." + node->method + " requires a string.",
@@ -4115,7 +4115,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                               expression.span);
                     }
                     auto nat_type = simple(TypeKind::Nat);
-                    auto argument = check_expr(*node->args[0].value, &nat_type);
+                    auto argument = check_value_argument(*node->args[0].value, &nat_type);
                     if (!poisoned(argument) && argument != nat_type) {
                         error("TYPE_MISMATCH", "file.Handle.seek requires a nat.", node->args[0].span);
                     }
@@ -4186,7 +4186,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             }
                             const auto target_type =
                                 Type::class_type(standard_class::autograd_target);
-                            auto actual = check_expr(*argument.value, &target_type);
+                            auto actual = check_value_argument(*argument.value, &target_type);
                             if (!poisoned(actual) && actual != target_type) {
                                 error("TYPE_MISMATCH",
                                       "tensor.track target must be autograd.Target.",
@@ -4257,7 +4257,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                           argument.span);
                                 }
                                 const auto bool_type = simple(TypeKind::Bool);
-                                check_expr(*argument.value, &bool_type);
+                                check_value_argument(*argument.value, &bool_type);
                                 saw_named_track = true;
                                 continue;
                             }
@@ -4313,7 +4313,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         auto gpu = node->args.empty()
                             ? simple(TypeKind::Invalid)
-                            : check_expr(*node->args[0].value, &int_type);
+                            : check_value_argument(*node->args[0].value, &int_type);
                         if (!node->args.empty()) {
                             if (const auto index =
                                     constant_eval::integer(*node->args[0].value,
@@ -4342,10 +4342,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                   expression.span);
                         }
                         auto axis0 = node->args.size() > 0
-                            ? check_expr(*node->args[0].value, &int_type)
+                            ? check_value_argument(*node->args[0].value, &int_type)
                             : simple(TypeKind::Invalid);
                         auto axis1 = node->args.size() > 1
-                            ? check_expr(*node->args[1].value, &int_type)
+                            ? check_value_argument(*node->args[1].value, &int_type)
                             : simple(TypeKind::Invalid);
                         type = poisoned(axis0) || poisoned(axis1)
                             ? simple(TypeKind::Invalid)
@@ -4398,7 +4398,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.reshape requires one shape array.", expression.span);
                         }
-                        auto shape = check_expr(*node->args[0].value, &nat_shape_type);
+                        auto shape = check_value_argument(*node->args[0].value, &nat_shape_type);
                         long long rank = -1;
                         std::vector<ShapeExtent> known_shape_prefix;
                         if (!poisoned(shape)) {
@@ -4439,8 +4439,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         if (node->args.size() != 2) {
                             type = simple(TypeKind::Invalid);
                         } else {
-                            auto indices = check_expr(*node->args[0].value, &shape_type);
-                            auto shape = check_expr(*node->args[1].value, &shape_type);
+                            auto indices = check_value_argument(*node->args[0].value, &shape_type);
+                            auto shape = check_value_argument(*node->args[1].value, &shape_type);
                             long long rank = -1;
                             std::vector<ShapeExtent> known_shape_prefix;
                             if (!poisoned(shape)) {
@@ -4485,8 +4485,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         if (node->args.size() != 2) {
                             type = simple(TypeKind::Invalid);
                         } else {
-                            auto indices = check_expr(*node->args[0].value, &shape_type);
-                            auto shape = check_expr(*node->args[1].value, &shape_type);
+                            auto indices = check_value_argument(*node->args[0].value, &shape_type);
+                            auto shape = check_value_argument(*node->args[1].value, &shape_type);
                             long long rank = -1;
                             std::vector<ShapeExtent> known_shape_prefix;
                             if (!poisoned(shape)) {
@@ -4593,7 +4593,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (argument.writable || (argument.name && *argument.name != label)) {
                         error("ARGUMENT_MISMATCH", "Invalid primitive method argument.", argument.span);
                     }
-                    return check_expr(*argument.value, &required);
+                    return check_value_argument(*argument.value, &required);
                 };
                 require_no_type_arguments();
                 if (receiver.kind == TypeKind::String) {
@@ -4790,7 +4790,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                 if (base_seen) error("ARGUMENT_MISMATCH", "Duplicate base argument.", argument.span);
                                 base_seen = true;
                                 const auto int_type = simple(TypeKind::Int);
-                                check_expr(*argument.value, &int_type);
+                                check_value_argument(*argument.value, &int_type);
                                 const auto* integer = std::get_if<IntegerExpr>(&argument.value->data);
                                 if (!integer || !integer->fits_u64 ||
                                     integer->value < 2 || integer->value > 36) {
@@ -4802,7 +4802,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                 if (uppercase_seen) error("ARGUMENT_MISMATCH", "Duplicate uppercase argument.", argument.span);
                                 uppercase_seen = true;
                                 const auto bool_type = simple(TypeKind::Bool);
-                                check_expr(*argument.value, &bool_type);
+                                check_value_argument(*argument.value, &bool_type);
                                 if (!std::holds_alternative<BoolExpr>(argument.value->data)) {
                                     error("ARGUMENT_MISMATCH",
                                           "uppercase must be a bool literal.",
@@ -4954,7 +4954,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                 PendingReferenceEffect{argument.value.get(), &parameter, argument.span});
                         }
                     } else {
-                        any_poison |= poisoned(check_expr(*argument.value, &parameter.type));
+                        any_poison |= poisoned(check_value_argument(*argument.value, &parameter.type));
                         if (const_access_path(*argument.value, false))
                             const_argument_uses_.push_back({&expression, target + offset, argument.value.get()});
                     }
@@ -4998,7 +4998,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
         if (argument.writable || (argument.name && *argument.name != label)) {
             error("ARGUMENT_MISMATCH", "Invalid builtin argument.", argument.span);
         }
-        return check_expr(*argument.value, required);
+        return check_value_argument(*argument.value, required);
     };
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Builtin, name, builtin, simple(TypeKind::Void)};
@@ -6138,7 +6138,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     bool bad_gpu = false;
                     if (gpu_index) {
                         const auto int_type = simple(TypeKind::Nat);
-                        auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
+                        auto gpu = check_value_argument(*node->args[*gpu_index].value, &int_type);
                         bad_gpu = poisoned(gpu);
                         if (!bad_gpu && gpu != int_type) {
                             error("TYPE_MISMATCH",
@@ -6196,7 +6196,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
 
                     const auto shape_type = Type::array(simple(TypeKind::Nat));
-                    auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
+                    auto shape = check_value_argument(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
                     std::vector<ShapeExtent> known_shape_prefix;
                     if (!poisoned(shape)) {
@@ -6410,7 +6410,7 @@ Type Checker::check_call_expr(const Expr& expression,
                           "Function-value calls use positional value arguments only.",
                           argument.span);
                 }
-                const auto actual = check_expr(*argument.value, &callable.parameters[i]);
+                const auto actual = check_value_argument(*argument.value, &callable.parameters[i]);
                 any_poison |= poisoned(actual);
             }
             type = any_poison ? simple(TypeKind::Invalid) : *callable.first;
@@ -6501,7 +6501,7 @@ Type Checker::check_call_expr(const Expr& expression,
                                 PendingReferenceEffect{argument.value.get(), &parameter, argument.span});
                         }
                     } else {
-                    const auto actual = check_expr(*argument.value, &parameter.type);
+                    const auto actual = check_value_argument(*argument.value, &parameter.type);
                     any_poison |= poisoned(actual);
                     if (const_access_path(*argument.value, false))
                         const_argument_uses_.push_back({&expression, target + offset, argument.value.get()});
@@ -6559,9 +6559,7 @@ Type Checker::check_call_expr(const Expr& expression,
                 (family == NumericLiteralCategory::Real && target_floating) ||
                 (is_complex(*target) && (single_family_category(family) ||
                                          complex_category(family)));
-            const bool direct_cross_family =
-                (integer_category(direct_family) && target_floating) ||
-                (direct_family == NumericLiteralCategory::Real && target_integer);
+            const bool direct_cross_family = integer_category(direct_family) && target_floating;
 
             if (family == NumericLiteralCategory::Mixed) {
                 error("NUMERIC_FAMILY",
@@ -6577,10 +6575,6 @@ Type Checker::check_call_expr(const Expr& expression,
                     throw;
                 }
                 explicit_numeric_literal_context_ = previous;
-            } else if (single_family_category(family)) {
-                error("NUMERIC_CAST",
-                      "Cross-family conversion of a numeric-family expression requires a concrete source type.",
-                      node->args[0].span);
             } else {
                 source = check_expr(*node->args[0].value);
             }
@@ -6601,7 +6595,8 @@ Type Checker::check_call_expr(const Expr& expression,
                     }
                     if (current.kind == TypeKind::Array && current.first) {
                         const auto child = cast_result(*current.first);
-                        if (!child || current.first->kind == TypeKind::Bin) return std::nullopt;
+                        if (!child || current.first->kind == TypeKind::Bin ||
+                            current.first->kind == TypeKind::Tensor) return std::nullopt;
                         if (child->kind == TypeKind::Union && child->union_name.empty() &&
                             case_index(*child, error_type) >= 0) {
                             std::optional<Type> success_child;
@@ -6747,7 +6742,7 @@ Type Checker::check_call_expr(const Expr& expression,
                     if (!field || !supplied.insert(*argument.name).second) {
                         error("ARGUMENT_MISMATCH", "Unknown or duplicate class field.", argument.span);
                     }
-                    any_poison |= poisoned(check_expr(*argument.value, &field->type));
+                    any_poison |= poisoned(check_value_argument(*argument.value, &field->type));
                     initialized_paths.insert(field->name);
                     if (field->type.kind == TypeKind::Class || field->type.kind == TypeKind::Tuple) {
                         for (const auto& nested : initialized_paths_for_expr(*argument.value)) {
@@ -7016,6 +7011,174 @@ Type Checker::check_class_construction(const Expr& expression, const CallExpr& n
 // checks each argument against its parameter, and collects the reference
 // effects to apply once the call is accepted. Shared by function calls and
 // constructor calls, whose signatures carry no receiver parameter.
+Type Checker::check_value_argument(const Expr& expression, const Type* expected) {
+    const auto numeric_destination = [](const auto& self, const Type& candidate) -> bool {
+        if (is_numeric(candidate)) return true;
+        if (candidate.kind == TypeKind::Tensor)
+            return candidate.first && is_tensor_numeric(*candidate.first);
+        if (candidate.kind != TypeKind::Array) return false;
+        const Type* leaf = &candidate;
+        while (leaf->kind == TypeKind::Array && leaf->first) leaf = leaf->first.get();
+        (void)self;
+        return is_numeric(*leaf);
+    };
+    if (!expected || !numeric_destination(numeric_destination, *expected))
+        return check_expr(expression, expected);
+
+    // A compatible literal still materializes in the parameter's type. All
+    // other values keep their source type until the call's explicit-equivalent
+    // conversion, so named storage and generic inference remain unchanged.
+    // Read declared result/storage types without checking the expression:
+    // probing with check_expr would apply receiver and reference effects twice.
+    const auto declared_source_type = [&](const auto& self, const Expr& value) -> std::optional<Type> {
+        if (const auto* name = std::get_if<NameExpr>(&value.data)) {
+            if (name->self_reference && !current_class_.empty()) return Type::class_type(current_class_);
+            if (const auto* field = receiver_field(value)) return field->type;
+            if (!name->this_qualifier) {
+                if (const auto known = variables_.find(name->name); known != variables_.end())
+                    return known->second;
+            }
+        } else if (const auto* call = std::get_if<CallExpr>(&value.data)) {
+            if (const auto converted = builtin_scalar_type(call->callee); converted && is_numeric(*converted))
+                return *converted;
+            if (const auto function = functions_.find(call->callee); function != functions_.end())
+                return function->second.result;
+            if (const auto callable = variables_.find(call->callee);
+                callable != variables_.end() && callable->second.kind == TypeKind::Function && callable->second.first)
+                return *callable->second.first;
+            if (!current_class_.empty()) {
+                if (const auto* method = find_method(current_class_, call->callee))
+                    return functions_.at(*method).result;
+            }
+            if (classes_.contains(call->callee)) return Type::class_type(call->callee);
+        } else if (const auto* member = std::get_if<MemberExpr>(&value.data)) {
+            const auto base = self(self, *member->base);
+            if (base && base->kind == TypeKind::Class) {
+                if (const auto* field = find_field(base->class_name, member->name)) return field->type;
+            }
+        } else if (const auto* call = std::get_if<MethodCallExpr>(&value.data)) {
+            const auto receiver = self(self, *call->receiver);
+            if (receiver && receiver->kind == TypeKind::Class) {
+                if (const auto* method = find_method(receiver->class_name, call->method))
+                    return functions_.at(*method).result;
+            }
+        } else if (const auto* index = std::get_if<IndexExpr>(&value.data);
+                   index && index->items.size() == 1) {
+            const auto base = self(self, *index->base);
+            if (base && base->kind == TypeKind::Array && base->first) {
+                const auto& item = index->items.front();
+                if (item.slice) return Type::array(*base->first);
+                if (item.index) {
+                    if (integer_category(numeric_literal_family(*item.index))) return *base->first;
+                    const auto selector = self(self, *item.index);
+                    if (selector && is_integer_family_type(*selector)) return *base->first;
+                    if (selector && selector->kind == TypeKind::Array) return Type::array(*base->first);
+                }
+            }
+        }
+        return std::nullopt;
+    };
+    const auto contextual_literal = [&](const auto& self, const Expr& value,
+                                        const Type& target) -> bool {
+        if (const auto* array = std::get_if<ArrayExpr>(&value.data);
+            array && target.kind == TypeKind::Array && target.first) {
+            return std::all_of(array->elements.begin(), array->elements.end(),
+                [&](const auto& child) { return self(self, *child, *target.first); });
+        }
+        // Contextual factories obtain their result representation from the
+        // destination; their hidden CLI calls and untyped containers cannot
+        // first be checked without one.
+        if (const auto* call = std::get_if<CallExpr>(&value.data)) {
+            if (const auto builtin = builtin_callable(call->callee)) {
+                switch (*builtin) {
+                    case BuiltinCallable::CliArgument:
+                    case BuiltinCallable::CliArgumentOptional:
+                    case BuiltinCallable::CliOption:
+                    case BuiltinCallable::CliFlag:
+                    case BuiltinCallable::Array:
+                        return true;
+                    case BuiltinCallable::TensorCreate:
+                    case BuiltinCallable::TensorZeros:
+                    case BuiltinCallable::TensorOnes:
+                        if (call->type_arguments.empty()) return true;
+                        break;
+                    default: break;
+                }
+            }
+            if (call->callee == "$std.range.generate") return true;
+        }
+        // Literal containers preserve contextual fail-fast consumption of
+        // T|error elements when their success representation already fits.
+        const auto accepts_source = [&](const Type& source) {
+            if (assignable(source, target)) return true;
+            if (source.kind != TypeKind::Union || !source.union_name.empty()) return false;
+            std::vector<Type> success;
+            for (const auto& item : source.cases)
+                if (item.kind != TypeKind::Error) success.push_back(item);
+            return success.size() + 1 == source.cases.size() &&
+                   !success.empty() && assignable(Type::union_of(std::move(success)), target);
+        };
+        if (value.contextual_default_type) {
+            if (const auto declared = builtin_scalar_type(value.contextual_default_type->name))
+                return accepts_source(*declared);
+        }
+        if (const auto source = declared_source_type(declared_source_type, value))
+            return accepts_source(*source);
+        if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
+            return self(self, *conditional->otherwise, target) &&
+                std::all_of(conditional->values.begin(), conditional->values.end(),
+                    [&](const auto& branch) { return self(self, *branch, target); });
+        }
+        const auto family = numeric_literal_family(value);
+        if (complex_category(family)) return is_complex(target);
+        if (!single_family_category(family)) return false;
+        const auto context = numeric_literal_context(&target, family);
+        return context.type && !context.ambiguous;
+    };
+    if (contextual_literal(contextual_literal, expression, *expected))
+        return check_expr(expression, expected);
+    auto source = check_expr(expression);
+    if (poisoned(source)) return source;
+    if (assignable(source, *expected)) return *expected;
+
+    // A value with one success type follows the ordinary call fail-fast
+    // rule before applying its numeric conversion.
+    if (source.kind == TypeKind::Union && source.union_name.empty()) {
+        const auto error_type = simple(TypeKind::Error);
+        if (case_index(source, error_type) >= 0) {
+            std::vector<Type> success;
+            for (const auto& candidate : source.cases)
+                if (candidate.kind != TypeKind::Error) success.push_back(candidate);
+            if (success.size() == 1 && numeric_destination(numeric_destination, success.front())) {
+                source = success.front();
+                fail_fast_expressions_.insert(&expression);
+                expr_types_[&expression] = source;
+            }
+        }
+    }
+    const auto conversion_supported = [&](const auto& self, const Type& from,
+                                          const Type& to) -> bool {
+        if (is_numeric(from) && is_numeric(to)) return explicit_numeric_cast_supported(from, to);
+        if (from.kind == TypeKind::Array && to.kind == TypeKind::Array && from.first && to.first) {
+            return (to.length < 0 || from.length == to.length) &&
+                   self(self, *from.first, *to.first);
+        }
+        if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor && from.first && to.first &&
+            is_tensor_numeric(*from.first) && is_tensor_numeric(*to.first)) {
+            auto converted = from;
+            converted.first = to.first;
+            return explicit_numeric_cast_supported(*from.first, *to.first) && assignable(converted, to);
+        }
+        return false;
+    };
+    if (!conversion_supported(conversion_supported, source, *expected)) {
+        error("TYPE_MISMATCH", "Expected " + type_name(*expected) + " but received " +
+              type_name(source) + ".", expression.span);
+    }
+    implicit_numeric_argument_conversions_[&expression] = *expected;
+    return *expected;
+}
+
 bool Checker::check_call_arguments(const Expr& expression, const std::vector<CallArg>& args,
                                    const FunctionType& function,
                                    std::vector<PendingReferenceEffect>& pending) {
@@ -7084,7 +7247,7 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
                                 PendingReferenceEffect{argument.value.get(), &parameter, argument.span});
                         }
                     } else {
-                    const auto actual = check_expr(*argument.value, &parameter.type);
+                    const auto actual = check_value_argument(*argument.value, &parameter.type);
                     any_poison |= poisoned(actual);
                     if (const_access_path(*argument.value, false))
                         const_argument_uses_.push_back({&expression, target, argument.value.get()});
@@ -7271,12 +7434,6 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
         literal[i] = single_family_category(numeric_literal_family(*node.operands[i]));
         if (!literal[i]) types[i] = check_expr(*node.operands[i]);
     }
-    if (std::all_of(literal.begin(), literal.end(), [](bool value) { return value; })) {
-        error("AMBIGUOUS_NUMERIC_LITERAL",
-              "Numeric-family expression requires a unique concrete numeric type context.",
-              expression.span);
-        return simple(TypeKind::Invalid);
-    }
     if (std::any_of(types.begin(), types.end(),
                     [](const Type& type) {
                         return type.kind == TypeKind::Tensor || type.kind == TypeKind::Array;
@@ -7293,7 +7450,10 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
             if (i >= distance && !literal[i - distance]) context = &types[i - distance];
             else if (i + distance < count && !literal[i + distance]) context = &types[i + distance];
         }
-        const Type* scalar = context && is_numeric(*context) ? context : nullptr;
+        const auto family = numeric_literal_family(*node.operands[i]);
+        const auto literal_context = numeric_literal_context(context, family);
+        const Type* scalar = context && is_numeric(*context) && literal_context.type &&
+                             !literal_context.ambiguous ? context : nullptr;
         types[i] = check_expr(*node.operands[i], scalar);
     }
     if (!shape_valid) return simple(TypeKind::Invalid);
@@ -7302,8 +7462,9 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     std::vector<bool> element_read(count);
     bool valid = true;
     for (std::size_t i = 0; i < node.ops.size(); ++i) {
-        const auto& left = types[i];
-        const auto& right = types[i + 1];
+        auto left = types[i];
+        auto right = types[i + 1];
+        if (const auto common = numeric_common_type(left, right)) left = right = *common;
         const auto& op = node.ops[i];
         const auto& left_expression = *node.operands[i];
         const auto& right_expression = *node.operands[i + 1];
@@ -7334,8 +7495,11 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
                 valid = false;
             }
             if (left.kind == TypeKind::Array) element_read[i] = element_read[i + 1] = true;
-        } else if (!is_numeric(left)) {
-            error(left.kind==TypeKind::Tuple?"TUPLE":"TYPE_MISMATCH",left.kind==TypeKind::Tuple?"Tuples are not ordered; compare their elements.":"Ordering requires numbers.",expression.span);
+        } else if (!is_numeric(left) || is_complex(left)) {
+            error(left.kind==TypeKind::Tuple?"TUPLE":"TYPE_MISMATCH",
+                  is_complex(left) ? "Complex values have no ordering." :
+                  left.kind==TypeKind::Tuple ? "Tuples are not ordered; compare their elements." :
+                  "Ordering requires numbers.", expression.span);
             valid = false;
         }
     }
@@ -7556,9 +7720,7 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
     } else if (branch_type) {
         type = *branch_type;
     } else if (!literal_branches.empty()) {
-        error("AMBIGUOUS_NUMERIC_LITERAL",
-              "An if-expression whose branches are numeric literals needs a type from its context.",
-              expression.span);
+        type = check_expr(*literal_branches.front());
     }
     for (const auto* value : literal_branches) (void)check_expr(*value, &type);
     if (type.kind == TypeKind::Void) {
@@ -7591,8 +7753,8 @@ const Expr* lone_literal(const Expr& value) {
 } // namespace
 
 // A use of a contextual constant materializes into the real type its
-// context expects, exactly as a real literal does: no default type, and the
-// value in that type is the exact value rounded once.
+// context expects, exactly as a real literal does, falling back to real.
+// The value in a fixed-width type is the exact value rounded once.
 Type Checker::check_literal_constant(const Expr& expression, const LiteralConstantExpr& node,
                                      const Type* expected) {
     const auto real_type = simple(TypeKind::Real);
@@ -7655,6 +7817,8 @@ Type Checker::check_literal_constant(const Expr& expression, const LiteralConsta
 }
 
 Type Checker::check_expr(const Expr& expression, const Type* expected) {
+    // An inferred tuple slot supplies no concrete literal context.
+    if (expected && expected->kind == TypeKind::Auto) expected = nullptr;
     nesting::DepthGuard guard(
         expr_depth_, nesting::max_expression_depth, expression.span, "Expression");
     // A use of an imported typed constant has its declared type at every
@@ -7709,6 +7873,12 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         }
     };
 
+    if (expected && expected->kind == TypeKind::Union &&
+        complex_category(numeric_literal_family(expression)) &&
+        std::count_if(expected->cases.begin(), expected->cases.end(), is_complex) > 1) {
+        error("AMBIGUOUS_NUMERIC_LITERAL", "Complex literal matches multiple concrete complex types.",
+              expression.span);
+    }
     const auto complex_literal = complex_literal_target(expected);
     if (complex_literal &&
         (std::holds_alternative<ImaginaryLiteralExpr>(expression.data) ||
@@ -7930,11 +8100,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                         break;
                     }
                 }
-                if (!seed) {
-                    error("AMBIGUOUS_NUMERIC_LITERAL",
-                          "An array made only of numeric-family expressions needs an explicit element type.",
-                          expression.span);
-                }
+                if (!seed) seed = 0;
                 element = check_expr(*node->elements[*seed]);
                 if (!poisoned(element)) {
                     for (std::size_t i = 0; i < node->elements.size(); ++i) {
@@ -8073,17 +8239,6 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         const auto right_family = numeric_literal_family(*node->right);
         const auto joined_family =
             numeric_policy::join_numeric_literal_categories(left_family, right_family);
-        if (left_family == NumericLiteralCategory::Mixed ||
-            right_family == NumericLiteralCategory::Mixed) {
-            error("NUMERIC_FAMILY",
-                  "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
-                  expression.span);
-        } else if ((integer_category(left_family) && complex_category(right_family)) ||
-                   (complex_category(left_family) && integer_category(right_family))) {
-            error("NUMERIC_FAMILY",
-                  "Complex literal parts require real form: write 1.0 + 2.0i.",
-                  expression.span);
-        }
 
         Type left;
         Type right;
@@ -8102,6 +8257,65 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             return nullptr;
         };
 
+        const auto literal_context_for = [&](const Type* candidate,
+                                             NumericLiteralCategory family) -> const Type* {
+            if (!candidate) return nullptr;
+            if (complex_category(family)) return is_complex(*candidate) ? candidate : nullptr;
+            const auto context = numeric_literal_context(candidate, family);
+            return context.type && !context.ambiguous ? candidate : nullptr;
+        };
+
+        const auto literal_array = [&](const auto& self, const Expr& value) -> bool {
+            if (const auto* array = std::get_if<ArrayExpr>(&value.data))
+                return std::all_of(array->elements.begin(), array->elements.end(),
+                    [&](const auto& child) { return self(self, *child); });
+            return numeric_literal_family(value) != NumericLiteralCategory::None;
+        };
+        const auto array_accepts_context = [&](const auto& self, const Expr& value,
+                                                const Type& candidate) -> bool {
+            if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
+                if (candidate.kind != TypeKind::Array || !candidate.first) return false;
+                return std::all_of(array->elements.begin(), array->elements.end(),
+                    [&](const auto& child) { return self(self, *child, *candidate.first); });
+            }
+            return literal_context_for(&candidate, numeric_literal_family(value)) != nullptr;
+        };
+        const auto scalar_array_context = [&](const auto& self, const Expr& value,
+                                               const Type& scalar) -> Type {
+            if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
+                return Type::array(array->elements.empty() ? scalar :
+                    self(self, *array->elements.front(), scalar),
+                    static_cast<long long>(array->elements.size()));
+            }
+            return scalar;
+        };
+        const auto literal_array_context = [&](const auto& self, const Expr& value,
+                                                 const Type& candidate) -> Type {
+            const auto* array = std::get_if<ArrayExpr>(&value.data);
+            if (!array || array->elements.empty()) return candidate;
+            auto element = self(self, *array->elements.front(), *candidate.first);
+            for (std::size_t i = 1; i < array->elements.size(); ++i) {
+                const auto other = self(self, *array->elements[i], *candidate.first);
+                Type* merged = &element;
+                const Type* next = &other;
+                while (merged->kind == TypeKind::Array && next->kind == TypeKind::Array) {
+                    if (merged->length != next->length) merged->length = -1;
+                    merged = merged->first.get();
+                    next = next->first.get();
+                }
+            }
+            return Type::array(std::move(element),
+                               static_cast<long long>(array->elements.size()));
+        };
+        const auto check_array_operand = [&](const Expr& value, const Type* candidate) -> Type {
+            if (!candidate || !array_accepts_context(array_accepts_context, value, *candidate))
+                return check_expr(value);
+            // Numeric operator contexts choose leaf representations without
+            // discarding the literal's known extents used by generic inference.
+            const auto context = literal_array_context(literal_array_context, value, *candidate);
+            return check_expr(value, &context);
+        };
+
         const bool left_literal =
             single_family_category(left_family) || complex_category(left_family);
         const bool right_literal =
@@ -8111,6 +8325,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
              node->op == "/" || node->op == "%" || node->op == "^") ? expected : nullptr;
 
         if (complex_category(joined_family) &&
+            !integer_category(left_family) && !integer_category(right_family) &&
             operator_policy::participates_in_numeric_literal_family(node->op)) {
             // A complex literal: real and imaginary literals joined. Each one
             // is a value of the context's complex type, a real literal its
@@ -8135,97 +8350,75 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                       "A complex literal requires a complex type context.", expression.span);
             }
         } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
-                   std::holds_alternative<ArrayExpr>(node->right->data) &&
-                   expected && expected->kind == TypeKind::Array &&
-                   (node->op == "+" || node->op == "-" || node->op == "*" ||
-                    node->op == "/" || node->op == "%" || node->op == "^")) {
-            left = check_expr(*node->left, expected);
-            right = check_expr(*node->right, expected);
-        } else if (std::holds_alternative<ArrayExpr>(node->left->data) &&
-                   std::holds_alternative<ArrayExpr>(node->right->data) &&
-                   (node->op == "<" || node->op == "<=" ||
-                    node->op == ">" || node->op == ">=")) {
-            // A bool-array result provides no numeric operand context.
-            // Pure integer-literal arrays use exact int at every rank;
-            // otherwise a typed operand supplies the literal context.
-            std::function<std::optional<Type>(const Expr&)> integer_array_context;
-            integer_array_context = [&](const Expr& value) -> std::optional<Type> {
-                const auto* array = std::get_if<ArrayExpr>(&value.data);
-                if (!array)
-                    return integer_category(numeric_literal_family(value))
-                        ? std::optional<Type>{simple(TypeKind::Int)} : std::nullopt;
-                std::optional<Type> element;
-                for (const auto& item : array->elements) {
-                    const auto item_type = integer_array_context(*item);
-                    if (!item_type || (element && *element != *item_type)) return std::nullopt;
-                    element = item_type;
-                }
-                return Type::array(element.value_or(simple(TypeKind::Int)));
-            };
-            const auto left_context = integer_array_context(*node->left);
-            const auto right_context = integer_array_context(*node->right);
-            if (left_context && right_context) {
-                left = check_expr(*node->left, &*left_context);
-                right = check_expr(*node->right, &*right_context);
-            } else if (left_context) {
-                right = check_expr(*node->right);
-                left = check_expr(*node->left, &right);
-            } else {
+                   std::holds_alternative<ArrayExpr>(node->right->data)) {
+            const bool aggregate_equality = node->op == "==" || node->op == "!=";
+            const bool left_array_literal = literal_array(literal_array, *node->left);
+            const bool right_array_literal = literal_array(literal_array, *node->right);
+            if (aggregate_equality) {
                 left = check_expr(*node->left);
                 right = check_expr(*node->right, &left);
+            } else if (left_array_literal && !right_array_literal) {
+                right = check_expr(*node->right);
+                left = check_array_operand(*node->left, &right);
+            } else if (right_array_literal && !left_array_literal) {
+                left = check_expr(*node->left);
+                right = check_array_operand(*node->right, &left);
+            } else {
+                left = check_array_operand(*node->left, array_context);
+                right = check_array_operand(*node->right, array_context);
             }
         } else if (left_literal && right_literal) {
-            if (integer_category(left_family) != integer_category(right_family)) {
-                error("NUMERIC_FAMILY",
-                      "Integer- and real-family expressions cannot mix implicitly.",
-                      expression.span);
-            }
-            const auto context = numeric_literal_context(expected, joined_family);
-            if (context.ambiguous) {
-                error("AMBIGUOUS_NUMERIC_LITERAL",
-                      "Numeric-family expression matches multiple concrete numeric types.",
-                      expression.span);
-            }
-            if (!context.type && context.natural_target) {
-                error("NUMERIC_FAMILY",
-                      "A negative integer literal cannot materialize as " +
-                          type_name(*context.natural_target) + ".",
-                      expression.span);
-            } else if (!context.type) {
-                if (context.opposite_family) {
-                    error("NUMERIC_FAMILY",
-                          "Numeric-family expression cannot cross families without an explicit cast.",
-                          expression.span);
+            const bool same_family =
+                (integer_category(left_family) && integer_category(right_family)) ||
+                (left_family == NumericLiteralCategory::Real && right_family == NumericLiteralCategory::Real);
+            // Comparisons have a bool result, which supplies no numeric context.
+            const bool comparison = node->op == "==" || node->op == "!=" ||
+                node->op == "<" || node->op == "<=" || node->op == ">" || node->op == ">=";
+            const Type* operand_context = comparison ? nullptr : expected;
+            if (same_family) {
+                const auto context = numeric_literal_context(operand_context, joined_family);
+                if (context.ambiguous) {
+                    error("AMBIGUOUS_NUMERIC_LITERAL",
+                          "Numeric-family expression matches multiple concrete numeric types.", expression.span);
                 }
-                error("AMBIGUOUS_NUMERIC_LITERAL",
-                      "Numeric-family expression requires a unique concrete numeric type context.",
-                      expression.span);
+                if (!context.type && context.natural_target) {
+                    error("NUMERIC_FAMILY", "A negative integer literal cannot materialize as " +
+                          type_name(*context.natural_target) + ".", expression.span);
+                }
+                // Pass an incompatible destination through so the established
+                // destination-conversion diagnostics remain precise.
+                const Type* materialized = context.type ? &*context.type : operand_context;
+                left = check_expr(*node->left, materialized);
+                right = check_expr(*node->right, materialized);
+            } else {
+                left = check_expr(*node->left, literal_context_for(operand_context, left_family));
+                right = check_expr(*node->right, literal_context_for(operand_context, right_family));
             }
-            left = check_expr(*node->left, &*context.type);
-            right = check_expr(*node->right, &*context.type);
         } else if (left_literal) {
-            right = check_expr(*node->right,
-                std::holds_alternative<ArrayExpr>(node->right->data) ? array_context : nullptr);
-            left = check_expr(*node->left, scalar_context(right));
+            right = std::holds_alternative<ArrayExpr>(node->right->data)
+                ? check_array_operand(*node->right, array_context) : check_expr(*node->right);
+            left = check_expr(*node->left, literal_context_for(scalar_context(right), left_family));
         } else if (right_literal) {
-            left = check_expr(*node->left,
-                std::holds_alternative<ArrayExpr>(node->left->data) ? array_context : nullptr);
-            right = check_expr(*node->right, scalar_context(left));
+            left = std::holds_alternative<ArrayExpr>(node->left->data)
+                ? check_array_operand(*node->left, array_context) : check_expr(*node->left);
+            right = check_expr(*node->right, literal_context_for(scalar_context(left), right_family));
         } else if (std::holds_alternative<ArrayExpr>(node->right->data)) {
             left = check_expr(*node->left);
             if (left.kind == TypeKind::Array)
-                right = check_expr(*node->right, &left);
+                right = node->op == "==" || node->op == "!="
+                    ? check_expr(*node->right, &left) : check_array_operand(*node->right, &left);
             else if (is_numeric(left)) {
-                const auto array_context = Type::array(left);
-                right = check_expr(*node->right, &array_context);
+                const auto array_context = scalar_array_context(scalar_array_context, *node->right, left);
+                right = check_array_operand(*node->right, &array_context);
             } else right = check_expr(*node->right);
         } else if (std::holds_alternative<ArrayExpr>(node->left->data)) {
             right = check_expr(*node->right);
             if (right.kind == TypeKind::Array)
-                left = check_expr(*node->left, &right);
+                left = node->op == "==" || node->op == "!="
+                    ? check_expr(*node->left, &right) : check_array_operand(*node->left, &right);
             else if (is_numeric(right)) {
-                const auto array_context = Type::array(right);
-                left = check_expr(*node->left, &array_context);
+                const auto array_context = scalar_array_context(scalar_array_context, *node->left, right);
+                left = check_array_operand(*node->left, &array_context);
             } else left = check_expr(*node->left);
         } else {
             left = check_expr(*node->left);
@@ -8241,16 +8434,23 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 node->op == "==" || node->op == "!=" || node->op == "<" ||
                 node->op == "<=" || node->op == ">" || node->op == ">=";
             const Type& tensor_type = left_tensor ? left : right;
-            const auto element = *tensor_type.first;
+            const auto& left_element = left_tensor ? *left.first : left;
+            const auto& right_element = right_tensor ? *right.first : right;
+            const auto common = numeric_common_type(left_element, right_element);
+            const auto element = common.value_or(*tensor_type.first);
+            if (common && !is_tensor_numeric(*common)) {
+                error("TYPE_MISMATCH", "Tensor numeric operators require a fixed-width common element type.",
+                      expression.span);
+            }
             Type tensor_result = tensor_type;
+            tensor_result.first = std::make_shared<Type>(element);
             if (comparison) {
                 if (is_complex(element) && node->op != "==" && node->op != "!=") {
                     error("TYPE_MISMATCH", "Complex values have no ordering.", expression.span);
                 }
                 if (left_tensor && right_tensor) {
-                    if (*left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "Tensor comparison requires identical element types.", expression.span);
+                    if (!common && *left.first != *right.first) {
+                        error("TYPE_MISMATCH", "Tensor comparison requires compatible element types.", expression.span);
                     }
                     if (left.length >= 0 && right.length >= 0 && left.length != right.length) {
                         error("TENSOR_SHAPE",
@@ -8270,9 +8470,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     }
                 } else {
                     const Type& scalar = left_tensor ? right : left;
-                    if (scalar != element) {
-                        error("TYPE_MISMATCH",
-                              "Tensor-scalar comparison requires the exact tensor element type.",
+                    if (!common && scalar != element) {
+                        error("TYPE_MISMATCH", "Tensor-scalar comparison requires compatible element types.",
                               expression.span);
                     }
                 }
@@ -8286,9 +8485,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                           expression.span);
                 }
                 if (left_tensor && right_tensor) {
-                    if (*left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "Tensor arithmetic requires identical element types.", expression.span);
+                    if (!common) {
+                        error("TYPE_MISMATCH", "Tensor arithmetic requires compatible numeric element types.",
+                              expression.span);
                     }
                     if (left.length >= 0 && right.length >= 0 && left.length != right.length) {
                         error("TYPE_MISMATCH",
@@ -8301,9 +8500,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     apply_broadcast_shape(left, right, tensor_result);
                 } else {
                     const auto& scalar_type = left_tensor ? right : left;
-                    if (!is_tensor_numeric(scalar_type) || scalar_type != element) {
-                        error("TYPE_MISMATCH",
-                              "Tensor scalar arithmetic requires the exact element type.",
+                    if (!common || !is_numeric(scalar_type)) {
+                        error("TYPE_MISMATCH", "Tensor scalar arithmetic requires compatible numeric types.",
                               expression.span);
                     }
                 }
@@ -8389,23 +8587,23 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                       expression.span);
                 valid = false;
             }
-            if (*lhs != *rhs || !is_numeric(*lhs) ||
-                (relational && is_complex(*lhs)) ||
-                (node->op == "%" && !is_integer_family_type(*lhs))) {
+            const auto common = numeric_common_type(*lhs, *rhs);
+            if (!common || (relational && is_complex(*common)) ||
+                (node->op == "%" && !is_integer_family_type(*common))) {
                 error("TYPE_MISMATCH",
-                      "Array elementwise operators require identical compatible numeric leaf types.",
+                      "Array elementwise operators require compatible numeric leaf types.",
                       expression.span);
                 valid = false;
             }
             if (node->op == "^" &&
                 (left.kind != TypeKind::Array || right.kind == TypeKind::Array ||
-                 lhs->kind == TypeKind::Com)) {
+                 (common && common->kind == TypeKind::Com))) {
                 error("TYPE_MISMATCH",
                       "Array exponentiation is defined only as array ^ scalar.",
                       expression.span);
                 valid = false;
             }
-            if (node->op == "^" && is_integer_family_type(*lhs)) {
+            if (node->op == "^" && common && is_integer_family_type(*common)) {
                 const auto exponent = constant_eval::integer(*node->right);
                 if (exponent && *exponent < 0) {
                     error("POWER_DOMAIN", "Integer array exponent must be non-negative.",
@@ -8426,10 +8624,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                         extent = b.length;
                     return Type::array(std::move(nested), extent);
                 }
-                return relational ? simple(TypeKind::Bool) : a;
+                return relational ? simple(TypeKind::Bool) : *common;
             };
             type = valid ? result_type(left, right) : simple(TypeKind::Invalid);
         } else {
+            if (const auto common = numeric_common_type(left, right)) left = right = *common;
             if (left != right) {
                 // A nat operand with another integer kind names the
                 // conversion to write.
@@ -8730,9 +8929,6 @@ void Checker::check_pattern_binding(const Stmt& statement,const BindingStmt& nod
         if(pattern.kind==Pattern::Kind::Tuple) {std::vector<Type> types;for(const auto& child:pattern.elements)types.push_back(self(self,child));return Type::tuple(std::move(types));}
         return pattern.type?resolve_type(*pattern.type,true):simple(TypeKind::Auto);
     };
-    if(std::holds_alternative<TupleExpr>(node.value->data)){
-        const auto discards=[&](const auto& self,const Pattern& p,const Expr& value)->void {if(p.kind==Pattern::Kind::Discard && numeric_literal_family(value)!=NumericLiteralCategory::None)error("DISCARD","'_' supplies no type to a numeric literal; write an explicit numeric conversion.",value.span);if(p.kind==Pattern::Kind::Tuple)if(const auto* tuple=std::get_if<TupleExpr>(&value.data);tuple && tuple->elements.size()==p.elements.size())for(std::size_t i=0;i<p.elements.size();++i)self(self,p.elements[i],*tuple->elements[i]);};discards(discards,*node.pattern,*node.value);
-    }
     auto expected=contextual(contextual,*node.pattern);
     auto subject=node.reference?check_address_target(*node.value):check_expr(*node.value,&expected);
     if(subject.kind!=TypeKind::Tuple) error("TUPLE","A tuple pattern requires a tuple value.",node.value->span);
@@ -9448,6 +9644,22 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
             }
         }
+        const auto check_value = [&](const Type& destination) -> Type {
+            if (node.compound_op.empty() || !is_numeric(destination))
+                return check_expr(*node.value, &destination);
+            const auto family = numeric_literal_family(*node.value);
+            const auto context = numeric_literal_context(&destination, family);
+            const Type* literal_context = context.type && !context.ambiguous ? &destination : nullptr;
+            const auto source = check_expr(*node.value, literal_context);
+            if (poisoned(source)) return source;
+            const auto common = numeric_common_type(destination, source);
+            if (!common || !assignable(*common, destination) ||
+                (node.compound_op == "%" && !is_integer_family_type(*common))) {
+                error("TYPE_MISMATCH", "Compound assignment result cannot be stored in " +
+                      type_name(destination) + ".", statement.span);
+            }
+            return source;
+        };
         Type type;
         if (auto* name = std::get_if<NameExpr>(&node.target_expr()->data)) {
             if (!name->this_qualifier && !name->self_reference) check_reference_bound(*node.target_expr(), name->name);
@@ -9473,7 +9685,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     if (expected.tensor_shape_ellipsis || expected.tensor_shape_prefix.empty()) expected.length = -1;
                     expected.tensor_known_shape_prefix.clear();
                 }
-                check_expr(*node.value, &expected);
+                check_value(expected);
                 const auto reference_maybes = reference_maybe_paths_for_expr(*node.value, type, classes_, maybe_initialized_,
             binding_declarations_, current_reference_parameters_, [&](const Expr& input) {
                 const auto actual = expr_types_.find(&input);
@@ -9543,7 +9755,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 type = field->type;
                 field_accesses_[node.target_expr()] = FieldAccessInfo{field->owner, field->index, field->type};
                 expr_types_[node.target_expr()] = raw_types_[node.target_expr()] = type;
-                check_expr(*node.value, &type);
+                check_value(type);
                 if(!field->reference) {
                     record_current_receiver_assignment(name->name, type, *node.value);
                     note_field_store("$this", name->name);
@@ -9586,7 +9798,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     check_index_operand(*indexed->items.front().index);
                     type = simple(TypeKind::Bin);
                     raw_types_[node.target_expr()] = expr_types_[node.target_expr()] = type;
-                    check_expr(*node.value, &type);
+                    check_value(type);
                 } else if (indexed->items.size() == 1 && indexed->items.front().slice &&
                            (base_type.kind == TypeKind::Array ||
                             base_type.kind == TypeKind::String)) {
@@ -9595,7 +9807,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     element_store_target_ = node.target_expr();
                     type = check_address_target(*node.target_expr(), true);
                     element_store_target_ = nullptr;
-                    const auto value_type = check_expr(*node.value, &type);
+                    const auto value_type = check_value(type);
                     if (!poisoned(value_type) && (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple) &&
                         !fully_initialized_for_equality(*node.value, type)) {
                         error("UNINITIALIZED_ARGUMENT",
@@ -9606,7 +9818,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
             } else {
                 type = check_address_target(*node.target_expr(), false);
-                check_expr(*node.value, &type);
+                check_value(type);
             }
             if(reaches_reference_field(*node.target_expr())) {
                 // The holder's binding remains initialized; this writes the
@@ -11492,6 +11704,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     unknown_reference_targets_.clear();
     expr_types_.clear();
     raw_types_.clear();
+    implicit_numeric_argument_conversions_.clear();
     field_accesses_.clear();
     method_calls_.clear();
     call_resolutions_.clear();
@@ -12371,10 +12584,11 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                            binding_types_, case_types_, case_tags_, enum_constructions_,
                            bounds_proven_, fail_fast_expressions_,
                            class_expr_initialized_paths_, scan_formats_, nullptr,
-                           {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}};
+                           {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}};
     for (const auto& [read, check] : initialization_checks_) {
         if (check.binding) checked.initialization_flags.insert(check.binding);
     }
+    checked.implicit_numeric_argument_conversions = std::move(implicit_numeric_argument_conversions_);
     checked.initialization_masked_classes = std::move(initialization_masked_classes_);
     checked.complex_parts = std::move(complex_part_accesses_);
     checked.initialization_checks = std::move(initialization_checks_);

@@ -104,8 +104,8 @@ json_row recursion 101 '
 assert report["code"] == "CALL_DEPTH_LIMIT"
 assert report["message"] == "maximum recursion depth exceeded (limit 4096)"
 assert report["details"] == {"limit": 4096}, report["details"]
-assert sum := assert(frame["count"] for frame in report["path"]) == 4096, report["path"]
-assert all := assert(frame["function"] == "down" and frame["via"] == "call"
+assert sum(frame["count"] for frame in report["path"]) == 4096, report["path"]
+assert all(frame["function"] == "down" and frame["via"] == "call"
            for frame in report["path"]), report["path"]
 assert report["path"][-1]["line"] == 4 and report["path"][-1]["count"] == 1
 '

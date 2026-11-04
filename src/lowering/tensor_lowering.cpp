@@ -15,11 +15,13 @@ namespace quidra::lowering {
 
 ValueId TensorLowering::lower_runtime_array(const Expr& argument, bool& converted) {
     const auto runtime_type=Type::array(Type::simple(TypeKind::Int64));
-    converted=type_of(checked_,argument)!=runtime_type;
+    converted=type_of(checked_,argument)!=runtime_type ||
+        checked_.implicit_numeric_argument_conversions.contains(&argument);
     // A literal shape ([2, 3]) is built as int64 elements directly, so that
     // it stays a constant array instead of a converted copy.
     if(const auto* literal=std::get_if<ArrayExpr>(&argument.data);
-       literal && converted && !checked_.fail_fast_expressions.contains(&argument)){
+       literal && converted && !checked_.fail_fast_expressions.contains(&argument) &&
+       !checked_.implicit_numeric_argument_conversions.contains(&argument)){
         auto raw=checked_.raw_types.at(&argument);
         if(raw.kind==TypeKind::Array && raw.first && is_integer_family_type(*raw.first)){
             std::vector<ValueId> values;

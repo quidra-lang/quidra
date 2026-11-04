@@ -528,8 +528,7 @@ entry:
   br i1 %inline, label %small, label %slow
 small:
   %v = ashr i64 %w, 1
-  %d = sitofp i64 %v to double
-  %f = fptrunc double %d to float
+  %f = sitofp i64 %v to float
   ret float %f
 slow:
   %ok = call i1 @quidra_int_try_float32(i64 %w, ptr %slot)
@@ -564,8 +563,7 @@ entry:
   br i1 %inline, label %small, label %slow
 small:
   %v = ashr i64 %w, 1
-  %d = sitofp i64 %v to double
-  %f = fptrunc double %d to float
+  %f = sitofp i64 %v to float
   store float %f, ptr %out, align 4
   ret i1 true
 slow:

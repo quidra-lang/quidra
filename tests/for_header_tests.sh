@@ -39,7 +39,7 @@ for descending,inclusive_start,inclusive_end in itertools.product((False,True),r
         step=-magnitude if descending else magnitude
         op1=('>=' if inclusive_start else '>') if descending else ('<=' if inclusive_start else '<')
         op2=('>=' if inclusive_end else '>') if descending else ('<=' if inclusive_end else '<')
-        source += [f'int8 s{ordinal} = {start}',f'int8 e{ordinal} = {end}',f'int8 k{ordinal} = {step}',
+        source += [f'int8 s{ordinal} := {start}',f'int8 e{ordinal} := {end}',f'int8 k{ordinal} := {step}',
                    f'for s{ordinal} {op1} int8 v{ordinal} {op2} e{ordinal} step k{ordinal}',
                    f'    print(v{ordinal})','    print(NL)',f'print("end{ordinal}")','print(NL)']
         value=start if inclusive_start else start+step

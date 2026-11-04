@@ -37,7 +37,7 @@ mark("tracked")
 print("{tracked.untrack()[0].item()}{NL}")
 QUI
 QUIDRA_COUNTERS="$TMP/track.jsonl" "$QUIDRA" run "$TMP/track.qui" >"$TMP/track.out"
-[[ "$(cat "$TMP/track.out")" == 1 ]]
+[[ "$(cat "$TMP/track.out")" == 1.0 ]]
 
 cat > "$TMP/materialize.qui" <<'QUI'
 extern void mark(const string label) = "qcore_counters_mark"
@@ -49,7 +49,7 @@ mark("materialized")
 print("{dense.cpu()[0, 0].item()}{NL}")
 QUI
 QUIDRA_COUNTERS="$TMP/materialize.jsonl" "$QUIDRA" run "$TMP/materialize.qui" >"$TMP/materialize.out"
-[[ "$(cat "$TMP/materialize.out")" == 1 ]]
+[[ "$(cat "$TMP/materialize.out")" == 1.0 ]]
 
 python3 - "$TMP" <<'PY'
 import json, pathlib, sys

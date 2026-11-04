@@ -200,13 +200,13 @@ std::optional<ValueId> AggregateLowering::try_array_method(
             source_type=dynamic_type;
             source_owned=true;
         }
-        auto separator=lowerer_.lower(*n.args[0].value);
+        auto separator=lowerer_.lower_argument(*n.args[0].value);
         auto out=builder_.fresh();
         builder_.emit(StringJoin{
             out,source,separator,
             {static_cast<std::uint32_t>(e.span.start.line),
             static_cast<std::uint32_t>(e.span.start.column)}});
-        lifetime_.release_temporary(*n.args[0].value,separator);
+        lowerer_.release_argument(*n.args[0].value,separator);
         if(source_owned) release_owned(builder_,source,source_type);
         return out;
     }
@@ -239,13 +239,12 @@ std::optional<ValueId> AggregateLowering::try_array_method(
             if(source_owned) release_owned(builder_,source,receiver_type);
             return output;
         }
-        const bool other_owned=lifetime_.expression_owns_result(*n.args[0].value);
-        auto other=lowerer_.lower(*n.args[0].value),other_length=builder_.fresh();builder_.emit(ArrayLength{other_length,other});
+        auto other=lowerer_.lower_argument(*n.args[0].value),other_length=builder_.fresh();builder_.emit(ArrayLength{other_length,other});
         auto output_length=builder_.fresh();builder_.emit(Binary{output_length,"+",source_length,other_length,Type::simple(TypeKind::Int64),Type::simple(TypeKind::Int64)});
         auto output=builder_.fresh();builder_.emit(ArrayAlloc{output,output_length,result_type});
         const auto zero=builder_.const_int(0);copy_into(source,source_length,output,zero,"concat.left");copy_into(other,other_length,output,source_length,"concat.right");
         if(source_owned) release_owned(builder_,source,receiver_type);
-        if(other_owned) release_owned(builder_,other,type_of(checked_,*n.args[0].value));
+        lowerer_.release_argument(*n.args[0].value,other);
         return output;
     }
     return std::nullopt;
@@ -270,7 +269,7 @@ ValueId AggregateLowering::lower_array_allocation(const Expr& e, const CallExpr&
         zero_fill=!value->value && t.first->kind==TypeKind::Bool;
     if(zero_fill) return out;
 
-    auto fill=lowerer_.lower(fill_expression);
+    auto fill=lowerer_.lower_argument(fill_expression);
     auto idxname=builder_.hidden("fill.index");
     scope_.local_type(idxname)=Type::simple(TypeKind::Int64);
     auto zero=builder_.const_int(0);
@@ -293,17 +292,17 @@ ValueId AggregateLowering::lower_array_allocation(const Expr& e, const CallExpr&
     builder_.emit(StoreLocal{idxname,next,scope_.local_type(idxname)});
     builder_.emit(Jump{cond});
     builder_.enter(builder_.add_block(done));
-    lifetime_.release_temporary(*n.args[1].value,fill);
+    lowerer_.release_argument(*n.args[1].value,fill);
     return out;
 }
 
 ValueId AggregateLowering::lower_len(const Expr& e, const CallExpr& n) {
-    auto value=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    const auto kind=type_of(checked_,*n.args[0].value).kind;
+    auto value=lowerer_.lower_argument(*n.args[0].value),out=builder_.fresh();
+    const auto kind=lowerer_.argument_type(*n.args[0].value).kind;
     if(kind==TypeKind::Bin)builder_.emit(BinLength{out,value});
     else if(kind==TypeKind::String)builder_.emit(StringLength{out,value});
     else builder_.emit(ArrayLength{out,value});
-    lifetime_.release_temporary(*n.args[0].value,value);
+    lowerer_.release_argument(*n.args[0].value,value);
     // A length is within [0, 2^62): its word is inline.
     return lowerer_.bare_from_int64(out,type_of(checked_,e),true);
 }

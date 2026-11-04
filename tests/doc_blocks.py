@@ -79,11 +79,11 @@ def prelude(root: Path, path: Path, code: str) -> str:
             return LOOKUP
     if rel == "docs/spec/language.md":
         stripped = code.lstrip()
-        if stripped.startswith("point := Point(") and "class Point" not in code:
+        if re.search(r"(?m)^point := Point\(", code) and "class Point" not in code:
             return "class Point(real64 x, real64 y)\n\n"
         if "class Point" not in code and (stripped.startswith("Point pending\n") or "\nPoint point := Point(" in code):
             return POINT_GENERATION
-        if stripped.startswith("Box<int> box"):
+        if stripped.startswith(("Box<int> box", "box := Box<int>()")):
             return GENERIC
         if stripped.startswith("Point point") and "Config config" in code:
             return POINT + CONFIG

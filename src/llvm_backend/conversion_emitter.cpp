@@ -101,6 +101,9 @@ void ConversionEmitter::store_conversion_error(const std::string& payload,int ta
 
 void ConversionEmitter::reserve(const ir::NumericConvert& n,const ir::Instruction& ins){
     if(is_fixed_complex(n.target_type)) scratch_.reserve(ins,LlvmType::array(2,double_type),Align::eight);
+    if (n.checked_range && is_half_real(n.target_type) &&
+        (is_bare_integer(n.source_type) || n.source_type.kind == TypeKind::Real))
+        scratch_.reserve_shared(ScratchPlanner::SharedSlot::FallibleExactFloat64,double_type,Align::eight);
 }
 
 void ConversionEmitter::reserve(const ir::FallibleNumericConvert& n,const ir::Instruction& ins){
@@ -310,7 +313,7 @@ void ConversionEmitter::emit_half_conversion(const Type& source,const Type& targ
         return;
     }
     if(is_bare_integer(source)||source.kind==TypeKind::Real){
-        if(fallible){
+        if(fallible || checked){
             const auto& slot=scratch_.shared_slot(ScratchPlanner::SharedSlot::FallibleExactFloat64);
             if(slot.empty()) throw std::logic_error("missing planned exact float cast scratch slot");
             exact_ok=names_.value("cast.exact.float.ok");
@@ -730,16 +733,10 @@ void ConversionEmitter::emit(const ir::NumericConvert& n,const ir::Instruction& 
         else if(target_width<source_width) builder_.cast(symbols_.value(n.out),CastOp::trunc,{source_ty,symbols_.value(n.value)},target_ty);
         else builder_.cast(symbols_.value(n.out),is_signed_integer(n.source_type)?CastOp::sext:CastOp::zext,{source_ty,symbols_.value(n.value)},target_ty);
     }else if(is_fixed_integer(n.source_type)&&is_fixed_real(n.target_type)){
+        // Every fixed-width integer is within real32/real64's range. IEEE
+        // rounding is allowed; an integer round trip would incorrectly reject
+        // ordinary precision loss. Half conversions check their range above.
         builder_.cast(symbols_.value(n.out),is_signed_integer(n.source_type)?CastOp::sitofp:CastOp::uitofp,{source_ty,symbols_.value(n.value)},target_ty);
-        if(n.checked_range){
-            const auto back=names_.value("cast.back");
-            const auto sat=runtime_abi::llvm_intrinsic::saturating_float_to_integer(
-                is_signed_integer(n.source_type),source_width,n.target_type.kind==TypeKind::Real32);
-            builder_.call(back,source_ty,sat,{{target_ty,symbols_.value(n.out)}});
-            const auto mismatch=names_.value("cast.mismatch");
-            builder_.icmp(mismatch,IntPredicate::ne,source_ty,back,symbols_.value(n.value));
-            emit_fail_check({mismatch},out_of_range);
-        }
     }else if(is_fixed_real(n.source_type)&&is_fixed_integer(n.target_type)){
         const auto intrinsic=runtime_abi::llvm_intrinsic::saturating_float_to_integer(
             is_signed_integer(n.target_type),target_width,n.source_type.kind==TypeKind::Real32);

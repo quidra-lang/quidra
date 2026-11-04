@@ -87,7 +87,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
         static_cast<std::uint32_t>(match.value->span.start.column);
 
     auto object = lowerer_.lower(*call->receiver);
-    auto key = lowerer_.lower(*call->args[0].value);
+    auto key = lowerer_.lower_argument(*call->args[0].value);
     auto hash = builder_.fresh();
     builder_.emit(Call{
         hash, hash_method->second,
@@ -211,6 +211,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
     scope_.restore(before);
     if (joined_full) facts_.array_initialization.set_full_arrays(std::move(*joined_full));
     else facts_.array_initialization.clear_full_arrays();
+    lowerer_.release_argument(*call->args[0].value, key);
     return true;
 }
 

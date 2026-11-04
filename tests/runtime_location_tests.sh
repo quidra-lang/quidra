@@ -305,7 +305,7 @@ check_run indented 101 line=3 column=23 snippet=yes "source=        return value
 # literal, Japanese text and a combining mark before the column, a CRLF file.
 caret_row() {
     local name=$1 literal=$2
-    printf 'void pair(string text, int value)\n    print(value)\n\nint[] values = [1, 2, 3]\npair("%s", values[3])\n' \
+    printf 'void pair(string text, int value)\n    print(value)\n\nint[] values := [1, 2, 3]\npair("%s", values[3])\n' \
         "$literal" > "$TMP/$name.qui"
     build "$name" || { fail "$name: build failed"; return; }
     local column

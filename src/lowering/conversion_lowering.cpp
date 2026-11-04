@@ -17,6 +17,53 @@ bool array_shape_conversion(const Type& from, const Type& to) {
     return from.kind == TypeKind::Array && to.kind == TypeKind::Array && from != to;
 }
 
+// A by-value argument has the same conversion contract as a spelled numeric
+// cast, with its error consumed at the argument site before entering the callee.
+ValueId ConversionLowering::convert_numeric_argument(
+    ValueId value, const Type& source, const Type& target, SourceSpan span) {
+    const SourcePosition site{static_cast<std::uint32_t>(span.start.line),
+                              static_cast<std::uint32_t>(span.start.column)};
+    auto out = builder_.fresh();
+    if (source.kind == TypeKind::Tensor) {
+        auto cast_target = source;
+        cast_target.first = target.first;
+        builder_.emit(TensorCast{out, value, source, cast_target, cast_target, site});
+        return out;
+    }
+    if (source.kind == TypeKind::Array) {
+        const auto preserve_shape = [&](const auto& self, const Type& from, const Type& to) -> Type {
+            if (from.kind != TypeKind::Array) return to;
+            auto result = from;
+            result.first = std::make_shared<Type>(self(self, *from.first, *to.first));
+            return result;
+        };
+        const auto cast_target = preserve_shape(preserve_shape, source, target);
+        const auto result_type = Type::union_of({cast_target, Type::simple(TypeKind::Error)});
+        builder_.emit(ArrayNumericCast{out, value, source, cast_target, result_type, site});
+        auto converted = consume_fail_fast(out, result_type, cast_target, true, span);
+        auto result = convert(converted, cast_target, target);
+        if (array_shape_conversion(cast_target, target)) release_owned(builder_, converted, cast_target);
+        return result;
+    }
+    auto conversion_source = source;
+    auto conversion_value = value;
+    const bool ieee_integer = is_fixed_real(source) && is_integer_family_type(target);
+    if (ieee_integer) {
+        conversion_source = Type::simple(TypeKind::Real);
+        conversion_value = builder_.fresh();
+        builder_.emit(NumericConvert{conversion_value, value, source, conversion_source, false, site});
+    }
+    if (numeric_conversion_policy(conversion_source, target) == NumericConversionPolicy::ExplicitRangeCheck) {
+        const auto result_type = Type::union_of({target, Type::simple(TypeKind::Error)});
+        builder_.emit(FallibleNumericConvert{out, conversion_value, conversion_source, target, result_type, site});
+        out = consume_fail_fast(out, result_type, target, true, span);
+    } else {
+        builder_.emit(NumericConvert{out, conversion_value, conversion_source, target, false, site});
+    }
+    if (ieee_integer) release_owned(builder_, conversion_value, conversion_source);
+    return out;
+}
+
 ValueId ConversionLowering::consume_fail_fast(ValueId container, const Type& source,
                           const Type& target, bool owned, SourceSpan span,
                           const ErrorHopCall* hop) {

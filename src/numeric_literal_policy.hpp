@@ -14,9 +14,8 @@ namespace quidra::numeric_policy {
 // as nat* or int*, a negative one (unary `-` applied to an integer literal,
 // `-0` included) as int* only, a real literal (`0.5`) as real*, and an
 // imaginary literal (`2.0i`) or a complex one (a real and an imaginary
-// literal joined by `+` or `-`) as a complex type, of which there is none
-// yet. Mixed: an expression joining categories that do not combine (an
-// integer and a real literal). None: not a literal expression.
+// literal joined by `+` or `-`) as a complex type. Numeric operators join
+// these categories by family priority. None: not a literal expression.
 enum class NumericLiteralCategory {
     None,
     NonNegativeInteger,
@@ -45,8 +44,8 @@ inline bool complex_category(NumericLiteralCategory category) {
 
 // The category of two literal expressions joined by an operator (or two
 // branches of an if-expression): integers join as integers, negative when
-// either is; a real and an imaginary literal, or a complex one with either,
-// make a complex literal; any other pair is Mixed.
+// either is. A real category takes priority over integer categories, and a
+// complex category over both.
 inline NumericLiteralCategory join_numeric_literal_categories(NumericLiteralCategory left,
                                                               NumericLiteralCategory right) {
     using C = NumericLiteralCategory;
@@ -56,10 +55,8 @@ inline NumericLiteralCategory join_numeric_literal_categories(NumericLiteralCate
         return left == C::NegativeInteger || right == C::NegativeInteger ? C::NegativeInteger
                                                                         : C::NonNegativeInteger;
     if (left == right) return left;
-    const auto complex_part = [](C category) {
-        return category == C::Real || complex_category(category);
-    };
-    if (complex_part(left) && complex_part(right)) return C::Complex;
+    if (complex_category(left) || complex_category(right)) return C::Complex;
+    if (left == C::Real || right == C::Real) return C::Real;
     return C::Mixed;
 }
 
@@ -122,7 +119,11 @@ struct NumericLiteralContext {
 inline NumericLiteralContext numeric_literal_context(
     const Type* expected, NumericLiteralCategory category) {
     NumericLiteralContext result;
-    if (!expected || !single_family_category(category)) return result;
+    if (!single_family_category(category)) return result;
+    if (!expected) {
+        result.type = Type::simple(integer_category(category) ? TypeKind::Int : TypeKind::Real);
+        return result;
+    }
 
     const bool integer = integer_category(category);
     const auto natural = [](const Type& candidate) {

@@ -18,6 +18,7 @@
 #include "quidra/types.hpp"
 
 #include "nesting_budget.hpp"
+#include "numeric_literal_policy.hpp"
 #include "shape_relations.hpp"
 #include "compiler_extension_binding.hpp"
 #include "semantics/interface_contracts.hpp"
@@ -4449,6 +4450,32 @@ private:
     std::optional<TypeName> infer_call_argument_type(
         const Expr& value, const TypeName& parameter, const std::string& current_class) const {
         auto actual = infer_expression_type(value, current_class);
+        const auto literal_context = [&](const auto& self, const Expr& literal,
+                                         TypeName target) -> bool {
+            if (const auto* array = std::get_if<ArrayExpr>(&literal.data)) {
+                if (target.dimensions.empty()) return false;
+                target.dimensions.erase(target.dimensions.begin());
+                target.array_depth = target.dimensions.size();
+                return std::all_of(array->elements.begin(), array->elements.end(),
+                    [&](const auto& item) { return self(self, *item, clone_type(target)); });
+            }
+            if (!target.dimensions.empty() || !target.arguments.empty()) return false;
+            const auto* numeric = numeric_type_name(target.name);
+            if (!numeric) return false;
+            const auto family = numeric_policy::numeric_literal_family(literal);
+            if (numeric_policy::complex_category(family)) return numeric->family == NumericFamily::Complex;
+            const auto concrete = Type::simple(numeric->kind);
+            const auto context = numeric_policy::numeric_literal_context(&concrete, family);
+            return context.type && !context.ambiguous;
+        };
+        if (literal_context(literal_context, value, clone_type(parameter))) {
+            auto contextual = clone_type(parameter);
+            if (actual && actual->dimensions.size() == contextual.dimensions.size()) {
+                for (std::size_t i = 0; i < contextual.dimensions.size(); ++i)
+                    if (contextual.dimensions[i] < 0) contextual.dimensions[i] = actual->dimensions[i];
+            }
+            return contextual;
+        }
         if (actual || parameter.name != "func" || !parameter.dimensions.empty()) return actual;
 
         const auto* name = std::get_if<NameExpr>(&value.data);
@@ -4518,14 +4545,12 @@ private:
             result.span = expression.span;
             return result;
         }
-        // Numeric literals carry only a family until a surrounding concrete type
-        // determines their representation. Generic inference must not invent
-        // default int/float types for them.
-        if (std::holds_alternative<IntegerExpr>(expression.data) ||
-            std::holds_alternative<RealLiteralExpr>(expression.data) ||
-            std::holds_alternative<LiteralConstantExpr>(expression.data)) {
-            return std::nullopt;
-        }
+        // Unconstrained values have the same defaults as the checker. A
+        // concrete formal may contextualize a literal later, after selection.
+        if (std::holds_alternative<IntegerExpr>(expression.data)) return simple_type("int");
+        if (std::holds_alternative<RealLiteralExpr>(expression.data) ||
+            std::holds_alternative<LiteralConstantExpr>(expression.data)) return simple_type("real");
+        if (std::holds_alternative<ImaginaryLiteralExpr>(expression.data)) return simple_type("com");
         if (std::holds_alternative<StringExpr>(expression.data) ||
             std::holds_alternative<StringTemplateExpr>(expression.data)) return simple_type("string");
         if (std::holds_alternative<BoolExpr>(expression.data)) return simple_type("bool");
@@ -4561,14 +4586,27 @@ private:
         }
         if (const auto* array = std::get_if<ArrayExpr>(&expression.data)) {
             if (array->elements.empty()) return std::nullopt;
-            const auto first = infer_expression_type(*array->elements.front(), current_class);
+            std::size_t seed = 0;
+            for (std::size_t i = 0; i < array->elements.size(); ++i) {
+                if (numeric_policy::numeric_literal_family(*array->elements[i]) ==
+                    numeric_policy::NumericLiteralCategory::None) { seed = i; break; }
+            }
+            const auto first = infer_expression_type(*array->elements[seed], current_class);
             if (!first) return std::nullopt;
-            for (std::size_t i = 1; i < array->elements.size(); ++i) {
-                const auto current =
-                    infer_expression_type(*array->elements[i], current_class);
-                if (!current || canonical_type(*current) != canonical_type(*first)) {
-                    return std::nullopt;
-                }
+            for (std::size_t i = 0; i < array->elements.size(); ++i) {
+                if (i == seed) continue;
+                const auto family = numeric_policy::numeric_literal_family(*array->elements[i]);
+                const auto* target = numeric_type_name(first->name);
+                const bool compatible_literal = first->dimensions.empty() && target &&
+                    ((numeric_policy::integer_category(family) &&
+                      (target->family == NumericFamily::Integer || target->family == NumericFamily::Natural) &&
+                      (family != numeric_policy::NumericLiteralCategory::NegativeInteger ||
+                       target->family != NumericFamily::Natural)) ||
+                     (family == numeric_policy::NumericLiteralCategory::Real && target->family == NumericFamily::Real) ||
+                     (numeric_policy::complex_category(family) && target->family == NumericFamily::Complex));
+                if (compatible_literal) continue;
+                const auto current = infer_expression_type(*array->elements[i], current_class);
+                if (!current || canonical_type(*current) != canonical_type(*first)) return std::nullopt;
             }
             auto result = clone_type(*first);
             result.dimensions.insert(
@@ -4589,11 +4627,47 @@ private:
             const bool equality = binary->op == "==" || binary->op == "!=";
             if (!relational && !equality && binary->op != "+" && binary->op != "-" &&
                 binary->op != "*" && binary->op != "/" &&
-                binary->op != "%" && binary->op != "^") {
+                binary->op != "%" && binary->op != "^" &&
+                !operator_policy::is_fixed_width_bitwise_binary(binary->op)) {
                 return std::nullopt;
             }
             auto left = infer_expression_type(*binary->left, current_class);
             auto right = infer_expression_type(*binary->right, current_class);
+            const auto numeric_leaf = [](const TypeName& value) -> const NumericKindInfo* {
+                if (value.name == "tensor" && value.arguments.size() == 1)
+                    return numeric_type_name(value.arguments.front().name);
+                return value.arguments.empty() ? numeric_type_name(value.name) : nullptr;
+            };
+            const auto literal_source = [&](const auto& self, const Expr& value) -> bool {
+                if (const auto* array = std::get_if<ArrayExpr>(&value.data))
+                    return std::all_of(array->elements.begin(), array->elements.end(),
+                        [&](const auto& item) { return self(self, *item); });
+                return numeric_policy::numeric_literal_family(value) != numeric_policy::NumericLiteralCategory::None;
+            };
+            const auto contextualize_literal = [&](const Expr& value, const TypeName& other,
+                                                    std::optional<TypeName>& actual) {
+                const auto* target = numeric_leaf(other);
+                if (!target || !actual) return;
+                const auto compatible = [&](const auto& self, const Expr& child) -> bool {
+                    if (const auto* array = std::get_if<ArrayExpr>(&child.data))
+                        return std::all_of(array->elements.begin(), array->elements.end(),
+                            [&](const auto& item) { return self(self, *item); });
+                    const auto family = numeric_policy::numeric_literal_family(child);
+                    return (numeric_policy::integer_category(family) &&
+                        (target->family == NumericFamily::Integer || target->family == NumericFamily::Natural) &&
+                        (family != numeric_policy::NumericLiteralCategory::NegativeInteger ||
+                         target->family != NumericFamily::Natural)) ||
+                        (family == numeric_policy::NumericLiteralCategory::Real && target->family == NumericFamily::Real) ||
+                        (numeric_policy::complex_category(family) && target->family == NumericFamily::Complex);
+                };
+                if (compatible(compatible, value)) actual->name = std::string(target->spelling);
+            };
+            const bool left_is_literal = literal_source(literal_source, *binary->left);
+            const bool right_is_literal = literal_source(literal_source, *binary->right);
+            if (left && right_is_literal && !left_is_literal)
+                contextualize_literal(*binary->right, *left, right);
+            if (right && left_is_literal && !right_is_literal)
+                contextualize_literal(*binary->left, *right, left);
             const auto numeric_literal = [](const Expr& value) {
                 return std::holds_alternative<IntegerExpr>(value.data) ||
                        std::holds_alternative<RealLiteralExpr>(value.data);
@@ -4614,6 +4688,37 @@ private:
                 return std::optional<TypeName>{std::move(value)};
             };
             if (left && right) {
+                const auto* a = numeric_leaf(*left);
+                const auto* b = numeric_leaf(*right);
+                const bool left_tensor = left->name == "tensor";
+                const bool right_tensor = right->name == "tensor";
+                const bool left_array = !left->dimensions.empty();
+                const bool right_array = !right->dimensions.empty();
+                if (a && b && !((left_tensor && right_array) || (right_tensor && left_array))) {
+                    const auto common = numeric_common_type(Type::simple(a->kind), Type::simple(b->kind));
+                    if (left_tensor || right_tensor) {
+                        auto result = clone_type(left_tensor ? *left : *right);
+                        result.arguments.front().name = type_name(*common);
+                        return with_span(std::move(result));
+                    }
+                    if (left_array || right_array) {
+                        if (equality) return simple_type("bool");
+                        if (left_array && right_array && left->dimensions.size() != right->dimensions.size())
+                            return std::nullopt;
+                        auto result = clone_type(left_array ? *left : *right);
+                        if (left_array && right_array) {
+                            for (std::size_t axis = 0; axis < result.dimensions.size(); ++axis) {
+                                if (result.dimensions[axis] < 0) result.dimensions[axis] = right->dimensions[axis];
+                                else if (right->dimensions[axis] >= 0 && result.dimensions[axis] != right->dimensions[axis])
+                                    return std::nullopt;
+                            }
+                        }
+                        result.name = type_name(*common);
+                        return with_span(std::move(result));
+                    }
+                    return with_span(*simple_type(type_name(*common)));
+                }
+
                 if (canonical_type(*left) == canonical_type(*right))
                     return with_span(clone_type(*left));
                 const auto tensor_scalar = [&](const TypeName& tensor,
@@ -4757,6 +4862,26 @@ private:
                 return result;
             }
             if (const auto* numeric = numeric_type_name(call->callee)) {
+                // Numeric casts preserve container structure and static shape;
+                // only the numeric leaf representation changes. Checking the
+                // cast later retains its ordinary error/fail-fast behavior.
+                if (call->args.size() == 1) {
+                    auto source = infer_expression_type(*call->args.front().value, current_class);
+                    if (source) {
+                        if (auto success = non_error_type(*source)) source = std::move(success);
+                        if (source->name == "tensor" && source->arguments.size() == 1 &&
+                            source->dimensions.empty()) {
+                            source->arguments.front() = *simple_type(std::string(numeric->spelling));
+                            source->span = expression.span;
+                            return source;
+                        }
+                        if (!source->dimensions.empty() && numeric_type_name(source->name)) {
+                            source->name = std::string(numeric->spelling);
+                            source->span = expression.span;
+                            return source;
+                        }
+                    }
+                }
                 return simple_type(std::string(numeric->spelling));
             }
             if (call->callee == "len") return simple_type("nat");
@@ -5088,6 +5213,8 @@ private:
                 if (!consider(*value)) return std::nullopt;
             }
             if (!consider(*node->otherwise)) return std::nullopt;
+            if (!result && !node->values.empty())
+                result = infer_expression_type(*node->values.front(), current_class);
             if (result) result->span = expression.span;
             return result;
         }
@@ -5199,35 +5326,52 @@ private:
         const std::unordered_set<std::string> parameters{solved.begin(), solved.end()};
         Substitution inferred;
         std::vector<bool> filled(callee_parameters.size(), false);
+        std::vector<std::pair<const CallArg*, std::size_t>> bindings;
         std::size_t positional = 0;
-
         for (const auto& argument : args) {
             std::size_t index = callee_parameters.size();
             if (argument.name) {
-                for (std::size_t i = 0; i < callee_parameters.size(); ++i) {
-                    if (callee_parameters[i].name == *argument.name) {
-                        index = i;
-                        break;
-                    }
-                }
+                for (std::size_t i = 0; i < callee_parameters.size(); ++i)
+                    if (callee_parameters[i].name == *argument.name) { index = i; break; }
             } else {
                 while (positional < filled.size() && filled[positional]) ++positional;
                 index = positional++;
             }
             if (index >= callee_parameters.size() || filled[index]) return std::nullopt;
             filled[index] = true;
-
-            // Omitted declaration types are fixed by their own default, not
-            // by a supplied call argument. The checker matches the concrete
-            // argument against that type after this generic solve.
-            if (callee_parameters[index].type.name == "auto") continue;
-            const auto actual = infer_call_argument_type(
-                *argument.value, callee_parameters[index].type, current_class);
-            if (!actual) continue;
-            if (!infer_generic_pattern(
-                    callee_parameters[index].type, *actual, parameters, inferred)) {
+            bindings.emplace_back(&argument, index);
+        }
+        const auto literal_value = [&](const auto& self, const Expr& value) -> bool {
+            if (numeric_policy::numeric_literal_family(value) != numeric_policy::NumericLiteralCategory::None)
+                return true;
+            if (const auto* array = std::get_if<ArrayExpr>(&value.data))
+                return !array->elements.empty() && std::all_of(array->elements.begin(), array->elements.end(),
+                    [&](const auto& item) { return self(self, *item); });
+            return false;
+        };
+        const auto solve = [&](const CallArg& argument, std::size_t index) -> bool {
+            const auto& parameter = callee_parameters[index];
+            // Omitted types are fixed by their declaration's own default.
+            if (parameter.type.name == "auto") return true;
+            const auto actual = infer_call_argument_type(*argument.value, parameter.type, current_class);
+            if (!actual) return true;
+            if (infer_generic_pattern(parameter.type, *actual, parameters, inferred)) return true;
+            // Fixed portions do not infer T; convert them after choosing the instance.
+            return !parameter.writable && !contains_parameter(parameter.type, parameters) &&
+                   concrete_argument_type_match(parameter.type, *actual, true);
+        };
+        // Typed values choose generic arguments before literals receive context.
+        for (const auto& [argument, index] : bindings)
+            if (!literal_value(literal_value, *argument->value) && !solve(*argument, index))
                 return std::nullopt;
-            }
+        const auto typed_inferred = inferred;
+        for (const auto& [argument, index] : bindings) {
+            if (!literal_value(literal_value, *argument->value)) continue;
+            const auto contextual = substitute_raw(callee_parameters[index].type, typed_inferred);
+            if (!contains_parameter(contextual, parameters)) continue;
+            // No resolved context: use int/real/com defaults. Two differently
+            // typed defaults must not invent a cast to solve a repeated T.
+            if (!solve(*argument, index)) return std::nullopt;
         }
 
         if(result_pattern&&result_pattern->name=="$std.reflect.Each"&&traversal_expected_result_) {
@@ -5322,16 +5466,43 @@ private:
         return residual;
     }
 
+    bool numeric_argument_type_match(const TypeName& expected, const TypeName& actual) const {
+        if (expected.dimensions.size() != actual.dimensions.size()) return false;
+        for (std::size_t i = 0; i < expected.dimensions.size(); ++i)
+            if (expected.dimensions[i] >= 0 &&
+                expected.dimensions[i] != actual.dimensions[i]) return false;
+        if (expected.name == "tensor" && actual.name == "tensor" &&
+            expected.dimensions.empty() && actual.dimensions.empty() &&
+            expected.arguments.size() == 1 && actual.arguments.size() == 1) {
+            const auto* to = numeric_type_name(expected.arguments.front().name);
+            const auto* from = numeric_type_name(actual.arguments.front().name);
+            if (!to || !from || !to->tensor_element || !from->tensor_element) return false;
+            const auto shape = [](const TypeName& name) {
+                return Type::tensor(Type::simple(TypeKind::Invalid), name.tensor_rank.value_or(-1),
+                    name.tensor_shape_prefix, name.tensor_known_shape_prefix, name.tensor_shape_ellipsis);
+            };
+            return explicit_numeric_cast_supported(Type::simple(from->kind), Type::simple(to->kind)) &&
+                   tensor_satisfies_shape_prefix(shape(actual), shape(expected));
+        }
+        if (!expected.arguments.empty() || !actual.arguments.empty()) return false;
+        const auto* to = numeric_type_name(expected.name);
+        const auto* from = numeric_type_name(actual.name);
+        return to && from && explicit_numeric_cast_supported(Type::simple(from->kind), Type::simple(to->kind));
+    }
+
     bool concrete_argument_type_match(
-        const TypeName& expected, const TypeName& actual, bool allow_error_unwrap) const {
+        const TypeName& expected, const TypeName& actual, bool allow_error_unwrap,
+        bool allow_numeric_conversion = true) const {
         Substitution ignored;
         if (infer_generic_pattern(expected, actual, {}, ignored)) return true;
+        if (allow_numeric_conversion && numeric_argument_type_match(expected, actual)) return true;
         // Ordinary value arguments may fail fast on an error alternative when
         // their concrete destination accepts the success type. References and
         // inferred generic arguments keep their original declared type.
         if (allow_error_unwrap) {
             if (const auto residual = non_error_type(actual))
-                return infer_generic_pattern(expected, *residual, {}, ignored);
+                return infer_generic_pattern(expected, *residual, {}, ignored) ||
+                    (allow_numeric_conversion && numeric_argument_type_match(expected, *residual));
         }
         return false;
     }
@@ -5341,13 +5512,15 @@ private:
         const std::vector<CallArg>& args,
         const std::string& current_class,
         const Substitution* explicit_arguments = nullptr,
-        bool allow_contextual_error_unwrap = false) const {
+        bool allow_contextual_error_unwrap = false,
+        bool allow_numeric_conversions = true) const {
         const auto targets = bind_family_arguments(function, args);
         if (!targets) return false;
         const auto contextual_match = [&](const auto& self, const Expr& value,
-                                          const TypeName& expected, bool allow_error_unwrap) -> bool {
+                                          const TypeName& expected, bool allow_error_unwrap, bool allow_numeric_conversion) -> bool {
             if (const auto actual = infer_call_argument_type(value, expected, current_class)) {
-                return concrete_argument_type_match(expected, *actual, allow_error_unwrap);
+                return concrete_argument_type_match(expected, *actual, allow_error_unwrap,
+                    allow_numeric_conversion);
             }
             if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
                 if (expected.dimensions.empty()) return false;
@@ -5360,26 +5533,26 @@ private:
                     element.dimension_expressions.erase(element.dimension_expressions.begin());
                 element.array_depth = element.dimensions.size();
                 return std::all_of(array->elements.begin(), array->elements.end(),
-                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap); });
+                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap, allow_numeric_conversion); });
             }
             if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
-                return self(self, *conditional->otherwise, expected, allow_error_unwrap) &&
+                return self(self, *conditional->otherwise, expected, allow_error_unwrap, allow_numeric_conversion) &&
                     std::all_of(conditional->values.begin(), conditional->values.end(),
-                        [&](const auto& item) { return self(self, *item, expected, allow_error_unwrap); });
+                        [&](const auto& item) { return self(self, *item, expected, allow_error_unwrap, allow_numeric_conversion); });
             }
             if (const auto* unary = std::get_if<UnaryExpr>(&value.data)) {
                 return (unary->op == "-" || unary->op == "+") &&
-                    self(self, *unary->operand, expected, allow_error_unwrap);
+                    self(self, *unary->operand, expected, allow_error_unwrap, allow_numeric_conversion);
             }
             if (const auto* binary = std::get_if<BinaryExpr>(&value.data)) {
                 return expected.dimensions.empty() &&
                     (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
                      binary->op == "/" || binary->op == "%" || binary->op == "^") &&
-                    self(self, *binary->left, expected, allow_error_unwrap) &&
-                    self(self, *binary->right, expected, allow_error_unwrap);
+                    self(self, *binary->left, expected, allow_error_unwrap, allow_numeric_conversion) &&
+                    self(self, *binary->right, expected, allow_error_unwrap, allow_numeric_conversion);
             }
             if (const auto* literal = std::get_if<LiteralConstantExpr>(&value.data))
-                return self(self, *literal->value, expected, allow_error_unwrap);
+                return self(self, *literal->value, expected, allow_error_unwrap, allow_numeric_conversion);
             return (std::holds_alternative<IntegerExpr>(value.data) ||
                     std::holds_alternative<RealLiteralExpr>(value.data)) &&
                 expected.dimensions.empty() && expected.arguments.empty() &&
@@ -5393,6 +5566,8 @@ private:
                 ? substituted.emplace(substitute_raw(pattern, *explicit_arguments)) : pattern;
             if (!contextual_match(contextual_match, *args[i].value, expected,
                                   allow_contextual_error_unwrap &&
+                                  !function.parameters[(*targets)[i]].writable,
+                                  allow_numeric_conversions &&
                                   !function.parameters[(*targets)[i]].writable)) return false;
         }
         return true;
@@ -5468,7 +5643,7 @@ private:
 
         for (const auto* function : family->second) {
             if (function->type_parameters.empty()) {
-                if (concrete_family_match(*function, args, current_class)) {
+                if (concrete_family_match(*function, args, current_class, nullptr, false, false)) {
                     concrete_matches.push_back(function);
                 }
             } else if (const auto inferred =
@@ -5476,6 +5651,13 @@ private:
                 generic_matches.push_back(
                     GenericMatch{function, *inferred});
             }
+        }
+
+        if (concrete_matches.empty() && generic_matches.empty()) {
+            for (const auto* function : family->second)
+                if (function->type_parameters.empty() &&
+                    concrete_family_match(*function, args, current_class, nullptr, true))
+                    concrete_matches.push_back(function);
         }
 
         if (concrete_matches.size() > 1) {
@@ -6054,6 +6236,8 @@ private:
                 std::string source_file;
                 bool writable{};
                 bool call_matches{};
+                bool preferred_call{};
+                bool receiver_collision{};
             };
             std::vector<ExtensionCandidate> extensions;
             auto receiver = clone_expr(*node->receiver, substitution, deferred, current_class);
@@ -6063,7 +6247,6 @@ private:
                 std::nullopt, false, std::move(receiver), node->receiver->span});
             auto extension_type_arguments =
                 materialize_type_arguments(node->type_arguments, substitution, deferred);
-            bool contextual_receiver_collision = false;
             for (const auto& [name, family] : function_families_) {
                 if (name != node->method &&
                     !(name.size() > node->method.size()+1 &&
@@ -6074,6 +6257,7 @@ private:
                 bool matches = false;
                 bool mutable_receiver = false;
                 bool call_matches = false;
+                bool preferred_call = false;
                 bool exact_contextual_match = false;
                 bool exact_contextual_collision = false;
                 bool fallback_contextual_collision = false;
@@ -6141,6 +6325,10 @@ private:
                         declaration_matches = concrete_family_match(
                             *declaration, arguments, current_class, &candidate_arguments,
                             !extension_type_arguments.empty());
+                    preferred_call |= declaration_matches &&
+                        ((!declaration->type_parameters.empty() && extension_type_arguments.empty()) ||
+                         concrete_family_match(*declaration, arguments, current_class,
+                                               &candidate_arguments, false, false));
                     // An unknown type is not a wildcard. Literal receivers
                     // can still match through the ordinary family's concrete
                     // contextual argument rules above.
@@ -6165,23 +6353,29 @@ private:
                 // Inferred dispatch keeps an exact generic union match ahead
                 // of a concrete member that only matches after error removal.
                 // Such an unused member cannot introduce a native collision.
-                contextual_receiver_collision |= exact_contextual_match
+                const bool receiver_collision = exact_contextual_match
                     ? exact_contextual_collision : fallback_contextual_collision;
                 extensions.push_back({name, family.front()->source_file,
-                                      mutable_receiver, call_matches});
+                                      mutable_receiver, call_matches, preferred_call, receiver_collision});
             }
             if (!extensions.empty()) {
-                if ((receiver_type && receiver_has_method(*receiver_type, node->method)) ||
-                    contextual_receiver_collision)
-                    frontend_error("EXTENSION_COLLISION",
-                                   "Extension method '" + node->method +
-                                   "' conflicts with an existing method of its receiver type.",
-                                   source.span);
                 if (std::any_of(extensions.begin(), extensions.end(),
                                 [](const auto& candidate) { return candidate.call_matches; })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return !candidate.call_matches; });
                 }
+                if (std::any_of(extensions.begin(), extensions.end(),
+                                [](const auto& candidate) { return candidate.preferred_call; })) {
+                    std::erase_if(extensions,
+                                  [](const auto& candidate) { return !candidate.preferred_call; });
+                }
+                if ((receiver_type && receiver_has_method(*receiver_type, node->method)) ||
+                    std::any_of(extensions.begin(), extensions.end(),
+                        [](const auto& candidate) { return candidate.receiver_collision; }))
+                    frontend_error("EXTENSION_COLLISION",
+                                   "Extension method '" + node->method +
+                                   "' conflicts with an existing method of its receiver type.",
+                                   source.span);
                 // Loading the same source under two import aliases does not
                 // create competing providers of the same extension family.
                 std::sort(extensions.begin(), extensions.end(),
@@ -6355,7 +6549,7 @@ private:
             else if (copy.declared_type.name != "auto") {
                 type_environment_[copy.name] = clone_type(copy.declared_type);
             } else if (copy.value) {
-                if (const auto inferred = infer_expression_type(*copy.value, current_class)) {
+                if (const auto inferred = infer_declaration_type(*copy.value, current_class, copy.reference)) {
                     type_environment_[copy.name] = clone_type(*inferred);
                 }
             }
@@ -7027,7 +7221,7 @@ private:
         for (auto& member : family) {
             if (member.signature.type_parameters.empty()) {
                 if (concrete_family_match(
-                        member.signature, args, current_class)) {
+                        member.signature, args, current_class, nullptr, false, false)) {
                     concrete_matches.push_back(&member);
                 }
             } else if (const auto inferred =
@@ -7036,6 +7230,13 @@ private:
                 generic_matches.push_back(
                     GenericMethodMatch{&member, *inferred});
             }
+        }
+
+        if (concrete_matches.empty() && generic_matches.empty()) {
+            for (auto& member : family)
+                if (member.signature.type_parameters.empty() &&
+                    concrete_family_match(member.signature, args, current_class, nullptr, true))
+                    concrete_matches.push_back(&member);
         }
 
         if (concrete_matches.size() > 1) {

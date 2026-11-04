@@ -479,10 +479,10 @@ Class type positions require explicit type arguments. Class generation calls, fu
 box := Box<int>()
 box.value = 7
 int[] values := [1, 2, 3]
-int first_value := first(values)
+first_value := first(values)
 convert := Convert()
 int sample := 5
-int same := convert.identity(sample)
+same := convert.identity(sample)
 ```
 
 Explicit function or method type arguments remain valid when inference would be ambiguous or when the caller wants to state them explicitly.
@@ -880,7 +880,7 @@ A header may zip several arrays by position:
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
 int total := 0
-for price := prices[], int quantity := quantities[]
+for price := prices[], quantity := quantities[]
     total += price * quantity
 print(total) // 80
 ```
@@ -1035,7 +1035,7 @@ Strings support `{expression}` interpolation, concatenation with `+`, content eq
 
 Numeric interpolation supports a compact format after `:`: `int=N` sets the minimum integer-part width, `frac=N` fixes fractional digits, `sig=N` fixes significant digits, `group=N` inserts ASCII commas every N digits from the right of the integer part, and `zero` changes `int` padding from spaces to zeros. Examples are `"{value:int=5}"`, `"{value:int=4,frac=2,zero}"`, `"{value:sig=4}"`, and `"{value:group=3}"` (123456789 becomes `123,456,789`). `frac` and `sig` are mutually exclusive because they define competing rounding rules, and `zero` requires `int`. `int`, `sig`, and `group` accept literal values 1..1000; `frac` accepts 0..1000. Grouping is applied after rounding and integer padding; it affects the leading decimal integer portion, after any sign, but not the fraction or exponent. A formatted interpolation must be numeric. Ordinary `{value}` interpolation keeps canonical scalar formatting. For an exact `real`, `frac` and `sig` give its correctly rounded digits, ties to even as for fixed-width reals, which Core certifies by refinement (`EXACT_UNPROVEN` when it cannot); `int`, `zero`, and `group` need `frac` or `sig` there, because the canonical text of an exact value need not be a decimal. Complex values do not support `group`.
 
-The immutable built-in `string` values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` denote LF, HT, CR, `"`, BS, FF, VT, and BEL respectively. They are ordinary expressions, so both `"A{HT}B"` and `string separator := HT` use the same value. All eight names are two-letter uppercase abbreviations, and they are the only built-in values spelled entirely in capitals: the capitals mark a symbol the language provides for a character that cannot be written directly, so a reader never has to ask whether `HT` is a user binding. `true`, `none`, `print` and every other built-in keep their ordinary spelling. Lowercase spellings such as `nl`, `ht`, and `bs` are ordinary identifiers, not aliases for these built-ins; they work only when the program defines them. Literal `{{` and `}}` continue to represent braces in an interpolated string. NUL remains forbidden in source strings.
+The immutable built-in `string` values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` denote LF, HT, CR, `"`, BS, FF, VT, and BEL respectively. They are ordinary expressions, so both `"A{HT}B"` and `separator := HT` use the same value. All eight names are two-letter uppercase abbreviations, and they are the only built-in values spelled entirely in capitals: the capitals mark a symbol the language provides for a character that cannot be written directly, so a reader never has to ask whether `HT` is a user binding. `true`, `none`, `print` and every other built-in keep their ordinary spelling. Lowercase spellings such as `nl`, `ht`, and `bs` are ordinary identifiers, not aliases for these built-ins; they work only when the program defines them. Literal `{{` and `}}` continue to represent braces in an interpolated string. NUL remains forbidden in source strings.
 
 Numeric arithmetic requires matching operand types. An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may be contextually typed directly when the literal is representable in that type. Representation changes require an explicit cast or an API operation whose arguments explicitly request that conversion.
 

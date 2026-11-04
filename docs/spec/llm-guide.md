@@ -165,7 +165,7 @@ Multiple-array `for` selects matching positions, not all pairs:
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
 int total := 0
-for price := prices[], int quantity := quantities[]
+for price := prices[], quantity := quantities[]
     total += price * quantity
 print(total) // 80
 ```

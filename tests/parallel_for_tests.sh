@@ -55,7 +55,7 @@ print(NL)
 QUI
 expect cow $'0\n0\n0\n0\n0\n0\n1\n2\n3\n4' <<'QUI'
 int[] a := [0, 0, 0, 0, 0]
-int[] original := a
+original := a
 parallel for x < 5
     a[x] = x
 for int value := original[]

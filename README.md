@@ -403,7 +403,7 @@ into the value that contains it.
 
 ```quidra
 class Holder(local int &source)
-    int &value := &source
+    &value := &source
 
 int count := 1
 first := Holder(&count)
@@ -511,7 +511,7 @@ rounded addition.
 
 ```quidra
 int[] values := [2, 4, 6]
-for int &value := &values[nat index]
+for &value := &values[nat index]
     value += int(index)
 for real32 value <= 1.0 step 0.25
     print.line(value)
@@ -672,7 +672,7 @@ class Model()
     private int weight := 1
     int[] rest := [2, 3]
 model := Model()
-for int &value := &reflect.each<int>(&model)[nat index]
+for &value := &reflect.each<int>(&model)[nat index]
     value += int(index)
 ```
 

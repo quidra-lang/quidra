@@ -17,7 +17,7 @@ Core typing rule: ordinary value arguments never specialize a call's static retu
 11. Named arguments use `name = value`, follow positional arguments, and occur at most once per parameter. For capture-free function values, write an explicit type such as `func<int>(int) operation := twice`. A bare function name needs that explicit type context. The declaration must match the `func` result/parameter types exactly, may not use reference parameters, and an `extern` function or bound method is not a function value. Call a named function-value binding with positional value arguments.
 12. `&storage` means the safe address of existing storage. It is not a numeric pointer. Do not invent `*`, pointer arithmetic, address-to-int conversion, or `is`.
 13. Storage access is explicit at function boundaries: declare `int[] &values` for read/write access and call it with `process(&data)` or a named `&values = &data`. For read-only input declare `const int[] values` and pass `data`; `const T &` is never valid.
-14. Create aliases with `T &alias := &storage`; an unbound local `T &alias` must be bound before access. A class reference field may be initialized explicitly with `&`, or bound/rebound only inside its declaring class with `&name = &storage`. Reference fields have no const qualifier. `&` is storage authority, never part of an array/tuple/generic/union/function result type.
+14. Create aliases with `&alias := &storage`; an unbound local `T &alias` must be bound before access. A class reference field may be initialized explicitly with `&`, or bound/rebound only inside its declaring class with `&name = &storage`. Reference fields have no const qualifier. `&` is storage authority, never part of an array/tuple/generic/union/function result type.
 15. `const T value := expression` creates an immutable value; `const value := expression` infers T. Initialization is required. A const parameter takes a value, `f(data)`, never `&data`; the compiler borrows without a copy when safe and copies where another access may change it. No writable reference may be formed from a const value, including through a const holder's reference fields. `const T &` is `CONST_REFERENCE`. Taking an address does not read its target; never address a temporary.
 16. A stored reference field may target only a whole variable or a path of class fields beneath stable variable storage; storing an array element, tuple element, union payload, map or distinct entry, unresolved place or temporary is REFERENCE_TARGET. Its target must be bound and initialized, and later replacements must preserve initialization. Local references may still capture array elements. References keep targets alive, including after escape or replacement of a containing value; a captured field then stays on detached storage. A whole-variable reference observes later replacement. Never store a holder inside the value it refers into: keep a model and its bound optimizer in separate variables. Separate-variable cycles are allowed and may retain storage.
 17. Ordinary arguments have value semantics, `const` ones included. Reference arguments share the addressed storage and carry read/write authority: `&` is storage access, and `const` makes a value immutable.
@@ -81,7 +81,7 @@ int[] values := [1, 2, 3]
 scale(&values = &values)
 
 int pending
-int &alias := &pending
+&alias := &pending
 alias = 7
 
 match doubled(true)

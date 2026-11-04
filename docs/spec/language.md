@@ -386,7 +386,7 @@ ordinary function form continues to use the explicit `&` argument.
 
 ```quidra
 void scale(extend int[] &values, int factor)
-    for int &value := &values[]
+    for &value := &values[]
         value *= factor
 
 int[] values := [1, 2, 3]
@@ -663,7 +663,7 @@ For example:
 
 ```quidra
 int x := 1
-int &alias := &x
+&alias := &x
 int other := 1
 
 print.line(&x)             // current raw address of x storage
@@ -678,7 +678,7 @@ A value `T` owns its value storage. A reference declaration `T &name` gives read
 
 ```quidra
 int a := 1
-int &b := &a
+&b := &a
 
 b = 5
 ```
@@ -699,17 +699,17 @@ A reference binding may point at a binding, field, or array element:
 
 ```quidra
 int[] values := [1, 2, 3]
-int &first := &values[0]
+&first := &values[0]
 
 point := Point(1.0, 0.0)
-real64 &x := &point.x
+&x := &point.x
 ```
 
 Taking a scalar address does not read the stored value, so uninitialized scalar storage may be referenced by a writable reference that can initialize it. Class instance borrowing requires a successfully initialized instance:
 
 ```quidra
 int value
-int &alias := &value
+&alias := &value
 alias = 7
 print.line(value)
 ```
@@ -758,7 +758,7 @@ A reference can be rebound explicitly:
 ```quidra
 int a := 1
 int c := 2
-int &b := &a
+&b := &a
 
 b = 5
 &b = &c
@@ -794,7 +794,7 @@ A reference to a field or array element captures that substorage at address-form
 
 ```quidra
 int[] values := [1, 2, 3]
-int &first := &values[0]
+&first := &values[0]
 values = [4, 5]
 
 print.line(first)      // 1
@@ -803,7 +803,7 @@ print.line(values[0])  // 4
 
 The implementation keeps the old backing storage alive as long as such a reference needs it. `print(&first)` may observe the current machine address of that pinned substorage, but the numeric-looking text is diagnostic only and is not guaranteed to remain the same across separate executions, builds, platforms, or unrelated storage relocations allowed before an address becomes observable.
 
-A reference to a whole binding is different: `Point &alias := &point` addresses the binding's storage slot, so replacing `point` is visible through `alias`.
+A reference to a whole binding is different: `&alias := &point` addresses the binding's storage slot, so replacing `point` is visible through `alias`.
 
 Quidra intentionally has no Python-style `is` identity operator. Ordinary `==` compares values according to the value type, while `&left == &right` explicitly compares storage identity. Reference fields share only the storage they explicitly designate.
 

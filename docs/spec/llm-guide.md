@@ -77,7 +77,7 @@ void scale(int[] &values, factor := 2)
     for &item := &values[]
         item = item * factor
 
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 scale(&values = &values)
 
 int pending
@@ -162,8 +162,8 @@ Reference parameters are lent by the caller and cannot be rebound.
 Multiple-array `for` selects matching positions, not all pairs:
 
 ```quidra
-int[] prices := [10, 20]
-int[] quantities := [2, 3]
+prices := [10, 20]
+quantities := [2, 3]
 total := 0
 for price := prices[], quantity := quantities[]
     total += price * quantity

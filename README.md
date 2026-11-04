@@ -117,7 +117,7 @@ storage is written with `&`, and writable authority is visible in both the
 parameter and the call.
 
 ```quidra
-int[] original := [1, 2, 3]
+original := [1, 2, 3]
 copy := original
 copy[0] = 9
 
@@ -302,17 +302,17 @@ text := number.string()
 ### Arrays and bin
 
 ```quidra
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 int[3] fixed := [4, 5, 6]
 
 int[] pending := array(100)
 pending[0] = 7
 
-int[] zeros := array(100, fill = 0)
+zeros := array(100, fill = 0)
 values = values.append(4)
 
 names := ["Aki", "Yui", "Haru"]
-int[] scores := [90, 85, 95]
+scores := [90, 85, 95]
 ranked := names.sorted(by = scores, descending = true)
 ```
 
@@ -520,7 +520,7 @@ step and compute each value from the entry lattice rather than repeated
 rounded addition.
 
 ```quidra
-int[] values := [2, 4, 6]
+values := [2, 4, 6]
 for &value := &values[nat index]
     value += int(index)
 for real32 value <= 1.0 step 0.25
@@ -680,7 +680,7 @@ field containing a matching destination is rejected for writable traversal.
 ```quidra
 class Model()
     private weight := 1
-    int[] rest := [2, 3]
+    rest := [2, 3]
 model := Model()
 for &value := &reflect.each<int>(&model)[nat index]
     value += int(index)

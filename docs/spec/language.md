@@ -42,7 +42,7 @@ Write an explicit type when it supplies a needed context or states a stronger co
 Array type information precedes the binding name:
 
 ```quidra
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 int[3] fixed := [4, 7, 8]
 int[2][3] matrix := [[1, 2, 3], [4, 5, 6]]
 ```
@@ -85,11 +85,11 @@ Array `==` and `!=` remain whole-array comparisons requiring matching container 
 array comparison chains are not permitted.
 
 ```quidra
-int[] values := [-2, 3, 0, 4]
+values := [-2, 3, 0, 4]
 positive := values > 0
 selected := values[positive]   // [3, 4]
 squared := values ^ 2         // [4, 9, 0, 16]
-int[] indices := [3, 1, 3]
+indices := [3, 1, 3]
 gathered := values[indices]   // [4, 3, 4]
 locations := values.indices()  // [0, 1, 2, 3]
 ```
@@ -197,7 +197,7 @@ Slices are checked strictly, with no clamping. For a value of length `len`:
 Over ten elements `a[5:3]` selects 5, 4, 3, while `a[5:<3]` and `a[3>:5]` are empty. `a[5:3:1]`, `a[5:<3:1]`, `a[3:5:-1]` and `a[12:<3]` fail. A slice outside these bounds fails with `INDEX_BOUNDS`, which shows the slice as written with its operands' values (`slice 2:<7 out of bounds for length 5`), at compile time when the operands are constant and the length is known (a fixed array), at run time otherwise. Reading a slice reads the selected elements, so each must be initialized.
 
 ```quidra
-int[] values := [10, 20, 30, 40, 50]
+values := [10, 20, 30, 40, 50]
 middle := values[1:3]
 reversed := values[len(values)>:0]
 evens := values[0:<len(values):2]
@@ -351,7 +351,7 @@ int note(string label, int value)
     print(label)
     return value
 
-int[] values := [0, 0, 0]
+values := [0, 0, 0]
 values[note("index ", 1)] = note("value", 5)
 println()
 println(values[1])
@@ -393,7 +393,7 @@ void scale(extend int[] &values, int factor)
     for &value := &values[]
         value *= factor
 
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 .values.scale(2)    // scale(&values, 2)
 ```
 
@@ -482,7 +482,7 @@ Class type positions require explicit type arguments. Class generation calls, fu
 ```quidra
 box := Box<int>()
 box.value = 7
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 first_value := first(values)
 convert := Convert()
 sample := 5
@@ -707,7 +707,7 @@ println(view) // 5
 A reference binding may point at a binding, field, or array element:
 
 ```quidra
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 &first := &values[0]
 
 point := Point(1.0, 0.0)
@@ -802,7 +802,7 @@ Addresses are rooted in existing storage: a binding, a receiver field, or substo
 A reference to a field or array element captures that substorage at address-formation time. Replacing the containing value does not retarget an existing substorage reference:
 
 ```quidra
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 &first := &values[0]
 values = [4, 5]
 
@@ -874,7 +874,7 @@ if 0 <= x < 10
 for 2 <= nat i < 10 step 2
     println(i)
 
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 for &value := &values[]
     value = value * 2
 ```
@@ -886,8 +886,8 @@ Real ranges require an explicit step. Fixed-width operands first materialize in 
 A header may zip several arrays by position:
 
 ```quidra
-int[] prices := [10, 20]
-int[] quantities := [2, 3]
+prices := [10, 20]
+quantities := [2, 3]
 total := 0
 for price := prices[], quantity := quantities[]
     total += price * quantity

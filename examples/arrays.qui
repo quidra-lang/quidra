@@ -2,7 +2,7 @@ void double_all(int[] &values)
     for &value := &values[]
         value = value * 2
 
-int[] values := [1, 2, 3]
+values := [1, 2, 3]
 double_all(&values)
 for value := values[]
     println(value)

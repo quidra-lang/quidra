@@ -9,6 +9,6 @@ for 2 <= int j < 9 step 3
     println(j)
 
 print("array values")
-int[] values := [4, 7, 9]
+values := [4, 7, 9]
 for value := values[]
     println(value)

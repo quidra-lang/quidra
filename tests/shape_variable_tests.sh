@@ -207,5 +207,4 @@ cat > "$TMP/fractional-nat.qui" <<'QUI'
 real64 extent := 2.5
 tensor<real32>{extent} invalid := tensor.zeros()
 QUI
-if "$QUIDRA" "$TMP/fractional-nat.qui" > "$TMP/fractional.out" 2> "$TMP/fractional.err"; then exit 1; fi
-grep -Fq 'NOT_INTEGRAL' "$TMP/fractional.err"
+fails_with "$TMP/fractional-nat.qui" NUMERIC_CONVERSION "value is not an integer and cannot be represented as nat"

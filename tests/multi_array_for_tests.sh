@@ -62,6 +62,13 @@ for p := prices[i], q = quantities[j]
     break
 println("{i}:{j}")
 QUI
+expect reused_uninitialized_indices '1:1' <<'QUI'
+nat i
+nat j
+for _ = [10, 20][i], _ = [2, 3][j]
+    continue
+println("{i}:{j}")
+QUI
 rejects duplicate_indices SHADOWING <<'QUI'
 values := [1]
 for: p := values[i], q := values[i]

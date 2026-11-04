@@ -72,6 +72,20 @@ for: i < count
     nat copy := i
     println(copy)
 QUI
+expect reused_uninitialized_index 1 <<'QUI'
+nat index
+for _ = [10, 20][index]
+    continue
+println(index)
+QUI
+fails empty_uninitialized_index UNINITIALIZED <<'QUI'
+nat index
+int[] empty := []
+println("before")
+for _ = empty[index]
+    println("unexpected")
+println(index)
+QUI
 rejects missing_index UNKNOWN_NAME <<'QUI'
 values := [1]
 for value := values[index]

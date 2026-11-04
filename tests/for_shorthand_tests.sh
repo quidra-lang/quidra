@@ -56,13 +56,13 @@ cat > "$TMP/real.qui" <<'QUI'
 for: real x <= 1.0 step 0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
-for 1.0 >= real x step -0.5
+for: 1.0 >= real x step -0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
 for: real64 x <= 1.0 step 0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
-for 1.0 >= real64 x step -0.5
+for: 1.0 >= real64 x step -0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
 real64 existing := 9.0

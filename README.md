@@ -541,7 +541,9 @@ writes to its target.
 Multiple array sources zip at equal positions and may each name an index:
 
 ```quidra
-for: p := prices[i], int q := quantities[j]
+prices := [100, 200]
+quantities := [2, 3]
+for: p := prices[i], q := quantities[j]
     println("{i}: {p}, {q}")
 ```
 

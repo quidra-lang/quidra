@@ -5465,7 +5465,10 @@ assert tensor == "tensor<T> | tensor<T>{D0, D1, ...}"
 assert "exact-rank" in rank
 assert "compiler-inferred" in rank
 shape=x["inspection"]["type_contracts"]["tensor_shape"]
-assert "nat expression" in shape
+assert "numeric expression" in shape
+assert "result converts to nat" in shape
+assert "explicit-cast checks" in shape
+assert "evaluate once at their original static type" in shape
 assert "captured" in shape
 calls=x["calls"]
 assert calls["argument_order"] == "positional_then_named"

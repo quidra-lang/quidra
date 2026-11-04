@@ -2998,7 +2998,7 @@ QUI
 import package = stream_pkg
 cli args
     int mode = option(default = 0)
-    real64 pause := option(default = 0.0)
+    real64 pause = option(default = 0.0)
 tensor<real32> twice(tensor<real32> c)
     tensor<real32> g := c.gpu($GPU_INDEX)
     return g * 2.0

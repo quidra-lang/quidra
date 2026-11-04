@@ -43,7 +43,7 @@ Create a file named `first.qui` with this small program:
 void increment(int &value)
     value += 1
 
-int count := 7
+count := 7
 increment(&count)
 print("count = ")
 println(count)

@@ -1,4 +1,4 @@
-void replace(int[] &values, int count := 3)
+void replace(int[] &values, count := 3)
     values = array(nat(count), fill = 7)
 
 int[] data := []

@@ -103,8 +103,8 @@ A compatible concrete function parameter supplies literal context; a cross-categ
 more tightly than multiplication and division:
 
 ```quidra
-int base := 2
-int exponent := 10
+base := 2
+exponent := 10
 value := base ^ exponent
 
 real64 x := 4.0
@@ -272,7 +272,7 @@ A contextual constant is declared with `const literal real` or `const literal co
 ```quidra
 import math
 
-const literal real planck := 6.62607015e-34
+const literal planck := 6.62607015e-34
 
 real64 fast_pi := math.pi
 real exact_pi := math.pi
@@ -297,7 +297,7 @@ Explicit conversion uses the destination type as a call:
 int8 small := 10
 wider := int16(small)
 
-int value := 100
+value := 100
 checked := int8(value)
 ```
 

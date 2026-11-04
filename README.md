@@ -70,7 +70,7 @@ Common forms therefore have deliberately narrow jobs:
 | `match` | exhaustive handling of alternatives |
 
 The same rule applies beyond individual tokens: visible names cannot be
-shadowed, numeric values do not silently change representation, ordinary
+shadowed, numeric operators and value arguments use checked conversion rules, ordinary
 assignment does not create observable aliasing, and CPU/GPU movement is never
 inferred from a later operation.
 
@@ -86,7 +86,7 @@ void increment(int &value)
 real32 first_sample(const tensor<real32>{3, _, _} pixels)
     return pixels[0, 0, 0].item()
 
-int count := 7
+count := 7
 increment(&count)
 
 tensor<real32>{3, _, _} pixels := tensor.zeros([3, 224, 224])
@@ -103,8 +103,8 @@ The surviving tokens carry concrete semantics:
 - `const tensor<real32>{3, _, _} pixels` says the function observes a value without write authority, with `real32`, rank 3, and first extent 3
   fixed in the type.
 - `AND` cannot be confused with boolean `and`, storage `&`, or union `|`.
-- Ordinary `=` still means value semantics; none of these forms invents hidden
-  aliasing or implicit conversion.
+- Ordinary `=` still means value semantics. Writable references retain their
+  exact storage type; numeric value arguments use checked parameter conversion.
 
 This is semantic compression: remove repetition, not distinctions.
 
@@ -124,7 +124,7 @@ copy[0] = 9
 void reset(int &value)
     value = 0
 
-int count := 5
+count := 5
 reset(&count)
 ```
 
@@ -141,21 +141,27 @@ likewise checked rather than guessed.
 The source does not repeat proofs the compiler already has. It does state the
 intent that cannot be inferred safely.
 
-### Representation changes are explicit
+### Numeric conversions follow static rules
 
-A typed numeric value never changes representation merely because a destination
-could hold it. Conversions use the destination type, such as `real32(value)`
-or `int8(value)`. Real-to-integer conversion accepts only mathematically integral values in
-the destination range. Fractional values require a named rounding operation:
-`math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
+Numeric operators select the highest operand family, then the widest type only
+within that family, and convert both operands before evaluation. Numeric value
+arguments convert to the resolved parameter type with the same checks as an
+explicit cast. Both rules preserve the original variables' storage types.
 
-A required result type is a constraint, not permission to convert.
+Assignments and returns require explicit conversion between already-typed
+representations, such as `real32(value)` or `int8(value)`. Writable references
+require an exact storage type. Real-to-integer conversion accepts only
+mathematically integral values in range. Fractional values require a named
+rounding operation: `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
+
+The [numeric specification](docs/spec/numeric-and-bin.md) defines literal
+defaults, common types, rounding and failure behavior.
 
 ### Failure is lightweight by default, explicit when retained
 
 Fallible operations can flow directly into a success-only context; an actual
-`error` then fails fast at that boundary. Explicit `T | error`,
-An explicit `T | error` binding, `try`, and `match` are for code that deliberately keeps,
+`error` then fails fast at that boundary. An explicit `T | error` binding,
+`try`, and `match` are for code that deliberately keeps,
 propagates, or handles the failure channel.
 
 This keeps ordinary examples and ordinary application code focused on the main
@@ -202,13 +208,13 @@ The following syntax is not intended as an inventory of unrelated features. Each
 ### Bindings
 
 ```quidra
-int initialized := 5
+initialized := 5
 int later
-int source := 10
+source := 10
 inferred := source
 ```
 
-A declaration with an initializer uses `:=`. Omit the type by default when the initializer determines the intended static type. Write an explicit type when it supplies context, as in `int count := 0` or `string[] names := []`, or states a stronger contract. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
+A declaration with an initializer uses `:=`. Omit the type by default when the initializer determines the intended static type. Write an explicit type when it supplies context, as in `nat count := 0`, `int32 count := 0` or `string[] names := []`, or states a stronger contract. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
 
 ### Numeric types
 
@@ -289,7 +295,7 @@ Numeric parsing and standard text conversion use methods:
 ```quidra
 value := int.parse("123")
 
-int number := 123
+number := 123
 text := number.string()
 ```
 
@@ -357,7 +363,7 @@ Strings are immutable UTF-8 text. `len(text)` counts Unicode code points (a `nat
 ### Functions and calls
 
 ```quidra
-int add(int a, int b := 1)
+int add(int a, b := 1)
     return a + b
 
 println(add(41)) // output: 42
@@ -386,7 +392,7 @@ Members use bare names inside the class. An optional instance name, such as `cla
 
 ```quidra
 class Counter()
-    private int value := 0
+    private value := 0
 
     private void .increment_raw()
         value += 1
@@ -409,7 +415,7 @@ into the value that contains it.
 class Holder(local int &source)
     &value := &source
 
-int count := 1
+count := 1
 first := Holder(&count)
 second := first
 second.value = 7
@@ -544,7 +550,7 @@ println(second)
 Use `elif` for flat conditional chains:
 
 ```quidra
-int score := 85
+score := 85
 if score >= 90
     println("A")
 elif score >= 80
@@ -569,7 +575,7 @@ int n
 scan("{&n} {int &m}")
 println("{n} + {m}")
 
-int amount := 123456789
+amount := 123456789
 println("{amount:group=3}") // 123,456,789
 
 input := file.read("pairs.txt")
@@ -595,7 +601,7 @@ existing bare `nat` name constrains the extent to that value; it does not bind
 a new name.
 
 ```quidra
-int batch := 3
+batch := 3
 tensor<real32>{nat(batch * 2), 224} contextual := tensor.zeros()
 batch = 8 // the captured extent remains 6
 
@@ -673,7 +679,7 @@ field containing a matching destination is rejected for writable traversal.
 
 ```quidra
 class Model()
-    private int weight := 1
+    private weight := 1
     int[] rest := [2, 3]
 model := Model()
 for &value := &reflect.each<int>(&model)[nat index]
@@ -1051,7 +1057,7 @@ are rejected. CLI scalar fields accept every integer and real kind, as well as
 `string` and `bool`.
 
 The same semantic-compression rule applies here: stateful or effectful behavior
-is named by its owning namespace, representation changes stay explicit, and
+is named by its owning namespace, numeric conversions follow the static rules, and
 fallible calls can use the ordinary fail-fast success context unless the program
 deliberately retains the `error` channel.
 

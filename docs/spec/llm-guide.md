@@ -5,8 +5,8 @@
 Core typing rule: ordinary value arguments never specialize a call's static return type from their values. Values may determine runtime behavior and compile-time facts used for diagnostics or optimization, while generic specialization resolution may depend on argument static types. An expected type may explicitly constrain a result. Do not turn a known argument value into a narrower source-visible return type.
 
 1. Use four spaces for each block level. Dedentation closes a block. Use spaces exclusively.
-2. Write explicit result and required parameter types. Define a default with `:=`, as in `int add(int a, int b := 1)`. Omit a defaulted parameter's type when the default determines it, as in `string greet(label := "hello")`. Use `=` for named arguments at call sites.
-3. Omit the type in a `:=` declaration by default when the initializer determines the intended static type. Use `point := Point(1.0, 2.0)`, `image := tensor.zeros<real32>([3, 224, 224])`, and `const label := "ready"`. Give an explicit type when it provides needed context or a stronger contract, as in `int count := 0`, `string[] names := []`, or an explicit union containing `error`. Inference keeps the non-`error` alternatives, including `none`, and fails fast on `error`.
+2. Write explicit result and required parameter types. Define a default with `:=`, as in `int add(int a, b := 1)`. Omit a defaulted parameter's type when the default determines it, as in `string greet(label := "hello")`; annotate a different intended type, as in `int32 limit := 100`. Every parameter in a prototype or repeated-name specialization family requires an explicit type, including defaults. Use `=` for named arguments at call sites.
+3. Omit the type in a `:=` declaration by default when the initializer determines the intended static type. Use `point := Point(1.0, 2.0)`, `image := tensor.zeros<real32>([3, 224, 224])`, and `const label := "ready"`. Give an explicit type when it provides needed context or a stronger contract, as in `nat count := 0`, `int32 count := 0`, `string[] names := []`, or an explicit union containing `error`. Inference keeps the non-`error` alternatives, including `none`, and fails fast on `error`.
 4. An initializer can be omitted from a typed declaration. A read that no path initializes is a compile-time error; a read that only some paths initialize compiles and stops with `UNINITIALIZED` at run time on a path that left it uninitialized, so initialize on every continuing path whenever the value is needed.
 5. Array indices refer to existing elements. `[]` is an initialized empty array; indexing it at zero fails unless it has first been replaced by a non-empty value. Constant out-of-bounds indices are compile-time errors when the array type has a statically known length; dynamic arrays remain runtime checked. An index may have any integer kind. Lengths, counts, shapes, sizes and API index values (`len`, `size()`, `.shape()`, `find`) are `nat`: `len(a) - 1` fails on an empty array, so compute with `int(len(a)) - 1` where the result may be negative, write `int(len(v))` to use a length as an `int`, and pass `nat(n)` where an API takes a count or shape and `n` has another integer kind. Slice an array with `a[s:e]` (both ends included; ascending when s <= e, descending when s > e), `a[s:<e]` (the end excluded) or `a[s<:e]` (the start excluded). `a[4:0]` selects 4 through 0. Direction markers touch the colon: `<` ascends and `>` descends. An explicit step determines direction and must agree with markers; use `a[start:end:1]` or `a[start:end:-1]` when dynamic endpoints must not change direction. Two explicit endpoints reversed against that step are an error, even with an exclusive side. Omitted endpoints use the sequence's ends; `a[:]` and `a[2:]` ascend by default, and `a[::-1]` reverses. A slice is a new, independent array; `a[1:3] = b` stores an array of exactly as many elements into the selected ones.
 6. Create a runtime-sized filled array with `array(n, fill = 0)`. Fixed sizes are type contracts; respect all dimensions. Grow an array with `values = values.append(value)` or combine arrays with `values.concat(other)`; these return new values rather than resizing referenced storage in place. For numeric, bool, or string arrays of either fixed or runtime size, use `values.sorted()` for a non-mutating runtime-sized sorted copy, and `values.sorted(descending = true)` for descending order (always named), instead of hand-writing a sort unless the algorithm itself is the task. Use `map<K, V> counts` for key/value lookup and `distinct<T> seen` for unique values in insertion order. Bare declarations create empty collections. Use `.counts.set(k, v)` and `.seen.add(v)` to make mutation authority explicit; `set` itself is not reserved and may name a user function.
@@ -73,7 +73,7 @@ int | error doubled(bool valid)
     x := try value(valid)
     return x * 2
 
-void scale(int[] &values, int factor := 2)
+void scale(int[] &values, factor := 2)
     for &item := &values[]
         item = item * factor
 
@@ -164,7 +164,7 @@ Multiple-array `for` selects matching positions, not all pairs:
 ```quidra
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
-int total := 0
+total := 0
 for price := prices[], quantity := quantities[]
     total += price * quantity
 print(total) // 80

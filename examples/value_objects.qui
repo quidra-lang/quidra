@@ -1,6 +1,6 @@
-class Point(local int x_initial := 1)
-    int x := 1
-    int y := 2
+class Point(local x_initial := 1)
+    x := 1
+    y := 2
 
 
     x = x_initial
@@ -10,7 +10,7 @@ class Point(local int x_initial := 1)
 
 class ShiftedPoint()
     point := Point()
-    int offset := 1
+    offset := 1
 
     int sum()
         return point.sum() + offset

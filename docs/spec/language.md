@@ -294,7 +294,7 @@ For other user names, a declaration cannot shadow a name that is already visible
 ## Functions, calls, and defaults
 
 ```quidra
-int add(int a, int b := 1)
+int add(int a, b := 1)
     return a + b
 
 println(add(41))
@@ -413,7 +413,7 @@ Loops support `break` and `continue`. In writable iteration, changes to the curr
 Conditional chains use `elif`:
 
 ```quidra
-int score := 85
+score := 85
 if score >= 90
     println("A")
 elif score >= 80
@@ -485,7 +485,7 @@ box.value = 7
 int[] values := [1, 2, 3]
 first_value := first(values)
 convert := Convert()
-int sample := 5
+sample := 5
 same := convert.identity(sample)
 ```
 
@@ -512,6 +512,11 @@ tensor<T> normalize<T: floating>(tensor<T> value)
 The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integers, `int` and `nat`; `floating` accepts `real16`, `real16b`, `real32` and `real64`; `numeric` accepts integer, floating, exact `real`, and every complex type; `ordered` accepts integer, floating, and exact `real`, excluding complex values; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
 
 A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape: the same argument count, parameter names, reference/const forms, extension-receiver markers, and default-argument positions. Generic members also keep the same generic type pattern and relationships among their type parameters, except that array, tensor, and constrained scalar parameter patterns may coexist when their domains are statically disjoint. A scalar type parameter constrained by `numeric`, `ordered`, `integer`, or `floating` cannot match an array or tensor; `equatable` and unconstrained parameters provide no such exclusion. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
+
+Every parameter in a prototype or specialization family requires an explicit type, including
+defaulted parameters whose literal would otherwise determine it. Write
+`int radius := 1` in those headers; omitted default-parameter types apply to
+function and method definitions outside a repeated-name family.
 
 ```quidra
 T1 combine<T1: numeric, T2: integer>(T1 left, T2 right)
@@ -620,7 +625,7 @@ Members are public by default. Prefix a member with `private` for class-local ac
 
 ```quidra
 class Counter()
-    private int value := 0
+    private value := 0
 
     private void .increment_raw()
         value += 1
@@ -666,9 +671,9 @@ Quidra uses `&` consistently for safe storage addresses. For addressable storage
 For example:
 
 ```quidra
-int x := 1
+x := 1
 &alias := &x
-int other := 1
+other := 1
 
 println(&x)             // current raw address of x storage
 println(&alias)         // the same address
@@ -681,7 +686,7 @@ For managed values the address still means the address of the language-level sto
 A value `T` owns its value storage. A reference declaration `T &name` gives read/write access to existing storage; it may be a local, a parameter or a class field. `&` is not part of a type: array elements, tuple elements, generic type arguments, union alternatives, `func` parameter and result types, and function results cannot themselves be references. They may contain class values that have reference fields. `const T` is an immutable value: `const T x := y` and a `const T` parameter hold the value `y` had, and a later write to `y` does not change them. `const value := expression` infers `T`. There is no read-only reference: `const T &` is the compile-time error `CONST_REFERENCE`, and a `const T` value takes its place. The compiler passes a `const` value without copying it wherever nothing can change its source while it is live, so the value form costs nothing over a view.
 
 ```quidra
-int a := 1
+a := 1
 &b := &a
 
 b = 5
@@ -690,7 +695,7 @@ b = 5
 After the assignment, `a` and `b` both read as `5`. A reference binding may point at a binding, field, or array element. A `const` binding is a value of its own:
 
 ```quidra
-int value := 5
+value := 5
 const view := value
 
 value = 7
@@ -740,7 +745,7 @@ class Holder this(local int &source)
     void .add(int amount)
         this.total += amount
 
-int value := 4
+value := 4
 first := Holder(&value)
 second := first
 .second.add(3)
@@ -760,8 +765,8 @@ Class equality compares the values reached through reference fields, never their
 A reference can be rebound explicitly:
 
 ```quidra
-int a := 1
-int c := 2
+a := 1
+c := 2
 &b := &a
 
 b = 5
@@ -782,7 +787,7 @@ void inspect(const int value)
 void initialize(int &value)
     value = 7
 
-int data := 1
+data := 1
 inspect(data)
 initialize(&data)
 println(data)
@@ -817,7 +822,7 @@ Every change of existing state is visible where a call is written. A target pass
 
 ```quidra
 class Counter()
-    int value := 0
+    value := 0
 
     void .increment()
         value += 1
@@ -883,7 +888,7 @@ A header may zip several arrays by position:
 ```quidra
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
-int total := 0
+total := 0
 for price := prices[], quantity := quantities[]
     total += price * quantity
 print(total) // 80
@@ -912,7 +917,7 @@ available for Cartesian iteration.
 `if C then A else B` is an expression. It evaluates the condition `C`, which must be `bool`, and then exactly one of `A` and `B`. `elif` continues the chain, and `else` is mandatory, because every path must give a value:
 
 ```quidra
-int score := 85
+score := 85
 grade := if score >= 90 then "A" elif score >= 80 then "B" else "C"
 println(grade)
 ```
@@ -1326,7 +1331,7 @@ while .numbers(int &value)
     println("{value}")
 
 pairs := file.read("pairs.txt")
-int first := 0
+first := 0
 while .pairs("{&first} {int &second}")
     println("{first} + {second} = {first + second}")
 

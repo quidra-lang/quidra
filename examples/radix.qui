@@ -1,5 +1,5 @@
-int value := 255
-int negative := -255
+value := 255
+negative := -255
 large := nat.parse("18446744073709551616")
 println("bin={value.string(base = 2)}")
 println("oct={value.string(base = 8)}")

@@ -1,5 +1,5 @@
 name := "Quidra"
-int n := 42
+n := 42
 ready := true
 separator := HT
 

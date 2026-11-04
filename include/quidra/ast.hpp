@@ -25,7 +25,7 @@ using ExprPtr = std::unique_ptr<Expr>;
 // tokens by the parser:
 //   Declare       `nat N`         a new shape variable N, the axis's extent
 //   DeclareEqual  `N := EXPR`  a new shape variable N, equal to EXPR
-//   Bare          `N`             an existing shape variable or nat value
+//   Bare          `N`             an existing numeric value convertible to nat
 //   Unnamed       EXPR            any other integer expression, `(n)` too
 //   Discard       `_`             an extent of any length, unnamed
 enum class ShapeAxisKind : std::uint8_t { Declare, DeclareEqual, Bare, Unnamed, Discard };

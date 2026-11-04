@@ -53,7 +53,7 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     "type_contracts": {
       "tensor": "tensor<T> | tensor<T>{D0, D1, ...}",
       "tensor_rank": "the brace group is an exact-rank shape contract; unconstrained tensor<T> rank may still be compiler-inferred as flow metadata",
-      "tensor_shape": "each D axis is _, a nat value, a shape-variable declaration or a nat expression; runtime expressions are evaluated once and captured at binding creation; inferred shape() may return fixed nat[N]"
+      "tensor_shape": "each D axis is _, a shape-variable declaration or a numeric expression whose result converts to nat with explicit-cast checks; expressions evaluate once at their original static type and are captured at binding creation; inferred shape() may return fixed nat[N]"
     }
   },
   "repair": {

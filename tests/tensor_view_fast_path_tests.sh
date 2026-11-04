@@ -18,7 +18,7 @@ tensor<real32> sum(tensor<real32> value)
     for extent := value.shape()[]
         count = count * int(extent)
     tensor<real32> result := value.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 QUI
@@ -110,7 +110,7 @@ import reductions = "./reduction_helpers.qui"
 
 tensor<real64> sum64(tensor<real64> value)
     tensor<real64> result := value.gather([0], [])
-    for 1 <= nat index < value.shape()[0]
+    for: 1 <= nat index < value.shape()[0]
         result = result + value.gather([int(index)], [])
     return result
 

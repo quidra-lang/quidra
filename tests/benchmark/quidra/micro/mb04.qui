@@ -32,17 +32,17 @@ Result workload()
     Lcg g := Lcg(20264917)
     real64[] a := array(nat(m), fill = 0.0)
     real64[] b := array(nat(m), fill = 0.0)
-    for 0 <= int i < m
+    for: 0 <= int i < m
         a[i] = 0.5 + .g.next_unit()
-    for 0 <= int i < m
+    for: 0 <= int i < m
         b[i] = 0.5 + .g.next_unit()
     real64 s1 := 0.0
     real64 s2 := 0.0
     real64 s3 := 0.0
     real64 s4 := 0.0
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         a[r % m] = a[r % m] + 1.0e-9
-        for 0 <= int i < m
+        for: 0 <= int i < m
             real64 x := a[i]
             real64 y := b[i]
             s1 = s1 + x * y
@@ -70,7 +70,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

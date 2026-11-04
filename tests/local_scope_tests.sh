@@ -12,7 +12,7 @@ local int amount := 7
 local int sum := 0
 if true
     local int next := identity(amount)
-    for int index < 2
+    for: int index < 2
         local int value := next + index
         sum = sum + value
 print(sum)
@@ -32,7 +32,7 @@ check_rejected $'if true\n    local int value := 1\nprint(value)'
 check_rejected $'if true\n    local int value := 1\nelse\n    print(value)'
 check_rejected $'local int outer := 1\nint read()\n    return outer'
 check_rejected $'local int outer := 1\nclass Box()\n    int read()\n        return outer'
-check_rejected $'for int index < 2\n    local int value := index\nprint(value)'
+check_rejected $'for: int index < 2\n    local int value := index\nprint(value)'
 cat > "$TMP/stored.qui" <<'QUI'
 class Box(local int initial)
     int amount := initial

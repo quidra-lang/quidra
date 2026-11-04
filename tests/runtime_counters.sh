@@ -13,7 +13,7 @@ export QUIDRA_TEST_FAKE_GPU_COUNT=1
 
 cat > "$TMP/steps.qui" <<'QUI'
 tensor<real32> weight := tensor.ones<real32>([4], gpu = 0).track()
-for 0 <= nat step < 3
+for: 0 <= nat step < 3
     tensor<real32> scaled := weight * weight
     tensor<real32> loss := scaled.gather([0], []) + scaled.gather([3], [])
     .weight.clear_grad()

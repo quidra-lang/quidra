@@ -288,7 +288,7 @@ struct ForRangeHeader {
     bool implicit_start_zero{};
     bool implicit_end_zero{};
 };
-struct ForIndexBinding { std::string name; SourceSpan span{}; };
+struct ForIndexBinding { std::string name; SourceSpan span{}; bool declares{true}; };
 struct ForCollectionBinding {
     std::string name;
     ExprPtr iterable;
@@ -296,6 +296,7 @@ struct ForCollectionBinding {
     bool is_auto{};
     bool declares{true};
     SourceSpan span{};
+    std::optional<ForIndexBinding> index;
 };
 struct ForStmt {
     std::string name;
@@ -482,3 +483,4 @@ struct ConcreteProgram {
 };
 
 } // namespace quidra
+

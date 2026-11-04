@@ -6,7 +6,7 @@ print("{sum == real(1)} {third < real(0.34)} {third > real(0.33)}")
 print(NL)
 real tenth := 0.1
 real total := real(0)
-for 0 <= nat i < 10
+for: 0 <= nat i < 10
     total = total + tenth
 print("{total == real(1)}")
 print(NL)

@@ -5,16 +5,16 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 cat > "$TMP/accepted.qui" <<'QUI'
-for int8 i < 3
+for: int8 i < 3
     print(i)
     print(NL)
-for 3 > nat8 i
+for: 3 > nat8 i
     print(i)
     print(NL)
-for int8 i <= 2
+for: int8 i <= 2
     print(i)
     print(NL)
-for 2 >= nat8 i
+for: 2 >= nat8 i
     print(i)
     print(NL)
 int i := 99
@@ -29,13 +29,13 @@ for n > i step -2
     print(NL)
 print(i)
 print(NL)
-for int8 empty < -1
+for: int8 empty < -1
     print(int(999))
     print(NL)
-for 0 > nat8 empty
+for: 0 > nat8 empty
     print(int(999))
     print(NL)
-for 0 <= int8 final < 2
+for: 0 <= int8 final < 2
     print(final)
     print(NL)
 QUI
@@ -53,13 +53,13 @@ done
 # Real-family omitted zero is typed after the variable is resolved. Dyadic
 # steps make these expectations independent of decimal rounding.
 cat > "$TMP/real.qui" <<'QUI'
-for real x <= 1.0 step 0.5
+for: real x <= 1.0 step 0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
 for 1.0 >= real x step -0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
-for real64 x <= 1.0 step 0.5
+for: real64 x <= 1.0 step 0.5
     print(x >= 0.0 and x <= 1.0)
     print(NL)
 for 1.0 >= real64 x step -0.5
@@ -73,7 +73,7 @@ print(existing == 9.0)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/real.qui")" == $'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue' ]]
-for header in 'for real x <= 1.0' 'for 1.0 >= real64 x'; do
+for header in 'for: real x <= 1.0' 'for: 1.0 >= real64 x'; do
     printf '%s\n    print(x >= 0.0 and x <= 1.0)\n' "$header" > "$TMP/reject-real.qui"
     if "$QUIDRA" check "$TMP/reject-real.qui" --json > "$TMP/reject-real.json"; then exit 1; fi
     python3 - "$TMP/reject-real.json" <<'PYJSON'
@@ -85,3 +85,4 @@ done
 cp "$TMP/accepted.qui" "$TMP/formatted.qui"
 "$QUIDRA" fmt "$TMP/formatted.qui"
 [[ "$("$QUIDRA" "$TMP/formatted.qui")" == "$expected" ]]
+

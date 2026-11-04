@@ -662,7 +662,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __rehash(int64 capacity)
         __slots = array(nat(capacity), fill = -1)
-        for 0 <= nat __index < len(__keys)
+        for: 0 <= nat __index < len(__keys)
             if __active[__index]
                 __place(int64(__index))
         __tombstones = 0
@@ -674,7 +674,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int64[] __new_hashes := array(nat(__size), fill = 0)
         bool[] __new_active := array(nat(__size), fill = false)
         int64 __write := 0
-        for 0 <= nat __index < len(__keys)
+        for: 0 <= nat __index < len(__keys)
             if __active[__index]
                 __new_keys[__write] = __keys[__index]
                 __new_values[__write] = __values[__index]
@@ -941,7 +941,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __rehash(int64 capacity)
         __slots = array(nat(capacity), fill = -1)
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index]
                 __place(int64(__index))
         __tombstones = 0
@@ -952,7 +952,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int64[] __new_hashes := array(nat(__size), fill = 0)
         bool[] __new_active := array(nat(__size), fill = false)
         int64 __write := 0
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index]
                 __new_values[__write] = __values[__index]
                 __new_hashes[__write] = __hashes[__index]
@@ -1031,34 +1031,34 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     distinct<T> union(const distinct<T> other)
         distinct<T> result
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index]
                 .result.add(__values[__index])
-        for 0 <= nat __other_index < len(other.__values)
+        for: 0 <= nat __other_index < len(other.__values)
             if other.__active[__other_index]
                 .result.add(other.__values[__other_index])
         return result
 
     distinct<T> intersection(const distinct<T> other)
         distinct<T> result
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index] and other.has(__values[__index])
                 .result.add(__values[__index])
         return result
 
     distinct<T> difference(const distinct<T> other)
         distinct<T> result
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index] and not other.has(__values[__index])
                 .result.add(__values[__index])
         return result
 
     distinct<T> symmetric_difference(const distinct<T> other)
         distinct<T> result
-        for 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < len(__values)
             if __active[__index] and not other.has(__values[__index])
                 .result.add(__values[__index])
-        for 0 <= nat __other_index < len(other.__values)
+        for: 0 <= nat __other_index < len(other.__values)
             if other.__active[__other_index] and not has(other.__values[__other_index])
                 .result.add(other.__values[__other_index])
         return result
@@ -6648,6 +6648,7 @@ private:
                 extra.is_auto=binding.is_auto;
                 extra.declares=binding.declares;
                 extra.span=binding.span;
+                extra.index=binding.index;
                 copy.collections.push_back(std::move(extra));
             }
             if(node->type) copy.type=materialize_type(*node->type,substitution,deferred);
@@ -6674,6 +6675,22 @@ private:
                 if(copy.pattern)infer_pattern_bindings(*copy.pattern,element_type);else type_environment_[copy.name] = std::move(element_type);
             }
             if(copy.type) type_environment_[copy.name]=clone_type(*copy.type);
+            if(copy.range && copy.declares && !copy.type && !copy.discards()) {
+                std::optional<TypeName> inferred;
+                bool conflict=false;
+                const auto accept=[&](const Expr& expression,bool step) {
+                    if(numeric_policy::numeric_literal_family(expression)!=numeric_policy::NumericLiteralCategory::None) return;
+                    const auto candidate=infer_expression_type(expression,current_class);
+                    if(!candidate || (step && candidate->name=="int")) return;
+                    if(inferred && canonical_type(*inferred)!=canonical_type(*candidate)) conflict=true;
+                    else inferred=clone_type(*candidate);
+                };
+                accept(*copy.iterable,false);
+                accept(*copy.range->end,false);
+                if(copy.range->step) accept(*copy.range->step,true);
+                if(!inferred) inferred=infer_expression_type(copy.range->implicit_start_zero?*copy.range->end:*copy.iterable,current_class);
+                if(inferred && !conflict) type_environment_[copy.name]=std::move(*inferred);
+            }
             for(std::size_t i=0;i<copy.collections.size();++i) {
                 const auto& binding=copy.collections[i];
                 if(binding.name=="_") continue;
@@ -6689,6 +6706,11 @@ private:
                 TypeName index_type;
                 index_type.name="nat";
                 type_environment_[copy.index->name]=std::move(index_type);
+            }
+            for(const auto& binding:copy.collections) if(binding.index) {
+                TypeName index_type;
+                index_type.name="nat";
+                type_environment_[binding.index->name]=std::move(index_type);
             }
             for (const auto& child : node->body) {
                 copy.body.push_back(clone_stmt(*child, substitution, deferred, current_class));

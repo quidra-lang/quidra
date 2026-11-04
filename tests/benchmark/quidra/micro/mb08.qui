@@ -38,10 +38,10 @@ Result workload()
     Lcg g := Lcg(20268917)
 
     string[] words := []
-    for 0 <= int w < nw
+    for: 0 <= int w < nw
         int l := 4 + (.g.next_int() % 13)
         nat8[] word := array(nat(l), fill = nat8(0))
-        for 0 <= int c < l
+        for: 0 <= int c < l
             word[c] = nat8(97 + (.g.next_int() % 26))
         string piece := string.from_utf8(bin(word))
         words = words.append(piece)
@@ -52,7 +52,7 @@ Result workload()
     int acc := 0
     int cnt_ab := 0
     int cnt_w := 0
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         int p := 7 * r + 11
         if text[p] == nat8(32)
             text[p] = nat8(120)
@@ -62,7 +62,7 @@ Result workload()
         int h1 := rhash(text)
 
         nat8[] u := array(nat(n), fill = nat8(0))
-        for 0 <= int i < n
+        for: 0 <= int i < n
             int c := int(text[i])
             if c >= 97 and c <= 122
                 u[i] = nat8(c - 32)
@@ -71,12 +71,12 @@ Result workload()
         int h2 := rhash(u)
 
         nat8[] v := array(nat(n), fill = nat8(0))
-        for 0 <= int i < n
+        for: 0 <= int i < n
             v[i] = text[n - 1 - i]
         int h3 := rhash(v)
 
         cnt_ab = 0
-        for 0 <= int i < n - 1
+        for: 0 <= int i < n - 1
             if text[i] == nat8(97) and text[i + 1] == nat8(98)
                 cnt_ab = cnt_ab + 1
 
@@ -114,7 +114,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

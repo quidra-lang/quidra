@@ -25,7 +25,7 @@ tensor<real32> sum(tensor<real32> value)
             return tensor.zeros<real32>([], gpu = nat(value.device()))
         return tensor.zeros<real32>([])
     tensor<real32> result := value.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
@@ -663,8 +663,8 @@ import reductions = "./reduction_helpers.qui"
 import fake = fake_native
 tensor<real32> source := tensor.ones<real32>([2, 3], gpu = 0)
 tensor<real32> weights := tensor<real32>([3, 2], gpu = 0)
-for 0 <= nat row < 3
-    for 0 <= nat column < 2
+for: 0 <= nat row < 3
+    for: 0 <= nat column < 2
         weights[row, column] = real32(row * 2 + column + 1)
 tensor<real32> x := source.track()
 tensor<real32> scaled := fake.scale2(x)
@@ -672,8 +672,8 @@ tensor<real32> loss := reductions.sum(scaled.transpose(0, 1) * weights)
 loss.backward(&source)
 tensor<real32> gradient := source.grad.cpu()
 bool matches := true
-for 0 <= nat row < 2
-    for 0 <= nat column < 3
+for: 0 <= nat row < 2
+    for: 0 <= nat column < 3
         real32 weight := real32(column * 2 + row + 1)
         real32 expected := real32(2) * weight
         if gradient[row, column].item() != expected

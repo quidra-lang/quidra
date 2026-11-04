@@ -28,6 +28,105 @@ fails() {
     [[ $rc == 101 && "$actual" == before ]]
     grep -Fq "runtime error[$code]" "$TMP/$name.err"
 }
+expect independent_declarations true <<'QUI'
+values := [10, 20]
+okay := true
+for: fresh := values[position]
+    okay = okay and fresh == (int(position) + 1) * 10
+value := 0
+for: value = values[position]
+    okay = okay and value == (int(position) + 1) * 10
+nat index := 77
+for fresh := values[index]
+    okay = okay and fresh == (int(index) + 1) * 10
+for value = values[index]
+    okay = okay and value == (int(index) + 1) * 10
+println(okay and value == 20 and index == 1)
+QUI
+expect reused_index_exits $'77\n2\n1\n0\n1' <<'QUI'
+nat index := 77
+int[] empty := []
+for _ = empty[index]
+    println("unexpected")
+println(index)
+for _ = [10, 20, 30][index]
+    continue
+println(index)
+for item := [10, 20, 30][index]
+    if index == 1
+        break
+println(index)
+nat &alias := &index
+for item := [10, 20][index]
+    println(alias)
+QUI
+expect inferred_range_types $'0\n1\n2\n0\n1\n2\n0\n1' <<'QUI'
+for: i < 3
+    println(i)
+int32 stop := 3
+for: i < stop
+    int32 copy := i
+    println(copy)
+nat count := 2
+for: i < count
+    nat copy := i
+    println(copy)
+QUI
+rejects missing_index UNKNOWN_NAME <<'QUI'
+values := [1]
+for value := values[index]
+    println(value)
+QUI
+rejects visible_new_index SHADOWING <<'QUI'
+values := [1]
+nat index := 2
+for: value := values[index]
+    println(value)
+QUI
+rejects wrong_index_storage TYPE_MISMATCH <<'QUI'
+values := [1]
+index := 2
+for value := values[index]
+    println(value)
+QUI
+rejects readonly_index LOOP_VARIABLE_WRITE <<'QUI'
+values := [1]
+for: value := values[index]
+    index = 2
+QUI
+rejects index_alias_write LOOP_VARIABLE_WRITE <<'QUI'
+nat index := 0
+nat &alias := &index
+for item := [1, 2][index]
+    alias = 9
+QUI
+rejects range_alias_write LOOP_VARIABLE_WRITE <<'QUI'
+i := 0
+int &alias := &i
+for i < 2
+    alias = 9
+QUI
+rejects index_alias_call LOOP_VARIABLE_WRITE <<'QUI'
+void set(nat &value)
+    value = 9
+nat index := 0
+nat &alias := &index
+for item := [1, 2][index]
+    set(&alias)
+QUI
+rejects range_alias_call LOOP_VARIABLE_WRITE <<'QUI'
+void set(int &value)
+    value = 9
+i := 0
+int &alias := &i
+for i < 2
+    set(&alias)
+QUI
+rejects shape_index_storage WRITE_CAPABILITY <<'QUI'
+tensor<real32>{nat N} t := tensor.zeros<real32>([3])
+for _ = [1][N]
+    println("visit")
+QUI
 # Independent enumeration follows the mathematical progression directly;
 # it never uses the implementation's distance, remainder, LAST or word tags.
 python3 - "$TMP" <<'ORACLE'
@@ -40,7 +139,7 @@ for descending,inclusive_start,inclusive_end in itertools.product((False,True),r
         op1=('>=' if inclusive_start else '>') if descending else ('<=' if inclusive_start else '<')
         op2=('>=' if inclusive_end else '>') if descending else ('<=' if inclusive_end else '<')
         source += [f'int8 s{ordinal} := {start}',f'int8 e{ordinal} := {end}',f'int8 k{ordinal} := {step}',
-                   f'for s{ordinal} {op1} int8 v{ordinal} {op2} e{ordinal} step k{ordinal}',
+                   f'for: s{ordinal} {op1} int8 v{ordinal} {op2} e{ordinal} step k{ordinal}',
                    f'    print(v{ordinal})','    print(NL)',f'print("end{ordinal}")','print(NL)']
         value=start if inclusive_start else start+step
         while (value>=end if inclusive_end else value>end) if descending else (value<=end if inclusive_end else value<end):
@@ -51,19 +150,19 @@ ORACLE
 "$QUIDRA" "$TMP/oracle.qui" > "$TMP/oracle.actual"
 cmp "$TMP/oracle.expected" "$TMP/oracle.actual"
 expect extrema $'-128\n-1\n126\n0\n18446744073709551614\n18446744073709551615\n4611686018427387904\n4611686018427387905\n-4611686018427387905\n-4611686018427387904' <<'QUI'
-for -128 <= int8 x <= 127 step 127
+for: -128 <= int8 x <= 127 step 127
     print(x)
     print(NL)
-for 0 <= nat8 x <= 255 step 256
+for: 0 <= nat8 x <= 255 step 256
     print(x)
     print(NL)
-for 18446744073709551614 <= nat64 x <= 18446744073709551615
+for: 18446744073709551614 <= nat64 x <= 18446744073709551615
     print(x)
     print(NL)
-for 4611686018427387904 <= int x <= 4611686018427387905
+for: 4611686018427387904 <= int x <= 4611686018427387905
     print(x)
     print(NL)
-for -4611686018427387905 <= int x <= -4611686018427387904
+for: -4611686018427387905 <= int x <= -4611686018427387904
     print(x)
     print(NL)
 QUI
@@ -72,7 +171,7 @@ int bound(int[] &order, int value)
     order = order.append(value)
     return value
 int[] order := []
-for bound(&order, 0) <= int x < bound(&order, 3) step bound(&order, 1)
+for: bound(&order, 0) <= int x < bound(&order, 3) step bound(&order, 1)
     print(x)
     print(NL)
 print(len(order))
@@ -82,7 +181,7 @@ expect stable_bounds $'0\n1\n2\n9' <<'QUI'
 int start := 0
 int end := 3
 int step := 1
-for start <= int x < end step step
+for: start <= int x < end step step
     print(x)
     print(NL)
     start = 100
@@ -102,7 +201,7 @@ for previous = values[]
     print(NL)
 print(previous)
 print(NL)
-for value := values[len(values)>:0][nat index]
+for: value := values[len(values)>:0][index]
     print(index)
     print(NL)
     print(value - 1)
@@ -124,7 +223,7 @@ expect live_elements $'1\n77\n3' <<'QUI'
 void fill(int[] &values)
     values[1] = 77
 int[] values := [1, 2, 3]
-for int &value := &values[nat index]
+for: int &value := &values[index]
     if index == 0
         fill(&values)
     print(value)
@@ -132,7 +231,7 @@ for int &value := &values[nat index]
 QUI
 expect true_reference $'true\n5\n5\n6' <<'QUI'
 int[] values := [1, 2]
-for int &value := &values[nat index]
+for: int &value := &values[index]
     if index == 0
         print(&value == &values[0])
         print(NL)
@@ -253,22 +352,22 @@ QUI
 fails zero_step FOR_STEP <<'QUI'
 int step := 0
 print("before")
-for 3 <= int x < 0 step step
+for: 3 <= int x < 0 step step
     print(x)
 QUI
 fails wrong_direction FOR_STEP <<'QUI'
 int step := 1
 print("before")
-for 3 >= int x >= 0 step step
+for: 3 >= int x >= 0 step step
     print(x)
 QUI
 rejects readonly_range LOOP_VARIABLE_WRITE <<'QUI'
-for int x < 3
+for: int x < 3
     x += 1
 QUI
 rejects readonly_index LOOP_VARIABLE_WRITE <<'QUI'
 int[] values := [1]
-for int value := values[nat index]
+for: int value := values[index]
     index += 1
 QUI
 rejects bit_address WRITE_CAPABILITY <<'QUI'
@@ -297,7 +396,7 @@ QUI
 # The inspect major schema remains compatible; the minor and additive kinds
 # expose source bounds only, never a synthetic zero as a replaceable node.
 cat > "$TMP/tools.qui" <<'QUI'
-for int value < 3
+for: int value < 3
     print(value)
     print(NL)
 QUI
@@ -313,3 +412,4 @@ json.dump({'schema_version':3,'base_revision':report['revision'],'operations':[{
 JSON
 "$QUIDRA" patch "$TMP/tools.qui" "$TMP/patch.json" --write
 [[ "$("$QUIDRA" "$TMP/tools.qui")" == $'0\n1' ]]
+

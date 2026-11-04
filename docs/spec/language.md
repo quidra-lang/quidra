@@ -172,7 +172,7 @@ When direction must stay fixed, write `a[start:end:1]` or `a[start:end:-1]`. If 
 
 An omitted start is the first element in the slice's direction (index 0 ascending, the last index descending), included; an omitted end runs through the last element in that direction. So `a[:]` is the whole array, `a[s:]` runs to the end and is empty when `s` is the length, and `a[::-1]` reverses (an empty array gives an empty slice). The omitted descending start is an inclusive anchor, unlike the exclusive start `len(a)>:`: both reverse with step -1, but over five elements `a[::-2]` selects 4, 2, 0 and `a[5>::-2]` selects 3, 1.
 
-Omitted slice endpoints denote the sequence's beginning or end in the selected direction. They do not use the zero default of a `for` range's omitted endpoint: `a[4:]` runs to the sequence's end, whereas `for 4 >= int i` runs to zero.
+Omitted slice endpoints denote the sequence's beginning or end in the selected direction. They do not use the zero default of a `for` range's omitted endpoint: `a[4:]` runs to the sequence's end, whereas `for: 4 >= int i` runs to zero.
 
 Slices are checked strictly, with no clamping. For a value of length `len`:
 
@@ -871,7 +871,7 @@ if 0 <= x < 10
 ```
 
 ```quidra
-for 2 <= nat i < 10 step 2
+for: 2 <= nat i < 10 step 2
     println(i)
 
 values := [1, 2, 3]
@@ -879,7 +879,7 @@ for &value := &values[]
     value = value * 2
 ```
 
-Range headers independently include or exclude both ends: `for 0 <= nat i < stop`, `for stop > nat i >= 0`, or an existing variable in place of `nat i`. An explicit `step` follows the last bound; integer steps default to 1 or -1. The inclusive zero end may be omitted, as in `for nat i < stop` or `for stop > nat i`. Bounds and the step are captured once, left to right. The body cannot assign the range variable. An existing variable retains the last produced value, and is unchanged when the range is empty.
+Range headers independently include or exclude both ends: `for: 0 <= nat i < stop`, `for: stop > nat i >= 0`, or plain `for` with an existing variable. `for:` declares a new loop-local range variable; its type can be omitted when the bounds determine it. Integer-only literal ranges default to `int`, `for: i < len(values)` infers `nat`, and an `int32` bound supplies `int32`. Typed bounds and a non-`int` typed step must agree on one ordered numeric type. An explicit type is written after the marker, as in `for: int32 i < 10`. Plain `for` reuses a mutable value binding; new names cannot shadow visible names. An explicit `step` follows the last bound; integer steps default to 1 or -1. The inclusive zero end may be omitted, as in `for: nat i < stop` or `for: stop > nat i`. Bounds and the step are captured once, left to right. The body cannot assign the range variable. An existing variable retains the last produced value, and is unchanged when the range is empty.
 
 Real ranges require an explicit step. Fixed-width operands first materialize in the loop type. The count tests exact unrounded candidates `S + j * step`; each produced value is rounded once. The loop never corrects its count from rounded values. Exact `real` ranges use an exact step lattice, with certified comparisons at entry for non-rational bounds.
 
@@ -902,11 +902,10 @@ position from every snapshot, rather than forming a Cartesian product. Later
 source evaluation or body writes cannot change an earlier snapshot. Bindings
 are ordinary mutable value copies; inferred bindings, existing value variables and `_`
 follow the single-source binding rules. Initial zip headers accept Array values
-only: references, ranges, structural traversal, patterns, `bin` and explicit
-position bindings cannot be mixed into them. Nested single-source loops remain
+only: references, ranges, structural traversal, patterns and `bin` cannot be mixed into them. Any array may provide a position binding: `for: p := prices[i], int q := quantities[j]` independently declares both `i` and `j` as read-only loop-local `nat` values containing the same zip position. A source may omit its position with `[]`, including the first source. Without the colon every written index is reused. Each element's `:=` or `=` independently controls declaration or reuse. All element and index names in a header must be distinct. Nested single-source loops remain
 available for Cartesian iteration.
 
-`for value := values[]` iterates an array or `bin` by value: later replacement or element writes do not alter the entry value it visits. `for &value := &values[]` aliases the live element or bit place. Replacing or resizing its storage through an alias or a call fails with `FOR_ITERATION` before the loop advances. `[nat i]` declares a read-only position index; a slice's index starts at zero. Each `[]` iterates one level.
+`for value := values[]` iterates an array or `bin` by value: later replacement or element writes do not alter the entry value it visits. `for &value := &values[]` aliases the live element or bit place. Replacing or resizing its storage through an alias or a call fails with `FOR_ITERATION` before the loop advances. `for: value := values[i]` declares the element and index independently; `for: value = values[i]` reuses the element and declares the index. Plain `for value := values[i]` or `for value = values[i]` reuses an existing mutable `nat` index. Indices are read-only during iteration and start at zero relative to the source, including a slice. A reused index retains the last position even if the body never reads it; an empty source preserves its old value and initialization state. `for:` without a range variable or a written index has no declaration target and is invalid. Each `[]` iterates one level.
 
 `for _ = values[]` evaluates the source and fixes its length at entry, then runs the body that many times without reading any elements or creating an element snapshot. `_` binds nothing and takes neither a type nor `&`. A range with `_` similarly computes only the count. Its type comes from typed bounds or a non-`int` typed step; a range made only of integer literals uses an internal exact integer count.
 
@@ -1144,11 +1143,11 @@ A shape is written in braces, `tensor<ELEM>{AXIS, ...}`, which gives each bracke
 
 - `nat N`: declares a new shape variable `N`, whose value is the axis's extent;
 - `N := EXPR`: declares a new shape variable `N` equal to `EXPR`, and the axis must equal it;
-- `N`, a bare name: an existing shape variable or `nat` value, which the axis must equal;
+- `N`, a bare name: an existing shape variable or numeric value convertible to `nat`, which the axis must equal;
 - `_`: an extent of any length that binds nothing (`{_, _}` is two independent axes);
-- any other `nat` expression (`3`, `rows * cols`, `nat(n)`, `(n)`, `len(v)`): the axis must equal it.
+- any other numeric expression (`3`, `rows * cols`, `nat(n)`, `(n)`, `len(v)`): the axis must equal its checked conversion to `nat`.
 
-Write `nat N` to capture a dimension or `N := EXPR` to define it from an expression. The explicit form `nat N := EXPR` is also accepted. Only a lone identifier is a bare name: `(n)` is an expression. Every extent is `nat`, so an integer of another kind is written `nat(n)`; `nat(n)` of a negative `n` stops like a negative captured extent. A bare name that names nothing is an error (`'C' is not declared: write 'nat C' to declare a shape variable, or use an existing nat value.`), and so is a bare name of a binding that is not `nat` (`'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.`). A shape variable is a new name: declaring a visible name is `SHADOWING`, and declaring one twice in a shape is an error, so a square shape is `{nat N, N}`. A shape is one scope unit: an axis may use any variable of its shape whatever the textual order, `N := EXPR` axes are evaluated in dependency order, and a cycle is an error. These are `SHAPE_VARIABLE` errors.
+Write `nat N` to capture a dimension or `N := EXPR` to define it from an expression. The explicit form `nat N := EXPR` is also accepted. Only a lone identifier is a bare name: `(n)` is an expression. Every captured extent is `nat`: evaluate the expression once at its original static type, then convert its result with the checks of explicit `nat(result)`. Operands and intermediate arithmetic keep their types. Thus `batch := 3` permits `tensor<real32>{batch * 2, 224} image := tensor.zeros()` without repeating `nat(...)`. Integral real results may convert; negative, fractional or unsupported results fail. Ordinary assignments retain their existing conversion rules. A bare name that names nothing remains a `SHAPE_VARIABLE` error; an existing numeric name does not declare a shape variable. A shape variable is a new name: declaring a visible name is `SHADOWING`, and declaring one twice in a shape is an error, so a square shape is `{nat N, N}`. A shape is one scope unit: an axis may use any variable of its shape whatever the textual order, `N := EXPR` axes are evaluated in dependency order, and a cycle is an error.
 
 ```quidra
 tensor<real32>{2, 3, 5} cube
@@ -1651,7 +1650,7 @@ structure; they do not add runtime type metadata and never expose private fields
 ### Structural traversal in place
 
 `reflect.each<T>(&root)` is a for-header source: write
-`for T &value := &reflect.each<T>(&root)[nat i]`. The value form,
+`for: T &value := &reflect.each<T>(&root)[i]`. The value form,
 `for value := reflect.each<T>(root)[]`, reads the entry value. The root is
 evaluated once. The index is a `nat` counter over all visits. `continue` moves
 to the next visit and `break` leaves the entire traversal.
@@ -1770,14 +1769,14 @@ node, which differs from a `parallel for`.
 
 ```quidra
 int[5] a
-parallel for x < 5
+parallel for: x < 5
     a[x] = x
 for value := a[]
     println(value)
 ```
 
 Unlike an ordinary untyped range header, which uses an existing binding,
-`parallel for x < 5` declares a fresh loop-local `int x`. An already visible
+`parallel for: x < 5` declares a fresh loop-local `int x`. An already visible
 binding named `x` is rejected; an explicit type may instead declare the range
 variable.
 
@@ -2017,18 +2016,18 @@ Tuple assignment copies its elements with their ordinary value semantics. Tuples
 
 A destructuring pattern either declares every bound name or assigns existing
 places. It can nest, and `_` discards a value without declaring a name:
-`(int count, _) := measure()` or `((int a, int b), real c) := nested()`.
+`(count, _) := measure()` or `((a, b), c) := nested()`, inferring each element type.
 `(a, b) = (b, a)` evaluates both input values before writing either place.
 All target index operands are captured once, left to right, before the source;
 the writes then resolve each target's current storage in pattern order.
-`(int &a, real &b) := &pair` binds the elements of initialized writable storage.
+`(&a, &b) := &pair` binds the elements of initialized writable storage and infers their exact target types.
 Tuple types themselves always hold values, never references.
 
-A declaration pattern names each element, e.g. `(int count, score) := measure()`, and `_` discards a position. Nested patterns destructure nested tuples; a tuple type followed by a name binds that whole element. Existing-place patterns assign after the entire right side is evaluated: `(a, b) = (b, a)` swaps. Target indices and slice bounds are captured left to right before the right side; each write resolves the current target storage. A declaration pattern cannot mix new names and existing places.
+A declaration pattern names each element, e.g. `(count, score) := measure()`, and `_` discards a position. Nested patterns destructure nested tuples; a tuple type followed by a name binds that whole element. Existing-place patterns assign after the entire right side is evaluated: `(a, b) = (b, a)` swaps. Target indices and slice bounds are captured left to right before the right side; each write resolves the current target storage. A declaration pattern cannot mix new names and existing places.
 
-`(int &a, string &b) := &pair` declares true references to initialized tuple storage. Every bound element has `&`; `_` needs none. Calls, literals and slices cannot provide reference storage. Array element references keep the array's existing pin and shape rules.
+`(&a, &b) := &pair` declares inferred true references to initialized tuple storage. Every bound element has `&`; `_` needs none. Calls, literals and slices cannot provide reference storage. Array element references keep the array's existing pin and shape rules.
 
-Collection headers accept the same patterns: `for (int count, real64 score) := pairs[nat i]`, `for (a, b) = pairs[]`, and `for (int &count, real64 &score) := &pairs[]`. Each iteration binds only the selected elements; reference patterns check that the element is initialized. The index, when written, is a new `nat` binding.
+Collection headers accept the same patterns: `for: (count, score) := pairs[i]`, `for (a, b) = pairs[]`, and `for (&count, &score) := &pairs[]`. Each iteration binds only the selected elements; reference patterns check that the element is initialized. An index is a new read-only `nat` binding with `for:`; plain `for` reuses an existing mutable `nat` binding.
 
 Tuple equality compares corresponding elements and stops at the first difference. Every element must support bool-valued equality. Printable tuples contain printable scalar values or nested tuples. Strings inside their text are quoted, including strings reached through a union alternative: `(10, "a, b")`. Quotes use `{DQ}`, braces are doubled, and named controls use `{NL}`, `{HT}`, `{CR}`, `{BS}`, `{FF}`, `{VT}` and `{BL}`. Backslashes and non-ASCII characters remain themselves. Printing a string alone keeps its ordinary unquoted behavior. Tuple formatting suffixes are rejected.
 
@@ -2072,3 +2071,4 @@ using the ordinary typed copy. A tensor's mutable data/device accessor preserves
 its normal COW and tracking rules. The view is invalidated at return. Core
 validates every writable floating tensor after an unflagged extern, and skips
 this fallback only for a registered self-validating or finite-preserving op.
+

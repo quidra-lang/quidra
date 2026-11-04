@@ -199,11 +199,12 @@ private:
             } else if (auto* node = std::get_if<ForStmt>(&value.data)) {
                 visit_for_header(*node, [&](Expr& operand) { expr(operand); });
                 if (!node->discards()) reject_binding(node->name, value.span);
-                if (node->index) reject_binding(node->index->name, node->index->span);
+                if (node->index && node->index->declares) reject_binding(node->index->name, node->index->span);
                 if (node->pattern) pattern(*node->pattern);
                 if (node->type) type(*node->type);
                 for (auto& collection : node->collections) {
                     if (collection.name != "_") reject_binding(collection.name, collection.span);
+                    if (collection.index && collection.index->declares) reject_binding(collection.index->name, collection.index->span);
                     if (collection.type) type(*collection.type);
                 }
                 body(node->body);

@@ -50,8 +50,14 @@ void ControlFlowLowering::lower_discard_sequence_for(const ForStmt& n) {
     ValueId index_value=0;
     if(n.index) {
         index_value=lowerer_.bare_from_int64(index,Type::simple(TypeKind::Nat),false);
-        scope_.bind_source_value(n.index->name,index_value);
-        lifetime_.enter_loop_value(index_value,Type::simple(TypeKind::Nat));
+        if(n.index->declares) {
+            scope_.bind_source_value(n.index->name,index_value);
+            lifetime_.enter_loop_value(index_value,Type::simple(TypeKind::Nat));
+        } else {
+            builder_.emit(StoreLocal{scope_.source_local(n.index->name),index_value,Type::simple(TypeKind::Nat)});
+            lowerer_.initialization_flags().for_index_iteration(*n.index);
+            index_value=0;
+        }
     }
     loop_targets_.enter(advance,leave);lowerer_.lower_block(n.body);loop_targets_.leave();
     if(index_value) lifetime_.leave_loop_value();

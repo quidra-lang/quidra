@@ -1086,7 +1086,7 @@ map_cache_expected="$(printf '2\n15\n20')"
 
 cat > "$TMP/array-append-cache.qui" <<'QUI'
 int[] values := []
-for 0 <= nat i < 10000
+for: 0 <= nat i < 10000
     values = values.append(int(i))
 int[] copied := values
 values = values.append(10000)
@@ -1214,7 +1214,7 @@ distinct_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntru
 cat > "$TMP/hash-collection-tombstones.qui" <<'QUI'
 map<int, int> values := map<int, int>()
 distinct<int> unique := distinct<int>()
-for 0 <= nat i < 32
+for: 0 <= nat i < 32
     .values.set(int(i), int(i))
     .unique.add(int(i))
     if not .values.remove(int(i))
@@ -1238,7 +1238,7 @@ tombstone_expected="$(printf '1\n1\ntrue\ntrue')"
 
 cat > "$TMP/hash-collections.qui" <<'QUI'
 map<string, int> many := map<string, int>()
-for 0 <= nat i < 100
+for: 0 <= nat i < 100
     .many.set("k{int(i)}", int(i) * 3)
 print(many.size())
 print(NL)
@@ -1280,9 +1280,9 @@ match number_value
         print(NL)
 
 distinct<string> unique := distinct<string>()
-for 0 <= nat i < 100
+for: 0 <= nat i < 100
     .unique.add("v{i}")
-for 0 <= nat i < 100
+for: 0 <= nat i < 100
     .unique.add("v{i}")
 print(unique.size())
 print(NL)
@@ -1308,7 +1308,7 @@ grep -q '@quidra_array_grow_move' "$TMP/hash-collections.ll"
 # accidental quadratic regressions in generated collection code.
 cat > "$TMP/hash-collections-stress.qui" <<'QUI'
 map<int, int> large := map<int, int>()
-for 0 <= nat i < 5000
+for: 0 <= nat i < 5000
     .large.set(int(i), int(i) * 2)
 print(large.size())
 print(NL)
@@ -1345,9 +1345,9 @@ print(copied_large.has(6000))
 print(NL)
 
 distinct<int> large_distinct := distinct<int>()
-for 0 <= nat i < 5000
+for: 0 <= nat i < 5000
     .large_distinct.add(int(i))
-for 0 <= nat i < 5000
+for: 0 <= nat i < 5000
     .large_distinct.add(int(i))
 print(large_distinct.size())
 print(NL)
@@ -1368,10 +1368,10 @@ hash_stress_expected="$(printf '5000\n8194\n123456\n0\n4999\nfalse\nfalse\ntrue\
 cat > "$TMP/hash-collection-removal-stress.qui" <<'QUI'
 map<int, int> values := map<int, int>()
 distinct<int> unique := distinct<int>()
-for 0 <= nat i < 5000
+for: 0 <= nat i < 5000
     .values.set(int(i), int(i) * 3)
     .unique.add(int(i))
-for 0 <= nat i < 3500
+for: 0 <= nat i < 3500
     if not .values.remove(int(i))
         print("map remove failed")
         print(NL)
@@ -2063,7 +2063,7 @@ int slow_value()
 func<int>()[] operations := array(128, fill = slow_value)
 int[] values := array(len(operations), fill = 0)
 parallel
-    for operation := operations[nat index]
+    for: operation := operations[index]
         values[index] = operation()
 print(len(values))
 print(NL)

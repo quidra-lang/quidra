@@ -27,7 +27,7 @@ class Result()
 int .write_round(string name, int n, Lcg &generator)
     file.write writer := file.write(name)
     int nbytes := 0
-    for 0 <= int i < n
+    for: 0 <= int i < n
         int v := .generator.next_int()
         string record := "{i} {v}{NL}"
         .writer(record)
@@ -44,7 +44,7 @@ Result workload()
     int nbytes := 0
     int lines := 0
 
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         string name := "mb10_round_{r}.txt"
 
         nbytes += .write_round(name, n, &g)
@@ -82,7 +82,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

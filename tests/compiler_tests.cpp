@@ -495,7 +495,7 @@ static void imported_locals_use_module_scope() {
               "int plain_extent(int top)\n"
               "    int input_height := 2\n"
               "    int total := 0\n"
-              "    for 0 <= nat input_width < 3\n"
+              "    for: 0 <= nat input_width < 3\n"
               "        total = total + int(input_width)\n"
               "    match int.parse(\"7\")\n"
               "        int parsed\n"
@@ -506,7 +506,7 @@ static void imported_locals_use_module_scope() {
               "\n"
               "if main\n"
               "    int input_height := 6\n"
-              "    for 0 <= nat input_width < 2\n"
+              "    for: 0 <= nat input_width < 2\n"
               "        print(\"{input_height + int(input_width)}{NL}\")\n");
         write("main.qui",
               "import lib = \"./lib.qui\"\n"
@@ -1793,8 +1793,7 @@ static void brace_shapes_and_shape_variables() {
     bad_message("tensor<real32>{nat B, nat H} t\n", "SHAPE_VARIABLE",
                 "'B' has no value: without an initializer, write a literal, an expression, "
                 "'B := ...' or an existing nat value.");
-    bad_message("int n := 3\ntensor<real32>{n} u := tensor.zeros<real32>([3])\n", "SHAPE_VARIABLE",
-                "'n' is int; a bare axis name refers only to a nat value: write 'nat(n)'.");
+    good("int n := 3\ntensor<real32>{n} u := tensor.zeros<real32>([3])\n");
     bad_message("tensor<real32>{nat C, nat H} x := tensor.zeros<real32>([2, 3])\n"
                 "tensor<real32>{H := 10, nat W} z := tensor.zeros<real32>([10, 2])\n",
                 "SHADOWING",
@@ -1818,8 +1817,9 @@ static void brace_shapes_and_shape_variables() {
                 "SHAPE_VARIABLE", "'A' is defined by itself.");
     // Unnamed expressions are nat: `(n)` is an expression, `nat(n)` converts.
     good("nat n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n");
-    bad_message("int n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n",
-                "TYPE_MISMATCH", "A tensor axis is a nat value: write 'nat(n)'.");
+    good("int n := 3\ntensor<real32>{(n)} x := tensor.zeros<real32>([3])\n");
+    good("batch := 3\ntensor<real32>{batch * 2, 224} contextual := tensor.zeros()\n");
+    good("tensor<real32>{(1 - 3) + 4} x := tensor.zeros()\n");
     good("int n := 3\ntensor<real32>{nat(n), 2} x := tensor.zeros<real32>([3, 2])\n");
     good("int[] v := [1, 2]\ntensor<real32>{len(v)} x := tensor.zeros<real32>([2])\n");
     good("bool wide := true\ntensor<real32>{if wide then 4 else 2} x := tensor.zeros<real32>([4])\n");
@@ -1829,11 +1829,9 @@ static void brace_shapes_and_shape_variables() {
                 "A shape variable is nat: write 'nat N'.");
     bad_message("tensor<real32>{nat64 N} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
                 "A shape variable is nat: write 'nat N'.");
-    // Bare names refer only to nat values.
-    bad_message("real64 r := 2.0\ntensor<real32>{r} x := tensor.zeros<real32>([2])\n",
-                "SHAPE_VARIABLE", "'r' is not a nat value.");
-    bad_message("nat64 w := 2\ntensor<real32>{w} x := tensor.zeros<real32>([2])\n",
-                "SHAPE_VARIABLE", "'w' is nat64; a bare axis name refers only to a nat value");
+    // Bare numeric names convert only their resulting value to nat.
+    good("real64 r := 2.0\ntensor<real32>{r} x := tensor.zeros<real32>([2])\n");
+    good("nat64 w := 2\ntensor<real32>{w} x := tensor.zeros<real32>([2])\n");
     bad_message("nat f()\n    return 2\ntensor<real32>{f} x := tensor.zeros<real32>([2])\n",
                 "SHAPE_VARIABLE", "'f' is not a nat value.");
     bad_message("tensor<real32>{FF} x := tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
@@ -2499,20 +2497,20 @@ class Counter this(local int value)
         value += 1
         return value
 Counter counter := Counter(0)
-for int value < 3
+for: int value < 3
     print(increment(value))
     print(counter.increment(value))
     Counter copy := Counter(value)
     print(copy.total)
 nat[] values := [0, 1]
-for nat value := values[nat index]
+for: nat value := values[index]
     print(index)
 )");
     good("int x\nif true\n    x = 1\nprint(x)\nprint(NL)\n");
     good("int x\nwhile false\n    x = 1\nprint(x)\nprint(NL)\n");
     ir_function_contains("int maybe(bool c)\n    int x\n    if c\n        x = 1\n    return x\n",
                          "maybe", "init.check %");
-    ir_function_contains("int zero(int n)\n    int x\n    for 0 <= int i < n\n        x = i\n    return x\n",
+    ir_function_contains("int zero(int n)\n    int x\n    for: 0 <= int i < n\n        x = i\n    return x\n",
                          "zero", "init.check %");
     ir_function_contains("int repeat(bool c)\n    int x\n    while c\n        x = 1\n        return x\n"
                          "    return x\n", "repeat", "init.check %");
@@ -2521,21 +2519,21 @@ for nat value := values[nat index]
                          "pick", "init.check %");
     // A read later in a loop body than the write it depends on, on a later
     // iteration.
-    ir_function_contains("int carried(int n)\n    int x\n    int total := 0\n    for 0 <= int i < n\n"
+    ir_function_contains("int carried(int n)\n    int x\n    int total := 0\n    for: 0 <= int i < n\n"
                          "        if i > 0\n            total += x\n        x = i\n    return total\n",
                          "carried", "init.check %");
     // A loop that runs at least once and has no break or continue
     // initializes what its body does: a constant range, a fixed array, a
     // literal.
-    ir_function_not_contains("int counted()\n    int x\n    for 0 <= nat i < 3\n        x = int(i)\n    return x\n",
+    ir_function_not_contains("int counted()\n    int x\n    for: 0 <= nat i < 3\n        x = int(i)\n    return x\n",
                              "counted", "init.check");
     ir_function_not_contains("int fixed(int[3] values)\n    int x\n    for v := values[]\n        x = v\n"
                              "    return x\n", "fixed", "init.check");
     ir_function_not_contains("string listed()\n    string x\n    for v := [\"a\", \"b\"][]\n        x = v\n"
                              "    return x\n", "listed", "init.check");
-    ir_function_contains("int stopped()\n    int x\n    for 0 <= nat i < 3\n        if i == 1\n            break\n"
+    ir_function_contains("int stopped()\n    int x\n    for: 0 <= nat i < 3\n        if i == 1\n            break\n"
                          "        x = int(i)\n    return x\n", "stopped", "init.check %");
-    ir_function_contains("int empty_range()\n    int x\n    for 3 <= nat i < 3\n        x = int(i)\n    return x\n",
+    ir_function_contains("int empty_range()\n    int x\n    for: 3 <= nat i < 3\n        x = int(i)\n    return x\n",
                          "empty_range", "init.check %");
     // Past a checked read the binding is initialized: one check.
     good(ready + "int x\nif ready\n    x = 1\nprint(x)\nprint(x + 1)\nprint(NL)\n");
@@ -2580,7 +2578,7 @@ static void array_element_reads_need_an_initializing_path() {
     good("int[3] a\nif len(a) > 1\n    a[1] = 5\nprint(a[1])\nprint(NL)\n");
     good("void fill(int[3] &values)\n    values[2] = 1\n\nint[3] a\nfill(&a)\nprint(a[2])\nprint(NL)\n");
     good("int[3] a\nint i := int(len(a) - 1)\na[i] = 1\nprint(a[0])\nprint(NL)\n");
-    good("int[] b := array(3)\nfor 0 <= nat i < len(b)\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
+    good("int[] b := array(3)\nfor: 0 <= nat i < len(b)\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
     good("int[] b := array(len(\"ab\"))\nb[0] = 1\nprint(b[1])\nprint(NL)\n");
     good("int[3] a\nint &slot := &a[1]\nslot = 4\nprint(a[1])\nprint(NL)\n");
     // Whole assignment initializes every element; tensors stay run-time.
@@ -3752,7 +3750,7 @@ same_width(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
     bad_code(R"(void missing(tensor<real32>{C} a)
     print(int(0))
 )", "SHAPE_VARIABLE");
-    bad_code(R"(void wrong_kind(int n, tensor<real32>{n} a)
+    bad_code(R"(void wrong_kind(bool n, tensor<real32>{n} a)
     print(n)
 )", "SHAPE_VARIABLE");
     bad_code(R"(void shadow(nat N, tensor<real32>{nat N} a)
@@ -4258,7 +4256,7 @@ print(NL)
  // Compiler-owned +1 induction variables are bounded by their loop
  // conditions, so they do not need a checked-overflow branch on every iteration.
  llvm_function_not_contains(R"(void walk_range()
-    for 0 <= nat i < 8
+    for: 0 <= nat i < 8
         print(i)
         print(NL)
 
@@ -4292,7 +4290,7 @@ walk_array(values)
 
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
- ir_contains(R"(for 0 <= nat i < 2
+ ir_contains(R"(for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", NL]
     string line := fields.join("")
     print(line)
@@ -4300,7 +4298,7 @@ walk_array(values)
 )", "string.build");
  llvm_contains(R"(string content := ""
 int written := 0
-for 0 <= nat i < 2
+for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", i.string(), NL]
     string line := fields.join("")
     content = content + line
@@ -4310,7 +4308,7 @@ print(NL)
 )", "@quidra_string_build_append_move");
  ir_contains(R"(string content := ""
 int written := 0
-for 0 <= nat i < 2
+for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", i.string(), NL]
     string line := fields.join("")
     content = content + line
@@ -4320,7 +4318,7 @@ print(NL)
 )", "string.build_append");
  llvm_contains(R"(string content := ""
 int written := 0
-for 0 <= nat i < 2
+for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", i.string(), NL]
     string line := fields.join("")
     content = content + line
@@ -4330,7 +4328,7 @@ print(NL)
 )", "call ptr @quidra_string_build_append_move_unique_direct");
  llvm_contains(R"(string content := ""
 int written := 0
-for 0 <= nat i < 2
+for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", i.string(), NL]
     string line := fields.join("")
     content = content + line
@@ -4340,7 +4338,7 @@ print(NL)
 )", "store i8 4");
  llvm_not_contains(R"(string content := ""
 int written := 0
-for 0 <= nat i < 2
+for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", i.string(), NL]
     string line := fields.join("")
     content = content + line
@@ -4348,21 +4346,21 @@ for 0 <= nat i < 2
 print(written)
 print(NL)
 )", "call i64 @quidra_string_build_append_last_length");
- llvm_contains(R"(for 0 <= nat i < 2
+ llvm_contains(R"(for: 0 <= nat i < 2
     string[] fields := [i.string(), " ", NL]
     string line := fields.join("")
     print(line)
     print(NL)
 )", "@quidra_string_build");
  ir_contains(R"(string text := "a b"
-for 0 <= nat i < len(text)
+for: 0 <= nat i < len(text)
     if text[i] == " "
         print(i)
         print(NL)
 )", "string.index_ascii_compare");
  ir_contains(R"(string text := "a b a"
 int64 spaces := 0
-for 0 <= nat i < len(text)
+for: 0 <= nat i < len(text)
     if text[i] == " "
         spaces += 1
 print(spaces)
@@ -4370,7 +4368,7 @@ print(NL)
 )", "string.ascii_count_prefix");
  llvm_contains(R"(string text := "a b a"
 int64 spaces := 0
-for 0 <= nat i < len(text)
+for: 0 <= nat i < len(text)
     if text[i] == " "
         spaces += 1
 print(spaces)
@@ -4422,7 +4420,7 @@ match string.from_utf8(bin(data))
             process.exit(1)
 
 string line := "12 34"
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     string[] fields := line.split(" ")
     int64 left := parse_decimal(fields[0])
     int64 right := parse_decimal(fields[1])
@@ -4437,7 +4435,7 @@ for 0 <= nat i < 1
             process.exit(1)
 
 string line := "12 34"
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     string[] fields := line.split(" ")
     int64 left := parse_decimal(fields[0])
     int64 right := parse_decimal(fields[1])
@@ -4445,7 +4443,7 @@ for 0 <= nat i < 1
     print(NL)
 )", "call i1 @__quidra_string_parse_two_signed_fast");
  ir_contains(R"(string line := "12 34"
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     string[] fields := line.split(" ")
     int64 left := int64.parse(fields[0])
     int64 right := int64.parse(fields[1])
@@ -4453,7 +4451,7 @@ for 0 <= nat i < 1
     print(NL)
 )", "string.parse_two_signed");
  llvm_contains(R"(string line := "12 34"
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     string[] fields := line.split(" ")
     int64 left := int64.parse(fields[0])
     int64 right := int64.parse(fields[1])
@@ -4468,7 +4466,7 @@ for 0 <= nat i < 1
             process.exit(1)
 
 string line := "12 34"
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     string[] fields := line.split(" ")
     int64 left := parse_decimal(fields[0])
     int64 right := parse_decimal(fields[1])
@@ -4481,7 +4479,7 @@ for part := text.split(" ")[]
     print(NL)
 )", "string.split_iter.begin");
  ir_contains(R"(string text := "a b"
-for 0 <= nat outer < 1
+for: 0 <= nat outer < 1
     string[] parts := text.split(" ")
     int index := 0
     for part := parts[]
@@ -4508,13 +4506,13 @@ print(NL)
  // weakening the default overflow semantics.
  ir_contains(R"(int bounded_hash(const nat8[] data, int size)
     int h := 0
-    for 0 <= int i < size
+    for: 0 <= int i < size
         h = (h * 131 + int(data[i])) % 1000000007
     return h
 )", "no-overflow");
  llvm_contains(R"(int bounded_hash(const nat8[] data, int size)
     int h := 0
-    for 0 <= int i < size
+    for: 0 <= int i < size
         h = (h * 131 + int(data[i])) % 1000000007
     return h
 )", "mul nsw i64");
@@ -4640,11 +4638,11 @@ nat b := twice(nat(4))
  llvm_not_contains(R"(int[] data := array(8, fill = 0)
 int size := int(len(data))
 int total := 0
-for 0 <= int i < size
+for: 0 <= int i < size
     total += data[i]
-for 0 <= int i < size - 1
+for: 0 <= int i < size - 1
     total += data[i + 1]
-for 0 <= int i < size
+for: 0 <= int i < size
     total += data[size - 1 - i]
 print(total)
 print(NL)
@@ -4657,7 +4655,7 @@ print(NL)
 )", "call ptr @quidra_array_slot(ptr");
  llvm_contains(R"(int[] data := array(8, fill = 0)
 int size := int(len(data))
-for 0 <= int i < size
+for: 0 <= int i < size
     data = array(0, fill = 0)
     print(data[i])
     print(NL)
@@ -4683,7 +4681,7 @@ for 0 <= int i < size
  good(R"(int identity(int value)
     return value
 void first()
-    for 0 <= int round < 3
+    for: 0 <= int round < 3
         int left
         int right
         parallel
@@ -4697,8 +4695,8 @@ second()
 )");
  good(R"(void fill()
     int[2] data
-    for 0 <= int round < 3
-        parallel for index < 2
+    for: 0 <= int round < 3
+        parallel for: index < 2
             data[index] = index
 void after()
     int value := 0
@@ -4709,7 +4707,7 @@ after()
     return value
 int[] data := array(8, fill = 0)
 int size := int(len(data))
-for 0 <= int index < size
+for: 0 <= int index < size
     int value
     parallel
         value = identity(1)
@@ -4722,7 +4720,7 @@ parallel
     value = identity(1)
 int[] data := array(8, fill = 0)
 int size := int(len(data))
-for 0 <= int index < size
+for: 0 <= int index < size
     print(data[index])
 )", "call ptr @quidra_array_slot(ptr");
  llvm_contains(R"(int[] data := array(1, fill = 7)
@@ -5262,7 +5260,7 @@ print(NL)
  R"(int[] values := array(2, fill = 0)
 for &value := &values[]
     value = 7
-for 0 <= nat i < 3 step 1
+for: 0 <= nat i < 3 step 1
     print(i)
     print(NL)
 )",
@@ -6662,7 +6660,7 @@ print(NL)
  bad_code(R"(int left := 1
 int right
 int &slot := &left
-for 0 <= nat i < 1
+for: 0 <= nat i < 1
     &slot = &right
 print(slot)
 print(NL)
@@ -6715,7 +6713,7 @@ f := square
      "call ptr @quidra_fixed_array_slot_proven");
  llvm_contains(R"(int sum_values(const int[] values, int n)
     int total := 0
-    for 0 <= int i < n
+    for: 0 <= int i < n
         total += values[i]
     return total
 
@@ -6725,7 +6723,7 @@ print(NL)
 )", "call i1 @quidra_array_initialization_complete");
  llvm_contains(R"(int sum_values(const int[] values, int n)
     int total := 0
-    for 0 <= int i < n
+    for: 0 <= int i < n
         total += values[i]
     return total
 
@@ -6735,7 +6733,7 @@ print(NL)
 )", "call ptr @quidra_array_slot_proven");
  llvm_contains(R"(int sum_values(const int[] values, int n)
     int total := 0
-    for 0 <= int i < n
+    for: 0 <= int i < n
         total += values[i]
     return total
 
@@ -8420,7 +8418,7 @@ print(count)
 )", "TYPE_MISMATCH");
  // Explicit local bindings use ordinary block scope and cannot be captured by definitions.
  good("local (int count, string label) := (7, \"x\")\nprint(count)\n");
- good("int identity(local int value)\n    local int result := value\n    return result\nlocal int value := 7\nint copy := identity(value)\nif true\n    local int inner := value\n    for int i < 2\n        local int next := inner + i\n        print(next)\n");
+ good("int identity(local int value)\n    local int result := value\n    return result\nlocal int value := 7\nint copy := identity(value)\nif true\n    local int inner := value\n    for: int i < 2\n        local int next := inner + i\n        print(next)\n");
  good("int identity(int value);\nint identity(local int value)\n    return value\nint result := identity(7)\n");
  good("T identity<T>(local T value)\n    local T result := value\n    return result\nlocal int value := 7\nint copy := identity(value)\n");
  inspect_contains("local int value := 7\nprint(value)\n", "\"local\":true");
@@ -8461,7 +8459,7 @@ for Child &visit := &reflect.each<Child>(&root)[]
 
  // A traversal names visits and has no storable or callable value.
  good("int root := 1\nfor int &value := &reflect.each<int>(&root)[]\n    value = 2\n");
- good("int[][] root := [[1], [2]]\nfor value := reflect.each<int>(root)[nat i]\n    print(i)\n");
+ good("int[][] root := [[1], [2]]\nfor: value := reflect.each<int>(root)[i]\n    print(i)\n");
  bad_code("int root := 1\nsaved := reflect.each<int>(root)\n","TRAVERSAL");
  bad_code("int root := 1\nfor value := reflect.each(root)[]\n    print(value)\n","TRAVERSAL");
  bad_code("reflect.Each<int> saved\n","TRAVERSAL");
@@ -8754,7 +8752,7 @@ print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
  llvm_contains(R"(int[] data := array(1, fill = 7)
 int[] partial := array(1)
-for 0 <= int index < 2
+for: 0 <= int index < 2
     if index == 0
         data = partial
         break
@@ -8762,12 +8760,12 @@ print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
  llvm_contains(R"(int[] data := array(1, fill = 7)
 int[] partial := array(1)
-for 0 <= int index < 2
+for: 0 <= int index < 2
     print(data[0])
     data = partial
 )", "call void @quidra_init_check(ptr %arr.get.slot.");
  llvm_not_contains(R"(int[] data := array(1, fill = 7)
-for 0 <= int index < 2
+for: 0 <= int index < 2
     print(data[0])
 print(data[0])
 )", "call void @quidra_init_check(ptr %arr.get.slot.");

@@ -224,14 +224,8 @@ void Checker::resolve_bare_axis_name(const ShapeAxis& axis) {
     const auto& name = axis.name;
     if (const auto found = variables_.find(name); found != variables_.end()) {
         const auto& type = found->second;
-        if (poisoned(type) || type.kind == TypeKind::Nat) return;
-        if (is_integer_family_type(type)) {
-            error("SHAPE_VARIABLE",
-                  "'" + name + "' is " + type_name(type) +
-                      "; a bare axis name refers only to a nat value: write 'nat(" + name + ")'.",
-                  axis.span);
-        }
-        error("SHAPE_VARIABLE", "'" + name + "' is not a nat value.", axis.span);
+        if (poisoned(type) || (is_numeric(type) && explicit_numeric_cast_supported(type, simple(TypeKind::Nat)))) return;
+        error("SHAPE_VARIABLE", "'" + name + "' cannot be converted to a nat extent.", axis.span);
     }
     if (is_builtin_text_constant(name)) {
         error("SHAPE_VARIABLE",
@@ -249,13 +243,10 @@ void Checker::resolve_bare_axis_name(const ShapeAxis& axis) {
           axis.span);
 }
 
-// An axis expression is nat: integer literals materialize into nat, nat(e)
-// converts another integer kind, and anything else is an error.
+// Evaluate an axis at its own static type, then convert the result to nat.
+// Keeping the expression's type avoids changing intermediate arithmetic.
 Type Checker::check_shape_axis_expression(const Expr& expression) {
     const auto nat = simple(TypeKind::Nat);
-    if (numeric_literal_family(expression) != NumericLiteralCategory::None) {
-        return check_expr(expression, &nat);
-    }
     auto type = check_expr(expression);
     if (legacy_signature_axes_.contains(&expression) && is_integer_family_type(type)) return type;
     if (poisoned(type) || type.kind == TypeKind::Nat) return type;
@@ -263,7 +254,20 @@ Type Checker::check_shape_axis_expression(const Expr& expression) {
     // stops with the extent check (Q54), so no error remains.
     settle_extent_conversion(expression, type);
     if (type.kind == TypeKind::Nat) return type;
-    error("TYPE_MISMATCH", "A tensor axis is a nat value: write 'nat(n)'.", expression.span);
+    if(type.kind==TypeKind::Union && type.union_name.empty()) {
+        std::vector<Type> success;
+        for(const auto& candidate:type.cases) if(candidate.kind!=TypeKind::Error) success.push_back(candidate);
+        if(success.size()==1 && case_index(type,simple(TypeKind::Error))>=0) {
+            type=success.front();
+            fail_fast_expressions_.insert(&expression);
+            expr_types_[&expression]=type;
+        }
+    }
+    if(is_numeric(type) && explicit_numeric_cast_supported(type,nat)) {
+        implicit_numeric_argument_conversions_[&expression]=nat;
+        return nat;
+    }
+    error("TYPE_MISMATCH", "A tensor axis must be convertible to nat.", expression.span);
 }
 
 ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool has_value) {
@@ -381,7 +385,7 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
                         break;
                     }
                     resolve_bare_axis_name(axis);
-                    check_expr(*axis.value);
+                    check_shape_axis_expression(*axis.value);
                     current.check = ShapeAxisCheck::Value;
                     current.value = axis.value.get();
                     if (is_shape_variable(axis.name)) current.variable = axis.name;
@@ -419,7 +423,8 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
                             error("INVALID_TYPE", "Array/tensor extents cannot be negative.",
                                   current.value->span);
                         }
-                        if (current.capture == current.value ||
+                        if ((current.capture == current.value &&
+                             !implicit_numeric_argument_conversions_.contains(current.value)) ||
                             std::holds_alternative<IntegerExpr>(current.capture->data)) {
                             current.constant = *known;
                         }

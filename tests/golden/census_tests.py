@@ -178,7 +178,7 @@ print(NL)
     # Checks and loop operations.
     "counts.qui": """\
 int total := 0
-for 0 <= nat i < 10
+for: 0 <= nat i < 10
     total = total + int(i)
 int8 small := 3
 int64 k := 0

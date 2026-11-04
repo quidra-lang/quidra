@@ -17,7 +17,7 @@ int .observe(int &value, Holder<int> holder)
     return first * 100 + value
 int .snapshot(int[] &values, Holder<int[]> holder)
     int total := 0
-    for int value := values[nat index]
+    for: int value := values[index]
         if index == 0
             .holder.replace([1, 77, 3])
         total += value
@@ -45,7 +45,7 @@ class Holder this(local int[] &source)
     void .shorten()
         this.values = [7]
 void .iterate(int[] &values, Holder holder)
-    for int &value := &values[nat index]
+    for: int &value := &values[index]
         if index == 0
             .holder.shorten()
         print(value)

@@ -29,7 +29,7 @@ if "$QUIDRA" "$TMP/maybe.qui" > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 grep -Fq UNBOUND_REFERENCE "$TMP/err"
 cat > "$TMP/iteration.qui" <<'QUI'
 int a := 0
-for int i < 2
+for: int i < 2
     int &r
     if i == 0
         &r = &a

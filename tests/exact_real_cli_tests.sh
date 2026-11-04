@@ -219,7 +219,7 @@ reason unproven-v1 NO_REFINEMENT
 stops unproven-budget 5 7 "exact comparison could not be proven: the refinement budget ran out" code=EXACT_UNPROVEN <<'QUI'
 import exactprobe
 real value := exactprobe.root2
-for 0 <= nat i < 12000
+for: 0 <= nat i < 12000
     value = exactprobe.first(value, exactprobe.pi)
 print(value > real(1))
 QUI

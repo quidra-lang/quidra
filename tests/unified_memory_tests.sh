@@ -84,7 +84,7 @@ for size := sizes[]
 tensor<real32> base := tensor.ones<real32>([65536])
 tensor<real32> base_device := base.gpu(nat(dev))
 tensor<real32> accumulated := base_device
-for 0 <= nat step < 40
+for: 0 <= nat step < 40
     accumulated = accumulated + base_device
 base_device = tensor.zeros<real32>([1], gpu = nat(dev))
 base[0] = real32(1000)
@@ -95,7 +95,7 @@ show("queued reads before host writes [1]", accumulated_host[1].item())
 show("host writes", base[0].item() + base[1].item())
 
 tensor<real32> written := tensor.zeros<real32>([65536], gpu = nat(dev))
-for 0 <= nat step < 25
+for: 0 <= nat step < 25
     written = written + real32(1)
 tensor<real32> written_host := written.cpu()
 show("queued writes before cpu", written_host[65535].item())
@@ -199,7 +199,7 @@ void show(string label, real32 value)
 
 tensor<real32> sum_first(tensor<real32> value, int count)
     tensor<real32> result := value.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
@@ -364,7 +364,7 @@ show("reuse shared: device", device.cpu()[0].item())
 tensor<real32> host := tensor.ones<real32>([65536])
 tensor<real32> uploaded := host.gpu(nat(dev))
 tensor<real32> accumulated := uploaded
-for 0 <= nat step < 100
+for: 0 <= nat step < 100
     accumulated = accumulated + uploaded
 uploaded = tensor.zeros<real32>([1], gpu = nat(dev))
 print("reuse exclusive {probe.reuse(&host)}{NL}")

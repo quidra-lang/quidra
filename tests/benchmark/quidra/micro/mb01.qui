@@ -12,7 +12,7 @@ int fib(int n)
 // The whole workload body (methodology 06 section 4, MB-01).
 int workload()
     int total := 0
-    for 30 <= nat n < 38
+    for: 30 <= nat n < 38
         total = total + fib(int(n))
     return total
 
@@ -30,7 +30,7 @@ int total
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     total = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         total = timed(i)
 else
     total = workload()

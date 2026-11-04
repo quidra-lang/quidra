@@ -46,7 +46,7 @@ stale_source = '''int32 count(int32 n, bool fails)
     return count(n - 1, fails)
 
 int32 result := count(7, false) + count(3, false)
-for 0 <= nat i < 10000
+for: 0 <= nat i < 10000
     result = result + count(5, false)
 print(result)
 int32 n := int32.parse("DEPTH")

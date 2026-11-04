@@ -110,7 +110,7 @@ parallel_stmt    = "parallel", ( suite | for_stmt ) ;
 (* Each direct statement is one node. Bindings are visible to later nodes only
    within the block. return, break and continue may not leave a node. *)
 while_stmt       = "while", or_expr, suite ;
-for_stmt         = "for", ( range_header | collection_header | zip_header ), suite ;
+for_stmt         = "for", [ ":" ], ( range_header | collection_header | zip_header ), suite ;
 range_header     = bit_or_expr, ascending_op, [ type ], identifier, ascending_op, bit_or_expr, [ "step", bit_or_expr ]
                  | bit_or_expr, descending_op, [ type ], identifier, descending_op, bit_or_expr, [ "step", bit_or_expr ]
                  | [ type ], identifier, ascending_op, bit_or_expr, [ "step", bit_or_expr ]
@@ -123,14 +123,20 @@ collection_header = ( [ type ], identifier, ":=", postfix
                    | [ type ], "&", identifier, ":=", "&", postfix
                    | identifier, "=", postfix
                    | new_pattern, ":=", [ "&" ], postfix
-                   | place_pattern, "=", postfix ), "[", [ "nat", identifier ], "]" ;
+                   | place_pattern, "=", postfix ), collection_index ;
+collection_index = "[", [ [ "nat" ], identifier ], "]" ;
 zip_header       = array_value_binding, ",", array_value_binding, { ",", array_value_binding } ;
-array_value_binding = ( [ type ], identifier, ":=" | identifier, "=" ), postfix, "[", "]" ;
+array_value_binding = ( [ type ], identifier, ":=" | identifier, "=" ), postfix, collection_index ;
 (* Zip headers take Array values only, without reference, range, traversal,
-   pattern or index bindings. Sources are evaluated once, left to right;
+   or pattern bindings. Each source may name an index. Sources are evaluated once, left to right;
    each value is snapshotted immediately. Equal lengths are checked before
    the body runs, including when one source is empty. *)
 (* Reference collection headers require declarations and & on both sides.
+   `for:` declares the range variable or every written collection index;
+   plain `for` reuses them. Element := and = remain independent. A type
+   annotation on a range declaration requires `for:`. A colon without a
+   range variable or index declaration is invalid. Parallel headers follow
+   the same rule, but parallel index bindings remain unsupported.
    Range shorthand omits only the inclusive zero bound; full headers win
    when a middle variable and two operators are present. *)
 match_stmt       = "match", or_expr, NEWLINE, INDENT,
@@ -238,8 +244,8 @@ statement_end    = NEWLINE | EOF ;
      argument(), trailing argument(default = value), option(default = value), or flag();
      required positional argument() fields must precede optional positional fields;
    - `tensor<T>{AXIS, ...}` uses a mandatory fixed-width native numeric element type plus an
-     optional shape pattern; each explicit axis is `_`, a shape-variable declaration or a nat
-     expression. Without `...`, the number of axes is the required rank; one `...` permits
+     optional shape pattern; each explicit axis is `_`, a shape-variable declaration or a numeric
+     expression checked as a nat extent. Without `...`, the number of axes is the required rank; one `...` permits
      zero or more middle axes, with preceding constraints aligned from the head and following
      constraints aligned from the tail. Rank must be at least the number of explicit axes; Integer expressions
      that are not compile-time constants are evaluated once when the binding is
@@ -249,12 +255,13 @@ statement_end    = NEWLINE | EOF ;
      `(...)` a call; outside string literals, `{` and `}` appear only in shapes, and
      `tensor` is always followed by `<T>`. An axis is `nat N` (a new shape variable,
      the axis's extent), `N := EXPR` (a new shape variable equal to EXPR), a bare
-     name (an existing shape variable or nat value: the axis equals it), `_` (an
-     extent of any length that binds nothing) or any other integer expression (the
-     axis equals it); `nat N := EXPR` is the explicit spelling of `N := EXPR`. Only a lone identifier is a bare name, and
-     `(n)` is an expression. Every extent is nat: an integer of another kind is
-     written `nat(n)`. A bare name that names nothing, or a binding that is not nat,
-     is an error; declaring a visible name is SHADOWING, and declaring one twice in a
+     name (an existing shape variable or numeric value convertible to nat: the axis equals it), `_` (an
+     extent of any length that binds nothing) or any other numeric expression (the
+     axis equals its checked conversion to nat); `nat N := EXPR` is the explicit spelling of `N := EXPR`. Only a lone identifier is a bare name, and
+     `(n)` is an expression. Every extent is nat: evaluate each expression once at its
+     original static type, then convert only the result with explicit nat-cast checks.
+     Negative or fractional results fail. A bare name that names nothing, or a
+     value that cannot convert to nat, is an error; declaring a visible name is SHADOWING, and declaring one twice in a
      shape is an error (`{nat N, N}` is square). A shape is one scope unit: an axis may
      use any variable of its shape whatever the textual order, `N := EXPR` axes are
      evaluated in dependency order, and a cycle is an error. Shape variables are
@@ -360,3 +367,4 @@ place_element = "_" | place_pattern | assignable ;
 
 (* Collection for headers also accept a declaration, existing-place or reference
    tuple pattern. Reference patterns take &SOURCE[]. *)
+

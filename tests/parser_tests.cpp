@@ -480,10 +480,53 @@ static void bounded_range_precedence() {
     }
 }
 
+static void for_declaration_markers() {
+    const auto program = parse(
+        "for: i < 10\n    println(i)\n"
+        "for: 0 <= j < 10\n    println(j)\n"
+        "for: 10 >= k > 0\n    println(k)\n"
+        "for: 10 > last\n    println(last)\n"
+        "for: value := values[index]\n    println(value)\n"
+        "for: value = values[index]\n    println(value)\n"
+        "for value := values[index]\n    println(value)\n"
+        "for value = values[index]\n    println(value)\n"
+        "parallel for: item < 4\n    println(item)\n");
+    for (std::size_t i = 0; i < 4; ++i) {
+        const auto& loop = std::get<ForStmt>(program.statements[i]->data);
+        require(loop.range && loop.declares && !loop.type,
+                "for: declares a range variable without a type");
+    }
+    for (std::size_t i = 4; i < 8; ++i) {
+        const auto& loop = std::get<ForStmt>(program.statements[i]->data);
+        require(loop.index && loop.index->name == "index" && loop.index->declares == (i < 6) &&
+                    loop.declares == (i % 2 == 0),
+                "element declaration stays independent of the index marker");
+    }
+    const auto& parallel = std::get<ForStmt>(program.statements[8]->data);
+    require(parallel.parallel && parallel.declares, "parallel for: uses the ordinary declaration marker");
+    const auto zipped = parse(
+        "for: p := prices[i], int q := quantities[j]\n    println(p + q)\n"
+        "for: p := prices[], q := quantities[j]\n    println(j)\n"
+        "for p := prices[i], q = quantities[j]\n    println(i)\n");
+    const auto& two = std::get<ForStmt>(zipped.statements[0]->data);
+    require(two.index && two.index->declares && two.collections[0].index &&
+                two.collections[0].index->declares && two.collections[0].type &&
+                two.collections[0].type->name == "int",
+            "for: independently declares every written zip index");
+    const auto& second = std::get<ForStmt>(zipped.statements[1]->data);
+    require(!second.index && second.collections[0].index->declares,
+            "a zip index may appear only on a later array");
+    const auto& reused = std::get<ForStmt>(zipped.statements[2]->data);
+    require(!reused.index->declares && !reused.collections[0].index->declares &&
+                reused.declares && !reused.collections[0].declares,
+            "index and element reuse are independent in every zip binding");
+}
+
 int main() {
+    for_declaration_markers();
     bounded_range_precedence();
     {
-        auto program=parse("parallel for 5 > int x >= 0 step -2\n    continue\n"
+        auto program=parse("parallel for: 5 > int x >= 0 step -2\n    continue\n"
                            "parallel\n    int first := 1\n");
         const auto& loop=std::get<ForStmt>(program.statements.at(0)->data);
         require(loop.parallel && loop.range && loop.range->descending,"parallel prefix preserves integer range syntax");
@@ -507,7 +550,7 @@ int main() {
         require(order=="prices;quantities;ignored;","zip header visitor is left to right");
     }
     reject_code("for int &x := &values[], int y = other[]\n    print(y)\n","FOR_HEADER");
-    reject_code("for int x := values[nat i], int y = other[]\n    print(y)\n","FOR_HEADER");
+    reject_code("for: int x := values[i], int y = other[]\n    print(y)\n","FOR_HEADER");
     reject_code("for int x < 3, int y = other[]\n    print(y)\n","FOR_HEADER");
     brace_shapes();
     imaginary_literals();
@@ -1101,7 +1144,7 @@ int main() {
     reject_code("int[] values := []\noutput := [for int &x = &values[] then x]\n", "ARRAY_COMPREHENSION");
     reject_code("int[] values := []\noutput := [for int x := &values[] then x]\n", "ARRAY_COMPREHENSION");
     reject_code("int[] values := []\noutput := [for int x := values[], int y = values[] then x + y]\n", "ARRAY_COMPREHENSION");
-    reject_code("output := [for 0 <= int x < 3 then x]\n", "ARRAY_COMPREHENSION");
+    reject_code("output := [for: 0 <= int x < 3 then x]\n", "ARRAY_COMPREHENSION");
     reject_code("int[] values := []\noutput := [for int x := values[] x]\n", "ARRAY_COMPREHENSION");
 
     std::cout << "all parser tests passed\n";

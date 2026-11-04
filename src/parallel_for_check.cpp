@@ -25,8 +25,8 @@ void Checker::validate_parallel_for(const Stmt& statement,const ForStmt& loop,
         reject("parallel for initially supports array value snapshots, not bins or structural traversal.",statement.span);
     if(!scalar(item))reject("parallel for requires scalar iteration values.",statement.span);
     for(const auto& extra:loop.collections)
-        if(!extra.declares||!scalar(*raw_types_.at(extra.iterable.get()).first))
-            reject("Every parallel collection binding must declare a scalar value.",extra.span);
+        if(extra.index||!extra.declares||!scalar(*raw_types_.at(extra.iterable.get()).first))
+            reject("Every parallel collection binding must declare a scalar value without an index binding.",extra.span);
     CheckedProgram::ParallelForPlan plan;
     plan.worker_arithmetic=true;
     std::set<std::string> captures,outputs,locals;

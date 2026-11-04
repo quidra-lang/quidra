@@ -11,7 +11,7 @@ string joined(int8 small, nat16 count, bool flag)
 int appended(int8 small, nat16 count, bool flag)
     string content := ""
     int written := 0
-    for 0 <= nat index < 2
+    for: 0 <= nat index < 2
         string[] fields := [small.string(), ", ", count.string(), ",", flag.string(), NL]
         string line := fields.join("")
         content = content + line
@@ -23,7 +23,7 @@ bool not_letter(string text, int index)
 
 int not_spaces(string text, int count)
     int found := 0
-    for 0 <= int index < count
+    for: 0 <= int index < count
         if text[index] != " "
             found += 1
     return found

@@ -26,15 +26,15 @@ real64 workload()
     Lcg g := Lcg(20265917)
     real64[] x := array(nat(n), fill = 0.0)
     real64[] y := array(nat(n), fill = 0.0)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         x[i] = 0.5 + .g.next_unit()
-    for 0 <= int i < n
+    for: 0 <= int i < n
         y[i] = 0.5 + .g.next_unit()
     real64 total := 0.0
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         x[r] = x[r] + 1.0e-9
         real64 d := 0.0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             d = d + x[i] * y[i]
         total = total + d
     return total
@@ -53,7 +53,7 @@ real64 total
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     total = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         total = timed(i)
 else
     total = workload()

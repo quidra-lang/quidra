@@ -63,7 +63,7 @@ print(gpu_timer_elapsed.seconds() >= 0.0)
 print(NL)
 
 tensor<real32> reuse_result := tensor.zeros<real32>([4096], gpu = $GPU_INDEX)
-for 0 <= nat i < 64
+for: 0 <= nat i < 64
     real32 scale := real32(i + 1)
     tensor<real32> temporary := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * scale
     reuse_result = temporary + 1.0
@@ -471,13 +471,13 @@ tensor<real32> total(tensor<real32> value)
         count = count * int(extent)
     tensor<real32> flat := value.reshape([nat(count)])
     tensor<real32> result := flat.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + flat.gather([index], [])
     return result
 
 tensor<real32> pattern(int count, int seed)
     tensor<real32> value := tensor.zeros<real32>([nat(count)])
-    for 0 <= int index < count
+    for: 0 <= int index < count
         real32 step := real32((index * 7 + seed * 3) % 11)
         value[index] = step / real32(8) + real32(0.25)
     return value
@@ -791,7 +791,7 @@ if grep -Fq "backend: Metal" <<<"$gpu_info"; then
     # of one command buffer per operation (QUIDRA_METAL_STREAM=0).
     cat > "$TMP/metal-stream.qui" <<QUI
 tensor<real32> value := tensor.ones<real32>([1024], gpu = $GPU_INDEX)
-for 0 <= nat step < 100
+for: 0 <= nat step < 100
     value = value * 1.0001 + 0.5
 print(value[7].item())
 print(NL)
@@ -847,7 +847,7 @@ tensor<real32> a := tensor<real32>([nat(n)])
 tensor<real32> b := tensor<real32>([nat(n)])
 real32 x := real32(0.7316)
 real32 y := real32(1.913)
-for 0 <= int i < n
+for: 0 <= int i < n
     x = x * real32(1.37) + real32(0.11)
     if x > real32(1000)
         x = x / real32(997)
@@ -859,7 +859,7 @@ for 0 <= int i < n
 tensor<real32> cpu_quotient := a / b
 tensor<real32> gpu_quotient := (a.gpu($GPU_INDEX) / b.gpu($GPU_INDEX)).cpu()
 int mismatches := 0
-for 0 <= int i < n
+for: 0 <= int i < n
     if cpu_quotient[i].item() != gpu_quotient[i].item()
         mismatches += 1
 print(mismatches)
@@ -875,7 +875,7 @@ QUI
     cat > "$TMP/metal-stream-threads.qui" <<QUI
 real64 run(real32 seed)
     tensor<real32> value := tensor.ones<real32>([256], gpu = $GPU_INDEX) * seed
-    for 0 <= nat step < 50
+    for: 0 <= nat step < 50
         value = value + 1.0
     gpu.sync($GPU_INDEX)
     return real64(value[3].item())
@@ -2038,7 +2038,7 @@ cli args
 tensor<real32> x := tensor.ones<real32>([4096], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
 int32 setup := package.hooks(int32(0))
-for 0 <= nat i < 200
+for: 0 <= nat i < 200
     tensor<real32> y := x * 1.0001
     tensor<real32> z := package.scale(y, real32(1), int32(args.mode))
     x = z + 0.0
@@ -2118,14 +2118,14 @@ PY
 real64 reader()
     tensor<real32> big := tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
     real64 total := 0.0
-    for 0 <= nat i < 300
+    for: 0 <= nat i < 300
         tensor<real32> t := big * 1.0001
         total = total + real64(t[0].item())
     return total
 
 real64 overflower()
     real64 spin := 0.0
-    for 0 <= nat k < 200000
+    for: 0 <= nat k < 200000
         spin = spin + 1.0
     tensor<int8> values := tensor.ones<int8>([16], gpu = $GPU_INDEX) * int8(100)
     tensor<int8> sum := values + values
@@ -2148,14 +2148,14 @@ import package = stream_pkg
 real64 reader()
     tensor<real32> big := tensor.ones<real32>([1048576], gpu = $GPU_INDEX)
     real64 total := 0.0
-    for 0 <= nat i < 300
+    for: 0 <= nat i < 300
         tensor<real32> t := big * 1.0001
         total = total + real64(t[0].item())
     return total
 
 real64 checker()
     real64 spin := 0.0
-    for 0 <= nat k < 200000
+    for: 0 <= nat k < 200000
         spin = spin + 1.0
     tensor<real32> negative := tensor.ones<real32>([16], gpu = $GPU_INDEX) - 2.0
     int32 status := package.check(negative, int32(1))
@@ -2230,7 +2230,7 @@ import package = stream_pkg
 tensor<real32> a := tensor.ones<real32>([262144], gpu = $GPU_INDEX)
 tensor<real32> c := tensor.ones<real32>([8388608], gpu = $GPU_INDEX)
 gpu.sync($GPU_INDEX)
-for 0 <= nat i < 40
+for: 0 <= nat i < 40
     c = c * 1.0001
 int32 armed := package.arm_late_check(a)
 print("armed {armed}")
@@ -2256,13 +2256,13 @@ import package = stream_pkg
 real64 package_loop()
     tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
     int32 total := int32(0)
-    for 0 <= nat i < 30000
+    for: 0 <= nat i < 30000
         total = total + package.scope_status(x)
     return real64(total)
 
 real64 checked_loop()
     tensor<int32> a := tensor.ones<int32>([64], gpu = $GPU_INDEX)
-    for 0 <= nat i < 30000
+    for: 0 <= nat i < 30000
         a = a + int32(1)
     return real64(a[0].item())
 
@@ -2296,7 +2296,7 @@ import package = stream_pkg
 real64 reader()
     tensor<real32> base := tensor.zeros<real32>([1048576], gpu = $GPU_INDEX)
     int stale := 0
-    for 0 <= nat i < 60
+    for: 0 <= nat i < 60
         real32 step := real32(i)
         tensor<real32> x := base + step
         tensor<real32> y := package.slow(x, int32(200), int32(2))
@@ -2307,7 +2307,7 @@ real64 reader()
 
 real64 syncer()
     real64 total := 0.0
-    for 0 <= nat i < 400000
+    for: 0 <= nat i < 400000
         gpu.sync($GPU_INDEX)
         total = total + 1.0
     return total
@@ -2347,7 +2347,7 @@ gpu.sync($GPU_INDEX)
 tensor<real32> s := package.slow(a, int32(100000), int32(0))
 int32 armed := package.arm_callback(a, int32(args.mode))
 tensor<real32> v := tensor.ones<real32>([64], gpu = $GPU_INDEX)
-for 0 <= int i < args.ops
+for: 0 <= int i < args.ops
     v = v + 1.0
 gpu.sync($GPU_INDEX)
 print("{armed} {v[0].item()} {s[0].item()} {package.callback_state()}")
@@ -2426,7 +2426,7 @@ for n := sizes[]
     tensor<real32> a := tensor.ones<real32>([nat(n)], gpu = $GPU_INDEX)
     tensor<real32> out := tensor.zeros<real32>([nat(n)], gpu = $GPU_INDEX)
     gpu.sync($GPU_INDEX)
-    for 0 <= nat i < 30
+    for: 0 <= nat i < 30
         c = c * 1.0001
     tensor<real32> y := (a * 2.0) + 1.0
     out = package.scratch_fill(out, real32(7))
@@ -2486,7 +2486,7 @@ cli args
     int n = option(default = 4096)
 int bad := 0
 int32 violations := int32(0)
-for 0 <= nat i < 20
+for: 0 <= nat i < 20
     real32 step := real32(i)
     real32 next_step := real32(i + 1)
     real32 doubled_step := real32(2 * (i + 1))
@@ -3034,7 +3034,7 @@ import package = stream_pkg
 
 real64 inplace_loop()
     int bad := 0
-    for 0 <= nat i < 150
+    for: 0 <= nat i < 150
         real32 step := real32(i)
         real32 next_step := real32(i + 1)
         tensor<real32> a := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
@@ -3045,7 +3045,7 @@ real64 inplace_loop()
 
 real64 scale_loop()
     int bad := 0
-    for 0 <= nat i < 150
+    for: 0 <= nat i < 150
         real32 step := real32(i)
         real32 doubled_step := real32(2 * i)
         tensor<real32> x := tensor.ones<real32>([4096], gpu = $GPU_INDEX) * step
@@ -3056,7 +3056,7 @@ real64 scale_loop()
 
 real64 core_loop()
     tensor<real32> v := tensor.ones<real32>([65536], gpu = $GPU_INDEX)
-    for 0 <= nat i < 300
+    for: 0 <= nat i < 300
         v = v + 1.0
     return real64(v[65535].item())
 
@@ -3282,8 +3282,8 @@ import probe = metal_probe
 
 tensor<real32> values(int seed)
     tensor<real32> result := tensor.zeros<real32>([2, 3])
-    for 0 <= nat row < 2
-        for 0 <= nat column < 3
+    for: 0 <= nat row < 2
+        for: 0 <= nat column < 3
             real32 cell := real32((int(row) * 3 + int(column) + seed) % 5)
             result[row, column] = cell + real32(0.5)
     return result
@@ -3291,7 +3291,7 @@ tensor<real32> values(int seed)
 tensor<real32> total(tensor<real32> value)
     tensor<real32> flat := value.reshape([6])
     tensor<real32> result := flat.gather([0], [])
-    for 1 <= nat index < 6
+    for: 1 <= nat index < 6
         result = result + flat.gather([int(index)], [])
     return result
 

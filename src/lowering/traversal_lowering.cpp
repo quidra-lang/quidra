@@ -162,8 +162,15 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             ValueId ordinal=0;
             if(n.index) {
                 ordinal=builder_.fresh();builder_.emit(LoadLocal{ordinal,counter,natural});
-                ordinal=lifetime_.copy_value(ordinal,natural);scope_.bind_source_value(n.index->name,ordinal);
-                lifetime_.enter_loop_value(ordinal,natural);
+                ordinal=lifetime_.copy_value(ordinal,natural);
+                if(n.index->declares) {
+                    scope_.bind_source_value(n.index->name,ordinal);
+                    lifetime_.enter_loop_value(ordinal,natural);
+                } else {
+                    builder_.emit(StoreLocal{scope_.source_local(n.index->name),ordinal,natural});
+                    lowerer_.initialization_flags().for_index_iteration(*n.index);
+                    ordinal=0;
+                }
             }
             std::vector<bool> checks;
             for(const auto& statement:n.body) checks.push_back(n.writable&&

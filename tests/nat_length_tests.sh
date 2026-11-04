@@ -89,7 +89,7 @@ string text := "abc"
 print(text[small])
 print(NL)
 int64 total := 0
-for 0 <= nat i < len(values)
+for: 0 <= nat i < len(values)
     total = total + values[i]
 print(total)
 print(NL)

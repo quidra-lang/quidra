@@ -32,10 +32,10 @@ void bfloat_subnormals(int device)
     tensor<com16b> complex_div := (complex / com16b(2.0)).cpu()
     print("{(values > real16b(0.0)).all()} {(values == real16b(0.0)).any()}")
     print(NL)
-    for 0 <= nat index < 3
+    for: 0 <= nat index < 3
         print("{real64(values[index].item())} {real64(sum[index].item())} {real64(mul[index].item())} {real64(div[index].item())} {real64(root[index].item())} {real64(grad[index].item())}")
         print(NL)
-    for 0 <= nat index < 3
+    for: 0 <= nat index < 3
         com16b product := complex_mul[index].item()
         com16b quotient := complex_div[index].item()
         print("{real64(product.real)} {real64(product.imag)} {real64(quotient.real)} {real64(quotient.imag)}")
@@ -63,7 +63,7 @@ void bfloat_complex_negation(int device)
     if device >= 0
         values = values.gpu(nat(device))
     tensor<com16b> result := (-values).cpu()
-    for 0 <= nat index < 2
+    for: 0 <= nat index < 2
         com16b value := result[index].item()
         print("{real64(value.real)} {real64(value.imag)}")
         print(NL)
@@ -78,7 +78,7 @@ void bfloat_integer_powers(int device)
         values = values.gpu(nat(device))
     tensor<real16b> square := (values ^ real16b(2)).cpu()
     tensor<real16b> cube := (values ^ real16b(3)).cpu()
-    for 0 <= nat index < 4
+    for: 0 <= nat index < 4
         print("{real64(square[index].item())} {real64(cube[index].item())}")
         print(NL)
 

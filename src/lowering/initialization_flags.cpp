@@ -115,6 +115,11 @@ void InitializationFlags::for_iteration(const ForStmt& loop) {
             set(*declaration->second);
 }
 
+void InitializationFlags::for_index_iteration(const ForIndexBinding& index) {
+    if(const auto declaration=checked_.index_iteration_initializes.find(&index);declaration!=checked_.index_iteration_initializes.end())
+        set(*declaration->second);
+}
+
 void InitializationFlags::after(const Stmt& statement) {
     if (flags_.empty()) return;
     if (const auto found = checked_.statement_initializes.find(&statement);

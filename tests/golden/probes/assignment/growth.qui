@@ -1,7 +1,7 @@
 // A compound assignment whose right-hand side grows the target's array
 // stores into the grown array, like the plain assignment beside it.
 int grow(int[] &values)
-    for 0 <= nat i < 1000
+    for: 0 <= nat i < 1000
         values = values.append(int(i))
     return 1
 

@@ -3,7 +3,7 @@
 // would.
 real64 accumulate(real64 step, int32 count)
     real64 total := 0.0
-    for 0 <= int32 i < count
+    for: 0 <= int32 i < count
         total = total + step
     return total
 

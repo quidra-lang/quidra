@@ -58,7 +58,7 @@ void go()
     int state := 20270917
     file.write w := create_file("$TMP/file-handle-string-append.txt")
     string[] buffer := []
-    for 0 <= nat i < 3
+    for: 0 <= nat i < 3
         state = (state * 48271) % 2147483647
         string[] fields := [i.string(), " ", state.string(), NL]
         string line := fields.join("")

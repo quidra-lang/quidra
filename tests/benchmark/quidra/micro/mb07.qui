@@ -56,7 +56,7 @@ void msort(int[] &a, int[] &buf, int n)
         width = width * 2
     if not from_a
         // An odd number of passes left the sorted data in the scratch buffer.
-        for 0 <= int i < n
+        for: 0 <= int i < n
             a[i] = buf[i]
 
 class Result()
@@ -70,24 +70,24 @@ Result workload()
     int rounds := 4
     Lcg g := Lcg(20267917)
     int[] src := array(nat(n), fill = 0)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         src[i] = .g.next_int()
     int[] buf := array(nat(n), fill = 0)
     int total := 0
     int ssum := 0
     int inv := 0
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         src[r] = src[r] + 1
         int[] a := src
         msort(&a, &buf, n)
         int chk := 0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             chk = (chk * 31 + (a[i] % 1000003)) % 1000003
         total = (total * 7 + chk) % 1000003
         ssum = 0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             ssum = ssum + a[i]
-        for 1 <= int i < n
+        for: 1 <= int i < n
             if a[i - 1] > a[i]
                 inv = inv + 1
     Result result
@@ -110,7 +110,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

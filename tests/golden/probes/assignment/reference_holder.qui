@@ -5,7 +5,7 @@ class Holder this(local int[] &value_initial)
     &this.value = &value_initial
 
 int .grow(Holder holder)
-    for 0 <= nat i < 1000
+    for: 0 <= nat i < 1000
         holder.value = holder.value.append(int(i))
     return 1
 

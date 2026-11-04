@@ -4,8 +4,8 @@
 // that ends its block.
 int sum_rows(const int[] values, int count)
     int total := 0
-    for 0 <= int row < count
-        for 0 <= nat column < 2
+    for: 0 <= int row < count
+        for: 0 <= nat column < 2
             total = total + values[row]
     return total
 

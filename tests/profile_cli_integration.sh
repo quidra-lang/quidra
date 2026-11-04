@@ -53,7 +53,7 @@ match environment.get("MTL_CAPTURE_ENABLED")
         print("unset")
 print(NL)
 tensor<real32> weight := tensor.ones<real32>([4], gpu = 0).track()
-for 0 <= nat step < 3
+for: 0 <= nat step < 3
     tensor<real32> loss := (weight * weight).gather([0], [])
     .weight.clear_grad()
     loss.backward(&weight)

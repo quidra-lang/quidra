@@ -35,7 +35,7 @@ fails() {
 }
 expect example $'0\n1\n2\n3\n4' <<'QUI'
 int[5] a
-parallel for x < 5
+parallel for: x < 5
     a[x] = x
 for int value := a[]
     print(value)
@@ -45,7 +45,7 @@ QUI
 [[ "$(QUIDRA_CPU_THREADS=4 "$TMP/example-native")" == $'0\n1\n2\n3\n4' ]]
 expect bitmap 136 <<'QUI'
 int[17] a
-parallel for x < 17
+parallel for: x < 17
     a[x] = x
 int sum := 0
 for int value := a[]
@@ -56,7 +56,7 @@ QUI
 expect cow $'0\n0\n0\n0\n0\n0\n1\n2\n3\n4' <<'QUI'
 int[] a := [0, 0, 0, 0, 0]
 original := a
-parallel for x < 5
+parallel for: x < 5
     a[x] = x
 for int value := original[]
     print(value)
@@ -67,7 +67,7 @@ for int value := a[]
 QUI
 expect descending $'0\n1\n2\n3\n4' <<'QUI'
 int[5] a
-parallel for 5 > x >= 0
+parallel for: 5 > x >= 0
     a[x] = x
 for int value := a[]
     print(value)
@@ -75,7 +75,7 @@ for int value := a[]
 QUI
 expect endpoints $'0\n1\n20\n3\n40\n5\n60' <<'QUI'
 int32[] a := [0, 1, 2, 3, 4, 5, 6]
-parallel for 0 < int32 x <= 6 step 2
+parallel for: 0 < int32 x <= 6 step 2
     a[x] = x * 10
 for int32 value := a[]
     print(value)
@@ -83,7 +83,7 @@ for int32 value := a[]
 QUI
 expect descending_step $'0\n1\n20\n3\n40\n5\n60' <<'QUI'
 int32[] a := [0, 1, 2, 3, 4, 5, 6]
-parallel for 8 > int32 x > 0 step -2
+parallel for: 8 > int32 x > 0 step -2
     a[x] = x * 10
 for int32 value := a[]
     print(value)
@@ -91,7 +91,7 @@ for int32 value := a[]
 QUI
 expect local_continue $'0\n10\n0\n30\n0' <<'QUI'
 int32[] a := [0, 0, 0, 0, 0]
-parallel for int32 x < 5
+parallel for: int32 x < 5
     if x % 2 == 0
         continue
     int32 result := x * 10
@@ -104,15 +104,15 @@ expect pure_call $'0\n1\n4\n9' <<'QUI'
 int32 square(int32 value)
     return value * value
 int32[4] a
-parallel for int32 x < 4
+parallel for: int32 x < 4
     a[x] = square(x)
 for int32 value := a[]
     print(value)
     print(NL)
 QUI
 expect inner_break 0 <<'QUI'
-parallel for int32 x < 7
-    for int32 y < 3
+parallel for: int32 x < 7
+    for: int32 y < 3
         if y == 1
             break
         int32 result := x + y
@@ -154,7 +154,7 @@ int32[] left := []
 int32[] right := []
 parallel for int32 price := left[], int32 quantity := right[]
     int32 result := price + quantity
-parallel for 4 <= int32 x < 4
+parallel for: 4 <= int32 x < 4
     int32 result := x / (x - 4)
 print(int(0))
 print(NL)
@@ -162,7 +162,7 @@ QUI
 fails mismatched FOR_LENGTH <<'QUI'
 int32[] source(int count)
     int32[] values := []
-    for int i < count
+    for: int i < count
         values = values.append(1)
     return values
 parallel for int32 price := source(1)[], int32 quantity := source(0)[]
@@ -172,7 +172,7 @@ QUI
 expect exact_values 0 <<'QUI'
 int zero(int value)
     return value - value
-parallel for 100000000000000000000 <= int x <= 100000000000000000002
+parallel for: 100000000000000000000 <= int x <= 100000000000000000002
     if x < 100000000000000000000 or x > 100000000000000000002
         int invalid_mapping := 1 / zero(x)
     int result := x - 100000000000000000000
@@ -180,11 +180,11 @@ print(int(0))
 print(NL)
 QUI
 fails huge_count NUMERIC_CONVERSION <<'QUI'
-parallel for 0 <= x <= 9223372036854775807
+parallel for: 0 <= x <= 9223372036854775807
     int result := x
 QUI
 fails lowest_ordinal DIVISION_BY_ZERO <<'QUI'
-parallel for int32 x < 5
+parallel for: int32 x < 5
     if x == 1
         int32 first := 1 / (x - 1)
     if x == 3
@@ -193,24 +193,24 @@ QUI
 # A later completed failure cannot replace the first logical ordinal's site.
 grep -Fq 'lowest_ordinal.qui:3:' "$TMP/lowest_ordinal.err"
 rejects outer_break <<'QUI'
-parallel for int32 x < 3
+parallel for: int32 x < 3
     break
 QUI
 rejects outer_return <<'QUI'
 int f()
-    parallel for int32 x < 3
+    parallel for: int32 x < 3
         return x
     return 0
 print(f())
 QUI
 rejects output_read <<'QUI'
 int32[] a := [0, 0]
-parallel for int32 x < 2
+parallel for: int32 x < 2
     a[x] = a[x] + 1
 QUI
 rejects scalar_write <<'QUI'
 int32 total := 0
-parallel for int32 x < 2
+parallel for: int32 x < 2
     total += x
 QUI
 rejects reference_header <<'QUI'
@@ -219,11 +219,11 @@ parallel for int32 &x := &a[]
     x = 1
 QUI
 rejects resource_call <<'QUI'
-parallel for int32 x < 2
+parallel for: int32 x < 2
     print(x)
 QUI
 rejects real_range <<'QUI'
-parallel for 0.0 <= real32 x <= 1.0 step 0.5
+parallel for: 0.0 <= real32 x <= 1.0 step 0.5
     real32 result := x * x
 QUI
 rejects managed_element <<'QUI'
@@ -234,7 +234,7 @@ QUI
 
 rejects existing_range_binding <<'QUI'
 int32 x := 0
-parallel for x < 3
+parallel for: x < 3
     int32 result := x
 QUI
 rejects existing_zip_binding <<'QUI'
@@ -246,7 +246,7 @@ QUI
 rejects receiver_field_capture <<'QUI'
 class Counter(int32 count)
     void run()
-        parallel for int32 x < count
+        parallel for: int32 x < count
             int32 result := count
 Counter value := Counter(2)
 value.run()
@@ -254,7 +254,7 @@ QUI
 rejects current_instance_capture <<'QUI'
 class Counter counter(int32 count)
     void run()
-        parallel for int32 x < count
+        parallel for: int32 x < count
             local Counter copy := counter
 Counter value := Counter(2)
 value.run()
@@ -262,7 +262,7 @@ QUI
 rejects receiver_output <<'QUI'
 class Buffer(int32[] values)
     void .fill()
-        parallel for int32 x < 2
+        parallel for: int32 x < 2
             values[x] = x
 Buffer buffer := Buffer([0, 0])
 buffer.fill()
@@ -271,12 +271,12 @@ QUI
 rejects reference_alias <<'QUI'
 int[] a := [0, 0]
 int &alias := &a[0]
-parallel for x < 2
+parallel for: x < 2
     a[x] = x
 QUI
 
 fails boxed_previous PARALLEL_FOR <<'QUI'
 int[] a := [100000000000000000000]
-parallel for x < 1
+parallel for: x < 1
     a[x] = x
 QUI

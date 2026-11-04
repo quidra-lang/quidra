@@ -437,9 +437,9 @@ unused elements with `_`. They also work in collection loops and match cases.
 Tuples compare and hash recursively; their printed string elements are quoted.
 
 ```quidra
-(int, string) pair := (3, "three")
-(int number, string word) := pair
-(int &stored, string &label) := &pair
+pair := (3, "three")
+(number, word) := pair
+(&stored, &label) := &pair
 stored = number + 1
 println(pair)
 ```
@@ -505,7 +505,7 @@ if condition
 else
     println("no")
 
-for 0 <= nat i < 10
+for: 0 <= i < 10
     println(i)
 
 while condition
@@ -514,24 +514,40 @@ while condition
 
 Blocks use four-space indentation. Conditions are `bool`; numeric truthiness is
 not implicit. Range boundaries, direction and inclusion are written in the
-header. `for nat i < end` abbreviates `for 0 <= nat i < end`; the descending
-form `for start > nat i` ends at inclusive zero. Real ranges require an explicit
+header. `for: i < end` declares a loop-local range variable and abbreviates
+`for: 0 <= i < end`; the descending form `for: start > i` ends at inclusive zero.
+The type is inferred from typed bounds, or defaults to `int` for integer literals.
+Write `for: int32 i < end` to supply a type explicitly. Plain `for i < end`
+reuses an existing variable. Real ranges require an explicit
 step and compute each value from the entry lattice rather than repeated
 rounded addition.
 
 ```quidra
 values := [2, 4, 6]
-for &value := &values[nat index]
+for: &value := &values[index]
     value += int(index)
-for real32 value <= 1.0 step 0.25
+for: real32 value <= 1.0 step 0.25
     println(value)
 ```
 
 A collection value loop takes a snapshot. A reference loop writes the current
-elements and checks operations that may replace its storage. Range variables
-and an optional `nat` index are readonly bindings. A collection value binding
+elements and checks operations that may replace its storage. `for:` declares
+every written index; plain `for` reuses existing `nat` indices. Element `:=`
+and `=` independently declare or reuse the element variable. Range variables
+and indices are read-only during iteration. A collection value binding
 may be changed without changing the entry snapshot; a reference element allows
 writes to its target.
+
+Multiple array sources zip at equal positions and may each name an index:
+
+```quidra
+for: p := prices[i], int q := quantities[j]
+    println("{i}: {p}, {q}")
+```
+
+Both `i` and `j` are new `nat` variables with the same position. Any source
+may omit its index with `[]`. All source lengths are checked before any
+element or reused index is updated; unequal lengths fail with `FOR_LENGTH`.
 
 Each direct statement of a `parallel` suite is a node. The compiler derives
 read-after-write dependencies and rejects unordered storage or resource
@@ -594,15 +610,17 @@ output := file.write("output.txt")
 
 Dense numeric tensors use `tensor<T>`. The element type is static; an optional
 brace group states an exact-rank shape pattern. Each written axis exists,
-`_` leaves its extent unrestricted, and a `nat` expression constrains that
+`_` leaves its extent unrestricted, and a numeric expression constrains that
 extent. `{nat H, nat W}` declares readonly captured shape names, and
 `{H := rows * cols, nat W}` both captures an expression and names it. An
-existing bare `nat` name constrains the extent to that value; it does not bind
-a new name.
+existing bare numeric name constrains the extent to that value; it does not bind
+a new name. Evaluate each extent expression at its original type, then convert
+its result to `nat` with the checks of an explicit cast. Negative or fractional
+results fail; operands and intermediate arithmetic keep their original types.
 
 ```quidra
 batch := 3
-tensor<real32>{nat(batch * 2), 224} contextual := tensor.zeros()
+tensor<real32>{batch * 2, 224} contextual := tensor.zeros()
 batch = 8 // the captured extent remains 6
 
 tensor<real32> matrix := tensor.zeros([2, 3])
@@ -682,7 +700,7 @@ class Model()
     private weight := 1
     rest := [2, 3]
 model := Model()
-for &value := &reflect.each<int>(&model)[nat index]
+for: &value := &reflect.each<int>(&model)[index]
     value += int(index)
 ```
 
@@ -1093,3 +1111,4 @@ For the complete standard-library contracts and examples, see
 ## License
 
 MIT
+

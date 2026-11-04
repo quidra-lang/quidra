@@ -37,7 +37,7 @@ match result
     error
         print("try: {parsed[0]}")
 print(NL)
-for 0 <= nat round < 3
+for: 0 <= nat round < 3
     int[] inner := [int(round), int(round)]
     for v := inner[]
         inner = inner.append(v)

@@ -1,7 +1,7 @@
 // bigint arithmetic beyond 64 bits, division, remainder and comparison, in
 // and out of loops.
 int big := 1
-for 0 <= nat i < 80
+for: 0 <= nat i < 80
     big = big * 3
 print("{big}")
 print(NL)
@@ -12,7 +12,7 @@ int negative := -big
 print("{negative} {negative < big} {negative + big == 0}")
 print(NL)
 int sum := 0
-for 0 <= nat i < 1000
+for: 0 <= nat i < 1000
     sum = sum + int(i) * int(i)
 print("{sum}")
 print(NL)

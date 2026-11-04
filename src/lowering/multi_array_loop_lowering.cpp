@@ -83,17 +83,38 @@ void ControlFlowLowering::lower_multi_array_for(const ForStmt& loop) {
         builder_.emit(StoreLocal{collection.local,element,item});
     }
     lowerer_.initialization_flags().for_iteration(loop);
-    loop_targets_.enter(advance,done);
+    const auto natural=Type::simple(TypeKind::Nat);
+    std::vector<ValueId> index_values;
+    const auto bind_index=[&](const ForIndexBinding& binding) {
+        auto value=lowerer_.bare_from_int64(index,natural,false);
+        if(binding.declares) {
+            scope_.bind_source_value(binding.name,value);
+            lifetime_.enter_loop_value(value,natural);
+            index_values.push_back(value);
+        } else {
+            builder_.emit(StoreLocal{scope_.source_local(binding.name),value,natural});
+            lowerer_.initialization_flags().for_index_iteration(binding);
+        }
+    };
+    if(loop.index) bind_index(*loop.index);
+    for(const auto& binding:loop.collections) if(binding.index) bind_index(*binding.index);
+    const auto leave=builder_.label("for.zip.break");
+    loop_targets_.enter(advance,leave);
     lowerer_.lower_block(loop.body);
     loop_targets_.leave();
+    for(std::size_t i=0;i<index_values.size();++i) lifetime_.leave_loop_value();
     if(!current_block_ended(builder_)) builder_.emit(Jump{advance});
     builder_.enter(builder_.add_block(advance));
+    for(const auto value:index_values) release_owned(builder_,value,natural);
     auto old=builder_.fresh(),next=builder_.fresh();
     builder_.emit(LoadLocal{old,index_name,integer});
     // index < length implies index + 1 <= length, within the ABI i64 length.
     builder_.emit(Binary{next,"+",old,builder_.const_int(1),integer,integer,0,0,true});
     builder_.emit(StoreLocal{index_name,next,integer});
     builder_.emit(Jump{condition});
+    builder_.enter(builder_.add_block(leave));
+    for(const auto value:index_values) release_owned(builder_,value,natural);
+    builder_.emit(Jump{done});
     builder_.enter(builder_.add_block(done));
     for(std::size_t i=collections.size();i>0;--i) {
         lifetime_.leave_loop_source();

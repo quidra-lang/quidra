@@ -98,6 +98,8 @@
   "conditional_chain_model": "if / elif / else",
   "compound_assignment_model": "+=, -=, *=, /=, %=; assignment target is evaluated exactly once",
   "loop_control_model": "break and continue target the nearest loop; writable for iteration commits the current element before either control transfer",
+  "for_header_model": "for: declares the range variable or every written collection index; plain for reuses them; each collection element independently uses := for declaration or = for reuse; indices are read-only nat values during iteration; multiple arrays zip equal-length entry snapshots and may each name a distinct index with the same position; empty loops preserve reused storage",
+  "tensor_extent_conversion_model": "Tensor brace-shape expressions evaluate once at their original static type and convert only their result to nat with explicit-cast checks; negative and fractional results fail; source variables and intermediate arithmetic retain their types",
   "indentation_semantics": true,
   "status": "experimental native core",
   "absence_model": "none as a union alternative",

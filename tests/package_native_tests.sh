@@ -937,14 +937,14 @@ import package = native_pkg
 tensor<real32> total(tensor<real32> value)
     tensor<real32> flat := value.reshape([6])
     tensor<real32> result := flat.gather([0], [])
-    for 1 <= nat index < 6
+    for: 1 <= nat index < 6
         result = result + flat.gather([int(index)], [])
     return result
 
 tensor<real32> values(int seed)
     tensor<real32> result := tensor.zeros<real32>([2, 3])
-    for 0 <= nat row < 2
-        for 0 <= nat column < 3
+    for: 0 <= nat row < 2
+        for: 0 <= nat column < 3
             real32 cell := real32((int(row) * 3 + int(column) + seed) % 5)
             result[row, column] = cell + real32(0.5)
     return result

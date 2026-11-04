@@ -12,7 +12,7 @@ print(NL)
 print("{x > y} {p <= q} {x == 2.5} {-x}")
 print(NL)
 real64 total := 0.0
-for 0 <= nat i < 10
+for: 0 <= nat i < 10
     total = total + 0.1
 print("{total}")
 print(NL)

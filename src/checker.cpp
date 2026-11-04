@@ -1223,11 +1223,12 @@ Checker::current_reference_parameter_path(const Expr& expression) const {
 }
 
 bool Checker::const_access_path(const Expr& expression, bool for_write) const {
-    if(const auto* name=std::get_if<NameExpr>(&expression.data);
-       name && !name->this_qualifier && !name->self_reference && for_write) {
-        if(const auto it=loop_readonly_.find(name->name);it!=loop_readonly_.end())
-            error("LOOP_VARIABLE_WRITE",std::string(it->second?"The index '":"The loop variable '") +
-                name->name + "' is fixed by the for header and cannot be assigned in the body.",expression.span);
+    if(for_write) {
+        if(const auto target=writable_storage_path(expression);target && target->second.empty()) {
+            if(const auto it=loop_readonly_.find(target->first);it!=loop_readonly_.end())
+                error("LOOP_VARIABLE_WRITE",std::string(it->second?"The index '":"The loop variable '") +
+                    target->first + "' is fixed by the for header and cannot be assigned in the body.",expression.span);
+        }
     }
     std::function<std::optional<Type>(const Expr&)> storage_type =
         [&](const Expr& current) -> std::optional<Type> {
@@ -10519,16 +10520,12 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
             if(node.parallel && !node.type && !discard && variables_.contains(node.name))
                 error("PARALLEL_FOR","parallel for requires a newly declared range variable.",statement.span);
             item_type=node.type?resolve_type(*node.type):
-                variables_.contains(node.name)?variables_.at(node.name):
-                node.declares?simple(TypeKind::Int):simple(TypeKind::Invalid);
-            if(discard) {
+                !node.declares && variables_.contains(node.name)?variables_.at(node.name):
+                simple(TypeKind::Invalid);
+            if(discard || (node.declares && !node.type)) {
                 const auto literal=[&](const auto& self,const Expr& value)->bool {
-                    if(std::holds_alternative<IntegerExpr>(value.data)||
-                       std::holds_alternative<RealLiteralExpr>(value.data)||
-                       std::holds_alternative<LiteralConstantExpr>(value.data)) return true;
-                    if(const auto* unary=std::get_if<UnaryExpr>(&value.data);unary&&unary->op=="-")
-                        return self(self,*unary->operand);
-                    return false;
+                    (void)self;
+                    return numeric_policy::numeric_literal_family(value)!=numeric_policy::NumericLiteralCategory::None;
                 };
                 const auto accept=[&](const Expr& value,bool is_step) {
                     if(literal(literal,value)) return;
@@ -10547,6 +10544,8 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                        for_constants::integer_literal(*node.range->end)&&
                        (!node.range->step||for_constants::integer_literal(*node.range->step)))
                         item_type=simple(TypeKind::Int);
+                    else if(!discard)
+                        item_type=check_expr(node.range->implicit_start_zero?*node.range->end:*node.iterable);
                     else error("DISCARD","A range gives '_' no loop type: write 'real(1.0)' or 'real64(1.0)', or use a typed bound.",statement.span);
                 }
             }
@@ -10615,8 +10614,8 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
 
         std::vector<Type> collection_items;
         if(!node.collections.empty()) {
-            if(node.range || node.writable || node.pattern || node.index || type.kind!=TypeKind::Array)
-                error("FOR_HEADER","Multiple collections require array value bindings without ranges, references, patterns or indices.",statement.span);
+            if(node.range || node.writable || node.pattern || type.kind!=TypeKind::Array)
+                error("FOR_HEADER","Multiple collections require array value bindings without ranges, references or patterns.",statement.span);
             // Check every source in the outer scope before binding any loop name.
             for(const auto& binding:node.collections) {
                 if(const auto* call=std::get_if<CallExpr>(&binding.iterable->data);call &&
@@ -10689,14 +10688,39 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                 iteration_initializes_[&node]=declaration->second;
         }
         binding_types_[&statement]=item_type;
-        if(node.index) {
-            const auto& name=node.index->name;
-            if(name==node.name || variables_.contains(name) || declaration_name_visible(name) ||
-               is_reserved_value_name(name) || member_name_visible(name))
-                error("SHADOWING","Iteration index name is already visible or reserved.",node.index->span);
+        std::unordered_set<std::string> header_names;
+        if(!discard && !node.pattern) header_names.insert(node.name);
+        if(node.pattern) visit_pattern(*node.pattern,[&](const Pattern& part) {
+            if(part.kind==Pattern::Kind::Declare) header_names.insert(part.name);
+        });
+        for(const auto& binding:node.collections) if(binding.name!="_") header_names.insert(binding.name);
+        const auto check_index=[&](const ForIndexBinding& index) {
+            const auto& name=index.name;
             if(name.starts_with(abi::symbol_namespace::internal_prefix))
-                error("SHADOWING",compiler_name_message(name),node.index->span);
-        }
+                error("SHADOWING",compiler_name_message(name),index.span);
+            if(!header_names.insert(name).second)
+                error("SHADOWING","Element and index names in one header must be distinct.",index.span);
+            if(index.declares) {
+                if(variables_.contains(name) || declaration_name_visible(name) ||
+                   is_reserved_value_name(name) || member_name_visible(name))
+                    error("SHADOWING","Iteration index name is already visible or reserved.",index.span);
+            } else {
+                if(!variables_.contains(name))
+                    error("UNKNOWN_NAME","Existing iteration index '"+name+"' is not declared; use 'for:' to declare it.",index.span);
+                if(reference_paths_.contains(name))
+                    error("FOR_HEADER","An existing iteration index must be a nat value binding.",index.span);
+                if(loop_readonly_.contains(name))
+                    error("LOOP_VARIABLE_WRITE","An active iteration index cannot be reused by an inner loop.",index.span);
+                if(const_bindings_.contains(name))
+                    error("WRITE_CAPABILITY","Cannot write through a const access path.",index.span);
+                if(variables_.at(name)!=simple(TypeKind::Nat))
+                    error("TYPE_MISMATCH","An existing collection index must have exactly type nat.",index.span);
+                if(const auto declaration=binding_declarations_.find(name);declaration!=binding_declarations_.end())
+                    index_iteration_initializes_[&index]=declaration->second;
+            }
+        };
+        if(node.index) check_index(*node.index);
+        for(const auto& binding:node.collections) if(binding.index) check_index(*binding.index);
 
         auto variables = variables_;
         auto references = reference_roots_;
@@ -10894,11 +10918,13 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                 class_initialized_paths_[binding.name]=complete_class_paths(collection_items[i]);
         }
         if(node.pattern){check_control_pattern(*node.pattern,item_type,node.writable,false,traversal?source:node.iterable.get());if(node.writable&&!traversal)live_iteration_paths_.push_back(node.iterable.get());}
-        if(node.index) {
-            variables_[node.index->name]=simple(TypeKind::Nat);
-            initialized_.insert(node.index->name);
-            loop_readonly_[node.index->name]=true;
-        }
+        const auto bind_index=[&](const ForIndexBinding& index) {
+            variables_[index.name]=simple(TypeKind::Nat);
+            initialized_.insert(index.name);
+            loop_readonly_[index.name]=true;
+        };
+        if(node.index) bind_index(*node.index);
+        for(const auto& binding:node.collections) if(binding.index) bind_index(*binding.index);
         // The body may run after itself: what it may initialize may be
         // initialized at its start (L13).
         note_loop_initializations(node.body);
@@ -12314,6 +12340,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     initialization_check_order_.clear();
     statement_initializes_.clear();
     iteration_initializes_.clear();
+    index_iteration_initializes_.clear();
     parallel_for_plans_.clear();
     collection_iteration_initializes_.clear();
     traversal_plans_.clear();
@@ -12597,6 +12624,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     checked.reference_invalidations=std::move(reference_invalidations_);
     checked.statement_initializes = std::move(statement_initializes_);
     checked.iteration_initializes = std::move(iteration_initializes_);
+    checked.index_iteration_initializes = std::move(index_iteration_initializes_);
     checked.parallel_for_plans=std::move(parallel_for_plans_);
     checked.collection_iteration_initializes = std::move(collection_iteration_initializes_);
     checked.traversal_plans = std::move(traversal_plans_);
@@ -12646,3 +12674,4 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 }
 
 } // namespace quidra
+

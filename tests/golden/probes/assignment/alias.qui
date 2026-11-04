@@ -1,7 +1,7 @@
 // A reference that aliases the target's array: the right-hand side grows
 // the array through the other reference.
 int grow(int[] &values)
-    for 0 <= nat i < 1000
+    for: 0 <= nat i < 1000
         values = values.append(int(i))
     return 1
 

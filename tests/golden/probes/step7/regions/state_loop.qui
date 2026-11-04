@@ -8,6 +8,6 @@ class State this()
 
 State state := State()
 tensor<real32> delta := tensor.ones<real32>([2])
-for 0 <= nat i < 3
+for: 0 <= nat i < 3
     .state.advance(delta)
 print("{state.value[0].item()} {state.value[1].item()}{NL}")

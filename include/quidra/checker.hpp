@@ -262,6 +262,7 @@ struct CheckedProgram {
     // An existing collection/range variable receives its first value only
     // when a loop body is entered, never on the zero-iteration path.
     std::unordered_map<const ForStmt*,const Stmt*> iteration_initializes;
+    std::unordered_map<const ForIndexBinding*,const Stmt*> index_iteration_initializes;
     struct ParallelForPlan {
         std::vector<std::string> captures, outputs;
         std::unordered_map<std::string,const Stmt*> capture_bindings;
@@ -318,7 +319,8 @@ struct CheckedProgram {
     std::unordered_map<const Expr*,std::unordered_set<std::string>> reference_invalidations;
     std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
     std::shared_ptr<const semantics::BindingEntryInitializations> binding_entry_initialization{};
-    // Value-call conversions preserve each expression's original static type.
+    // Numeric value-context conversions (arguments and tensor extents)
+    // preserve each expression's original static type.
     std::unordered_map<const Expr*, Type> implicit_numeric_argument_conversions{};
 };
 
@@ -405,6 +407,7 @@ private:
     void check_field_reference_bound(const Expr& expression, const ClassFieldType& field,
                                      const Expr* object = nullptr);
     std::unordered_map<const ForStmt*,const Stmt*> iteration_initializes_;
+    std::unordered_map<const ForIndexBinding*,const Stmt*> index_iteration_initializes_;
     std::unordered_map<const ForStmt*,CheckedProgram::ParallelForPlan> parallel_for_plans_;
     void validate_parallel_for(const Stmt&,const ForStmt&,const std::unordered_map<std::string,Type>&);
     std::unordered_map<const ForCollectionBinding*,const Stmt*> collection_iteration_initializes_;
@@ -744,3 +747,4 @@ private:
 };
 
 } // namespace quidra
+

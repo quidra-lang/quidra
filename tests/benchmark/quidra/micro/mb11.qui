@@ -34,7 +34,7 @@ Result workload()
     int q := 1000000007
     Lcg g := Lcg(20271917)
     int[] keys := array(nat(n), fill = 0)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         keys[i] = .g.next_int()
 
     int acc := 0
@@ -46,11 +46,11 @@ Result workload()
     int size3 := 0
     int lsum := 0
 
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         keys[r] = keys[r] + 1000000
 
         map<int, int> m := map<int, int>()
-        for 0 <= int i < n
+        for: 0 <= int i < n
             int k := keys[i] % km
             int | none current := m.get(k)
             match current
@@ -62,7 +62,7 @@ Result workload()
 
         found = 0
         vsum = 0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             int k := (keys[i] + 7) % km
             int | none hit := m.get(k)
             match hit
@@ -75,22 +75,22 @@ Result workload()
         mchk = 0
         int[] map_keys := m.keys()
         int[] map_values := m.values()
-        for 0 <= nat i < len(map_keys)
+        for: 0 <= nat i < len(map_keys)
             mchk = (mchk + (map_keys[i] % 1000003) * map_values[i]) % 1000003
 
-        for 0 <= int i < n step 2
+        for: 0 <= int i < n step 2
             int k := keys[i] % km
             if m.has(k)
                 .m.remove(k)
         size2 = int(m.size())
 
         distinct<int> st := distinct<int>()
-        for 0 <= int i < n
+        for: 0 <= int i < n
             .st.add(keys[i] % sm)
         size3 = int(st.size())
 
         int[] lst := []
-        for 0 <= int i < n
+        for: 0 <= int i < n
             lst = lst.append(keys[i] % 1000)
         lsum = 0
         for v := lst[]
@@ -129,7 +129,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

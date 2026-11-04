@@ -1,91 +1,145 @@
 # Range and collection headers
 
-Integer ranges have one direction throughout the header:
+`for:` declares a range variable or every collection index written in the header.
+Plain `for` reuses those variables. Independently, `:=` declares a collection
+element binding and `=` assigns an existing element binding. Ordinary declarations
+outside loops continue to use `:=`.
+
+## Range variables
 
 ```quidra
-for 0 <= nat i < len(values)
-    print(values[i])
-for len(values) > nat i >= 0
-    print(values[i])
+for: i < 10
+    println(i)
+for: 0 <= i < 10
+    println(i)
+for: 10 >= i > 0
+    println(i)
+for: 10 > i
+    println(i)
 ```
+
+A new range variable is local to the loop. An already visible or reserved name
+is an error; adding an outer declaration never changes a declaration into reuse.
+Use a plain header to reuse a mutable value binding:
+
+```quidra
+i := 99
+for i < 3
+    println(i)
+println(i) // 2
+```
+
+The reused variable retains its last produced value. An empty range leaves its
+previous value and initialization state unchanged. Range variables cannot be
+assigned or passed by writable reference while their loop is active.
+
+Omit the type when the bounds determine it. `for: i < 10` uses `int`,
+`for: i < len(values)` uses `nat`, and an `int32` bound supplies `int32`.
+Typed bounds and a non-`int` typed step must agree on one ordered numeric type;
+untyped numeric literal expressions use that context. With only literal bounds
+and steps, the ordinary `int` or exact `real` default applies. An integer step
+of type `int` can remain signed for a natural range. Explicit contracts remain
+available as `for: int32 i < 10` or `for: 0 <= nat i < len(values)`.
+A typed declaration without the colon is invalid; plain `for` reuses a binding.
 
 The four ascending combinations of `<` and `<=`, and the four descending
 combinations of `>` and `>=`, independently include or exclude each end.
 An excluded start advances by one step before the first value. Bounds and
 an explicit `step` are evaluated once, from left to right. Integer steps
-are signed and default to 1 or -1 according to the header's direction.
-The body cannot assign or take a writable reference to a range variable.
-The values lie on the exact step lattice; an empty range performs no
-increment and a final value at a fixed-width limit does not overflow.
+default to 1 or -1 according to the header's direction. A final value at a
+fixed-width limit does not cause an extra overflowing increment.
 
-The inclusive zero end may be omitted:
+The inclusive zero end may be omitted. `for: i <= 5` includes 0 through 5;
+`for: 5 >= i` includes 5 through 0. `<` selects the left identifier as the
+variable in an ascending shorthand, and `>` selects the right identifier in
+a descending shorthand. A full three-operand range has priority. These forms
+do not omit the other end: `for i > 5` and `for 0 < i` are invalid.
 
-```quidra
-for nat i < len(values)       // 0 <= nat i < len(values)
-    print(values[i])
-for len(values) > nat i       // len(values) > nat i >= 0
-    print(values[i])
-```
+Real headers require an explicit step, including omitted-zero forms. The
+omitted zero has the resolved loop type. Counts use the exact unrounded
+lattice; each produced IEEE value is rounded once, never accumulated from
+the previous rounded value. An exact `real` range preserves the lattice.
+A rounded value can equal an excluded boundary without changing the count.
 
-`for int i <= 5` includes 0 through 5, and `for 5 >= int i` includes 5
-through 0. In an ordinary `for`, an untyped variable uses an existing value binding,
-for example `for i < limit` or `for limit > i`. In contrast,
-`parallel for i < limit` declares a fresh loop-local `int i` and rejects an
-already visible binding named `i`. Both omitted-zero forms accept `step`;
-the implicit zero is always inclusive. A full three-operand range has
-priority. With two untyped identifiers, `<` selects the left identifier as
-the variable, and `>` selects the right one. These forms do not omit an
-upper end: `for i > 5` and `for 0 < i` are errors. Real headers retain the
-same bound spelling and require an explicit step.
-
-Collection headers iterate exactly one level:
+## Elements and indices
 
 ```quidra
 for value := values[]
-    print(value)
-for &value := &values[nat i]
-    value = value + int(i)
+    println(value)
+for: value := values[index]
+    println(index)
+for: &value := &values[index]
+    value += int(index)
 ```
 
-Omitting the type before a new binding infers the element type. An explicit type must be the exact element
-type. A value loop may also assign each element to an existing value
-binding (`for value = values[]`); a zero-iteration loop preserves its old
-value. `[nat i]` declares a new read-only natural index scoped
-to the loop. A new element binding uses `:=`. The index is relative to the iterated collection, including a
-slice. Write `values[]` to omit the index; an existing index variable and
-`_` in the brackets are not index declarations.
+`:=` declares an element binding, inferring its exact source element type unless
+a type is supplied. `=` reuses an existing mutable value binding of that exact
+type. A reference loop uses `&` on both sides and declares its reference with
+`:=`. Value loops use independent element values; reference loops alias live
+element or bit storage.
 
-A value loop observes the collection at entry. When a body may write that
-storage, the loop preserves its entry value at the first possible write.
-A reference loop requires storage after `&`: a binding, a field, or an
-array element path. Calls and slices produce independent values and are
-not reference-loop sources. Its variable aliases the live element: a
-write through another path is immediately visible and no exit writes a
-saved element back. A bin reference loop similarly aliases a bit place;
-ordinary bit-reference bindings remain unavailable. Direct replacement of
-the iterated storage or a prefix path is rejected. Potential replacement
-through aliases or calls is checked after the statement and fails with
-`FOR_ITERATION` before the loop advances.
+An index has exactly type `nat` and is read-only during iteration. `for:`
+declares each written index as a loop-local name; plain `for` requires an
+existing mutable `nat` value binding for each index. A reused index is updated
+before the body and retains its last position after the loop, even if the body
+never reads it. An empty collection leaves it unchanged and uninitialized
+storage remains uninitialized. Reference bindings and const values cannot be
+reused as index storage. Indices start at zero relative to the iterated source,
+including a slice. `values[]` omits the index; `_` is not an index name.
+
+| Header | Element variable | Index variable |
+| --- | --- | --- |
+| `for: value := values[index]` | New | New |
+| `for: value = values[index]` | Existing | New |
+| `for value := values[index]` | New | Existing |
+| `for value = values[index]` | Existing | Existing |
+
+Each `[]` iterates one level. A value loop preserves the collection's entry
+value when later header evaluation or body writes could change it. A reference
+loop requires storage after `&`; calls and slices are independent values.
+Replacing or resizing live iterated storage or a prefix path is rejected
+directly, or checked after an aliasing call with `FOR_ITERATION`. A bit place
+cannot be taken as an ordinary address.
+
+## Multiple arrays
+
+Several array sources zip by position; they do not form a Cartesian product.
+Any source may provide an index, and a source without one uses `[]`:
+
+```quidra
+for: p := prices[i], int q := quantities[j]
+    println("{i}: {p}, {q}")
+for: p := prices[], q := quantities[j]
+    println("{j}: {p}, {q}")
+```
+
+`for:` independently declares every written index, so both `i` and `j` in
+the first header are new `nat` bindings and contain the same zip position.
+Without the colon, every written index is reused. Each element's `:=` or `=`
+still independently controls declaration or reuse. All element and index names
+in one header must be distinct; writing the same new index twice is an error.
+
+Sources are evaluated once, left to right, with each snapshot taken immediately
+before evaluating the next source. All lengths are checked before publishing
+any element or index. Unequal lengths fail with `FOR_LENGTH` before the body;
+equal empty sources run zero iterations and preserve reused storage. Body writes
+cannot change entry snapshots. Only Array value sources are supported in a zip:
+reference sources, patterns, `bin`, structural traversals and ranges are not
+combined with multiple arrays. Nested loops remain available for Cartesian work.
+
+## Discard and parallel iteration
+
+`for _ = values[]` repeats by the entry length without reading elements or
+creating an element snapshot. It may have an index, for example
+`for: _ = values[i]`. `_` binds nothing and takes no type or `&`.
+A discarded range uses plain `for` and computes only its trip count. A typed
+bound or a non-`int` typed step supplies its type; all-integer-literal discard
+ranges use an internal exact counter.
+
+Parallel ranges follow the same declaration rule: write `parallel for: i < n`
+for a new range variable. Parallel collection elements still use `:=`.
+The initial parallel implementation requires newly declared scalar value
+bindings and does not accept index bindings, reference sources or patterns.
 
 `range` and `in` are ordinary identifiers. The old `range(...)` builtin and
-`for ... in ...` forms are unavailable; ordinary unknown-name or header
-syntax diagnostics apply.
-
-Real headers require an explicit step, including omitted-zero forms.
-Fixed-width operands materialize in their declared type, and the count is
-computed on the exact unrounded lattice before each value is rounded once.
-Exact `real` headers preserve that lattice exactly. A rounded value can
-therefore equal an excluded boundary without changing the count.
-
-`for _ = values[]` repeats the body by the entry length, without reading
-any element or preserving a collection snapshot. `_` takes no type or
-reference marker. Range discard loops compute only the trip count. A typed
-bound determines their type; otherwise a non-`int` typed step does, while
-all-integer-literal ranges use an internal exact counter.
-
-The omitted zero has the resolved loop variable's numeric type. Real-family
-headers use the same expansion: `for real64 x <= 1.0 step 0.1` starts at
-`0.0`, and `for 1.0 >= real x step -0.1` ends at inclusive `0.0`. Every real
-loop still requires an explicit step. A negative upper bound with an
-ascending zero start gives an empty range; it does not change an existing
-variable. Written bounds keep the ordinary numeric literal family rules.
+`for ... in ...` forms are unavailable.

@@ -272,9 +272,9 @@ def check_scaling(name, template, small, large, expect, allow_too_fast=False):
 check_correctness_regression(
     "MB08 loop-local string stack regression",
     """int total := 0
-for 0 <= nat outer < 2048
+for: 0 <= nat outer < 2048
     string row := ""
-    for 0 <= nat inner < 512
+    for: 0 <= nat inner < 512
         row = row + "x"
     total += int(len(row))
 print(total)
@@ -289,7 +289,7 @@ check_scaling(
     "string append in a loop",
     """int n := {n}
 string acc := ""
-for 0 <= int i < n
+for: 0 <= int i < n
     acc = acc + "abcdefghij"
 print(len(acc))
 """,
@@ -302,10 +302,10 @@ check_scaling(
     "string starts_with reuses validation metadata",
     """int n := {n}
 string source := "x"
-for 0 <= int i < n
+for: 0 <= int i < n
     source = source + "x"
 int matches := 0
-for 0 <= int i < n
+for: 0 <= int i < n
     if source.starts_with("x")
         matches += 1
 print(matches)
@@ -316,10 +316,10 @@ check_scaling(
     "short string slice does not scan the full source",
     """int n := {n}
 string source := "x"
-for 0 <= int i < n
+for: 0 <= int i < n
     source = source + "x"
 int total := 0
-for 0 <= int i < n
+for: 0 <= int i < n
     total += int(len(source[0:<1]))
 print(total)
 """,
@@ -334,7 +334,7 @@ check_scaling(
 string source := string.repeat("a", nat(n))
 bin data := source.utf8()
 int total := 0
-for 0 <= nat pass < 8
+for: 0 <= nat pass < 8
     match string.from_utf8(data)
         string text
             total += int(len(text))
@@ -352,9 +352,9 @@ check_scaling(
     "map removal and compaction",
     """int n := {n}
 map<int, int> values
-for 0 <= int i < n
+for: 0 <= int i < n
     .values.set(i, i)
-for 0 <= int i < n step 2
+for: 0 <= int i < n step 2
     .values.remove(i)
 int[] remaining := values.keys()
 print(len(remaining))
@@ -370,15 +370,15 @@ check_ratio(
     """int n := 400000
 int[] values := array(nat(n), fill = 1)
 int total := 0
-for 0 <= nat pass < 8
-    for 0 <= int i < n
+for: 0 <= nat pass < 8
+    for: 0 <= int i < n
         total += values[i]
 print(total)
 """,
     """int sum_all(const int[] values, int n)
     int total := 0
-    for 0 <= nat pass < 8
-        for 0 <= int i < n
+    for: 0 <= nat pass < 8
+        for: 0 <= int i < n
             total += values[i]
     return total
 
@@ -397,23 +397,23 @@ print(sum_all(values, n))
 check_ratio(
     "two-array vs one-array access through &",
     """void scale(int[] &v, int n)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         v[i] = v[i] + 1
 
 int n := 400000
 int[] v := array(nat(n), fill = 0)
-for 0 <= nat pass < 8
+for: 0 <= nat pass < 8
     scale(&v, n)
 print(v[0])
 """,
     """void copy_into(int[] &destination, int[] &source, int n)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         destination[i] = source[i] + 1
 
 int n := 400000
 int[] source := array(nat(n), fill = 0)
 int[] destination := array(nat(n), fill = 0)
-for 0 <= nat pass < 8
+for: 0 <= nat pass < 8
     copy_into(&destination, &source, n)
 print(destination[0])
 """,

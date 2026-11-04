@@ -18,7 +18,7 @@ class Model()
 reflect.Each<int> integers<M>(M &model)
     return reflect.each<int>(&model)
 Model model := Model()
-for int &value := &integers(&model)[nat i]
+for: int &value := &integers(&model)[i]
     print("{i}:{value}{NL}")
     value = value + 10
 for value := reflect.each<int>(model)[]
@@ -62,7 +62,7 @@ class Model()
 
     return
 Model model := Model()
-for Slot<real32> &slot := &slots(&model)[nat i]
+for: Slot<real32> &slot := &slots(&model)[i]
     print("{i} {slot.value == real32(2.0) or slot.value == real32(3.0)}{NL}")
 QUI
 "$QUIDRA" build "$TMP/inference.qui" -o "$TMP/inference"
@@ -71,7 +71,7 @@ printf '0 true\n1 true\n' > "$TMP/inference.expected"
 cmp "$TMP/inference.expected" "$TMP/inference.actual"
 cat > "$TMP/control.qui" <<'QUI'
 int[][] values := [[1, 2], [3, 4]]
-for int &value := &reflect.each<int>(&values)[nat i]
+for: int &value := &reflect.each<int>(&values)[i]
     if i == 0
         continue
     value = value + 10
@@ -114,7 +114,7 @@ class Model()
 
     return
 Model model := Model()
-for (int &left, int &right) := &reflect.each<(int, int)>(&model)[nat i]
+for: (int &left, int &right) := &reflect.each<(int, int)>(&model)[i]
     left = left + 10
     right = right + 20
     if i == 1
@@ -142,7 +142,7 @@ int first(Holder &holder)
     return 0
 Model model := Model()
 Holder holder := Holder(&model)
-for int &value := &reflect.each<int>(&holder.model)[nat i]
+for: int &value := &reflect.each<int>(&holder.model)[i]
     if i == 0
         continue
     value = value + 10

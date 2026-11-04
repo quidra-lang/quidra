@@ -4,6 +4,16 @@ QUIDRA="$1"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
+cat > "$TMP/inferred.qui" <<'QUI'
+pair := (3, "three")
+(number, word) := pair
+(&stored, &label) := &pair
+stored = 4
+label = "four"
+println("{number}:{word}")
+println(pair)
+QUI
+[[ "$("$QUIDRA" "$TMP/inferred.qui")" == $'3:three\n(4, "four")' ]]
 cat > "$TMP/values.qui" <<'QUI'
 (int, string) make()
     return (10, "a, b")
@@ -31,7 +41,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/values.qui")" == $'10 a, b\n2 1\n2 1 a, b\n(9, "changed")\n(2, "a, b")\nfalse\ntrue' ]]
 cat > "$TMP/loops.qui" <<'QUI'
 (int, string)[] pairs := [(1, "one"), (2, "two")]
-for (int n, string s) := pairs[nat i]
+for: (int n, string s) := pairs[i]
     print("{i} {n} {s}{NL}")
 for (int &n, string &s) := &pairs[]
     n += 10

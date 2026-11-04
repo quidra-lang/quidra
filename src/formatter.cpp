@@ -175,6 +175,8 @@ std::optional<std::string> canonical_gap(
     std::string_view gap) {
     const auto previous=tokens[index-1]->kind;
     const auto current=tokens[index]->kind;
+    if(previous==TokenKind::KwFor && current==TokenKind::Colon) return "";
+    if(previous==TokenKind::Colon && index>=2 && tokens[index-2]->kind==TokenKind::KwFor) return " ";
 
     // A run of three dots is a shape ellipsis, not a marked call or member
     // access. Keep the comma gap before it and join its dots.
@@ -302,3 +304,4 @@ std::string format_source(std::string_view source) {
 }
 
 } // namespace quidra
+

@@ -38,9 +38,9 @@ Result workload()
     Lcg g := Lcg(20269917)
     real64[] x := array(nat(n), fill = 0.0)
     real64[] y := array(nat(n), fill = 0.0)
-    for 0 <= int i < n
+    for: 0 <= int i < n
         x[i] = .g.next_unit() * 100.0
-    for 0 <= int i < n
+    for: 0 <= int i < n
         y[i] = .g.next_unit() * 100.0
 
     real64 mean := 0.0
@@ -52,13 +52,13 @@ Result workload()
     real64 pearson := 0.0
     int hist_chk := 0
 
-    for 0 <= int r < rounds
+    for: 0 <= int r < rounds
         x[r] = x[r] + 1.0e-9
 
         real64 s := 0.0
         mn = x[0]
         mx = x[0]
-        for 0 <= int i < n
+        for: 0 <= int i < n
             real64 v := x[i]
             s = s + v
             if v < mn
@@ -69,7 +69,7 @@ Result workload()
 
         real64 sq := 0.0
         real64 ad := 0.0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             real64 d := x[i] - mean
             sq = sq + d * d
             if d < 0.0
@@ -81,14 +81,14 @@ Result workload()
         mad = ad / count
 
         real64 sy := 0.0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             sy = sy + y[i]
         real64 meany := sy / count
 
         real64 sxy := 0.0
         real64 sxx := 0.0
         real64 syy := 0.0
-        for 0 <= int i < n
+        for: 0 <= int i < n
             real64 dx := x[i] - mean
             real64 dy := y[i] - meany
             sxy = sxy + dx * dy
@@ -97,7 +97,7 @@ Result workload()
         pearson = sxy / math.sqrt(sxx * syy)
 
         int[] hist := array(64, fill = 0)
-        for 0 <= int i < n
+        for: 0 <= int i < n
             int b := math.floor(x[i] * scale)
             if b < 0
                 b = 0
@@ -105,7 +105,7 @@ Result workload()
                 b = 63
             hist[b] = hist[b] + 1
         hist_chk = 0
-        for 0 <= nat b < 64
+        for: 0 <= nat b < 64
             hist_chk = hist_chk + (int(b) + 1) * hist[b]
 
     Result result
@@ -133,7 +133,7 @@ Result result
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     result = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         result = timed(i)
 else
     result = workload()

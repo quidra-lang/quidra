@@ -2,7 +2,7 @@
 // INDEX_BOUNDS at the index expression.
 int[] values := [10, 20, 30]
 int total := 0
-for 0 <= nat i < len(values) + 1
+for: 0 <= nat i < len(values) + 1
     total = total + values[i]
 print("{total}")
 print(NL)

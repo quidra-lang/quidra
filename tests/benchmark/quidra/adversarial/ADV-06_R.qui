@@ -14,7 +14,7 @@ real64 b := real64.parse(read_input_line())
 real64 m := a / b
 real64[] xs := [3.0, m, 1.0]
 real64 best := xs[0]
-for 1 <= nat i < 3
+for: 1 <= nat i < 3
     real64 x := xs[i]
     if x > best
         best = x

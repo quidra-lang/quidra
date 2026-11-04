@@ -20,7 +20,7 @@ tensor<real32> sum(tensor<real32> value)
             return tensor.zeros<real32>([], gpu = nat(value.device()))
         return tensor.zeros<real32>([])
     tensor<real32> result := value.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
@@ -1058,7 +1058,7 @@ print(NL)
 
 tensor<int64> long_values := tensor.ones<int64>([72])
 int[] long_scatter_indices := array(72, fill = 0)
-for 0 <= nat index < 72
+for: 0 <= nat index < 72
     long_scatter_indices[index] = int(index)
 tensor<int64> long_scattered := long_values.scatter(long_scatter_indices, [72])
 print(long_scattered.shape()[0] == 72 and long_scattered[71].item() == 1)
@@ -1104,7 +1104,7 @@ print(NL)
 
 tensor<int64> long_source := tensor.ones<int64>([72])
 int[] long_gather_indices := array(72, fill = 0)
-for 0 <= nat index < 72
+for: 0 <= nat index < 72
     long_gather_indices[index] = int(index)
 tensor<int64> long_gathered := long_source.gather(long_gather_indices, [72])
 print(long_gathered.shape()[0] == 72 and long_gathered[71].item() == 1)

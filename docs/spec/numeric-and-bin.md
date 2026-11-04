@@ -417,5 +417,6 @@ only lattice values in the range and never increment past their last value.
 `for bin value := bits[]` reads one-bit copies. `for bin &value := &bits[]`
 binds a live bit place: each assignment changes that bit immediately. A
 bit place cannot be addressed or passed as an ordinary reference. Both
-forms accept a new `[nat index]`; value loops may also
+forms accept an index as `[index]`: `for:` declares it and plain `for` reuses an existing mutable `nat` value. It is read-only during iteration. Value loops may also
 iterate a bin slice, whose positions are relative to the slice.
+

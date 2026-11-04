@@ -28,6 +28,56 @@ fails() {
     [[ $rc == 101 && "$actual" == "$expected" ]]
     grep -Fq "runtime error[$code]" "$TMP/$name.err"
 }
+expect every_index_declared $'0:0:12\n1:1:23\n80' <<'QUI'
+prices := [10, 20]
+quantities := [2, 3]
+total := 0
+for: p := prices[i], int q := quantities[j]
+    println("{i}:{j}:{p + q}")
+    total += p * q
+println(total)
+QUI
+expect later_index_and_mixed_element $'0:12\n1:23\n3' <<'QUI'
+prices := [10, 20]
+quantities := [2, 3]
+q := 99
+for: p := prices[], q = quantities[j]
+    println("{j}:{p + q}")
+println(q)
+QUI
+expect reused_indices_and_exits $'1:1:3\n1:1:3\n0:0' <<'QUI'
+prices := [10, 20]
+quantities := [2, 3]
+nat i := 88
+nat j := 99
+q := 77
+for p := prices[i], q = quantities[j]
+    continue
+println("{i}:{j}:{q}")
+int[] empty := []
+for p := empty[i], q = empty[j]
+    println("unexpected")
+println("{i}:{j}:{q}")
+for p := prices[i], q = quantities[j]
+    break
+println("{i}:{j}")
+QUI
+rejects duplicate_indices SHADOWING <<'QUI'
+values := [1]
+for: p := values[i], q := values[i]
+    println(p + q)
+QUI
+rejects visible_second_index SHADOWING <<'QUI'
+values := [1]
+nat j := 7
+for: p := values[i], q := values[j]
+    println(p + q)
+QUI
+rejects second_index_readonly LOOP_VARIABLE_WRITE <<'QUI'
+values := [1]
+for: p := values[i], q := values[j]
+    j = 0
+QUI
 expect zip 80 <<'QUI'
 int[] prices := [10, 20]
 int[] quantities := [2, 3]
@@ -130,7 +180,7 @@ fails mismatch $'0\n1\n2' FOR_LENGTH <<'QUI'
 int[] source(int[] &order, int id, int count)
     order = order.append(id)
     int[] result := []
-    for int i < count
+    for: int i < count
         result = result.append(i)
     print(id)
     print(NL)
@@ -202,9 +252,9 @@ int[] values := [1]
 for (int a, int b) := pairs[], int other := values[]
     print(a)
 QUI
-rejects index FOR_HEADER <<'QUI'
+expect index 1 <<'QUI'
 int[] values := [1]
-for int item := values[nat index], int other := values[]
+for: int item := values[index], int other := values[]
     print(item)
 QUI
 # The old single-source loop remains a mutable value copy.

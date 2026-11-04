@@ -30,7 +30,7 @@ tensor<real32> place(tensor<real32> value, int device)
 tensor<real32> ramp(int[] shape, int device)
     int count := element_count(shape)
     tensor<real32> flat := tensor.zeros<real32>([nat(count)])
-    for 0 <= int index < count
+    for: 0 <= int index < count
         flat[index] = real32(index + 1)
     return place(flat.reshape(nat(shape)), device)
 
@@ -38,14 +38,14 @@ void dump(string label, tensor<real32> value)
     tensor<real32> host := value.cpu()
     nat[] shape := host.shape()
     print("{label} [")
-    for 0 <= nat axis < len(shape)
+    for: 0 <= nat axis < len(shape)
         if axis > 0
             print(",")
         print("{shape[axis]}")
     print("]:")
     int count := element_count(int(shape))
     tensor<real32> flat := host.contiguous().reshape([nat(count)])
-    for 0 <= int index < count
+    for: 0 <= int index < count
         print(" {real64(flat[index].item())}")
     print(NL)
 

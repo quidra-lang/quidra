@@ -672,10 +672,16 @@ void ControlFlowLowering::lower_sequence_for(const ForStmt& n) {
     }
     }
     ValueId index_value=0;
-    if(n.index && std::any_of(n.body.begin(),n.body.end(),[&](const StmtPtr& statement){return statement_mentions_name(*statement,n.index->name);})) {
+    if(n.index && (!n.index->declares || std::any_of(n.body.begin(),n.body.end(),[&](const StmtPtr& statement){return statement_mentions_name(*statement,n.index->name);}))) {
         index_value=lowerer_.bare_from_int64(ix,Type::simple(TypeKind::Nat),false);
-        scope_.bind_source_value(n.index->name,index_value);
-        lifetime_.enter_loop_value(index_value,Type::simple(TypeKind::Nat));
+        if(n.index->declares) {
+            scope_.bind_source_value(n.index->name,index_value);
+            lifetime_.enter_loop_value(index_value,Type::simple(TypeKind::Nat));
+        } else {
+            builder_.emit(StoreLocal{scope_.source_local(n.index->name),index_value,Type::simple(TypeKind::Nat)});
+            lowerer_.initialization_flags().for_index_iteration(*n.index);
+            index_value=0;
+        }
     }
     loop_targets_.enter(step_label, break_label);
     std::size_t pattern_references=0;

@@ -48,6 +48,7 @@ public:
     // Sets the flags of the bindings `statement` or `expression` initializes,
     // when the current block continues.
     void for_iteration(const ForStmt& loop);
+    void for_index_iteration(const ForIndexBinding& index);
     void after(const Stmt& statement);
     void after(const Expr& expression);
 

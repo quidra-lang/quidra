@@ -46,7 +46,7 @@ void drive(Pair &input, Pair &other)
   for (int i = 0; i < 32; ++i)
     text += "    padding = padding + 1\n";
   text += "    Binder<Pair> held := Binder<Pair>(&input)\n";
-  text += "    for int32 iteration < 3\n";
+  text += "    for: int32 iteration < 3\n";
   if (kind == Case::HolderReplacement)
     text += "        held = Binder<Pair>(&other)\n";
   if (kind == Case::FieldRebind)

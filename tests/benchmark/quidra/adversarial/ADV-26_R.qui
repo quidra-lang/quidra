@@ -10,7 +10,7 @@ string read_input_line()
         error problem
             process.exit(2)
 int[] values := array(7, fill = 0)
-for 0 <= nat i < 7
+for: 0 <= nat i < 7
     values[i] = int.parse(read_input_line())
 int target := int.parse(read_input_line())
 int lo := 0

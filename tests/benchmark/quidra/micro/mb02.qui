@@ -9,9 +9,9 @@ int workload()
     int m := 1000003
     int n := 20000
     int total := 0
-    for 1 <= int k < n + 1
+    for: 1 <= int k < n + 1
         int f := 1
-        for 2 <= int j < k + 1
+        for: 2 <= int j < k + 1
             f = (f * j) % m
         total = (total + f) % m
     return total
@@ -30,7 +30,7 @@ int total
 if args.mode == "steady"
     int k := math.max(args.iterations, 1)
     total = timed(0)
-    for 1 <= int i < k
+    for: 1 <= int i < k
         total = timed(i)
 else
     total = workload()

@@ -10,7 +10,7 @@ void increment(int &value)
     value = value + 1
 
 int total := 0
-for 0 <= nat i < 3
+for: 0 <= nat i < 3
     int selected := choose(i < 2, int(i), 4)
     increment(&selected)
     total = total + selected

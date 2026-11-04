@@ -183,3 +183,29 @@ printf 'tensor<real32> { nat N ,L:=N+1 , _ }  x:=f()\n' > "$TMP/format.qui"
 "$QUIDRA" fmt "$TMP/format.qui"
 [[ "$(cat "$TMP/format.qui")" == 'tensor<real32>{nat N, L := N + 1, _} x := f()' ]]
 "$QUIDRA" fmt "$TMP/format.qui" --check
+cat > "$TMP/implicit-nat.qui" <<'QUI'
+batch := 3
+tensor<real32>{batch * 2, 224} contextual := tensor.zeros()
+println(contextual.shape()[0])
+tensor<real32>{(1 - 3) + batch * 2} signed_intermediate := tensor.zeros()
+println(signed_intermediate.shape()[0])
+real64 extent := 2.0
+tensor<real32>{extent} integral_real := tensor.zeros()
+println(integral_real.shape()[0])
+tensor<real32>{N := batch * 2} named := tensor.zeros()
+println(N)
+int next(int &calls)
+    calls += 1
+    return calls * 2
+calls := 0
+tensor<real32>{next(&calls)} once := tensor.zeros()
+println(calls)
+println(once.shape()[0])
+QUI
+[[ "$("$QUIDRA" "$TMP/implicit-nat.qui")" == $'6\n4\n2\n6\n1\n2' ]]
+cat > "$TMP/fractional-nat.qui" <<'QUI'
+real64 extent := 2.5
+tensor<real32>{extent} invalid := tensor.zeros()
+QUI
+if "$QUIDRA" "$TMP/fractional-nat.qui" > "$TMP/fractional.out" 2> "$TMP/fractional.err"; then exit 1; fi
+grep -Fq 'NOT_INTEGRAL' "$TMP/fractional.err"

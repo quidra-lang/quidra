@@ -12,25 +12,25 @@ import time
 
 WORKLOADS = {
     "bitwise": """int64 value := 1
-for 0 <= nat index < 2000000
+for: 0 <= nat index < 2000000
     int64 converted_index := int64(index)
     value = ((value XOR converted_index) << 1) XOR (value >> 3)
 print(value)
 """,
     "sort": """int[] values := array(50000, fill = 0)
-for 0 <= nat index < 50000
+for: 0 <= nat index < 50000
     values[index] = 50000 - int(index)
 values = values.sorted()
 print(values[0])
 """,
     "string_concat": """string text := ""
-for 0 <= nat index < 200000
+for: 0 <= nat index < 200000
     text += "x"
 print(len(text))
 """,
     "stream_file": """void | error write_sample()
     file.write output := try file.write("trend-output.txt")
-    for 0 <= nat index < 50000
+    for: 0 <= nat index < 50000
         try .output("abcdef{NL}")
     return
 
@@ -52,9 +52,9 @@ match result
         print(problem)
 """,
     "map_delete": """map<int, int> values
-for 0 <= nat index < 50000
+for: 0 <= nat index < 50000
     .values.set(int(index), int(index))
-for 0 <= nat index < 50000 step 2
+for: 0 <= nat index < 50000 step 2
     .values.remove(int(index))
 print(values.size())
 """,

@@ -29,8 +29,8 @@ ValueId ShapeConstraintLowering::shape_axis(
 }
 
 ValueId ShapeConstraintLowering::extent_value(const Expr& expression) {
-    auto value = lowerer_.lower(expression);
-    const auto source = type_of(checked_, expression);
+    auto value = lowerer_.lower_argument(expression);
+    const auto source = lowerer_.argument_type(expression);
     const auto target = Type::simple(TypeKind::Int64);
     if (source == target) return value;
     auto out = builder_.fresh();
@@ -41,6 +41,7 @@ ValueId ShapeConstraintLowering::extent_value(const Expr& expression) {
         out, value, source, target, checked_range,
         {static_cast<std::uint32_t>(expression.span.start.line),
         static_cast<std::uint32_t>(expression.span.start.column)}});
+    lowerer_.release_argument(expression,value);
     return out;
 }
 

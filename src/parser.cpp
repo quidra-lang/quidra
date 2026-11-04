@@ -1613,7 +1613,6 @@ StmtPtr Parser::parallel_stmt() {
         auto statement=for_stmt();
         auto& loop=std::get<ForStmt>(statement->data);
         loop.parallel=true;
-        if(loop.range && !loop.type && !loop.discards()) loop.declares=true;
         loop.parallel_span={start,statement->span.start};
         statement->span.start=start;
         return statement;
@@ -1641,6 +1640,8 @@ bool Parser::at_collection_suffix() const {
     if(!at(TokenKind::LBracket)) return false;
     if(peek(1).kind==TokenKind::RBracket)
         return peek(2).kind!=TokenKind::LParen;
+    if(peek(1).kind==TokenKind::Identifier && peek(2).kind==TokenKind::RBracket &&
+       (peek(3).kind==TokenKind::Newline || peek(3).kind==TokenKind::Comma)) return true;
     auto cursor=current_+1;
     if(!scan_type_lookahead(tokens_,cursor,0,max_parse_depth)) return false;
     return cursor+2<tokens_.size() &&
@@ -1651,8 +1652,25 @@ bool Parser::at_collection_suffix() const {
 
 StmtPtr Parser::for_stmt() {
     const auto start=consume(TokenKind::KwFor,"Expected for.").span.start;
+    const bool declares_control=match(TokenKind::Colon);
     const auto fail=[&](const char* code,const std::string& message) {
         throw CompileError(Diagnostic{code,message,peek().span});
+    };
+    const auto collection_index=[&]() -> std::optional<ForIndexBinding> {
+        consume(TokenKind::LBracket,"Expected '[' after a collection source.");
+        std::optional<ForIndexBinding> result;
+        if(!at(TokenKind::RBracket)) {
+            std::optional<TypeName> type;
+            const auto index_start=peek().span.start;
+            if(peek(1).kind!=TokenKind::RBracket) type=type_name();
+            const auto index=consume(TokenKind::Identifier,"Expected a nat index name.");
+            if(index.text=="_") fail("DISCARD","Write 'values[]' when the index is not used.");
+            if(type && (type->name!="nat" || !type->dimensions.empty()))
+                fail("FOR_HEADER","The index of a collection loop is nat; convert in the body, e.g. int(i).");
+            result=ForIndexBinding{index.text,{index_start,index.span.end},declares_control};
+        }
+        consume(TokenKind::RBracket,"Expected ']' after collection suffix.");
+        return result;
     };
     ForStmt node;
     {
@@ -1719,26 +1737,16 @@ StmtPtr Parser::for_stmt() {
                     const auto* name=std::get_if<NameExpr>(&index->items[0].index->data);
                     if(name && name->name=="_")
                         fail("DISCARD","Write 'values[]' when the index is not used.");
-                    fail("FOR_HEADER","Only a new nat index can be declared in '[]': write 'values[]' or 'values[nat i]'.");
+                    fail("FOR_HEADER","A collection index is a name: use 'for: x := values[i]' to declare it or plain 'for' to reuse it.");
                 }
                 fail("FOR_HEADER","A collection loop iterates elements: write 'values[]'.");
             }
-            consume(TokenKind::LBracket,"Expected '['.");
-            if(!at(TokenKind::RBracket)) {
-                const auto type=type_name();
-                const auto index=consume(TokenKind::Identifier,"Expected a new nat index name.");
-                if(index.text=="_")
-                    fail("DISCARD","Write 'values[]' when the index is not used.");
-                if(type.name!="nat" || !type.dimensions.empty())
-                    fail("FOR_HEADER","The index of a collection loop is nat: write '[nat i]' and convert in the body, e.g. int(i).");
-                node.index=ForIndexBinding{index.text,{type.span.start,index.span.end}};
-            }
-            consume(TokenKind::RBracket,"Expected ']' after collection suffix.");
+            node.index=collection_index();
             if(at(TokenKind::LBracket))
                 fail("ELEMENT_ITERATION","One '[]' iterates one level; iterate 'row[]' in a nested for.");
             while(match(TokenKind::Comma)) {
-                if(node.writable || node.pattern || node.index)
-                    fail("FOR_HEADER","Multiple collections use array value bindings without patterns or indices.");
+                if(node.writable || node.pattern)
+                    fail("FOR_HEADER","Multiple collections use array value bindings without references or patterns.");
                 ForCollectionBinding binding;
                 const auto binding_start=peek().span.start;
                 cursor=current_;
@@ -1761,15 +1769,17 @@ StmtPtr Parser::for_stmt() {
                     FlagScope header(collection_header_source_,true);
                     binding.iterable=postfix();
                 }
-                if(!at(TokenKind::LBracket) || peek(1).kind!=TokenKind::RBracket)
-                    fail("FOR_HEADER","Each collection source must be an array followed by empty '[]'.");
-                consume(TokenKind::LBracket,"Expected '['.");
-                consume(TokenKind::RBracket,"Expected ']'.");
+                if(!at(TokenKind::LBracket))
+                    fail("FOR_HEADER","Each collection source must be an array followed by '[]' or an index name.");
+                binding.index=collection_index();
                 if(at(TokenKind::LBracket))
                     fail("ELEMENT_ITERATION","One '[]' iterates one level; iterate 'row[]' in a nested for.");
                 binding.span={binding_start,previous().span.end};
                 node.collections.push_back(std::move(binding));
             }
+            if(declares_control && !node.index &&
+               std::none_of(node.collections.begin(),node.collections.end(),[](const auto& binding){return binding.index.has_value();}))
+                fail("FOR_HEADER","'for:' declares a range variable or collection index; omit ':' when no index is used.");
         } else {
             const auto relation=[](TokenKind kind) {
                 return kind==TokenKind::Less || kind==TokenKind::LessEq ||
@@ -1791,7 +1801,7 @@ StmtPtr Parser::for_stmt() {
                 node.type=type_name();
                 const auto variable=consume(TokenKind::Identifier,"Expected iteration name.");
                 node.name=variable.text;
-                node.declares=true;
+                node.declares=declares_control;
                 const auto op=peek().kind; ++current_;
                 node.iterable=zero(variable.span);
                 range.implicit_start_zero=true;
@@ -1815,7 +1825,7 @@ StmtPtr Parser::for_stmt() {
                 const bool full=typed_right?relation(tokens_[cursor+1].kind):
                     at(TokenKind::Identifier) && relation(peek(1).kind);
                 if(full || range.descending) {
-                    node.declares=typed_right;
+                    node.declares=declares_control;
                     if(typed_right) {
                         node.type=type_name();
                     }
@@ -1841,7 +1851,7 @@ StmtPtr Parser::for_stmt() {
                     if(!variable || variable->this_qualifier)
                         fail("FOR_HEADER","A for range needs a variable and an upper bound.");
                     node.name=variable->name;
-                    node.declares=false;
+                    node.declares=declares_control;
                     const auto span=node.iterable->span;
                     current_=right_start;
                     range.end=bit_or_expr();
@@ -1854,6 +1864,10 @@ StmtPtr Parser::for_stmt() {
             if(at(TokenKind::Identifier) && peek().text=="step") {
                 ++current_; range.step=bit_or_expr();
             }
+            if(node.type && !declares_control)
+                fail("FOR_HEADER","Declare a range variable with 'for:'; plain 'for' reuses an existing variable.");
+            if(declares_control && node.discards())
+                fail("DISCARD","'_' binds nothing; use plain 'for' for a discarded range variable.");
         }
     }
     if(at(TokenKind::Comma)) fail("FOR_HEADER","Multiple collections cannot be mixed with a range header.");
@@ -2936,3 +2950,4 @@ ExprPtr Parser::primary() {
 }
 
 } // namespace quidra
+

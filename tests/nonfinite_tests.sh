@@ -134,7 +134,7 @@ real64 sum(real64 a, real64 b, real64 c)
 
 real64 total(real64 step)
     real64 s := -inf
-    for 0 <= nat8 i < 4
+    for: 0 <= nat8 i < 4
         s = s + step
     return s
 

@@ -5,7 +5,7 @@ class Bag this()
     int[] items
 
     int .grow_items()
-        for 0 <= nat i < 1000
+        for: 0 <= nat i < 1000
             this.items = this.items.append(int(i))
         return 1
 

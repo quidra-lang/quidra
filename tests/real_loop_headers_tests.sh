@@ -6,29 +6,29 @@ trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
 cat > "$TMP/counts.qui" <<'QUI'
 int a := 0
-for 0.0 <= real16 x <= 1.0 step 0.1
+for: 0.0 <= real16 x <= 1.0 step 0.1
     a += 1
 int b := 0
-for 0.0 <= real16b x <= 1.0 step 0.1
+for: 0.0 <= real16b x <= 1.0 step 0.1
     b += 1
 int c := 0
-for 0.0 <= real32 x <= 1.0 step 0.1
+for: 0.0 <= real32 x <= 1.0 step 0.1
     c += 1
 int d := 0
-for 0.0 <= real64 x <= 1.0 step 0.1
+for: 0.0 <= real64 x <= 1.0 step 0.1
     d += 1
 int e := 0
-for 0.0 <= real x <= 1.0 step 0.1
+for: 0.0 <= real x <= 1.0 step 0.1
     e += 1
 int f := 0
-for 100000000.0 < real32 x <= 100000008.0 step 1.0
+for: 100000000.0 < real32 x <= 100000008.0 step 1.0
     f += 1
 int g := 0
-for 1.0 >= real x > 0.0 step -0.1
+for: 1.0 >= real x > 0.0 step -0.1
     g += 1
 print("{a} {b} {c} {d} {e} {f} {g}{NL}")
 real endpoint := 0.3
-for 0.0 <= real x <= endpoint step 0.1
+for: 0.0 <= real x <= endpoint step 0.1
     endpoint = 0.0
     print("{x} {x + 0.1} {x * 2.0} {x < 0.2} {real32(x)}{NL}")
 QUI
@@ -38,7 +38,7 @@ actual="$("$QUIDRA" "$TMP/counts.qui")"
 cat > "$TMP/discard.qui" <<'QUI'
 int[] values := [1, 2, 3]
 int calls := 0
-for _ = values[nat i]
+for: _ = values[i]
     values = []
     calls += 1
     print("{i}")
@@ -65,8 +65,8 @@ import json,sys
 assert any(item['code']==sys.argv[2] for item in json.load(open(sys.argv[1]))['diagnostics'])
 PY
 }
-reject $'for 0.0 <= real64 x < 1.0\n    print(x)' FOR_HEADER
-reject $'for 0 <= int _ < 3\n    print(1)' DISCARD
+reject $'for: 0.0 <= real64 x < 1.0\n    print(x)' FOR_HEADER
+reject $'for: 0 <= int _ < 3\n    print(1)' DISCARD
 reject $'int[] values := [1]\nfor & _ := &values[]\n    print(1)' DISCARD
 reject $'for 0.0 <= _ < 1.0 step 0.1\n    print(1)' DISCARD
 reject $'range(3)' UNKNOWN_NAME

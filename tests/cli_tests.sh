@@ -1631,7 +1631,7 @@ print(fixed_ordered[5])
 print(NL)
 
 int[] large := []
-for 0 <= nat i < 5000
+for: 0 <= nat i < 5000
     large = large.append(4999 - int(i))
 int[] large_ordered := large.sorted()
 print(large_ordered[0])
@@ -1658,13 +1658,13 @@ grep -q 'index 2 out of bounds for length 2' "$TMP/string-index-oob.err"
 
 cat > "$TMP/string-growth.qui" <<'QUI'
 string built := ""
-for 0 <= nat i < 2000
+for: 0 <= nat i < 2000
     built = built + "x"
 print(len(built))
 print(NL)
 
 string assigned := ""
-for 0 <= nat i < 2000
+for: 0 <= nat i < 2000
     assigned += "y"
 print(len(assigned))
 print(NL)
@@ -1837,7 +1837,7 @@ real64 consume(real64[] values)
 
 real64[] values := array(64, fill = 1.0)
 real64 total := 0.0
-for 0 <= nat i < 100000
+for: 0 <= nat i < 100000
     total = total + consume(values)
 print(total)
 print(NL)
@@ -1891,7 +1891,7 @@ real64[] make_values()
 
 string prefix := "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 int total := 0
-for 0 <= nat i < 100000
+for: 0 <= nat i < 100000
     make_values()
     total += int(len(prefix + i.string()))
 print(total > 0)
@@ -1930,7 +1930,7 @@ cli args
 tensor<real32> noise(int count)
     tensor<real32> value := tensor.zeros<real32>([nat(count)])
     int64 state := 12345
-    for 0 <= int index < count
+    for: 0 <= int index < count
         state = (state * 1103515245 + 12345) % 2147483648
         value[index] = real32(state % 1000003) / real32(1000003)
     return value
@@ -1940,7 +1940,7 @@ tensor<real32> scale := tensor.ones<real32>([262144]) * real32(2)
 real32 expected := -(base[7].item() * real32(2))
 int matches := 0
 real32 expected_gradient := base[7].item() * real32(8)
-for 0 <= int round < args.rounds
+for: 0 <= int round < args.rounds
     if args.tracked
         tensor<real32> x := base.track()
         tensor<real32> negated := -(x * scale)
@@ -2024,7 +2024,7 @@ int | error consume_numbers()
         total += value
     return total
 
-for 0 <= nat i < 200000
+for: 0 <= nat i < 200000
     consume_numbers()
 print("ownership-ok")
 print(NL)
@@ -2109,7 +2109,7 @@ int consume(bool present)
             return 0
 
 int total := 0
-for 0 <= nat i < 200000
+for: 0 <= nat i < 200000
     total += consume(int(i) % 2 == 0)
 print(total)
 print(NL)
@@ -2185,7 +2185,7 @@ full_array_mark_count="$(grep -c 'call void @quidra_init_mark_range' "$TMP/full-
 
 cat > "$TMP/loop-array-proof.qui" <<'QUI'
 int[] values := array(8)
-for 0 <= nat i < len(values)
+for: 0 <= nat i < len(values)
     values[i] = int(i) * 2
 print(values[7])
 print(NL)
@@ -2199,7 +2199,7 @@ fi
 
 cat > "$TMP/partial-loop-array-proof.qui" <<'QUI'
 int[] values := array(8)
-for 0 <= nat i < 7
+for: 0 <= nat i < 7
     values[i] = int(i)
 print(values[7])
 print(NL)
@@ -2349,7 +2349,7 @@ readonly_local_expected=$(printf '2\n2')
 
 cat > "$TMP/loop-control.qui" <<'QUI'
 int sum := 0
-for 0 <= nat i < 10
+for: 0 <= nat i < 10
     if i == 2
         continue
     if i == 6
@@ -2807,7 +2807,7 @@ cat > "$TMP/reference-rebind-lifetime.qui" <<'QUI'
 int[] left := [1]
 int[] right := [2]
 int &slot := &left[0]
-for 0 <= nat i < 2000
+for: 0 <= nat i < 2000
     &slot = &left[0]
     left = [int(i)]
     &slot = &right[0]
@@ -3564,7 +3564,7 @@ class Counter this(local int size_initial)
     int .locals()
         int local_size := 100
         int total := 0
-        for 0 <= nat local_index < 2
+        for: 0 <= nat local_index < 2
             this.i = this.i + 10
             total += int(local_index)
         int | none value := 4
@@ -3582,7 +3582,7 @@ class Counter this(local int size_initial)
     int bounded(int n_argument)
         int[] local_values := array(nat(n_argument), fill = 1)
         int total := 0
-        for 0 <= int local_index < this.n
+        for: 0 <= int local_index < this.n
             total += local_values[local_index]
         return total
 
@@ -4142,7 +4142,7 @@ int generic_extent<T: numeric>(T value, int top)
 int plain_extent(int top)
     int input_height := 2
     int total := 0
-    for 0 <= nat input_width < 3
+    for: 0 <= nat input_width < 3
         total = total + int(input_width)
     return input_height + total + top
 
@@ -5091,7 +5091,7 @@ void fails()
 
 void waits()
     int total := 0
-    for 0 <= nat k < 200000
+    for: 0 <= nat k < 200000
         total = total + int(k) % 7
     print(total > 0)
 

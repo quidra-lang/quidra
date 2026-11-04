@@ -20,7 +20,7 @@ tensor<real32> sum(tensor<real32> value)
             return tensor.zeros<real32>([], gpu = nat(value.device()))
         return tensor.zeros<real32>([])
     tensor<real32> result := value.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + value.gather([index], [])
     return result
 
@@ -863,13 +863,13 @@ tensor<real32> total(tensor<real32> value)
         count = count * int(extent)
     tensor<real32> flat := value.reshape([nat(count)])
     tensor<real32> result := flat.gather([0], [])
-    for 1 <= int index < count
+    for: 1 <= int index < count
         result = result + flat.gather([index], [])
     return result
 
 tensor<real32> pattern(int count, int seed)
     tensor<real32> value := tensor.zeros<real32>([nat(count)])
-    for 0 <= int index < count
+    for: 0 <= int index < count
         real32 step := real32((index * 7 + seed * 3) % 11)
         value[index] = step / real32(8) + real32(0.25)
     return value

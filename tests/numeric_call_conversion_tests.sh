@@ -154,6 +154,31 @@ println(result[0].item() == 1 and direct[1].item() == 1 and function_result[0].i
 println(array_result == [int64(1), 2] and direct_array == array_result)
 QUI
 [[ "$("$QUIDRA" run "$TMP/generic_cast_containers.qui")" == "$(printf 'true\ntrue')" ]]
+# A fallible RHS is consumed before numeric promotion or the destination write.
+cat > "$TMP/compound_fallible.qui" <<'QUI'
+real64 | error next()
+    return 2.0
+int32 | error next_integer()
+    return 2
+n := 2
+real64 value := 1.0
+value += real64(n)
+value *= real64(n)
+value -= real64(n)
+value /= real64(n)
+value += next()
+value += next_integer()
+int32 remainder := 11
+remainder %= int32(n)
+real64[] values := [1.0]
+values[0] += next()
+class Accumulator(real64 amount)
+accumulator := Accumulator(1.0)
+accumulator.amount += next()
+println(value == 6.0 and remainder == 1)
+println(values[0] == 3.0 and accumulator.amount == 3.0)
+QUI
+[[ "$("$QUIDRA" run "$TMP/compound_fallible.qui")" == "$(printf 'true\ntrue')" ]]
 fails() {
     local name="$1" code="$2" status=0
     cat > "$TMP/$name.qui"
@@ -229,6 +254,21 @@ nat64 addend := 2147483648
 accumulator += addend
 print(accumulator)
 QUI
+fails compound_fallible_cast NUMERIC_CONVERSION <<'QUI'
+value := 128
+int8 accumulator := 1
+accumulator += int8(value)
+println(accumulator)
+QUI
+[[ ! -s "$TMP/compound_fallible_cast.out" ]]
+fails compound_fallible_call COMPOUND_FAILURE <<'QUI'
+real64 | error next()
+    return error("compound update failed", code = "COMPOUND_FAILURE")
+real64 accumulator := 1.0
+accumulator += next()
+println(accumulator)
+QUI
+[[ ! -s "$TMP/compound_fallible_call.out" ]]
 fails builtin_fractional NUMERIC_CONVERSION <<'QUI'
 real64 count := 3.5
 print(string.repeat("x", count))

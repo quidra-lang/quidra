@@ -3912,6 +3912,30 @@ int main(){
  bad_code("int32 x := 5\nreal32 y := 1.0\nx = x + y\n", "TYPE_MISMATCH");
  good("int32 x := 5\nnat64 n := 2\nx += n\nint32 verify := x\n");
  bad_code("int32 x := 5\nreal32 r := 2.0\nx += r\n", "TYPE_MISMATCH");
+ // Numeric compound updates consume a fallible RHS before selecting the common type.
+ good(R"(real64 | error next()
+    return 2.0
+int32 | error next_integer()
+    return 2
+n := 2
+real64 value := 1.0
+value += real64(n)
+value *= real64(n)
+value -= real64(n)
+value /= real64(n)
+value += next()
+value += next_integer()
+int32 remainder := 11
+remainder %= int32(n)
+real64[] values := [1.0]
+values[0] += next()
+class Accumulator(real64 amount)
+accumulator := Accumulator(1.0)
+accumulator.amount += next()
+)");
+ bad_code("int32 | none | error next()\n    return 2\nint32 value := 1\nvalue += next()\n", "TYPE_MISMATCH");
+ bad_code("int32 | real64 | error next()\n    return 2\nreal64 value := 1.0\nvalue += next()\n", "TYPE_MISMATCH");
+ bad_code("real32 | error next()\n    return 2.0\nint32 value := 1\nvalue += next()\n", "TYPE_MISMATCH");
  good("values := (1, 2.0, 3.0i)\n(int a, real b, com c) := values\n");
  // Value calls convert to the chosen formal type; references retain identity.
  good("real32 f(real32 x)\n    return x\nint64 value := 7\nreal32 result := f(value)\nint64 original := value\n");

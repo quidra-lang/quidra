@@ -53,7 +53,7 @@ Omit the type by default when the initializer determines it, as in `label := "re
 
 The example also shows how values and references are passed:
 
-- `int count := 7` creates a value.
+- `count := 7` creates an `int` value.
 - `int &value` makes writable access to existing storage explicit in the
   function signature.
 - `increment(&count)` makes that access explicit at the call site.

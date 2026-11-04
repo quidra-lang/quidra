@@ -5048,6 +5048,10 @@ private:
                     receiver->dimensions.size() == 1) return simple_type("string");
                 return std::nullopt;
             }
+            if (call->method == "string" &&
+                (numeric_type_name(receiver->name) || receiver->name == "bool" ||
+                 receiver->name == "bin" || receiver->name == "error"))
+                return simple_type("string");
             if (receiver->name == "string") {
                 if (call->method == "string" || call->method == "trim" ||
                     call->method == "lower_ascii" || call->method == "upper_ascii")

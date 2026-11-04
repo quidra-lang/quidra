@@ -1,11 +1,11 @@
 void replace(int[] &values, count := 3)
-    values = array(nat(count), fill = 7)
+    values = array(count, fill = 7)
 
 int[] data := []
 replace(&values = &data)
 println(data[2])
 
-int choose(bool condition, fallback := int(20))
+int choose(bool condition, fallback := 20)
     int answer
     if condition
         answer = 10

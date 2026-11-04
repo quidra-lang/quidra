@@ -200,7 +200,7 @@ slice_end        = [ "<" | ">" ], expression ;   (* a marker touches the colon *
 member_suffix    = ".", identifier, [ type_arguments ],
                    [ "(", [ arguments ], ")" ] ;
 primary          = integer_literal | real_literal | imaginary_literal | string |
-                   "true" | "false" | "void" | "none" |
+                   "true" | "false" | "void" | "none" | "inf" |
                    tuple_expr | array | array_generation | identifier | "(", expression, ")" ;
 array            = "[", [ expression, { ",", expression }, [ "," ] ], "]" ;
 array_generation = "[", "for", [ type ], identifier, ":=", postfix, "[", "]",
@@ -213,8 +213,9 @@ statement_end    = NEWLINE | EOF ;
 
 (* Numeric lexical constraints:
    - integer literals are decimal digits only; 0x/0b/0o prefixes do not exist;
-   - real literals contain a decimal point; exponent notation only after it (1.0e8);
-   - an imaginary literal is a real literal immediately followed by `i` that is not
+   - decimal real literals contain a decimal point; exponent notation only after it (1.0e8);
+     `inf` is the real-family positive-infinity literal, with `-inf` using unary minus;
+   - an imaginary literal is a decimal real literal immediately followed by `i` that is not
      followed by an identifier character (2.0i, 1.0e-3i); `i` is not reserved, so
      `int i := 5` stays valid; `2i` is lexed as an integer-form imaginary literal
      and rejected by the checker;

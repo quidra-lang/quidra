@@ -9651,8 +9651,22 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
             const auto family = numeric_literal_family(*node.value);
             const auto context = numeric_literal_context(&destination, family);
             const Type* literal_context = context.type && !context.ambiguous ? &destination : nullptr;
-            const auto source = check_expr(*node.value, literal_context);
+            auto source = check_expr(*node.value, literal_context);
             if (poisoned(source)) return source;
+            // A compound update consumes the RHS at a success-only numeric
+            // destination, just as plain assignment does. Keep its success
+            // representation for common-type selection rather than converting it.
+            if (source.kind == TypeKind::Union && source.union_name.empty() &&
+                case_index(source, simple(TypeKind::Error)) >= 0) {
+                std::vector<Type> success;
+                for (const auto& candidate : source.cases)
+                    if (candidate.kind != TypeKind::Error) success.push_back(candidate);
+                if (success.size() == 1 && is_numeric(success.front())) {
+                    source = success.front();
+                    fail_fast_expressions_.insert(node.value.get());
+                    expr_types_[node.value.get()] = source;
+                }
+            }
             const auto common = numeric_common_type(destination, source);
             if (!common || !assignable(*common, destination) ||
                 (node.compound_op == "%" && !is_integer_family_type(*common))) {

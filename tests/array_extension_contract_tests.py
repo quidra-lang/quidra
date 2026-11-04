@@ -146,6 +146,21 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
         int[] values := [1, 2, 3]
         print(values.total().twice() == 12)
     ''')
+    case('inferred-numeric-string-comprehension', '''
+        import stats = "./stats.qui"
+        number := 17
+        text := number.string()
+        digits := [for digit := text.codepoints()[] then digit - 48]
+        print(digits.total() == 8 and number.string().codepoints().total() == 104)
+    ''')
+    case('primitive-string-return-types', '''
+        int width(extend string value)
+            return int(len(value))
+        ready := true
+        bits := bin.fill(2, 1)
+        error problem := error("sample")
+        print(ready.string().width() == 4 and bits.string().width() == 2 and problem.string().width() > 0)
+    ''')
     case('contextual-extension-arguments', '''
         int first(extend int[] value)
             return value[0]

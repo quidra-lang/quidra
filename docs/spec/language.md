@@ -12,7 +12,7 @@ Every source file also has one compiler-owned direct-execution flag named `main`
 int calculate(int value);
 
 if main
-    print.line(calculate(10))
+    println(calculate(10))
 
 int calculate(int value)
     return value * 2
@@ -56,7 +56,7 @@ An array's storage and nested elements obey value semantics. Copying a nested ar
 ```quidra
 int[] values := array(100)
 values[0] = 7
-print.line(values[0])
+println(values[0])
 ```
 
 `values := array(100)` is invalid because there is no element value from which to infer the type. Reading an element that no path initializes is a compile-time error (`UNINITIALIZED`, "'values[1]' is read before it is initialized on every path."): a constant index into a local array created without element values (`T[n] values`, `T[] values := array(k)`) whose element no store has reached, any index into one that nothing has written, or an equality over one with such an element. Otherwise reading an element before it has been initialized is a deterministic runtime safety error. The implementation tracks initialization independently from stored bits, using compact per-element state rather than treating zero or null as uninitialized.
@@ -200,7 +200,7 @@ int[] values := [10, 20, 30, 40, 50]
 middle := values[1:3]
 reversed := values[len(values)>:0]
 evens := values[0:<len(values):2]
-print.line(middle[0] + reversed[0] + evens[2])
+println(middle[0] + reversed[0] + evens[2])
 // output: 120
 ```
 
@@ -259,7 +259,7 @@ if true
     x = 1
 else
     x = 2
-print.line(x)
+println(x)
 ```
 
 A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. A fixed array's storage exists immediately, while initialization is tracked per element. A class-typed declaration such as `Point point` declares only an uninitialized binding: no usable instance exists until whole-value initialization or assignment. Before that, member reads, member writes, method calls and instance borrowing are prohibited. Successful explicit generation executes the class generation body and member initialization expressions; copying an existing initialized instance does not repeat them. Standard-library value types that user code cannot construct, such as file handles and random generators, stay uninitialized until the library supplies a value. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value.
@@ -273,7 +273,7 @@ int choose(bool ready)
         x = 1
     return x
 
-print.line(choose(true))
+println(choose(true))
 ```
 
 The cost is one hidden flag per binding that has such a read, set where the binding is initialized, and a branch at each such read; a program whose reads are all initialized on every path has neither. A read through a reference uses the state of the binding the reference designates; when the target is not known after a join, a read that is not initialized on every path stays a compile-time error ("may be uninitialized through a reference whose target is not known"). A binding that a call may write without initializing it on every path, through a `&` argument or a receiver, is not tracked by a flag either, so a read of it that is not initialized on every path also stays a compile-time error ("may be uninitialized").
@@ -296,14 +296,14 @@ For other user names, a declaration cannot shadow a name that is already visible
 int add(int a, int b := 1)
     return a + b
 
-print.line(add(41))
-print.line(add(a = 40, b = 2))
+println(add(41))
+println(add(a = 40, b = 2))
 
 string greet(label := "hello")
     return label
 
-print.line(greet())
-print.line(greet(label = "hi"))
+println(greet())
+println(greet(label = "hi"))
 ```
 
 Function results and required parameters use explicit types. A default parameter uses
@@ -349,8 +349,8 @@ int note(string label, int value)
 
 int[] values := [0, 0, 0]
 values[note("index ", 1)] = note("value", 5)
-print.line()
-print.line(values[1])
+println()
+println(values[1])
 ```
 
 Source evaluation order is left to right everywhere. A call evaluates its arguments in source order, named arguments included, then the defaults of omitted parameters in parameter order; a method call evaluates its receiver before its arguments. Binary operands, the parts of a concatenation, the elements of an array literal, the segments of an interpolation and the operands of an index list are evaluated left to right. A class generation call evaluates its arguments and omitted header defaults, initializes header members, then runs direct statements/member initializers in source order. The program above prints `index value` and then `5`.
@@ -411,11 +411,11 @@ Conditional chains use `elif`:
 ```quidra
 int score := 85
 if score >= 90
-    print.line("A")
+    println("A")
 elif score >= 80
-    print.line("B")
+    println("B")
 else
-    print.line("C")
+    println("C")
 ```
 
 ## Modules
@@ -551,9 +551,9 @@ token := Token.End
 
 match token
     Token.Number(value)
-        print.line(value)
+        println(value)
     Token.Name(name)
-        print.line(name)
+        println(name)
     Token.Plus
         void
     Token.End
@@ -666,10 +666,10 @@ int x := 1
 &alias := &x
 int other := 1
 
-print.line(&x)             // current raw address of x storage
-print.line(&alias)         // the same address
-print.line(&x == &alias)   // true
-print.line(&x == &other)   // false
+println(&x)             // current raw address of x storage
+println(&alias)         // the same address
+println(&x == &alias)   // true
+println(&x == &other)   // false
 ```
 
 For managed values the address still means the address of the language-level storage being addressed. In particular, `&text` for a `string text` observes the binding/storage slot, not the separate UTF-8 payload pointer used internally or at an FFI borrow boundary.
@@ -690,7 +690,7 @@ int value := 5
 const view := value
 
 value = 7
-print.line(view) // 5
+println(view) // 5
 ```
 
 `view` keeps the value `value` had when it was bound. `view = 8`, `&view = &other` and `int &writer := &view` are compile-time errors: a const value is never written, and no writable path to it can be formed. It also has its own identity, as any copy does: `&view == &value` is false.
@@ -711,7 +711,7 @@ Taking a scalar address does not read the stored value, so uninitialized scalar 
 int value
 &alias := &value
 alias = 7
-print.line(value)
+println(value)
 ```
 
 Reading `alias` before the write would be an uninitialized-read error. A `const T` value reads its source when it is formed, so that source must be initialized. Temporary values such as `&5` or `&Point(1.0, 2.0)` are not valid address targets.
@@ -740,7 +740,7 @@ int value := 4
 first := Holder(&value)
 second := first
 .second.add(3)
-print.line(first.read()) // 7: both holders refer to value
+println(first.read()) // 7: both holders refer to value
 ```
 
 Reference fields have no `const` qualifier. An uninitialized reference field starts unbound; its direct initialization may explicitly bind it with `&`. Only the declaring class binds or rebinds them, with the direct form `&total = &source` in initialization or a method. Access elsewhere still denotes the target: `holder.total` reads or writes it and `&holder.total` observes its address, subject to field privacy. `&holder.total = &source`, and a longer place such as `&self.inner.total = &source`, cannot rebind it; call a method of the declaring class. Binding in a constructor initializes the new holder and needs no mutation marker. Rebinding in a method writes the existing holder, so that method is declared and called with `.`. Writes through a reference field change shared state, and require `.` too unless an explicit `&` argument exposes that target. A `const` holder grants no write or rebinding authority through its reference fields. `cli` fields hold command-line values and cannot be references.
@@ -773,7 +773,7 @@ Reference parameters use the same model and remain explicit at both declaration 
 
 ```quidra
 void inspect(const int value)
-    print.line(value)
+    println(value)
 
 void initialize(int &value)
     value = 7
@@ -781,7 +781,7 @@ void initialize(int &value)
 int data := 1
 inspect(data)
 initialize(&data)
-print.line(data)
+println(data)
 ```
 
 A `const` parameter takes a value, `inspect(data)`, and a reference parameter takes `&storage`, `initialize(&data)`; writing `&` for a const parameter is `WRITE_CAPABILITY` ("Const parameters take values; remove '&' from '&data'."). The checker infers read-before-write requirements for writable parameters. A write-only writable parameter can initialize previously uninitialized storage; a const parameter's argument is a read, so its storage must be initialized. Reference markers cannot be omitted or supplied to ordinary parameters. Reference contracts preserve exact types, including fixed array shapes and class identity.
@@ -797,8 +797,8 @@ int[] values := [1, 2, 3]
 &first := &values[0]
 values = [4, 5]
 
-print.line(first)      // 1
-print.line(values[0])  // 4
+println(first)      // 1
+println(values[0])  // 4
 ```
 
 The implementation keeps the old backing storage alive as long as such a reference needs it. `print(&first)` may observe the current machine address of that pinned substorage, but the numeric-looking text is diagnostic only and is not guaranteed to remain the same across separate executions, builds, platforms, or unrelated storage relocations allowed before an address becomes observable.
@@ -823,7 +823,7 @@ class Counter()
 
 counter := Counter()
 .counter.increment()
-print.line(counter.read())
+println(counter.read())
 ```
 
 The marker is written before a function's or method's name (`void .update()`), before an extern's name (`extern void .set(...)`). At a call it is one `.` before the whole postfix chain: `.update()`, `.counter.increment()`, `.nn.mode.fast()`, `.self.inner.bump()`. It covers the calls of that chain, the call itself and the calls in its receiver positions, not the calls nested in its arguments, which carry their own. A marked call is not a postfix: `(.gen.batch()).size()` parenthesizes it before a further member. The readings:
@@ -858,12 +858,12 @@ Comparisons chain: `a OP1 b OP2 c` means `a OP1 b and b OP2 c`, so `0 <= i < len
 ```quidra
 int64 x := 5
 if 0 <= x < 10
-    print.line("in range")
+    println("in range")
 ```
 
 ```quidra
 for 2 <= nat i < 10 step 2
-    print.line(i)
+    println(i)
 
 int[] values := [1, 2, 3]
 for &value := &values[]
@@ -910,7 +910,7 @@ available for Cartesian iteration.
 ```quidra
 int score := 85
 grade := if score >= 90 then "A" elif score >= 80 then "B" else "C"
-print.line(grade)
+println(grade)
 ```
 
 `else if` is not a synonym for `elif` in an if-expression; it is an error with the hint to write `elif`. There is no `?:` operator.
@@ -937,9 +937,9 @@ int | error doubled(bool valid)
 
 match doubled(true)
     int value
-        print.line(value)
+        println(value)
     error problem
-        print.line(problem)
+        println(problem)
 ```
 
 A fallible union is preserved when the destination explicitly includes the failure channel, as in `T | error result := operation()`. In `result := operation()`, the inferred type contains the complete non-`error` success side and the initialization site fails fast on `error`. In particular, `T | none | error` infers `T | none`.
@@ -1045,7 +1045,7 @@ Explicit numeric casts use the destination type directly: `int8(value)`, `nat32(
 
 Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.string()` for their standard textual form. Parsing is interpretation of text and is distinct from casting. Mathematical functions live in the first-party `math` package namespace after an explicit `import math`: `math.abs` accepts numeric values, `math.sqrt` accepts floating-point values, and `math.min`/`math.max` require two values of the same numeric type. There are no Core bare spellings of these names, so `abs`, `sqrt`, `min`, and `max` remain ordinary identifiers.
 
-`print(value)` writes a scalar without adding a newline. Prefer `print.line(value)` for a terminated line or `print.line()` for an empty line; `NL` interpolation remains available for embedded line breaks. `print` and `flush()` return `void | error`: an output failure such as a closed pipe is reported as `error`, and because the usual spelling is a statement, that error fails fast. Core has no console `write` builtin and no `io` namespace; `write` remains an ordinary user or package identifier.
+`print(value)` writes a scalar without adding a newline. Prefer `println(value)` for a terminated line or `println()` for an empty line; `NL` interpolation remains available for embedded line breaks. `print` and `flush()` return `void | error`: an output failure such as a closed pipe is reported as `error`, and because the usual spelling is a statement, that error fails fast. Core has no console `write` builtin and no `io` namespace; `write` remains an ordinary user or package identifier.
 
 `scan(...)` is the one input operation. It reads one line of standard input, without the trailing LF, and stores what it reads into the targets named by its format; its result is `void | error`. `scan(&n)` reads a single value and is the short form of `scan("{&n}")`. `scan(...)` reads one complete line, with `void | error` for success or failure.
 `scan(&n)` is shorthand for `scan("{&n}")`. In an input format, `{&n}`
@@ -1279,9 +1279,9 @@ cli args
     int count = option(default = 1)
     bool verbose = flag()
 
-print.line(args.source)
-print.line(args.count)
-print.line(args.verbose)
+println(args.source)
+println(args.count)
+println(args.verbose)
 ```
 
 `argument()` declares a required positional value. `argument(default = value)` declares a trailing optional positional value; optional positional fields must come after every required positional field so omission is unambiguous. `option(default = value)` declares a named `--field value` option whose type is inferred from the field declaration and checked against its default. `flag()` declares a boolean `--field` flag. Field names are the command-line names, so they are not repeated as string literals. CLI scalar values support `string`, `bool`, and every `nat*`, `int*`, and `real*` kind; `flag()` is `bool` only. Exact numeric CLI text is parsed directly into `nat`/`int`/`real` without an intermediate fixed-width integer or IEEE real64. Missing required values, invalid typed values, non-UTF-8 text values, duplicate or unknown arguments, and misplaced arguments terminate with CLI status 2.
@@ -1315,16 +1315,16 @@ instead. An uninitialized stream cannot be used before assignment.
 ```quidra
 f := file.read("input.txt")
 while .f(string &line)
-    print.line("{line}")
+    println("{line}")
 
 numbers := file.read("numbers.txt")
 while .numbers(int &value)
-    print.line("{value}")
+    println("{value}")
 
 pairs := file.read("pairs.txt")
 int first := 0
 while .pairs("{&first} {int &second}")
-    print.line("{first} + {second} = {first + second}")
+    println("{first} + {second} = {first + second}")
 
 file.write output
 output = file.write("output.txt")
@@ -1413,7 +1413,7 @@ start := time.now()
 pause := time.seconds(0.01)
 time.sleep(pause)
 elapsed := time.since(start)
-print.line(elapsed.seconds())
+println(elapsed.seconds())
 ```
 
 `time.now()` returns a monotonic `time.Instant`. By default, `time.now()` and `time.since(start)` only sample that clock and do not synchronize GPU work. Both accept the optional named `sync = bool` argument, whose default is `false`. `time.now(sync = true)` waits for outstanding Quidra GPU work before taking the start sample, so earlier GPU work is excluded from the interval. `time.since(start, sync = true)` waits for outstanding Quidra GPU work before taking the end sample, so completion of asynchronous GPU work submitted during the interval is included. `time.seconds(value)` constructs a duration from any finite integer or real kind, including a negative value. It explicitly converts the value internally to `real64`, using the ordinary range and certified-rounding checks; failure terminates with the ordinary numeric-conversion reason. Complex values are rejected because complex-to-scalar conversion is forbidden; `time.sleep(duration)` requires a nonnegative duration and otherwise terminates as a runtime-safety failure with status 101. `Duration.seconds()` exposes the duration as `real64` when numeric computation is explicitly desired. Standard-library time values cannot be constructed through their class names, and their internal representation is not source-visible.
@@ -1437,10 +1437,10 @@ b := .rng.bool()
 
 ```quidra
 result := process.run("git", ["status", "--short"])
-print.line(result.started)
-print.line(result.status)
-print.line(result.output)
-print.line(result.error)
+println(result.started)
+println(result.status)
+println(result.output)
+println(result.error)
 ```
 
 No shell is inserted between the program and its arguments. `process.shell(command)` is the explicit alternative when shell syntax such as pipelines, redirections, or shell expansion is required. It invokes `/bin/sh -c` on POSIX systems and `cmd.exe /S /C` on Windows, returning the same `process.Result`. The command is interpreted by that shell, so untrusted values should be passed as structured arguments to `process.run` rather than concatenated into a shell command. Quidra string interpolation is processed first; literal braces in a shell command are therefore written as `{{` and `}}`. `Result.started` is false when the executable or shell could not be launched; in that case `status` is -1 and `error` describes the launch failure. If the process starts, `status` is its exit code, or `128 + signal` when it terminates by signal on POSIX systems. `output` and `error` capture stdout and stderr independently. They are text fields, so captured streams must be valid UTF-8 and contain no embedded NUL; arbitrary binary child output is not silently coerced into a `string` and causes a deterministic runtime text failure. This separates launch failure from an ordinary nonzero child exit without treating child exit codes as Quidra runtime failures. `process.Result` is compiler-provided and cannot be directly constructed. `process.exit(status)` terminates the current Quidra program with the supplied `int` status. It is deliberately namespaced so adding process functionality does not consume another bare user identifier.
@@ -1455,7 +1455,7 @@ map<string, int> counts
 .counts.set("banana", 1)
 .counts.set("apple", 3)
 
-print.line(counts.has("apple"))
+println(counts.has("apple"))
 value := counts.get("apple")
 keys := counts.keys()
 ```
@@ -1466,12 +1466,12 @@ keys := counts.keys()
 
 ### Output lines
 
-`print(value)` outputs without an implicit line terminator; `print.line(value)`
-outputs the same value followed by one `NL` (LF), and `print.line()` outputs
+`print(value)` outputs without an implicit line terminator; `println(value)`
+outputs the same value followed by one `NL` (LF), and `println()` outputs
 only `NL`. No flushing is implicit. Both print forms return `void | error` and
 perform fail-fast output error handling when used as statements. The newline
 is part of one output operation for error checking and REPL replay suppression.
-`print.line` has the same printable types and contextual `T | error` consumption
+`println` has the same printable types and contextual `T | error` consumption
 as `print`. On writable `file.write` and `file.append` streams,
 `.stream.line(value)` uses the same scalar conversion as `.stream(value)` and
 then writes one LF; `.stream.line()` writes one LF. Its return type is
@@ -1488,8 +1488,8 @@ distinct<string> tags
 .tags.add("compiler")
 .tags.add("ai")
 .tags.add("compiler")
-print.line(tags.size())
-print.line(tags.has("ai"))
+println(tags.size())
+println(tags.has("ai"))
 ```
 
 `add(value)` preserves the first insertion position. `remove(value)` removes the value and returns whether it was present; adding it again places it at the end of insertion order. `has(value)` tests membership, `size()` returns the number of unique values as `nat`, and `values()` returns insertion order. `union(other)`, `intersection(other)`, `difference(other)`, and `symmetric_difference(other)` return independent sets without changing either input. Results retain the left operand's insertion order, followed by newly admitted right-side values in the right operand's insertion order for union and symmetric difference. Elements use the same key-domain restriction as `map`. The implementation uses the same deterministic open-addressing index, giving average O(1) membership and insertion while preserving stable insertion order. Map/distinct internals are compiler-generated and are not source-visible. Assignment follows ordinary independent value semantics rather than sharing mutable container identity. The explicit `distinct<T>()` constructor is also available. The old `set<T>` and `set.Set<T>` spellings are no longer supported; `set` is no longer reserved, so a user-defined `set(...)` function may coexist with `distinct<T>` and the map method `.counts.set(...)`.
@@ -1589,7 +1589,7 @@ int apply(func<int>(int) operation, int value)
     return operation(value)
 
 func<int>(int) operation := twice
-print.line(apply(operation, 21))
+println(apply(operation, 21))
 ```
 
 A function declaration becomes a value when its context supplies a complete
@@ -1716,7 +1716,7 @@ int second
 parallel
     first = 20
     second = 22
-print.line(first + second)
+println(first + second)
 ```
 
 Unordered nodes may not make overlapping writes or read storage another node
@@ -1767,7 +1767,7 @@ int[5] a
 parallel for x < 5
     a[x] = x
 for value := a[]
-    print.line(value)
+    println(value)
 ```
 
 Unlike an ordinary untyped range header, which uses an existing binding,
@@ -1951,7 +1951,7 @@ A deliberately narrow C ABI boundary is available for functions with scalar/`voi
 
 ```quidra
 extern int64 c_abs(int64 value) = "llabs"
-print.line(c_abs(-42))
+println(c_abs(-42))
 ```
 
 The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `real32`, `real64`, and `bool`; the arbitrary-precision `int` and `nat` are rejected (`FFI_TYPE`), so a C `int64_t` is spelled `int64`. Scalar and bool parameters are also by value. Capture-free Quidra function values may cross as explicit C callback pointers when the `func` signature uses only `int32`, `nat32`, `int64`, `nat64`, `real32`, and `real64` value parameters and the same scalar set or `void` as its result. The narrower callback scalar set deliberately excludes 8/16-bit integers and `bool` so callback ABI extension rules cannot become platform-dependent hidden behavior. A callback is only a code pointer: it has no capture environment or bound receiver and therefore no hidden allocation or captured-object lifetime. Managed buffers cross the boundary only through explicit call-scoped borrows: `const string name` is a read-only UTF-8 span, `const bin name` is a read-only byte span, and `bin &name` is a mutable byte span. A `const` borrow is a value parameter like any other `const` parameter: the call passes a value, `c_text(name)` or `c_text(prefix + name)`, and the compiler lends C the storage of a variable, field or array element directly and holds any other value for the duration of the call. `bin &name` is passed as `&storage`. Mutable `string &` is forbidden so foreign code cannot violate Quidra's UTF-8 invariant. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null data pointer followed by a `nat64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, only the payload after Quidra's private length header is exposed, and only when its bit length is byte-aligned. The adjacent length is the payload byte count, so foreign code cannot resize the Quidra value or access its ownership metadata. No encoding conversion is performed and the foreign contract does not depend on NUL termination. A `const` borrow may not be mutated; a mutable `bin &` borrow may mutate only bytes inside the supplied length. Neither form may retain the pointer after the call. Quidra `bin` has independent value storage, so ordinary value copies remain independent even when one copy is later passed mutably to C. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. LLVM marks borrowed pointers `nocapture nonnull`; read-only `string`/`bin` borrows additionally carry `readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. Managed buffers by value without `const`, scalar references, default arguments, generics, managed-value results, other array forms, tensor values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. A `real32` or `real64` result is a value C code made, so it is tested where it enters: NaN stops the program at the call with `NONFINITE_RESULT` (`extern 'f' produced a NaN real64 value`); signed infinities cross unchanged. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code. Foreign object, archive, shared-library, or import-library files are linked only when explicitly named with repeatable `--link FILE` options on `quidra build`, `quidra run`, or `quidra debug`; each path must name an existing regular file. There is no implicit package linker script, library search, or build-time network access.
@@ -1964,7 +1964,7 @@ The declaration is top-level only and binds a Quidra function name to an explici
 export "C" int32 add2(int32 a, int32 b)
     return a + b
 
-print.line(add2(2, 3))
+println(add2(2, 3))
 // output: 5
 ```
 

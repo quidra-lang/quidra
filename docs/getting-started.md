@@ -46,7 +46,7 @@ void increment(int &value)
 int count := 7
 increment(&count)
 print("count = ")
-print.line(count)
+println(count)
 ```
 
 Omit the type by default when the initializer determines it, as in `label := "ready"`. In `int count := 7`, the annotation gives the numeric literal its type.
@@ -72,8 +72,8 @@ distinct<string> tags
 .tags.add("apple")
 .tags.add("apple")
 
-print.line(counts.has("apple"))
-print.line(tags.size())
+println(counts.has("apple"))
+println(tags.size())
 ```
 
 `map<K, V>` associates keys with values; `distinct<T>` keeps unique elements

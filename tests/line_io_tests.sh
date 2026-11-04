@@ -9,14 +9,15 @@ export QUIDRA_CACHE_DIR="$TMP/quidra-line-io-cache"
 cat > "$TMP/print-lines.qui" <<'QUI'
 int value := 42
 print("head:")
-print.line("Hello")
-print.line("answer={value}")
-print.line(value)
-print.line()
+println("Hello")
+println("answer={value}")
+println(value)
+println()
+println(value = "{value:int=4,zero}")
 print("tail")
 QUI
 "$QUIDRA" "$TMP/print-lines.qui" > "$TMP/print-lines.out"
-printf 'head:Hello\nanswer=42\n42\n\ntail' > "$TMP/print-lines.expected"
+printf 'head:Hello\nanswer=42\n42\n\n0042\ntail' > "$TMP/print-lines.expected"
 cmp "$TMP/print-lines.expected" "$TMP/print-lines.out"
 
 cat > "$TMP/file-lines.qui" <<QUI
@@ -64,9 +65,10 @@ reject() {
         exit 1
     fi
 }
-reject print_wrong_arity 'print.line("x", "y")'
-reject print_bad_type 'print.line([1, 2])'
-reject print_bad_name 'print.line(unknown = "x")'
+reject removed_console_member 'print.line("x")'
+reject println_wrong_arity 'println("x", "y")'
+reject println_bad_type 'println([1, 2])'
+reject println_bad_name 'println(unknown = "x")'
 reject file_wrong_arity 'file.write w := file.write("missing.txt")
 .w.line("x", "y")'
 reject file_wrong_type 'file.write w := file.write("missing.txt")

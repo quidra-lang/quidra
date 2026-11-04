@@ -72,6 +72,7 @@
   ],
   "current_builtins": [
     "print",
+    "println",
     "flush",
     "scan",
     "array",
@@ -235,7 +236,7 @@
   "package_model": "unquoted non-standard imports resolve installed packages from configured package paths and never fall back to the current source directory",
   "named_writable_argument_model": "for read/write T & parameters, positional arguments use &value and named arguments use &name = &value",
   "named_reference_argument_model": "writable T & reference arguments use &value positionally or &name = &value when named; const T parameters take values without &",
-  "console_io_model": "print and flush return void | error; print never appends a newline, flush explicitly flushes standard output, and there is no console write API or io namespace; scan reads one line against a format of {&target} placeholders and returns void | error; an expression statement whose value can be error fails fast",
+  "console_io_model": "print, println and flush return void | error; print never appends a newline, println writes one value and a newline or just a newline with no argument, and flush explicitly flushes standard output, and there is no console write API or io namespace; scan reads one line against a format of {&target} placeholders and returns void | error; an expression statement whose value can be error fails fast",
   "enum_model": "nominal named enums with qualified payload/no-payload variants and exhaustive match; enum representation reuses checked tagged-union storage without dynamic dispatch or implicit conversion to structural unions",
   "concurrency_model": "parallel statements join every node at a barrier; checked storage effects determine dependencies and reject conflicting unordered writes or resources; then supplies an explicit dependency; managed captures retain value semantics and every started node is joined",
   "class_reuse_model": "explicit composition; a class contains only the fields and methods it declares; unions represent alternatives",

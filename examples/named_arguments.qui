@@ -1,4 +1,4 @@
 bool within(int value, int minimum, int maximum)
     return value >= minimum and value <= maximum
 
-print.line(within(50, minimum = 0, maximum = 100))
+println(within(50, minimum = 0, maximum = 100))

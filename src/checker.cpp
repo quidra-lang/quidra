@@ -5075,7 +5075,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     const bool with_line = builtin == BuiltinCallable::PrintLine;
                     if (node->args.size() != 1 && !(with_line && node->args.empty())) {
                         error("ARGUMENT_MISMATCH", with_line
-                              ? "print.line accepts zero or one argument."
+                              ? "println accepts zero or one argument."
                               : "print requires one argument.", expression.span);
                     }
                     if (with_line && node->args.empty()) {

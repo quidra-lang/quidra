@@ -145,8 +145,9 @@ struct BuiltinCallableInfo {
 // monotonic name-resolution rule, adding an entry here reserves a previously
 // usable source name and is therefore a compatibility-breaking language change.
 // Prefer namespaced standard-library functions or value methods for new APIs.
-inline constexpr std::array<BuiltinCallableInfo, 6> builtin_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"print", BuiltinCallable::Print},
+    {"println", BuiltinCallable::PrintLine},
     {"flush", BuiltinCallable::Flush},
     {"scan", BuiltinCallable::Scan},
     {"array", BuiltinCallable::Array},
@@ -154,8 +155,7 @@ inline constexpr std::array<BuiltinCallableInfo, 6> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 61> intrinsic_callables{{
-    {"$std.print.line", BuiltinCallable::PrintLine},
+inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
     {"$std.cli.argument", BuiltinCallable::CliArgument},
     {"$std.cli.argument_optional", BuiltinCallable::CliArgumentOptional},
     {"$std.cli.option", BuiltinCallable::CliOption},
@@ -466,11 +466,9 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     return std::nullopt;
 }
 
-// Builtin type and function namespace calls, rewritten before value lookup.
-// print is already a reserved builtin, so print.line reserves no new root name.
+// Builtin type namespace calls, rewritten before value lookup.
 inline constexpr std::optional<std::string_view> standard_type_function_target(
     std::string_view type, std::string_view member) {
-    if (type == "print" && member == "line") return "$std.print.line";
     if (type == "real") {
         if (member == "atom") return "$std.real.atom";
         if (member == "unary") return "$std.real.unary";

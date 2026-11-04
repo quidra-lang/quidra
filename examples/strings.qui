@@ -3,13 +3,13 @@ int n := 42
 ready := true
 separator := HT
 
-print.line("Hello, {name}")
-print.line("n = {n}; ready = {ready}")
-print.line("first line
+println("Hello, {name}")
+println("n = {n}; ready = {ready}")
+println("first line
 second line")
-print.line("first{NL}second")
-print.line("A{separator}B")
-print.line("{DQ}quoted{DQ}")
-print.line("C:\Users\data\image.png")
-print.line("nested {error("value")}")
-print.line("Hello, " + name == "Hello, Quidra")
+println("first{NL}second")
+println("A{separator}B")
+println("{DQ}quoted{DQ}")
+println("C:\Users\data\image.png")
+println("nested {error("value")}")
+println("Hello, " + name == "Hello, Quidra")

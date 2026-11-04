@@ -21,7 +21,7 @@ class Greeting(text := "hello")
         return text + suffix
 
 greeting := Greeting()
-print.line(greeting.message())
+println(greeting.message())
 ```
 
 Ordinary header arguments declare members initialized from the supplied values.

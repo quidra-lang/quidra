@@ -2246,12 +2246,12 @@ static void mutation_markers_are_required() {
          "difference := a.difference(b)\n"
          "symmetric := a.symmetric_difference(b)\n"
          "united := a.union(b)\n"
-         "print.line(intersection.has(1))\n");
+         "println(intersection.has(1))\n");
     bad_message("distinct<int> a\nprint(a.__values)\n", "UNKNOWN_MEMBER",
                 "Standard collection internals are not source-visible.");
     good("distinct<int> a\n.a.add(4)\n"
          "const distinct<int> b := a\n"
-         "print.line(b.has(4))\n");
+         "println(b.has(4))\n");
     good("int set(int value)\n    return value + 1\nmap<string, int> counts\n.counts.set(\"apple\", set(2))\ndistinct<string> tags\n.tags.add(\"apple\")\nprint(counts.has(\"apple\"))\n");
     // Legacy set collection types must remain invalid without reserving set as a function.
     bad("set<int> old_collection\n");
@@ -4869,7 +4869,7 @@ Entry<int> item := Entry<int>(3)
 bool callback_key(bool value)
     return value
 
-print.line(lib.run())
+println(lib.run())
 )", R"(private int callback_key(int value)
     return value
 

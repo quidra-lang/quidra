@@ -11,33 +11,33 @@ int[] numbers := [7, 3]
 .groups.set("b", numbers)
 match groups.get("b")
     int[] values
-        print.line("{values[0]}:{values[1]}")
+        println("{values[0]}:{values[1]}")
     none
-        print.line("missing")
+        println("missing")
 map<string, nat[]> counts
 nat[] amounts := [2, 5]
 .counts.set("a", amounts)
 match counts.get("a")
     nat[] values
-        print.line("{values[0]}:{values[1]}")
+        println("{values[0]}:{values[1]}")
     none
-        print.line("missing")
+        println("missing")
 map<string, int[2]> fixed
 int[2] row := [4, 9]
 .fixed.set("row", row)
 match fixed.get("row")
     int[2] values
-        print.line("{values[0]}:{values[1]}")
+        println("{values[0]}:{values[1]}")
     none
-        print.line("missing")
+        println("missing")
 map<string, int> totals
 .totals.increment("sum", by = 3)
 .totals.increment("sum")
 match totals.get("sum")
     int value
-        print.line("scalar={value}")
+        println("scalar={value}")
     none
-        print.line("missing")
+        println("missing")
 QUI
 "$QUIDRA" run "$TMP/array-values.qui" > "$TMP/actual"
 printf '7:3\n2:5\n4:9\nscalar=4\n' > "$TMP/expected"

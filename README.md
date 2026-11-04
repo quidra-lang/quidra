@@ -340,8 +340,8 @@ Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `
 ```quidra
 name := "Quidra"
 repeated := string.repeat("a", 6)
-print.line("Hello, {name}")
-print.line("first{NL}second")
+println("Hello, {name}")
+println("first{NL}second")
 ```
 
 Backslash is literal rather than an escape introducer. The eight two-letter uppercase immutable values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` represent the built-in control characters.
@@ -356,8 +356,8 @@ Strings are immutable UTF-8 text. `len(text)` counts Unicode code points (a `nat
 int add(int a, int b := 1)
     return a + b
 
-print.line(add(41)) // output: 42
-print.line(add(a = 40, b = 2)) // output: 42
+println(add(41)) // output: 42
+println(add(a = 40, b = 2)) // output: 42
 ```
 
 Positional arguments come before named arguments. Parameters can have defaults; defaults are evaluated afresh when omitted. Ordinary function overloading is not supported: one function name has one ordinary definition, including argument-count and return-type variants. Optional call forms use default parameters.
@@ -370,7 +370,7 @@ class Point(real64 x, real64 y)
         return x * x + y * y
 
 point := Point(3.0, 4.0)
-print.line(point.length_squared())
+println(point.length_squared())
 
 Point origin
 origin = Point(0.0, 0.0)
@@ -409,7 +409,7 @@ int count := 1
 first := Holder(&count)
 second := first
 second.value = 7
-print.line(&first.value == &second.value)
+println(&first.value == &second.value)
 ```
 
 Passing `&storage` makes writes to that target visible. A call that changes
@@ -431,7 +431,7 @@ Tuples compare and hash recursively; their printed string elements are quoted.
 (int number, string word) := pair
 (int &stored, string &label) := &pair
 stored = number + 1
-print.line(pair)
+println(pair)
 ```
 
 ### Modules
@@ -447,7 +447,7 @@ an explicit import:
 
 ```quidra
 import math
-print.line(math.sqrt(real64(16.0)))
+println(math.sqrt(real64(16.0)))
 ```
 
 Local source modules use explicit quoted paths, while unquoted non-standard imports denote installed packages:
@@ -475,7 +475,7 @@ T first<T>(T[] values)
     return values[0]
 
 box := Box<int>(7)
-print.line(first<int>([4, 5]))
+println(first<int>([4, 5]))
 ```
 
 Generic class type arguments are explicit in type positions. Class generation, generic function and method calls may infer them when every generic parameter is uniquely determined by typed call arguments; otherwise write them explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
@@ -488,15 +488,15 @@ Repeated function or method names are permitted only for a generic specializatio
 condition := false
 
 void work()
-    print.line("work")
+    println("work")
 
 if condition
-    print.line("yes")
+    println("yes")
 else
-    print.line("no")
+    println("no")
 
 for 0 <= nat i < 10
-    print.line(i)
+    println(i)
 
 while condition
     work()
@@ -514,7 +514,7 @@ int[] values := [2, 4, 6]
 for &value := &values[nat index]
     value += int(index)
 for real32 value <= 1.0 step 0.25
-    print.line(value)
+    println(value)
 ```
 
 A collection value loop takes a snapshot. A reference loop writes the current
@@ -534,7 +534,7 @@ int second
 parallel
     first = 20
     second = first + 22
-print.line(second)
+println(second)
 ```
 
 Use `elif` for flat conditional chains:
@@ -542,19 +542,19 @@ Use `elif` for flat conditional chains:
 ```quidra
 int score := 85
 if score >= 90
-    print.line("A")
+    println("A")
 elif score >= 80
-    print.line("B")
+    println("B")
 else
-    print.line("C")
+    println("C")
 ```
 
 ### Basic I/O
 
 ```quidra
 print("line")
-print.line("line with newline")
-print.line()
+println("line with newline")
+println()
 print("prompt: ")
 flush()
 
@@ -563,14 +563,14 @@ scan(&line)
 
 int n
 scan("{&n} {int &m}")
-print.line("{n} + {m}")
+println("{n} + {m}")
 
 int amount := 123456789
-print.line("{amount:group=3}") // 123,456,789
+println("{amount:group=3}") // 123,456,789
 
 input := file.read("pairs.txt")
 while .input("{int &left} {int &right}")
-    print.line("{left} {right}")
+    println("{left} {right}")
 
 output := file.write("output.txt")
 .output("{n} {m}")
@@ -578,7 +578,7 @@ output := file.write("output.txt")
 .output.line()
 ```
 
-`print.line(value)` writes one value followed by `NL`, and `print.line()` writes only `NL`; `print` writes exactly the supplied value and never appends a newline. Prefer `print.line` for line output, retaining explicit `NL` only for embedded line breaks. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value, `{&name}` refers to an existing target, and `{int &age}` declares a new target in a standalone fail-fast statement. `bool`, strings and numeric scalars are supported. Delimiters are literal and every field is parsed before any target is modified; a bad field leaves all destinations unchanged. `file.read` accepts the same input format but returns `bool | error` (`false` on EOF), with inline declared targets scoped to the successful condition branch. `file.write` and `file.append` accept the same output interpolation as `print`, without inserting spaces or newlines. Their writable streams additionally support `.writer.line(value)` and `.writer.line()` to append exactly one `NL` after the value (or alone), with the same `void | error` status. `file.read` has no `.line()` method. `scan` EOF and malformed input are `error` and a standalone call fails fast.
+`println(value)` writes one value followed by `NL`, and `println()` writes only `NL`; `print` writes exactly the supplied value and never appends a newline. Prefer `println` for line output, retaining explicit `NL` only for embedded line breaks. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value, `{&name}` refers to an existing target, and `{int &age}` declares a new target in a standalone fail-fast statement. `bool`, strings and numeric scalars are supported. Delimiters are literal and every field is parsed before any target is modified; a bad field leaves all destinations unchanged. `file.read` accepts the same input format but returns `bool | error` (`false` on EOF), with inline declared targets scoped to the successful condition branch. `file.write` and `file.append` accept the same output interpolation as `print`, without inserting spaces or newlines. Their writable streams additionally support `.writer.line(value)` and `.writer.line()` to append exactly one `NL` after the value (or alone), with the same `void | error` status. `file.read` has no `.line()` method. `scan` EOF and malformed input are `error` and a standalone call fails fast.
 
 ## Tensors and explicit devices
 
@@ -935,7 +935,7 @@ The core C FFI is intentionally narrow and explicit:
 
 ```quidra
 extern int64 c_abs(int64 value) = "llabs"
-print.line(c_abs(-42))
+println(c_abs(-42))
 ```
 
 Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `func` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `nat32`, `int64`, `nat64`, `real32`, `real64`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit borrows: `const string` and `const bin` parameters are read-only and take a value at the call, while `bin &` is an explicit mutable byte borrow passed as `&storage`. Tensor input uses the same explicit authority model: `const tensor<T>` is a read-only opaque tensor borrow and `tensor<T> &` is a mutable opaque tensor borrow. String/bin borrows lower to a `(data pointer, nat64 byte length)` pair; tensor borrows lower to one opaque handle defined by `quidra/native_extension.h`. Native code must not retain a borrowed pointer or tensor handle after the call. Mutation is permitted only through a mutable borrow and the corresponding native-extension API; tracked tensors deliberately reject raw mutable CPU access so native code cannot bypass autograd silently. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.

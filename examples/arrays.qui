@@ -5,4 +5,4 @@ void double_all(int[] &values)
 int[] values := [1, 2, 3]
 double_all(&values)
 for value := values[]
-    print.line(value)
+    println(value)

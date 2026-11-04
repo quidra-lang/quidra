@@ -2658,7 +2658,8 @@ ExprPtr Parser::postfix() {
                 error(peek(), "Only named functions and classes can be called directly.");
             }
             const auto start = e->span.start;
-            auto args = call_arguments(name->name == "print" || name->name == "write");
+            auto args = call_arguments(name->name == "print" || name->name == "println" ||
+                                       name->name == "write");
             const auto end = previous().span.end;
             auto call = std::make_unique<Expr>();
             call->span = SourceSpan{start, end};
@@ -2678,10 +2679,7 @@ ExprPtr Parser::postfix() {
             }
 
             if (at(TokenKind::LParen)) {
-                const auto* receiver_name = std::get_if<NameExpr>(&e->data);
-                const bool print_line = receiver_name && !receiver_name->this_qualifier &&
-                    receiver_name->name == "print" && member.text == "line";
-                auto args = call_arguments(print_line);
+                auto args = call_arguments();
                 const auto end = previous().span.end;
                 auto call = std::make_unique<Expr>();
                 call->span = SourceSpan{start, end};

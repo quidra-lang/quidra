@@ -3,6 +3,6 @@ cli args
     int count = option(default = 1)
     bool verbose = flag()
 
-print.line(args.source)
-print.line(args.count)
-print.line(args.verbose)
+println(args.source)
+println(args.count)
+println(args.verbose)

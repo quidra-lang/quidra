@@ -1,4 +1,4 @@
 T identity<T>(T value)
     return value
 
-print.line(identity<int>(7))
+println(identity<int>(7))

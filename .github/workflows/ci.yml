@@ -390,16 +390,16 @@ jobs:
                           string | error text := value.text()
                           match text
                               string result
-                                  print.line(result)
+                                  println(result)
                               error problem
-                                  print.line(problem)
+                                  println(problem)
                       none
-                          print.line("missing")
+                          println("missing")
                       error problem
-                          print.line(problem)
-                  print.line(root.encode())
+                          println(problem)
+                  println(root.encode())
               error problem
-                  print.line(problem)
+                  println(problem)
           '@
           $json = & build/Release/quidra.exe run build/json-smoke.qui
           $jsonActual = ($json -join [Environment]::NewLine).Trim()
@@ -410,16 +410,16 @@ jobs:
           if ($jsonActual -ne $jsonExpected.Trim()) { throw "json smoke failed: $json" }
           Set-Content -Path build/process-smoke.qui -Value @'
           process.Result result := process.run("cmd", ["/c", "echo", "quidra-process"])
-          print.line(result.started)
-          print.line(result.status)
+          println(result.started)
+          println(result.status)
           '@
           $process = & build/Release/quidra.exe run build/process-smoke.qui
           if (($process -join "`n").Trim() -ne "true`n0") { throw "process smoke failed: $process" }
           Set-Content -Path build/process-shell-smoke.qui -Value @'
           process.Result result := process.shell("echo quidra shell")
-          print.line(result.started)
-          print.line(result.status)
-          print.line(result.output.trim())
+          println(result.started)
+          println(result.status)
+          println(result.output.trim())
           '@
           $processShell = & build/Release/quidra.exe run build/process-shell-smoke.qui
           $expectedProcessShell = "true`n0`nquidra shell"
@@ -435,11 +435,11 @@ jobs:
           state.weight = state.weight.track()
           tensor<real32> loss := (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
-          print.line(state.weight.has_grad())
+          println(state.weight.has_grad())
           tensor<real32> gradient := state.weight.grad
           .state.weight.clear_grad()
           state.weight = state.weight.untrack() - gradient * real32(0.1)
-          print.line(state.weight[0].item() < before and not state.weight.has_grad())
+          println(state.weight[0].item() < before and not state.weight.has_grad())
           '@
           & build/Release/quidra.exe check build/autograd-smoke.qui | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "autograd smoke check failed with exit code $LASTEXITCODE" }

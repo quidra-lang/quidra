@@ -3,4 +3,4 @@ int total := 0
 while i < 4
     total += i
     i += 1
-print.line(total)
+println(total)

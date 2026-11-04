@@ -10,6 +10,6 @@ int | error doubled(bool valid)
 int | error r := doubled(true)
 match r
     int
-        print.line(r)
+        println(r)
     error
-        print.line(r)
+        println(r)

@@ -1,1 +1,1 @@
-print.line("Hello from Quidra")
+println("Hello from Quidra")

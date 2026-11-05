@@ -352,7 +352,7 @@ void check_arities() {
     check_arity<semantics::CanonicalInterfacePayload>("CanonicalInterfacePayload", 2);
     check_arity<semantics::BorrowParameterContract>("BorrowParameterContract", 5);
     check_arity<semantics::InitializationContract>("InitializationContract", 3);
-    check_arity<semantics::StorageInitializationContract>("StorageInitializationContract", 4);
+    check_arity<semantics::StorageInitializationContract>("StorageInitializationContract", 5);
 }
 
 void check_rendering() {

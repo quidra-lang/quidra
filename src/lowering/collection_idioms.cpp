@@ -11,7 +11,7 @@ namespace quidra::lowering {
 // the general heap-backed union ABI. In a match the union is immediately
 // unpacked, so for direct scalar K/V types call the compiler-owned hash/find
 // helpers directly and branch to the cases without materializing that union.
-// The same get->set cache fields are updated, including missing-key reuse.
+// Like Map.get, this lookup only reads the receiver.
 bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
     const auto* call = std::get_if<MethodCallExpr>(&match.value->data);
     if (!call || call->method != "get" || call->args.size() != 1) return false;
@@ -27,33 +27,19 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
     if (!standard_class::is_map_instance(map_type.class_name, class_info.standard_library))
         return false;
 
+    const ClassFieldType* keys_field = nullptr;
     const ClassFieldType* values_field = nullptr;
-    const ClassFieldType* empty_slot_field = nullptr;
-    const ClassFieldType* last_index_field = nullptr;
-    const ClassFieldType* last_hash_field = nullptr;
-    const ClassFieldType* last_slot_field = nullptr;
-    const ClassFieldType* last_key_field = nullptr;
-    const ClassFieldType* version_field = nullptr;
-    const ClassFieldType* last_version_field = nullptr;
     for (const auto& field : class_info.fields) {
-        if (field.name == "__values") values_field = &field;
-        else if (field.name == "__empty_slot") empty_slot_field = &field;
-        else if (field.name == "__last_index") last_index_field = &field;
-        else if (field.name == "__last_hash") last_hash_field = &field;
-        else if (field.name == "__last_slot") last_slot_field = &field;
-        else if (field.name == "__last_key") last_key_field = &field;
-        else if (field.name == "__version") version_field = &field;
-        else if (field.name == "__last_version") last_version_field = &field;
+        if (field.name == "__keys") keys_field = &field;
+        else if (field.name == "__values") values_field = &field;
     }
-    if (!values_field || !empty_slot_field || !last_index_field ||
-        !last_hash_field || !last_slot_field || !last_key_field ||
-        !version_field || !last_version_field ||
+    if (!keys_field || !values_field ||
+        keys_field->type.kind != TypeKind::Array ||
         values_field->type.kind != TypeKind::Array ||
-        last_key_field->type.kind != TypeKind::Array ||
-        !values_field->type.first || !last_key_field->type.first)
+        !keys_field->type.first || !values_field->type.first)
         return false;
 
-    const auto key_type = *last_key_field->type.first;
+    const auto key_type = *keys_field->type.first;
     const auto value_type = *values_field->type.first;
     if (owns_managed(key_type) ||
         owns_managed(value_type)) return false;
@@ -112,19 +98,6 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
         return out;
     };
 
-    // Mirror Map.get's private cache updates. __find/__slot_of has already
-    // stored the insertion/found slot in __empty_slot.
-    builder_.emit(FieldSet{
-        object, last_hash_field->index, hash, int_type});
-    builder_.emit(FieldSet{
-        object, last_index_field->index, index, int_type});
-    auto current_slot = load_field(*empty_slot_field);
-    builder_.emit(FieldSet{
-        object, last_slot_field->index, current_slot, int_type});
-    auto map_version = load_field(*version_field);
-    builder_.emit(FieldSet{
-        object, last_version_field->index, map_version, int_type});
-
     auto zero = builder_.const_int(0);
     auto found_test = builder_.fresh();
     builder_.emit(Binary{
@@ -132,13 +105,10 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
         int_type, bool_type, line, column});
 
     const auto found = builder_.label("map.match.found");
-    const auto missing = builder_.label("map.match.missing");
-    const auto missing_make_key = builder_.label("map.match.missing.key.make");
-    const auto missing_set_key = builder_.label("map.match.missing.key.set");
     const auto value_case_label = builder_.label("map.match.value");
     const auto none_case_label = builder_.label("map.match.none");
     const auto done = builder_.label("map.match.end");
-    builder_.emit(Branch{found_test, found, missing});
+    builder_.emit(Branch{found_test, found, none_case_label});
 
     builder_.enter(builder_.add_block(found));
     auto values = load_field(*values_field);
@@ -146,30 +116,6 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
     builder_.emit(ArrayGet{
         payload, values, index, value_type, {line, column}, true, true});
     builder_.emit(Jump{value_case_label});
-
-    builder_.enter(builder_.add_block(missing));
-    auto last_key = load_field(*last_key_field);
-    auto last_key_length = builder_.fresh();
-    builder_.emit(ArrayLength{last_key_length, last_key});
-    auto last_key_empty = builder_.fresh();
-    builder_.emit(Binary{
-        last_key_empty, "==", last_key_length, zero,
-        int_type, bool_type, line, column});
-    builder_.emit(Branch{
-        last_key_empty, missing_make_key, missing_set_key});
-
-    builder_.enter(builder_.add_block(missing_make_key));
-    auto new_last_key = builder_.fresh();
-    builder_.emit(ArrayMake{
-        new_last_key, std::vector<ValueId>{key}, last_key_field->type});
-    builder_.emit(FieldSet{
-        object, last_key_field->index, new_last_key, last_key_field->type});
-    builder_.emit(Jump{none_case_label});
-
-    builder_.enter(builder_.add_block(missing_set_key));
-    builder_.emit(ArraySet{
-        last_key, zero, key, key_type, {line, column}, true, true});
-    builder_.emit(Jump{none_case_label});
 
     const auto before = scope_.snapshot_local_names();
     const auto before_full = facts_.array_initialization.full_arrays();

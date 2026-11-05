@@ -139,6 +139,11 @@ void MemoryEmitter::emit(const ir::StoreReference& n,const ir::Instruction&){
 
 void MemoryEmitter::emit(const ir::LoadLocal& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
+    // A reference formal uses the caller's slot directly, rather than a
+    // LoadReference instruction. Check that slot before loading its payload.
+    if (symbols_.is_writable_parameter(n.name) && n.type.kind != TypeKind::Array)
+        builder_.call(runtime_abi::memory::init_check,
+            {{ptr,symbols_.storage(n.name)},{i64,sites_.statement_line()},{i64,sites_.statement_column()}});
     builder_.load(symbols_.value(n.out),llvm_type(n.type),symbols_.storage(n.name),Align::none);
     if (n.move_out) {
         if (symbols_.is_writable_parameter(n.name) || symbols_.is_borrowed_parameter(n.name) ||
@@ -167,6 +172,10 @@ void MemoryEmitter::emit(const ir::StoreLocal& n,const ir::Instruction&){
     builder_.store({llvm_type(n.type),symbols_.value(n.value)},symbols_.storage(n.name),Align::none);
     if(n.borrowed)symbols_.bind_borrowed_owner(n.name,n.value,n.type);
     else symbols_.transfer_owned(n.value,n.type);
+    // A write-only reference formal can initialize an unfilled array slot.
+    if (symbols_.is_writable_parameter(n.name))
+        builder_.call(runtime_abi::memory::init_mark_range,
+            {{ptr,symbols_.storage(n.name)},{i64,runtime_storage_bytes(n.type)}});
 }
 
 } // namespace quidra::llvm_backend

@@ -236,7 +236,8 @@ inline std::string type_name(const Type& type) {
 inline Type Type::union_of(std::vector<Type> input) {
     std::vector<Type> cases;
     for (auto& current : input) {
-        if (current.kind == TypeKind::Union) {
+        // An enum uses tagged-union storage, but is one nominal value type.
+        if (current.kind == TypeKind::Union && current.union_name.empty()) {
             cases.insert(cases.end(), current.cases.begin(), current.cases.end());
         } else {
             cases.push_back(current);
@@ -771,7 +772,8 @@ inline bool assignable(const Type& from, const Type& to) {
     }
     if ((from.kind == TypeKind::Union && !from.union_name.empty()) ||
         (to.kind == TypeKind::Union && !to.union_name.empty())) {
-        return false;
+        return to.kind == TypeKind::Union && to.union_name.empty() &&
+               compatible_case_index(to, from) >= 0;
     }
     if (to.kind == TypeKind::Union) {
         if (from.kind == TypeKind::Union) {

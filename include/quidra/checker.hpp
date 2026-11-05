@@ -28,11 +28,39 @@ struct FunctionParameterType {
     bool is_const{};
 };
 
+// A field copied before an input changes depends on the input's entry
+// state, not on the live storage subsequently denoted by that input.
+struct ClassInitializationDependency {
+    std::string parameter; // empty names the current receiver
+    std::string path;
+    bool operator==(const ClassInitializationDependency&) const = default;
+};
+using ClassCopyInitializations = std::unordered_map<
+    std::string, std::vector<ClassInitializationDependency>>;
+struct ClassInitializationFields : std::unordered_set<std::string> {
+    using Base = std::unordered_set<std::string>;
+    using Base::Base;
+    ClassCopyInitializations copy_initializes;
+    ClassInitializationFields() = default;
+    ClassInitializationFields(const Base& paths) : Base(paths) {}
+    ClassInitializationFields(Base&& paths) : Base(std::move(paths)) {}
+    ClassInitializationFields& operator=(const Base& paths) {
+        Base::operator=(paths); copy_initializes.clear(); return *this;
+    }
+    ClassInitializationFields& operator=(Base&& paths) {
+        Base::operator=(std::move(paths)); copy_initializes.clear(); return *this;
+    }
+};
+using ClassInitializationStates =
+    std::unordered_map<std::string, ClassInitializationFields>;
+
 struct StorageEffect {
     std::unordered_set<std::string> required;
     std::unordered_set<std::string> writes;
     std::unordered_set<std::string> initializes;
     std::unordered_set<std::string> invalidates;
+    ClassCopyInitializations copy_initializes;
+    bool restores_entry_state{};
 
     bool operator==(const StorageEffect&) const = default;
 };
@@ -342,6 +370,9 @@ private:
     std::shared_ptr<semantics::BindingEntryInitializations> binding_entry_initialization_;
     std::unordered_map<std::string, ClassTypeInfo> classes_;
     std::unordered_set<std::string> class_names_;
+    // Source exposure of user declarations; collecting signatures does not
+    // make a future declaration visible to an earlier lexical binding.
+    std::unordered_map<std::string, std::size_t> declaration_exposure_;
     std::unordered_map<std::string, Type> enum_types_;
     std::unordered_map<std::string, Type> variables_;
     std::unordered_map<std::string, std::string> reference_roots_;
@@ -430,7 +461,7 @@ private:
     std::unordered_map<std::string, bool> loop_readonly_;
     std::vector<const Expr*> live_iteration_paths_;
     std::unordered_set<std::string> loop_bit_places_;
-    std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths_;
+    ClassInitializationStates class_initialized_paths_;
     // The classes whose fields some run-time check reads.
     std::unordered_set<std::string> initialization_masked_classes_;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths_;
@@ -442,6 +473,10 @@ private:
     std::unordered_set<std::string> current_exit_receiver_initialized_;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         current_exit_reference_initialized_;
+    bool copy_dependencies_disabled_{};
+    std::vector<std::unordered_map<std::string, StorageEffect>> constructor_reference_error_exits_;
+    StorageEffect current_exit_receiver_copy_state_;
+    std::unordered_map<std::string, StorageEffect> current_exit_reference_copy_state_;
     bool current_effect_exit_summary_seen_{};
     bool current_true_return_seen_{};
     std::unordered_map<std::string, std::unordered_set<std::string>> current_true_return_initialized_;
@@ -557,6 +592,10 @@ private:
     void note_extent_capture_operand(const Expr& expression);
     void settle_extent_conversion(const Expr& expression, Type& type);
     Type check_expr(const Expr& expr, const Type* expected = nullptr);
+    Type check_numeric_array_operand(const Expr& value, const Type* candidate);
+    Type check_numeric_array_result(const Type& left, const Type& right,
+                                   const std::string& op, const Expr& right_expression,
+                                   SourceSpan span);
     Type check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected);
     // L14: a chain of comparisons in one direction (`0 <= i < n`, `a == b == c`).
     Type check_comparison_chain(const Expr& expression, const ComparisonChainExpr& node);
@@ -644,6 +683,18 @@ private:
     Type check_builtin_call_expr(const Expr& expression, const CallExpr& node,
                                  BuiltinCallable builtin, const Type* expected);
     std::unordered_set<std::string> initialized_paths_for_expr(const Expr& expr) const;
+    void check_address_value_read(const Expr& expression);
+    std::unordered_set<std::string> array_ingress_initialized_paths(
+        const Expr& expression, const Type& type, bool indexed_read) const;
+    bool known_uninitialized_array_alias(const Expr& expression) const;
+    void record_array_ingress_invalidations(const Expr& target, const StorageEffect& effect);
+    std::optional<std::pair<std::string, std::string>> class_copy_storage(const Expr&) const;
+    ClassCopyInitializations class_copy_initializations(const Expr&, const Type&) const;
+    bool require_class_copy_initialization(const Expr&, const std::vector<std::string>&);
+    void replace_local_copy_initializations(const Expr&, const ClassCopyInitializations&);
+    void discard_loop_copy_initializations();
+    void discard_unknown_class_initializations();
+    bool copy_body_has_unmodeled_loops(const std::vector<StmtPtr>&) const;
     std::optional<std::pair<std::string, std::string>> member_storage_path(const Expr& expr) const;
     std::optional<std::pair<std::string, std::string>> writable_storage_path(const Expr& expr) const;
     std::optional<std::pair<std::string, std::string>> alias_storage_path(const Expr& expr) const;
@@ -718,6 +769,7 @@ private:
     void record(const CompileError& error);
     bool expr_has_no_normal_return(const Expr& expression) const;
     bool stmt_always_terminates(const Stmt& stmt) const;
+    bool block_has_reachable_break(const std::vector<StmtPtr>& body) const;
     bool block_always_terminates(const std::vector<StmtPtr>& body) const;
     bool block_contains_return(const std::vector<StmtPtr>& body) const;
     const ClassFieldType* find_field(const std::string& class_name, const std::string& field) const;
@@ -731,12 +783,14 @@ private:
     bool standard_library_class(const std::string& class_name) const;
     const std::string* find_method(const std::string& class_name, const std::string& method) const;
     bool member_name_visible(const std::string& name) const;
-    bool declaration_name_visible(const std::string& name) const;
+    bool declaration_name_visible(const std::string& name, SourceSpan span) const;
+    bool declaration_name_visible_in(const std::string& name,
+                                     const std::string& module_namespace, SourceSpan span) const;
     bool type_name_declared_in(const std::string& name, const std::string& module_namespace) const;
     std::optional<std::string> visible_function_name(const std::string& name) const;
     bool equality_supported(const Type& type) const;
     void check_reference_equality_bound(const Expr& expression,const Type& type);
-    bool fully_initialized_for_equality(const Expr& expression, const Type& type) const;
+    bool fully_initialized_for_equality(const Expr& expression, const Type& type);
     void check_stored_target_complete(const Expr&,const Type&);
     bool reaches_reference_field(const Expr&) const;
     std::unordered_set<std::string> complete_class_paths(const Type& type) const;

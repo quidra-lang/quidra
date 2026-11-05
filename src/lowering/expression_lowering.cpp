@@ -35,7 +35,7 @@ ValueId ExpressionLowering::lower_into(const Expr& expression, const Type& targe
     }
     auto value = lower_at_raw_type(expression);
     const auto source = checked_.raw_types.at(&expression);
-    const bool owned = lifetime_.expression_owns_result(expression);
+    const bool owned = lifetime_.raw_expression_owns_result(expression);
     if (checked_.fail_fast_expressions.contains(&expression)) {
         const auto hop = owned ? errors_.hop_call(expression) : std::nullopt;
         return conversions_.consume_fail_fast(value, source, target, owned, expression.span,
@@ -138,7 +138,7 @@ ValueId ExpressionLowering::lower(const Expr& e) {
     // Consume that union at the expression site before the caller uses its
     // checked T value (for instance as an if/while condition or call operand).
     if(checked_.fail_fast_expressions.contains(&e)){
-        const bool owned=lifetime_.expression_owns_result(e);
+        const bool owned=lifetime_.raw_expression_owns_result(e);
         const auto hop=owned?errors_.hop_call(e):std::nullopt;
         return conversions_.consume_fail_fast(v,from,to,owned,e.span,
                                               hop?&*hop:nullptr);
@@ -596,8 +596,11 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
         {static_cast<std::uint32_t>(n.value->span.start.line),
         static_cast<std::uint32_t>(n.value->span.start.column)}, true, true});
     builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
-    auto consumed = builder_.fresh(); builder_.emit(LoadLocal{consumed, item_name, item_type, true});
-    release_owned(builder_, consumed, item_type);
+    if (owns_managed(item_type)) {
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, item_name, item_type, true});
+        release_owned(builder_, consumed, item_type);
+    }
     auto one = builder_.const_int(1), next = builder_.fresh();
     builder_.emit(Binary{next, "+", index, one, integer, integer, 0, 0, true});
     builder_.emit(StoreLocal{index_name, next, integer}); builder_.emit(Jump{cond});

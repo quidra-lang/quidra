@@ -261,8 +261,8 @@ tensor<real32> scale(tensor<real32> input, tensor<real32> factor)
         error("fake-GPU saved-tensor registration failed", code = "FAKE_SAVED_NATIVE")
     return output
 
-int32 fill(tensor<real32> &value, real32 fill)
-    return fill_native(&value, fill)
+int32 fill(tensor<real32> &value, real32 fill_value)
+    return fill_native(&value, fill_value)
 QUI
 
 cat > "$TMP/packages/fake_saved/native/bridge.cpp" <<'CPP'

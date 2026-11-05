@@ -2842,6 +2842,354 @@ set -e
 [[ "$import_builtin_shadow_rc" -eq 1 ]]
 grep -q 'SHADOWING' "$TMP/import-builtin-shadow.json"
 
+# Read-only collection queries preserve const receiver authority, including
+# missing-key probes and insertion-order snapshots after removal.
+cat > "$TMP/const-collection-queries.qui" <<'QUI'
+map<string, int> source
+.source.set("a", 1)
+.source.set("i", 2)
+.source.set("q", 3)
+test.check(.source.remove("i"))
+const map<string, int> view := source
+test.check(view.has("a"))
+test.check(view.has("q"))
+test.check(not view.has("missing"))
+match view.get("q")
+    int found
+        test.equal(found, 3)
+    none
+        test.check(false)
+match view.get("missing")
+    int found
+        test.check(false)
+    none
+        test.check(true)
+test.check(view.keys() == ["a", "q"])
+test.check(view.values() == [1, 3])
+.source.set("i", 4)
+.source.increment("a", 5)
+test.check(source.keys() == ["a", "q", "i"])
+test.check(source.values() == [6, 3, 4])
+test.check(view.values() == [1, 3])
+distinct<int> unique
+.unique.add(1)
+.unique.add(2)
+.unique.add(3)
+test.check(.unique.remove(2))
+const distinct<int> unique_view := unique
+test.check(unique_view.has(3))
+test.check(not unique_view.has(2))
+test.check(unique_view.values() == [1, 3])
+.unique.add(2)
+test.check(unique.values() == [1, 3, 2])
+test.check(unique_view.values() == [1, 3])
+println("ok")
+QUI
+"$QUIDRA" check "$TMP/const-collection-queries.qui"
+[[ "$("$QUIDRA" run "$TMP/const-collection-queries.qui")" == 'ok' ]]
+for const_collection_mutation in map-set map-remove distinct-add distinct-remove; do
+    case "$const_collection_mutation" in
+        map-set) const_collection_type='map<string, int>'; const_collection_call='.value.set("a", 1)' ;;
+        map-remove) const_collection_type='map<string, int>'; const_collection_call='.value.remove("a")' ;;
+        distinct-add) const_collection_type='distinct<int>'; const_collection_call='.value.add(1)' ;;
+        distinct-remove) const_collection_type='distinct<int>'; const_collection_call='.value.remove(1)' ;;
+    esac
+    printf '%s source\nconst %s value := source\n%s\n' "$const_collection_type" "$const_collection_type" "$const_collection_call" > "$TMP/const-collection-$const_collection_mutation.qui"
+    set +e
+    "$QUIDRA" check "$TMP/const-collection-$const_collection_mutation.qui" --json > "$TMP/const-collection-$const_collection_mutation.json"
+    const_collection_rc=$?
+    set -e
+    [[ "$const_collection_rc" -eq 1 ]]
+    grep -q 'WRITE_CAPABILITY' "$TMP/const-collection-$const_collection_mutation.json"
+done
+
+# Specialization sees another class's inferred fields even when that class has
+# not yet been visited by the concrete-class expansion pass.
+cat > "$TMP/specialization-class-field.qui" <<'QUI'
+T choose<T: floating>(T value)
+    return value
+real64 choose(real64 value)
+    return value
+
+class Center()
+    real64 fraction := 0.25
+    value := fraction
+
+class Point(local Center center)
+    real64 result := choose(center.value)
+
+Point point := Point(Center())
+println(point.result)
+QUI
+"$QUIDRA" check "$TMP/specialization-class-field.qui"
+[[ "$("$QUIDRA" run "$TMP/specialization-class-field.qui")" == '0.25' ]]
+
+# Scalar module constants are usable inside their own declarations. Typed
+# constants retain their type, and private constants stay inside their module.
+mkdir -p "$TMP/module-scalar-const"
+cat > "$TMP/module-scalar-const/constants.qui" <<'QUI'
+const int32 amount := 7
+private const string prefix := "ok"
+const literal real fraction := 0.25
+
+int32 get()
+    value := amount + 1
+    return value
+
+string label()
+    return prefix
+
+real32 part()
+    return fraction
+
+T sum<T: integer>(T extra)
+    return T(amount) + extra
+
+class Value()
+    int32 stored := amount
+
+int32 defaulted(int32 value := amount)
+    return value
+
+const inferred_integer := 7
+const inferred_real := 0.25
+int default_integer(int32 base)
+    value := inferred_integer + base
+    return value
+real default_real(real32 base)
+    value := inferred_real + base
+    return value
+
+const nat N := 3
+int shape_total()
+    int[N] values := [1, 2, 3]
+    tensor<real32>{N} grid := tensor.zeros<real32>([N])
+    return int(len(values)) + int(grid.shape()[0])
+QUI
+cat > "$TMP/module-scalar-const/main.qui" <<'QUI'
+import values = "./constants.qui"
+values.Value object := values.Value()
+println("{values.get()} {values.label()} {values.part()} {values.sum<int32>(1)} {object.stored} {values.defaulted()}")
+println("{values.default_integer(int32(3))} {values.default_real(real32(0.5))}")
+println(values.shape_total())
+QUI
+"$QUIDRA" check "$TMP/module-scalar-const/main.qui"
+[[ "$("$QUIDRA" run "$TMP/module-scalar-const/main.qui")" == $'8 ok 0.25 8 7 7\n10 0.75\n6' ]]
+cat > "$TMP/module-scalar-const/direct.qui" <<'QUI'
+const int32 amount := 7
+int32 get()
+    value := amount + 1
+    return value
+println(get())
+const nat N := 3
+int shape_total()
+    int[N] values := [1, 2, 3]
+    tensor<real32>{N} grid := tensor.zeros<real32>([N])
+    return int(len(values)) + int(grid.shape()[0])
+println(shape_total())
+QUI
+[[ "$("$QUIDRA" run "$TMP/module-scalar-const/direct.qui")" == $'8\n6' ]]
+cat > "$TMP/module-scalar-const/unrelated.qui" <<'QUI'
+int32 get()
+    return amount
+QUI
+cat > "$TMP/module-scalar-const/isolated.qui" <<'QUI'
+import values = "./constants.qui"
+import unrelated = "./unrelated.qui"
+println(unrelated.get())
+QUI
+cat > "$TMP/module-scalar-const/future.qui" <<'QUI'
+int32 get()
+    return amount
+const int32 amount := 7
+println(get())
+QUI
+cat > "$TMP/module-scalar-const/private.qui" <<'QUI'
+import values = "./constants.qui"
+println(values.prefix)
+QUI
+cat > "$TMP/module-scalar-const/shadow.qui" <<'QUI'
+const int32 amount := 7
+int32 get(int32 amount)
+    return amount
+println(get(1))
+QUI
+for module_constant_case in isolated future private shadow; do
+    set +e
+    "$QUIDRA" check "$TMP/module-scalar-const/$module_constant_case.qui" --json > "$TMP/module-scalar-const/$module_constant_case.json"
+    module_constant_rc=$?
+    set -e
+    [[ "$module_constant_rc" -eq 1 ]]
+done
+grep -q 'UNKNOWN_NAME' "$TMP/module-scalar-const/isolated.json"
+grep -q 'UNKNOWN_NAME' "$TMP/module-scalar-const/future.json"
+grep -q 'PRIVATE_DECLARATION' "$TMP/module-scalar-const/private.json"
+grep -q 'SHADOWING' "$TMP/module-scalar-const/shadow.json"
+
+# A prototype binds parameter/header names before a later module constant;
+# their bodies keep those bindings when the definitions follow the constant.
+cat > "$TMP/module-scalar-const/prototypes.qui" <<'QUI'
+int render(int argument);
+class Box(int member);
+class Local(local int initial);
+int shaped(nat extent);
+const int argument := 7
+const int member := 8
+const int initial := 9
+const nat extent := 9
+int render(int argument)
+    return argument
+class Box(int member)
+    int read()
+        return member
+class Local(local int initial)
+    int stored := initial
+int shaped(nat extent)
+    int[extent] values := array(extent, fill = 1)
+    tensor<real32>{extent} grid := tensor.zeros<real32>([extent])
+    return int(len(values)) + int(grid.shape()[0])
+QUI
+cat > "$TMP/module-scalar-const/prototype-main.qui" <<'QUI'
+import values = "./prototypes.qui"
+values.Box box := values.Box(4)
+values.Local local_box := values.Local(5)
+println("{values.render(3)} {box.read()} {local_box.stored}")
+println(values.shaped(3))
+QUI
+[[ "$("$QUIDRA" run "$TMP/module-scalar-const/prototype-main.qui")" == $'3 4 5\n6' ]]
+cat > "$TMP/module-scalar-const/prototype-future-array.qui" <<'QUI'
+int size(int[N] values);
+const nat N := 3
+int size(int[N] values)
+    return int(len(values))
+QUI
+cat > "$TMP/module-scalar-const/prototype-future-tensor.qui" <<'QUI'
+int size(tensor<real32>{N} values);
+const nat N := 3
+int size(tensor<real32>{N} values)
+    return int(values.shape()[0])
+QUI
+cat > "$TMP/module-scalar-const/prototype-future-class.qui" <<'QUI'
+class Box(local int[N] values);
+const nat N := 3
+class Box(local int[N] values)
+    int size := int(len(values))
+QUI
+for module_constant_extent in array tensor class; do
+    set +e
+    "$QUIDRA" check "$TMP/module-scalar-const/prototype-future-$module_constant_extent.qui" --json > "$TMP/module-scalar-const/prototype-future-$module_constant_extent.json"
+    module_constant_rc=$?
+    set -e
+    [[ "$module_constant_rc" -eq 1 ]]
+    grep -Eq 'UNKNOWN_NAME|SHAPE_VARIABLE' "$TMP/module-scalar-const/prototype-future-$module_constant_extent.json"
+done
+
+# An implicit call of an imported class's own method keeps class scope even
+# when a module function uses the same spelling.
+cat > "$TMP/module-scalar-const/methods.qui" <<'QUI'
+class Box()
+    int value()
+        return 7
+    int read()
+        return value()
+
+int value()
+    return 9
+QUI
+cat > "$TMP/module-scalar-const/method-main.qui" <<'QUI'
+import helpers = "./methods.qui"
+println(helpers.Box().read())
+QUI
+[[ "$("$QUIDRA" run "$TMP/module-scalar-const/method-main.qui")" == '7' ]]
+
+# One source module keeps its declaration identity through direct aliases,
+# diamond imports and public re-exports. Different files remain nominally distinct.
+mkdir -p "$TMP/import-identity"
+cat > "$TMP/import-identity/items.qui" <<'QUI'
+class Item(int value)
+
+class Box<T>(T value)
+
+private int hidden()
+    return 9
+
+int read(extend Item item)
+    return item.value
+QUI
+cat > "$TMP/import-identity/lot.qui" <<'QUI'
+public import shared = "./items.qui"
+
+shared.Item echo(shared.Item item)
+    return item
+
+shared.Box<T> echo_box<T>(shared.Box<T> box)
+    return box
+QUI
+cat > "$TMP/import-identity/direct-first.qui" <<'QUI'
+import items = "./items.qui"
+import lot = "./lot.qui"
+import again = "./items.qui"
+
+items.Item original := items.Item(7)
+again.Item direct := original
+lot.shared.Item diamond := lot.echo(direct)
+items.Box<int> boxed := items.Box<int>(8)
+lot.shared.Box<int> mirrored := lot.echo_box(boxed)
+print("{diamond.read()} {mirrored.value}{NL}")
+QUI
+cat > "$TMP/import-identity/diamond-first.qui" <<'QUI'
+import lot = "./lot.qui"
+import items = "./items.qui"
+
+items.Item original := items.Item(7)
+items.Item diamond := lot.echo(original)
+items.Box<int> boxed := items.Box<int>(8)
+items.Box<int> mirrored := lot.echo_box<int>(boxed)
+print("{diamond.read()} {mirrored.value}{NL}")
+QUI
+for import_identity_order in direct-first diamond-first; do
+    "$QUIDRA" check "$TMP/import-identity/$import_identity_order.qui"
+    [[ "$("$QUIDRA" run "$TMP/import-identity/$import_identity_order.qui")" == '7 8' ]]
+done
+cat > "$TMP/import-identity/other.qui" <<'QUI'
+class Item(int value)
+QUI
+cat > "$TMP/import-identity/distinct.qui" <<'QUI'
+import items = "./items.qui"
+import other = "./other.qui"
+
+items.Item original := items.Item(7)
+other.Item different := original
+QUI
+cat > "$TMP/import-identity/private.qui" <<'QUI'
+import lot = "./lot.qui"
+import items = "./items.qui"
+
+print(lot.shared.hidden())
+QUI
+cat > "$TMP/import-identity/private-import.qui" <<'QUI'
+import implementation = "./items.qui"
+
+implementation.Item echo(implementation.Item item)
+    return item
+QUI
+cat > "$TMP/import-identity/invisible.qui" <<'QUI'
+import lot = "./private-import.qui"
+import items = "./items.qui"
+
+print(lot.implementation.Item(7).value)
+QUI
+for import_identity_case in distinct private invisible; do
+    set +e
+    "$QUIDRA" check "$TMP/import-identity/$import_identity_case.qui" --json > "$TMP/import-identity/$import_identity_case.json"
+    import_identity_rc=$?
+    set -e
+    [[ "$import_identity_rc" -eq 1 ]]
+done
+grep -q 'TYPE_MISMATCH' "$TMP/import-identity/distinct.json"
+grep -q 'PRIVATE_DECLARATION' "$TMP/import-identity/private.json"
+grep -q 'UNKNOWN_MODULE_MEMBER' "$TMP/import-identity/invisible.json"
+
 mkdir -p "$TMP/project/src" "$TMP/project/lib"
 cat > "$TMP/project/lib/util.qui" <<'QUI'
 int bump(int value)
@@ -3534,6 +3882,22 @@ function_field = (
     "print(box.get())\n"
 )
 path = tmp / "this-bare-function.qui"
+path.write_text(function_field.format("scale"), encoding="utf-8")
+result = subprocess.run([quidra, "check", str(path), "--json"], capture_output=True, text=True)
+assert result.returncode == 1, result.stdout
+assert "SHADOWING" in {item["code"] for item in json.loads(result.stdout)["diagnostics"]}, result.stdout
+# A later function is not visible when the field is declared. Both member
+# spellings must keep their field meaning after that function becomes visible.
+function_field = (
+    "class Box this()\n"
+    "    int scale := 5\n"
+    "    int get()\n"
+    "        return {}\n"
+    "int scale(int value)\n"
+    "    return value * 2\n"
+    "Box box := Box()\n"
+    "print(box.get())\n"
+)
 path.write_text(function_field.format("scale"), encoding="utf-8")
 result = subprocess.run([quidra, "check", str(path), "--json"], capture_output=True, text=True)
 assert result.returncode == 0, result.stdout
@@ -5875,3 +6239,418 @@ argument_output="$("$QUIDRA" run "$argument_probes/aliasing.qui")"
 [[ "$argument_output" == "$(printf 'array: 1 7\nafter: 7\nplain: 2 6\nreplaced: 1 3 1\nclass: 0 5\nelement: 1 8\nlater: 1 3 103\nreceiver: 1 9\ntensor: 1.0 5.0\nint: 1 2\nstring: orig changed\nuntouched: 3 1')" ]]
 argument_output="$("$QUIDRA" run "$argument_probes/identity.qui")"
 [[ "$argument_output" == "$(printf 'false\nfalse\n2\nfalse\n1')" ]]
+
+# A named enum stays one structural-union case, preserving its own variant
+# tag and payload through injection, copies, generic returns and extraction.
+cat > "$TMP/enum-unions.qui" <<'QUI'
+enum Mode
+    First
+    Second
+enum Token
+    Number(int)
+    Name(string)
+    End
+T | error checked<T>(T input)
+    return input
+Mode mode := checked<Mode>(Mode.Second)
+println(mode == Mode.Second)
+Mode | none optional := Mode.First
+optional_copy := optional
+match optional_copy
+    Mode selected
+        println(selected == Mode.First)
+    none
+        println(false)
+Token token := checked<Token>(Token.Number(7))
+copy := token
+println(copy == Token.Number(7))
+match copy
+    Token.Number(value)
+        println(value)
+    Token.Name(name)
+        println(name)
+    Token.End
+        println("end")
+Token named := checked<Token>(Token.Name("kept"))
+match named
+    Token.Number(value)
+        println(value)
+    Token.Name(name)
+        println(name)
+    Token.End
+        println("end")
+QUI
+[[ "$("$QUIDRA" run "$TMP/enum-unions.qui")" == $'true\ntrue\ntrue\n7\nkept' ]]
+
+# Literal-only module interpolation is a scalar constant expression. It uses
+# the same purity validator as non-interpolated module constants.
+mkdir -p "$TMP/module-interpolation"
+cat > "$TMP/module-interpolation/values.qui" <<'QUI'
+const Text := "a{DQ}b{NL}"
+string value()
+    return Text
+QUI
+cat > "$TMP/module-interpolation/main.qui" <<'QUI'
+import values = "./values.qui"
+test.equal(values.value(), "a{DQ}b{NL}")
+test.equal(values.Text, "a{DQ}b{NL}")
+println("ok")
+QUI
+"$QUIDRA" check "$TMP/module-interpolation/main.qui"
+[[ "$("$QUIDRA" run "$TMP/module-interpolation/main.qui")" == 'ok' ]]
+cat > "$TMP/module-interpolation/impure.qui" <<'QUI'
+private string read()
+    println("effect")
+    return "x"
+const Text := "{read()}"
+QUI
+cat > "$TMP/module-interpolation/reject.qui" <<'QUI'
+import values = "./impure.qui"
+println(values.Text)
+QUI
+set +e
+"$QUIDRA" check "$TMP/module-interpolation/reject.qui" --json > "$TMP/module-interpolation/reject.json"
+module_interpolation_rc=$?
+set -e
+[[ "$module_interpolation_rc" -eq 1 ]]
+grep -q 'PACKAGE_CONST' "$TMP/module-interpolation/reject.json"
+
+# Context at a literal container's consumer controls element error consumption.
+cat > "$TMP/contextual-array-generation.qui" <<'QUI'
+class Observation(real64[] values)
+class Target(real64[][] values)
+Observation observation := Observation([for value := ["1"][] then real64.parse(value)])
+test.check(observation.values == [real64(1)])
+Target target := Target([for label := ["x"][] then []])
+test.check(len(target.values) == 1)
+test.check(len(target.values[0]) == 0)
+nat[] ancestors := []
+int ancestor := 1
+nat[] result := [nat(ancestor)].concat(ancestors)
+test.check(len(result) == 1)
+nat first := 1
+test.equal(result[0], first)
+nat code := 65
+bin bits := bin([nat8(code)])
+expected := bin.parse("01000001")
+test.check(bits == expected)
+bin mixed_bits := bin([nat8(code), nat8(65)])
+expected_pair := bin.parse("0100000101000001")
+test.check(mixed_bits == expected_pair)
+(real64 | error)[] preserved := [real64.parse("x")]
+class Preserved((real64 | error)[] values)
+Preserved retained := Preserved([for entry := preserved[] then entry])
+match retained.values[0]
+    real64 number
+        test.check(false)
+    error problem
+        test.check(true)
+println("ok")
+QUI
+"$QUIDRA" check "$TMP/contextual-array-generation.qui"
+[[ "$("$QUIDRA" run "$TMP/contextual-array-generation.qui")" == 'ok' ]]
+cat > "$TMP/contextual-array-generation-error.qui" <<'QUI'
+class Observation(real64[] values)
+println("before")
+Observation observation := Observation([for value := ["1", "x"][] then real64.parse(value)])
+println("after")
+QUI
+set +e
+"$QUIDRA" run "$TMP/contextual-array-generation-error.qui" > "$TMP/contextual-array-generation-error.out" 2> "$TMP/contextual-array-generation-error.err"
+contextual_array_rc=$?
+set -e
+[[ "$contextual_array_rc" -eq 101 ]]
+[[ "$(cat "$TMP/contextual-array-generation-error.out")" == 'before' ]]
+
+cat > "$TMP/contextual-bin-error.qui" <<'QUI'
+nat code := 256
+println("before")
+bin bits := bin([nat8(code), nat8(65)])
+println("after")
+QUI
+set +e
+"$QUIDRA" run "$TMP/contextual-bin-error.qui" > "$TMP/contextual-bin-error.out" 2> "$TMP/contextual-bin-error.err"
+contextual_array_rc=$?
+set -e
+[[ "$contextual_array_rc" -eq 101 ]]
+[[ "$(cat "$TMP/contextual-bin-error.out")" == 'before' ]]
+cat > "$TMP/contextual-concat-no-receiver-conversion.qui" <<'QUI'
+real64[] tail := [real64(2)]
+real64[] result := [int32(1)].concat(tail)
+QUI
+set +e
+"$QUIDRA" check "$TMP/contextual-concat-no-receiver-conversion.qui" --json > "$TMP/contextual-concat-no-receiver-conversion.json"
+contextual_array_rc=$?
+set -e
+[[ "$contextual_array_rc" -eq 1 ]]
+grep -q 'TYPE_MISMATCH' "$TMP/contextual-concat-no-receiver-conversion.json"
+
+# bin's runtime ABI uses dynamic headers even when its source is fixed.
+cat > "$TMP/bin-fixed-array-abi.qui" <<'QUI'
+// Fixed and dynamic arrays must produce identical bit sequences.
+expected_byte := bin.parse("01000001")
+test.check(bin([nat8(65)]) == expected_byte)
+nat8[1] fixed := [nat8(65)]
+test.check(bin(fixed) == expected_byte)
+nat8[] dynamic := [nat8(65)]
+test.check(bin(dynamic) == expected_byte)
+nat code := 65
+test.check(bin([nat8(code)]) == expected_byte)
+expected_pair := bin.parse("0100000101000001")
+test.check(bin([nat8(code), nat8(65)]) == expected_pair)
+expected_wide := bin.parse("0000000100000010")
+test.check(bin([nat16(258)]) == expected_wide)
+expected_signed := bin.parse("11111111")
+test.check(bin([int8(-1)]) == expected_signed)
+expected_bools := bin.parse("101")
+test.check(bin([true, false, true]) == expected_bools)
+nat8[0] empty := []
+expected_empty := bin.parse("")
+test.check(bin(empty) == expected_empty)
+test.check(nat8[](expected_byte) == dynamic)
+println("ok")
+QUI
+"$QUIDRA" check "$TMP/bin-fixed-array-abi.qui"
+[[ "$("$QUIDRA" run "$TMP/bin-fixed-array-abi.qui")" == 'ok' ]]
+
+# Function-value Class results preserve only the common guarantees of possible free targets.
+
+cat > "$TMP/imported.qui" <<'QUI'
+class Decision(int state, bool extracted)
+Decision complete(int initial)
+    return Decision(initial, true)
+QUI
+
+cat > "$TMP/01-mixed-common-x.qui" <<'QUI'
+class Point this(local int initial, local bool full)
+    int x
+    int y
+    this.x = initial
+    if full
+        this.y = initial
+Point complete(int initial)
+    Point value := Point(initial, false)
+    value.y = initial
+    return value
+Point unrelated_partial()
+    return Point(1, false)
+int invoke(func<Point>(int) action)
+    Point value := action(7)
+    return value.x
+println(invoke(complete))
+QUI
+
+"$QUIDRA" check "$TMP/01-mixed-common-x.qui"
+[[ "$("$QUIDRA" run "$TMP/01-mixed-common-x.qui")" == '7' ]]
+
+cat > "$TMP/02-mixed-missing-y.qui" <<'QUI'
+class Point this(local int initial, local bool full)
+    int x
+    int y
+    this.x = initial
+    if full
+        this.y = initial
+Point complete(int initial)
+    Point value := Point(initial, false)
+    value.y = initial
+    return value
+Point unrelated_partial()
+    return Point(1, false)
+int invoke(func<Point>(int) action)
+    Point value := action(7)
+    return value.y
+println(invoke(complete))
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/02-mixed-missing-y.qui" --json > "$TMP/02-mixed-missing-y.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'UNINITIALIZED' "$TMP/02-mixed-missing-y.qui.json"
+
+cat > "$TMP/03-generic-callback.qui" <<'QUI'
+class Decision<T>(T state, bool extracted)
+Decision<int> complete(int initial)
+    return Decision<int>(initial, true)
+int invoke<T>(func<Decision<T>>(T) action, T value)
+    Decision<T> decision := action(value)
+    return if decision.extracted then 1 else 0
+println(invoke(complete, 7))
+QUI
+
+"$QUIDRA" check "$TMP/03-generic-callback.qui"
+[[ "$("$QUIDRA" run "$TMP/03-generic-callback.qui")" == '1' ]]
+
+cat > "$TMP/04-imported-callback.qui" <<'QUI'
+import source = "./imported.qui"
+int invoke(func<source.Decision>(int) action)
+    source.Decision decision := action(7)
+    return if decision.extracted then decision.state else 0
+println(invoke(source.complete))
+QUI
+
+"$QUIDRA" check "$TMP/04-imported-callback.qui"
+[[ "$("$QUIDRA" run "$TMP/04-imported-callback.qui")" == '7' ]]
+
+cat > "$TMP/05-class-cannot-convert.qui" <<'QUI'
+class Callable(int state)
+func<int>(int) action := Callable(1)
+println(action(2))
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/05-class-cannot-convert.qui" --json > "$TMP/05-class-cannot-convert.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'TYPE_MISMATCH' "$TMP/05-class-cannot-convert.qui.json"
+
+cat > "$TMP/06-method-cannot-convert.qui" <<'QUI'
+class Callable()
+    int invoke(int value)
+        return value
+    int execute()
+        func<int>(int) action := invoke
+        return action(2)
+Callable value := Callable()
+println(value.execute())
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/06-method-cannot-convert.qui" --json > "$TMP/06-method-cannot-convert.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'FUNCTION_NOT_VALUE' "$TMP/06-method-cannot-convert.qui.json"
+
+cat > "$TMP/07-recursive-partial.qui" <<'QUI'
+class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+Point recurse(int count)
+    if count == 0
+        return Point(1)
+    func<Point>(int) action := recurse
+    return action(count - 1)
+int invoke(func<Point>(int) action)
+    Point value := action(2)
+    return value.y
+println(invoke(recurse))
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/07-recursive-partial.qui" --json > "$TMP/07-recursive-partial.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'UNINITIALIZED' "$TMP/07-recursive-partial.qui.json"
+
+cat > "$TMP/08-recursive-partial-unused.qui" <<'QUI'
+class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+Point recurse(int count)
+    if count == 0
+        return Point(1)
+    func<Point>(int) action := recurse
+    return action(count - 1)
+int invoke(func<Point>(int) action)
+    Point value := action(2)
+    return 1
+println(invoke(recurse))
+QUI
+
+"$QUIDRA" check "$TMP/08-recursive-partial-unused.qui"
+[[ "$("$QUIDRA" run "$TMP/08-recursive-partial-unused.qui")" == '1' ]]
+
+cat > "$TMP/10-full-callback.qui" <<'QUI'
+class Result(int state, bool extracted)
+Result complete(int value)
+    return Result(value, true)
+int invoke(func<Result>(int) callback)
+    Result decision := callback(7)
+    return decision.state
+println(invoke(complete))
+QUI
+
+"$QUIDRA" check "$TMP/10-full-callback.qui"
+[[ "$("$QUIDRA" run "$TMP/10-full-callback.qui")" == '7' ]]
+
+cat > "$TMP/11-partial-unused.qui" <<'QUI'
+class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+Point partial(int value)
+    return Point(value)
+int invoke(func<Point>(int) callback)
+    Point copied := callback(7)
+    return 1
+println(invoke(partial))
+QUI
+
+"$QUIDRA" check "$TMP/11-partial-unused.qui"
+[[ "$("$QUIDRA" run "$TMP/11-partial-unused.qui")" == '1' ]]
+
+cat > "$TMP/12-partial-missing.qui" <<'QUI'
+class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+Point partial(int value)
+    return Point(value)
+int invoke(func<Point>(int) callback)
+    Point copied := callback(7)
+    return copied.y
+println(invoke(partial))
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/12-partial-missing.qui" --json > "$TMP/12-partial-missing.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'UNINITIALIZED' "$TMP/12-partial-missing.qui.json"
+
+cat > "$TMP/13-no-candidate-unused.qui" <<'QUI'
+class Result(int state)
+int invoke(func<Result>(int) action)
+    Result value := action(7)
+    return 1
+println(1)
+QUI
+
+"$QUIDRA" check "$TMP/13-no-candidate-unused.qui"
+[[ "$("$QUIDRA" run "$TMP/13-no-candidate-unused.qui")" == '1' ]]
+
+cat > "$TMP/14-no-candidate-missing.qui" <<'QUI'
+class Result(int state)
+int invoke(func<Result>(int) action)
+    Result value := action(7)
+    return value.state
+println(1)
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/14-no-candidate-missing.qui" --json > "$TMP/14-no-candidate-missing.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'UNINITIALIZED' "$TMP/14-no-candidate-missing.qui.json"
+
+cat > "$TMP/15-constructor-cannot-convert.qui" <<'QUI'
+class Point(int x, int y)
+func<Point>(int, int) action := Point
+Point value := action(1, 2)
+println(value.x)
+QUI
+
+set +e
+"$QUIDRA" check "$TMP/15-constructor-cannot-convert.qui" --json > "$TMP/15-constructor-cannot-convert.qui.json"
+function_value_rc=$?
+set -e
+[[ "$function_value_rc" -eq 1 ]]
+grep -q 'UNKNOWN_NAME' "$TMP/15-constructor-cannot-convert.qui.json"

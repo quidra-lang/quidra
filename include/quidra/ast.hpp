@@ -377,6 +377,9 @@ struct FunctionDecl {
     // existing state that its `&` parameters do not expose.
     bool mutation_marker{};
     std::optional<DeclarationIdentity> declaration{};
+    // Original declaration position when an imported top-level span is
+    // marked non-root for source inspection. Visibility remains module-local.
+    std::optional<std::size_t> source_declaration_offset{};
 };
 
 struct FieldDecl {
@@ -410,6 +413,7 @@ struct ClassDecl {
     bool is_private{};
     std::string self_name{};
     std::optional<SourceSpan> self_span{};
+    std::optional<std::size_t> source_declaration_offset{};
 };
 
 struct EnumVariantDecl {
@@ -425,6 +429,7 @@ struct EnumDecl {
     SourceSpan span{};
     // `private enum`: usable only inside the module that declares it.
     bool is_private{};
+    std::optional<std::size_t> source_declaration_offset{};
 };
 
 struct ImportDecl {

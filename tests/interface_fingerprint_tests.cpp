@@ -101,6 +101,11 @@ void essential_contract_changes() {
     require(exported.signature != borrowed.signature,"C export contract was omitted");
     fixture.contracts.functions[0].initialization->receiver.initializes.insert("field");
     require(fixture.fingerprint().summary != exported.summary,"initialization contract was omitted");
+    const auto initialized = fixture.fingerprint();
+    fixture.contracts.functions[0].initialization->receiver.restores_entry_state = true;
+    const auto restored = fixture.fingerprint();
+    require(restored.summary != initialized.summary && restored.signature == initialized.signature,
+            "entry-restore alias interference was omitted from summary identity");
     fixture.contracts.constants.push_back({"LIMIT",false,false,{"int",Type::simple(TypeKind::Int64)},
         {"test-value/1",ir::canonical_encode_value(std::int64_t{3}).bytes}});
     const auto constant = fixture.fingerprint();

@@ -40,6 +40,30 @@ bool poisoned(const Type& type) {
     return type.kind == TypeKind::Invalid;
 }
 
+// Operator domains may exclude error without supplying one concrete numeric
+// representation. Preserve every ordinary success alternative, including none.
+std::optional<Type> error_free_operand_type(const Type& source) {
+    if (source.kind != TypeKind::Union || !source.union_name.empty()) return std::nullopt;
+    std::vector<Type> success;
+    bool has_error = false;
+    for (const auto& item : source.cases) {
+        if (item.kind == TypeKind::Error) has_error = true;
+        else success.push_back(item);
+    }
+    if (!has_error || success.empty()) return std::nullopt;
+    return Type::union_of(std::move(success));
+}
+
+Type consume_error_operand(const Expr& expression, const Type& source,
+                           std::unordered_set<const Expr*>& fail_fast,
+                           std::unordered_map<const Expr*, Type>& expression_types) {
+    const auto success = error_free_operand_type(source);
+    if (!success) return source;
+    fail_fast.insert(&expression);
+    expression_types[&expression] = *success;
+    return *success;
+}
+
 // Auto leaves in a tuple pattern supply context only for the declared
 // elements. They take the corresponding checked value type before ordinary
 // assignability is tested; Auto is never made a generally assignable type.
@@ -589,6 +613,120 @@ void union_set(std::unordered_set<std::string>& destination,
     destination.insert(source.begin(), source.end());
 }
 
+// A dependency is available on a join only when every continuing path
+// either establishes that field or has a copy-time entry-state dependency.
+ClassCopyInitializations merge_copy_initializations(
+    const ClassCopyInitializations& left, const std::unordered_set<std::string>& left_known,
+    const ClassCopyInitializations& right, const std::unordered_set<std::string>& right_known) {
+    ClassCopyInitializations result;
+    std::unordered_set<std::string> paths;
+    for (const auto& [path, _] : left) paths.insert(path);
+    for (const auto& [path, _] : right) paths.insert(path);
+    for (const auto& path : paths) {
+        if ((!left_known.contains(path) && !left.contains(path)) ||
+            (!right_known.contains(path) && !right.contains(path))) continue;
+        auto& dependencies = result[path];
+        for (const auto* side : {&left, &right}) {
+            if (const auto item = side->find(path); item != side->end())
+                for (const auto& dependency : item->second)
+                    if (std::find(dependencies.begin(), dependencies.end(), dependency) == dependencies.end())
+                        dependencies.push_back(dependency);
+        }
+    }
+    return result;
+}
+
+void merge_local_copy_initializations(ClassInitializationStates& result,
+    const ClassInitializationStates& left, const ClassInitializationStates& right,
+    bool left_terminates = false, bool right_terminates = false) {
+    static const ClassInitializationFields empty;
+    for (auto& [root, fields] : result) {
+        const auto l = left.find(root), r = right.find(root);
+        const auto& lf = l == left.end() ? empty : l->second;
+        const auto& rf = r == right.end() ? empty : r->second;
+        fields.copy_initializes = left_terminates ? rf.copy_initializes :
+            right_terminates ? lf.copy_initializes :
+            merge_copy_initializations(lf.copy_initializes, lf, rf.copy_initializes, rf);
+    }
+}
+
+// An unset Class binding contributes no value-field state to a loop join.
+// Keep body facts conditional on the existing binding guard, only under the
+// closed function-body loop gate: every initialized value then preserves the
+// body's field facts, including paths which break before another assignment.
+void retain_conditional_loop_class_paths(ClassInitializationStates& destination,
+    const ClassInitializationStates& body, const auto& variables, const auto& references,
+    const auto& parameter_references,
+    const std::unordered_set<std::string>& before_initialized,
+    const std::unordered_set<std::string>& before_maybe,
+    const std::unordered_set<std::string>& body_initialized,
+    const std::unordered_set<std::string>& body_maybe, const auto& ordinary_paths, bool modeled) {
+    if (!modeled) return;
+    for (const auto& [name,type] : variables) {
+        if (type.kind != TypeKind::Class || references.contains(name) || parameter_references.contains(name) ||
+            before_initialized.contains(name) || before_maybe.contains(name) ||
+            (!body_initialized.contains(name) && !body_maybe.contains(name))) continue;
+        if (const auto fields = body.find(name); fields != body.end()) {
+            auto retained = fields->second;
+            const auto ordinary = ordinary_paths(type);
+            for (auto it = retained.begin(); it != retained.end();)
+                if (!ordinary.contains(*it)) it = retained.erase(it); else ++it;
+            for (auto it = retained.copy_initializes.begin(); it != retained.copy_initializes.end();)
+                if (!ordinary.contains(it->first)) it = retained.copy_initializes.erase(it); else ++it;
+            destination[name] = std::move(retained);
+        }
+    }
+}
+
+void erase_copy_initializations(ClassCopyInitializations& copies, const std::string& path) {
+    for (auto it = copies.begin(); it != copies.end();) {
+        if (path.empty() || it->first == path || it->first.starts_with(path + ".") ||
+            it->first.starts_with(path + "(")) it = copies.erase(it);
+        else ++it;
+    }
+}
+
+bool storage_effect_invalidates(const StorageEffect&, const std::string&);
+
+void merge_copy_exit(StorageEffect& accumulated, const StorageEffect& next,
+                     const std::string& owner = {}) {
+    auto left = accumulated.copy_initializes, right = next.copy_initializes;
+    std::unordered_set<std::string> candidates;
+    for (const auto& [path, _] : left) candidates.insert(path);
+    for (const auto& [path, _] : right) candidates.insert(path);
+    for (const auto& path : candidates) {
+        // A normal exit which never invalidates a field preserves its entry
+        // initialization even if no copy was needed on that path. Definite
+        // initialization is a neutral proof rather than another dependency.
+        if (accumulated.initializes.contains(path)) left.erase(path);
+        else if (!left.contains(path) && !storage_effect_invalidates(accumulated,path))
+            left[path] = {{owner,path}};
+        if (next.initializes.contains(path)) right.erase(path);
+        else if (!right.contains(path) && !storage_effect_invalidates(next,path))
+            right[path] = {{owner,path}};
+    }
+    accumulated.copy_initializes = merge_copy_initializations(
+        left, accumulated.initializes, right, next.initializes);
+    for (auto it = accumulated.initializes.begin(); it != accumulated.initializes.end();)
+        if (!next.initializes.contains(*it)) it = accumulated.initializes.erase(it); else ++it;
+    // Keep failures from any earlier exit visible when a later candidate
+    // first appears, and retain the may-interference signal across exits.
+    union_set(accumulated.invalidates,next.invalidates);
+    accumulated.restores_entry_state |= next.restores_entry_state;
+}
+
+void export_identity_copy_preservation(StorageEffect& effect, const StorageEffect& exits,
+                                       const std::string& parameter) {
+    for (const auto& [path, dependencies] : exits.copy_initializes) {
+        if (dependencies.size() == 1 && dependencies.front().parameter == parameter &&
+            dependencies.front().path == path)
+            if (effect.invalidates.erase(path)) effect.restores_entry_state = true;
+    }
+    // Other relations need a relational call/return contract. Keep their
+    // ordinary invalidations, so callers cannot assume these fields exist.
+    effect.copy_initializes.clear();
+}
+
 std::unordered_map<std::string, StorageEffect> merge_reference_branches(
     const std::unordered_map<std::string, StorageEffect>& before,
     const std::unordered_map<std::string, StorageEffect>& yes,
@@ -611,6 +749,11 @@ std::unordered_map<std::string, StorageEffect> merge_reference_branches(
         const auto& yes_effect = yes_it == yes.end() ? empty : yes_it->second;
         const auto& no_effect = no_it == no.end() ? empty : no_it->second;
         auto& merged = result[name];
+        merged.restores_entry_state = yes_effect.restores_entry_state || no_effect.restores_entry_state;
+        merged.copy_initializes = yes_terminates ? no_effect.copy_initializes :
+            no_terminates ? yes_effect.copy_initializes :
+            merge_copy_initializations(yes_effect.copy_initializes, yes_effect.initializes,
+                                       no_effect.copy_initializes, no_effect.initializes);
         merged.required.clear();
         merged.writes.clear();
         merged.invalidates.clear();
@@ -618,8 +761,14 @@ std::unordered_map<std::string, StorageEffect> merge_reference_branches(
         union_set(merged.required, no_effect.required);
         union_set(merged.writes, yes_effect.writes);
         union_set(merged.writes, no_effect.writes);
-        union_set(merged.invalidates, yes_effect.invalidates);
-        union_set(merged.invalidates, no_effect.invalidates);
+        // Invalidations constrain the live continuation, unlike the global
+        // read/write summary. Normal-return states are retained separately.
+        if (yes_terminates) merged.invalidates = no_effect.invalidates;
+        else if (no_terminates) merged.invalidates = yes_effect.invalidates;
+        else {
+            union_set(merged.invalidates, yes_effect.invalidates);
+            union_set(merged.invalidates, no_effect.invalidates);
+        }
         if (yes_terminates) {
             merged.initializes = no_effect.initializes;
         } else if (no_terminates) {
@@ -640,6 +789,8 @@ std::unordered_map<std::string, StorageEffect> merge_reference_loop(
     auto result = before;
     for (const auto& [name, body_effect] : body) {
         auto& merged = result[name];
+        merged.restores_entry_state |= body_effect.restores_entry_state;
+        merged.copy_initializes.clear();
         union_set(merged.required, body_effect.required);
         union_set(merged.writes, body_effect.writes);
         union_set(merged.invalidates, body_effect.invalidates);
@@ -703,6 +854,28 @@ void apply_broadcast_shape(const Type& left, const Type& right, Type& result) {
 // check_block can now throw NESTING_DEPTH, which makes the previously
 // unreachable loop_depth_ leak reachable. A leaked loop_depth_ silently
 // legalises break/continue outside a loop for the rest of the check.
+// The consumption context is either a fail-fast operand or its enclosing
+// TryExpr. A scan consumes the latter at its exact failure boundary, before
+// adding success-only output initialization; the enclosing try then skips
+// its ordinary post-operand exit snapshot.
+bool propagates_operand_error(const Expr* context, const Expr& operand) {
+    const auto* attempt = context ? std::get_if<TryExpr>(&context->data) : nullptr;
+    return attempt && attempt->value.get() == &operand;
+}
+
+bool terminates_operand_error(const Expr* context, const Expr& operand) {
+    return context == &operand || propagates_operand_error(context,operand);
+}
+
+struct ScopedErrorConsumption {
+    ScopedErrorConsumption(const Expr*& slot,const Expr* value) : slot(slot), previous(slot) { slot = value; }
+    ~ScopedErrorConsumption() { slot = previous; }
+    ScopedErrorConsumption(const ScopedErrorConsumption&) = delete;
+    ScopedErrorConsumption& operator=(const ScopedErrorConsumption&) = delete;
+    const Expr*& slot;
+    const Expr* previous;
+};
+
 struct ScopedCounter {
     explicit ScopedCounter(std::size_t& value) : value_(value) { ++value_; }
     ~ScopedCounter() { --value_; }
@@ -818,9 +991,19 @@ std::string module_scoped_name(const std::string& module_namespace, const std::s
 // checked against the declarations of its own module: package code never
 // sees the importing program's globals, and the root file never sees a
 // package's unqualified names.
-bool Checker::declaration_name_visible(const std::string& name) const {
-    return functions_.contains(module_scoped_name(current_module_namespace_, name)) ||
-           type_name_declared_in(name, current_module_namespace_);
+bool Checker::declaration_name_visible(const std::string& name, SourceSpan span) const {
+    return declaration_name_visible_in(name, current_module_namespace_, span);
+}
+
+bool Checker::declaration_name_visible_in(const std::string& name,
+                                         const std::string& module_namespace,
+                                         SourceSpan span) const {
+    const auto scoped = module_scoped_name(module_namespace, name);
+    const auto exposure = declaration_exposure_.find(scoped);
+    if (exposure != declaration_exposure_.end() && span.start.offset < exposure->second)
+        return false;
+    return functions_.contains(scoped) || type_name_declared_in(name, module_namespace) ||
+           exposure != declaration_exposure_.end();
 }
 
 // A class or enum `name` declared by the module `module_namespace` ("" for the
@@ -861,7 +1044,7 @@ bool Checker::equality_supported(const Type& type) const {
                 return true;
             }
             if(current.kind==TypeKind::Tuple)return std::all_of(current.parameters.begin(),current.parameters.end(),supported);
-            if(current.kind==TypeKind::Union)return std::all_of(current.cases.begin(),current.cases.end(),[&](const Type& child){return child.kind==TypeKind::None || supported(child);});
+            if(current.kind==TypeKind::Union)return std::all_of(current.cases.begin(),current.cases.end(),[&](const Type& child){return child.kind==TypeKind::None || (child.kind==TypeKind::Void && !current.union_name.empty()) || supported(child);});
             if (current.kind == TypeKind::Array) {
                 return current.first && supported(*current.first);
             }
@@ -952,10 +1135,440 @@ void Checker::check_reference_equality_bound(const Expr& expression,const Type& 
     visit(visit,type,"");
 }
 
-bool Checker::fully_initialized_for_equality(const Expr& expression, const Type& type) const {
+namespace {
+
+bool storage_effect_invalidates(const StorageEffect& effect, const std::string& path) {
+    if (effect.initializes.contains(path)) return false;
+    return std::any_of(effect.invalidates.begin(), effect.invalidates.end(),
+        [&](const auto& invalid) {
+            return invalid.empty() || invalid == path || path.starts_with(invalid + ".") ||
+                   path.starts_with(invalid + "(");
+        });
+}
+
+} // namespace
+
+std::optional<std::pair<std::string, std::string>>
+Checker::class_copy_storage(const Expr& expression) const {
+    if (unknown_reference_access_path(expression)) return std::nullopt;
+    if (const auto path = current_receiver_path(expression)) return {{"$receiver", *path}};
+    if (const auto path = current_reference_parameter_path(expression))
+        return {{"$reference." + path->first, path->second}};
+    return member_storage_path(expression);
+}
+
+ClassCopyInitializations Checker::class_copy_initializations(const Expr& expression,
+                                                            const Type& type) const {
+    ClassCopyInitializations result;
+    if (copy_dependencies_disabled_ || type.kind != TypeKind::Class) return result;
+    if (const auto* conditional = std::get_if<IfExpr>(&expression.data)) {
+        result = class_copy_initializations(*conditional->otherwise, type);
+        auto known = initialized_paths_for_expr(*conditional->otherwise);
+        for (const auto& branch : conditional->values) {
+            const auto next = class_copy_initializations(*branch, type);
+            const auto next_known = initialized_paths_for_expr(*branch);
+            result = merge_copy_initializations(result, known, next, next_known);
+            for (auto it = known.begin(); it != known.end();)
+                if (!next_known.contains(*it)) it = known.erase(it);
+                else ++it;
+        }
+        return result;
+    }
+    const auto* direct = std::get_if<CallExpr>(&expression.data);
+    const auto* member = std::get_if<MethodCallExpr>(&expression.data);
+    if (direct || member) {
+        std::string target;
+        if (direct) {
+            if (const auto resolved = call_resolutions_.find(&expression); resolved != call_resolutions_.end())
+                target = resolved->second.target;
+        } else {
+            if (const auto resolved = method_calls_.find(&expression); resolved != method_calls_.end())
+                target = resolved->second.internal_name;
+        }
+        if (target.empty()) return result;
+        const auto definition = std::find_if(method_internal_names_.begin(), method_internal_names_.end(),
+            [&](const auto& item) { return item.second == target; });
+        if (definition == method_internal_names_.end() || definition->first->is_constructor) return result;
+        const auto selected = functions_.find(target);
+        if (selected == functions_.end() || selected->second.parameters.empty()) return result;
+        const auto& signature = selected->second;
+        const auto readonly = [](const StorageEffect& effect) {
+            return effect.writes.empty() && effect.invalidates.empty();
+        };
+        if (!readonly(signature.receiver_effect) ||
+            std::any_of(signature.reference_effects.begin(), signature.reference_effects.end(),
+                [&](const auto& effect) { return !readonly(effect.second); })) return result;
+        const auto& method = *definition->first;
+        const auto& args = direct ? direct->args : member->args;
+        if (args.size() != method.parameters.size()) return result; // no default-expression effects
+        const auto pure = [&](const auto& self, const Expr& value) -> bool {
+            if (std::holds_alternative<IntegerExpr>(value.data) ||
+                std::holds_alternative<RealLiteralExpr>(value.data) ||
+                std::holds_alternative<StringExpr>(value.data) ||
+                std::holds_alternative<BoolExpr>(value.data) ||
+                std::holds_alternative<NameExpr>(value.data)) return true;
+            if (const auto* field = std::get_if<MemberExpr>(&value.data)) return self(self, *field->base);
+            if (const auto* unary = std::get_if<UnaryExpr>(&value.data))
+                return (unary->op == "-" || unary->op == "+" || unary->op == "NOT" || unary->op == "not") &&
+                    self(self, *unary->operand);
+            if (const auto* binary = std::get_if<BinaryExpr>(&value.data))
+                return self(self, *binary->left) && self(self, *binary->right);
+            // Branch formulas meet both outcomes. An exact readonly predicate
+            // needs no value assumption, but must not mutate the copied source
+            // or evaluate defaults hidden from this proof.
+            const auto* call = std::get_if<CallExpr>(&value.data);
+            const auto* method_call = std::get_if<MethodCallExpr>(&value.data);
+            if (!call && !method_call) return false;
+            if ((call ? call->mutation_marker : method_call->mutation_marker) ||
+                !(call ? call->args : method_call->args).empty()) return false;
+            std::string target;
+            if (const auto resolved = call_resolutions_.find(&value);
+                resolved != call_resolutions_.end() && resolved->second.kind == CallKind::Function)
+                target = resolved->second.target;
+            if (target.empty() && method_call)
+                if (const auto resolved = method_calls_.find(&value); resolved != method_calls_.end())
+                    target = resolved->second.internal_name;
+            const auto predicate = functions_.find(target);
+            const auto declaration = std::find_if(method_internal_names_.begin(), method_internal_names_.end(),
+                [&](const auto& item) { return item.second == target; });
+            if (predicate == functions_.end() || declaration == method_internal_names_.end() ||
+                declaration->first->is_constructor || declaration->first->mutation_marker ||
+                !declaration->first->parameters.empty() || predicate->second.result.kind != TypeKind::Bool ||
+                predicate->second.parameters.size() != 1 || predicate->second.parameters.front().writable ||
+                !readonly(predicate->second.receiver_effect) || !predicate->second.reference_effects.empty()) return false;
+            if (method_call) return self(self, *method_call->receiver);
+            return predicate->second.parameters.front().type == signature.parameters.front().type;
+        };
+        if (std::any_of(args.begin(), args.end(), [&](const CallArg& argument) {
+                return argument.writable || !pure(pure, *argument.value);
+            })) return result;
+        const auto receiver = member ? class_copy_storage(*member->receiver)
+            : std::optional<std::pair<std::string, std::string>>{{"$receiver", ""}};
+        const bool receiver_entry_path = receiver && receiver->second.find_first_of("[(") == std::string::npos;
+        const auto receiver_known = member ? initialized_paths_for_expr(*member->receiver)
+            : std::unordered_set<std::string>{};
+        if (!receiver_entry_path && receiver_known.empty()) return result;
+        const auto owner = signature.parameters.front().type;
+        if (owner.kind != TypeKind::Class) return result;
+        if (direct && owner.class_name != current_class_) return result;
+        const auto owned_path = [&](const auto& self, const Expr& value) -> std::optional<std::string> {
+            if (const auto* name = std::get_if<NameExpr>(&value.data)) {
+                if (name->self_reference) return std::string{};
+                if (name->this_qualifier) return name->name;
+            }
+            if (const auto* field = std::get_if<MemberExpr>(&value.data)) {
+                if (auto base = self(self, *field->base))
+                    return base->empty() ? field->name : *base + "." + field->name;
+            }
+            return std::nullopt;
+        };
+        const auto append_fields = [&](ExprPtr base, Type source, const std::string& path) -> ExprPtr {
+            std::size_t start = 0;
+            while (start < path.size()) {
+                const auto dot = path.find('.', start);
+                const auto name = path.substr(start, dot == std::string::npos ? dot : dot - start);
+                if (source.kind != TypeKind::Class) return nullptr;
+                const auto* field = find_field(source.class_name, name);
+                if (!field || field->reference) return nullptr;
+                auto next = std::make_unique<Expr>(); next->span = expression.span;
+                if (!base) next->data = NameExpr{name, expression.span};
+                else next->data = MemberExpr{std::move(base), name};
+                base = std::move(next); source = field->type;
+                if (dot == std::string::npos) break;
+                start = dot + 1;
+            }
+            return source == type ? std::move(base) : nullptr;
+        };
+        std::function<std::optional<ClassCopyInitializations>(const Expr&)> branch_formula;
+        branch_formula = [&](const Expr& value) -> std::optional<ClassCopyInitializations> {
+            ClassCopyInitializations branch;
+            if (const auto* choice = std::get_if<IfExpr>(&value.data)) {
+                if (!std::all_of(choice->conditions.begin(), choice->conditions.end(),
+                    [&](const auto& condition) { return pure(pure, *condition); })) return std::nullopt;
+                auto merged = branch_formula(*choice->otherwise);
+                if (!merged) return std::nullopt;
+                for (const auto& selected : choice->values) {
+                    auto next = branch_formula(*selected);
+                    if (!next) return std::nullopt;
+                    *merged = merge_copy_initializations(*merged, {}, *next, {});
+                }
+                return merged;
+            }
+            if (const auto origin = owned_path(owned_path, value); origin && !origin->empty()) {
+                // An already-read receiver (for example an array element)
+                // may have concrete owned-field proofs even without an entry
+                // storage path. Only copy facts actually present at this call.
+                bool concrete = true;
+                for (const auto& field : complete_class_paths(type)) {
+                    const auto full = *origin + (field.starts_with('(') ? "" : ".") + field;
+                    if (!receiver_known.contains(full)) { concrete = false; break; }
+                    branch[field] = {};
+                }
+                if (concrete) return branch;
+                if (!receiver_entry_path) return std::nullopt;
+                branch.clear();
+                ExprPtr base;
+                Type source;
+                if (receiver->first == "$receiver") source = Type::class_type(current_class_);
+                else {
+                    const auto root = receiver->first.starts_with("$reference.")
+                        ? receiver->first.substr(11) : receiver->first;
+                    if (root.empty() || root.starts_with("$")) return std::nullopt;
+                    const auto declared = variables_.find(root);
+                    if (declared == variables_.end()) return std::nullopt;
+                    source = declared->second;
+                    base = std::make_unique<Expr>(); base->span = expression.span; base->data = NameExpr{root};
+                }
+                const auto path = receiver->second.empty() ? *origin : receiver->second + "." + *origin;
+                auto proxy = append_fields(std::move(base), source, path);
+                if (!proxy) return std::nullopt;
+                branch = class_copy_initializations(*proxy, type);
+                for (const auto& path : initialized_paths_for_expr(*proxy)) branch[path] = {};
+                return branch;
+            }
+            const auto* construction = std::get_if<CallExpr>(&value.data);
+            const auto call = call_resolutions_.find(&value);
+            if (!construction || construction->callee != type.class_name || call == call_resolutions_.end() ||
+                std::any_of(construction->args.begin(), construction->args.end(), [&](const CallArg& arg) {
+                    return arg.writable || !pure(pure, *arg.value);
+                })) return std::nullopt;
+            const auto constructor = functions_.find(call->second.target);
+            if (constructor == functions_.end() || !constructor->second.reference_effects.empty()) return std::nullopt;
+            for (const auto& parameter : constructor->second.parameters)
+                if (!is_numeric(parameter.type) && parameter.type.kind != TypeKind::String &&
+                    parameter.type.kind != TypeKind::Bool && parameter.type.kind != TypeKind::Bin)
+                    return std::nullopt;
+            for (const auto& path : constructor->second.return_initialized_fields) branch[path] = {};
+            return branch;
+        };
+        std::vector<ClassCopyInitializations> returns;
+        const auto collect = [&](const auto& self, const std::vector<StmtPtr>& body) -> bool {
+            for (const auto& statement : body) {
+                if (const auto* exit = std::get_if<ReturnStmt>(&statement->data)) {
+                    const auto formula = branch_formula(*exit->value);
+                    if (!formula) return false;
+                    returns.push_back(*formula);
+                } else if (const auto* conditional = std::get_if<IfStmt>(&statement->data)) {
+                    if (!conditional->condition_bindings.empty() || !pure(pure, *conditional->condition) ||
+                        !self(self, conditional->then_body) || !self(self, conditional->else_body)) return false;
+                } else if (const auto* local = std::get_if<BindingStmt>(&statement->data)) {
+                    // A value local does not replace receiver storage. Keep
+                    // its initializer restricted to scalar reads or a checked
+                    // exact readonly call; aliases and opaque calls stay out.
+                    if (local->reference || local->reference_initializer || local->pattern || !local->value)
+                        return false;
+                    if (pure(pure, *local->value)) continue;
+                    const auto* call = std::get_if<CallExpr>(&local->value->data);
+                    const auto resolved = call_resolutions_.find(local->value.get());
+                    if (!call || call->mutation_marker || resolved == call_resolutions_.end() ||
+                        resolved->second.kind != CallKind::Function ||
+                        std::any_of(call->args.begin(), call->args.end(), [&](const CallArg& arg) {
+                            return arg.writable || !pure(pure, *arg.value);
+                        })) return false;
+                    const auto callee = functions_.find(resolved->second.target);
+                    if (callee == functions_.end() || !readonly(callee->second.receiver_effect) ||
+                        std::any_of(callee->second.reference_effects.begin(), callee->second.reference_effects.end(),
+                            [&](const auto& effect) { return !readonly(effect.second); })) return false;
+                } else return false;
+            }
+            return true;
+        };
+        if (!collect(collect, method.body) || returns.empty()) return result;
+        result = returns.front();
+        for (std::size_t i = 1; i < returns.size(); ++i)
+            result = merge_copy_initializations(result, {}, returns[i], {});
+        return result;
+    }
+    const auto storage = class_copy_storage(expression);
+    if (!storage || storage->second.find("[]") != std::string::npos) return result;
+    const auto known = initialized_paths_for_expr(expression);
+    const StorageEffect* effect = nullptr;
+    std::string parameter;
+    const ClassCopyInitializations* stored = nullptr;
+    if (storage->first == "$receiver") {
+        effect = &current_receiver_effect_;
+        stored = &effect->copy_initializes;
+    } else if (storage->first.starts_with("$reference.")) {
+        parameter = storage->first.substr(11);
+        if (const auto item = current_reference_effects_.find(parameter);
+            item != current_reference_effects_.end()) effect = &item->second;
+        if (effect) stored = &effect->copy_initializes;
+    } else if (const auto item = class_initialized_paths_.find(storage->first);
+               item != class_initialized_paths_.end()) stored = &item->second.copy_initializes;
+    for (const auto& path : complete_class_paths(type)) {
+        const auto& prefix = storage->second;
+        const auto full = prefix.empty() ? path : path.empty() ? prefix :
+            prefix + (path.starts_with('(') ? "" : ".") + path;
+        if (stored) {
+            if (const auto copy = stored->find(full); copy != stored->end()) {
+                result[path] = copy->second;
+                continue;
+            }
+        }
+        if (known.contains(path)) continue;
+        if (effect && !(storage->first == "$receiver" && in_constructor_) &&
+            !storage_effect_invalidates(*effect, full))
+            result[path] = {{parameter, full}};
+    }
+    return result;
+}
+
+bool Checker::require_class_copy_initialization(const Expr& expression,
+                                               const std::vector<std::string>& needed) {
+    if (copy_dependencies_disabled_) return false;
+    const auto storage = class_copy_storage(expression);
+    if (!storage || storage->second.find("[]") != std::string::npos) return false;
+    ClassCopyInitializations* copies = nullptr;
+    StorageEffect* target_effect = nullptr;
+    if (storage->first == "$receiver") target_effect = &current_receiver_effect_;
+    else if (storage->first.starts_with("$reference."))
+        target_effect = &current_reference_effects_[storage->first.substr(11)];
+    else copies = &class_initialized_paths_[storage->first].copy_initializes;
+    if (target_effect) copies = &target_effect->copy_initializes;
+    std::vector<std::string> full_paths;
+    for (const auto& path : needed) {
+        const auto& prefix = storage->second;
+        const auto full = prefix.empty() ? path : path.empty() ? prefix :
+            prefix + (path.starts_with('(') ? "" : ".") + path;
+        const auto item = copies->find(full);
+        if (item == copies->end()) return false;
+        full_paths.push_back(full);
+    }
+    for (const auto& full : full_paths) {
+        // These dependencies were validated at COPY time. A later source
+        // write must neither satisfy nor invalidate the older value copy.
+        for (const auto& dependency : copies->at(full)) {
+            if (dependency.parameter.empty()) current_receiver_effect_.required.insert(dependency.path);
+            else current_reference_effects_[dependency.parameter].required.insert(dependency.path);
+        }
+        auto& paths = target_effect ? target_effect->initializes :
+            static_cast<std::unordered_set<std::string>&>(class_initialized_paths_[storage->first]);
+        std::string prefix;
+        std::size_t start = 0;
+        while (start < full.size()) {
+            const auto dot = full.find('.', start);
+            if (!prefix.empty()) prefix += ".";
+            prefix += full.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+            paths.insert(prefix);
+            if (dot == std::string::npos) break;
+            start = dot + 1;
+        }
+    }
+    return true;
+}
+
+void Checker::replace_local_copy_initializations(const Expr& target,
+                                                 const ClassCopyInitializations& source) {
+    const auto storage = class_copy_storage(target);
+    if (!storage) {
+        if (unknown_reference_access_path(target)) {
+            const auto type = expr_types_.find(&target);
+            if (type == expr_types_.end() || type->second.kind == TypeKind::Class || type->second.kind == TypeKind::Tuple)
+                discard_unknown_class_initializations();
+        }
+        return;
+    }
+    if (storage->first.starts_with("$") || storage->second.find("[]") != std::string::npos) return;
+    auto& copies = class_initialized_paths_[storage->first].copy_initializes;
+    erase_copy_initializations(copies, storage->second);
+    for (const auto& [path, dependencies] : source) {
+        const auto& prefix = storage->second;
+        const auto full = prefix.empty() ? path : path.empty() ? prefix :
+            prefix + (path.starts_with('(') ? "" : ".") + path;
+        copies[full] = dependencies;
+    }
+}
+
+void Checker::discard_unknown_class_initializations() {
+    for (auto& [root, fields] : class_initialized_paths_) {
+        if (const_bindings_.contains(root)) continue;
+        fields.clear(); fields.copy_initializes.clear();
+    }
+    for (const auto& [root, type] : variables_) {
+        if (!const_bindings_.contains(root) &&
+            (type.kind == TypeKind::Class || type.kind == TypeKind::Array || type.kind == TypeKind::Tuple))
+            traversal_element_invalidations_[root].insert("");
+    }
+    traversal_element_invalidations_["$receiver"].insert("");
+    const auto discard = [&](StorageEffect& effect, const Type& type) {
+        auto paths = complete_class_paths(type);
+        paths.insert(effect.initializes.begin(), effect.initializes.end());
+        paths.insert(effect.required.begin(), effect.required.end());
+        for (const auto& path : paths) {
+            if (path.empty() || path == "$complete") continue;
+            effect.initializes.erase(path);
+            effect.invalidates.insert(path);
+        }
+        effect.copy_initializes.clear();
+    };
+    discard(current_receiver_effect_, Type::class_type(current_class_));
+    for (auto& [name, effect] : current_reference_effects_) {
+        if (const_bindings_.contains(name)) continue;
+        const auto type = variables_.find(name);
+        discard(effect, type == variables_.end() ? Type::simple(TypeKind::Invalid) : type->second);
+    }
+}
+
+void Checker::discard_loop_copy_initializations() {
+    // The body gate already excludes loops whose aliases or replacements
+    // are not modeled. Safe loops retain copy-time entry dependencies.
+    if (!copy_dependencies_disabled_) return;
+    // A dependency may already have promoted a copied field to a concrete
+    // proof. If an unmodeled loop/alias can write that value, discard both
+    // the formula and those concrete facts, not merely its provenance.
+    for (auto& [_, fields] : class_initialized_paths_) {
+        if (!fields.copy_initializes.empty()) fields.clear();
+        fields.copy_initializes.clear();
+    }
+    const auto discard = [&](StorageEffect& effect, const Type& type) {
+        if (effect.copy_initializes.empty()) return;
+        auto paths = complete_class_paths(type);
+        for (const auto& [path, _] : effect.copy_initializes) paths.insert(path);
+        for (const auto& path : paths) {
+            effect.initializes.erase(path);
+            effect.invalidates.insert(path);
+        }
+        effect.copy_initializes.clear();
+    };
+    discard(current_receiver_effect_, Type::class_type(current_class_));
+    for (auto& [name, effect] : current_reference_effects_) {
+        const auto type = variables_.find(name);
+        discard(effect, type == variables_.end() ? Type::simple(TypeKind::Invalid) : type->second);
+    }
+}
+
+bool Checker::fully_initialized_for_equality(const Expr& expression, const Type& type) {
     if (type.kind != TypeKind::Class && type.kind != TypeKind::Tuple) return true;
-    const auto paths = initialized_paths_for_expr(expression);
     const auto complete = complete_class_paths(type);
+    const auto before = initialized_paths_for_expr(expression);
+    std::vector<std::string> missing;
+    for (const auto& path : complete) if (!before.contains(path)) missing.push_back(path);
+    if (!missing.empty()) (void)require_class_copy_initialization(expression, missing);
+    if (const auto* tuple = std::get_if<TupleExpr>(&expression.data);
+        tuple && type.kind == TypeKind::Tuple) {
+        for (std::size_t i = 0; i < tuple->elements.size() && i < type.parameters.size(); ++i)
+            if (!fully_initialized_for_equality(*tuple->elements[i], type.parameters[i])) return false;
+    }
+    // A complete-value read through a writable parameter is an entry
+    // requirement, just like an ordinary field read. A later replacement
+    // cannot be repaired by strengthening the state required on entry.
+    const auto require = [&](StorageEffect& effect, const std::string& prefix) {
+        StorageEffect requirements;
+        requirements.required = complete;
+        for (const auto& path : complete) {
+            const auto full = prefix.empty() ? path : path.empty() ? prefix :
+                prefix + (path.starts_with('(') ? "" : ".") + path;
+            if (storage_effect_invalidates(effect, full)) return false;
+        }
+        compose_storage_effect(effect, requirements, prefix);
+        return true;
+    };
+    if (const auto reference = current_reference_parameter_path(expression)) {
+        if (!require(current_reference_effects_[reference->first], reference->second)) return false;
+    } else if (const auto receiver = current_receiver_path(expression); receiver && !in_constructor_) {
+        if (!require(current_receiver_effect_, *receiver)) return false;
+    }
+    const auto paths = initialized_paths_for_expr(expression);
     return std::all_of(complete.begin(), complete.end(),
                        [&](const auto& path) { return paths.contains(path); });
 }
@@ -992,6 +1605,130 @@ std::unordered_set<std::string> Checker::complete_class_paths(const Type& type) 
 std::string Checker::reference_root(const std::string& name) const {
     if (const auto it = reference_roots_.find(name); it != reference_roots_.end()) return it->second;
     return name;
+}
+
+
+// The address walk already checked index operands and their effects. Read the
+// array base's storage requirements without evaluating those operands twice.
+void Checker::check_address_value_read(const Expr& expression) {
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        check_name_expr(expression, *name, nullptr);
+    } else if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+        check_address_value_read(*member->base);
+        if (const auto access = field_accesses_.find(&expression);
+            access != field_accesses_.end() &&
+            classes_.at(access->second.owner).fields.at(access->second.index).reference) return;
+        StorageEffect required;
+        required.required.insert(member->name);
+        if (in_constructor_) {
+            if (const auto receiver = current_receiver_path(expression);
+                receiver && !current_receiver_effect_.initializes.contains(*receiver))
+                error("UNINITIALIZED", "Array storage is read before generation initializes it.", expression.span);
+        }
+        check_storage_effect_requirements(*member->base, required, expression.span, false);
+    } else if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
+        check_address_value_read(*index->base);
+        check_element_read(*index->base, index->items.front().index.get(), expression.span);
+        const auto type = expr_types_.find(&expression);
+        if (type != expr_types_.end() &&
+            (type->second.kind == TypeKind::Class || type->second.kind == TypeKind::Tuple))
+            class_expr_initialized_paths_[&expression] =
+                array_ingress_initialized_paths(expression, type->second, true);
+    }
+}
+
+// A Class/Tuple element is a whole value when it enters an array. An alias
+// reads the element through LoadReference's slot initialization guard; taking
+// its address alone does not prove that an unfilled slot has a value.
+std::unordered_set<std::string> Checker::array_ingress_initialized_paths(
+    const Expr& expression, const Type& type, bool indexed_read) const {
+    const auto origin = alias_storage_path(expression);
+    if (unknown_reference_access_path(expression) ||
+        (origin && origin->first.starts_with("$") && origin->first != "$receiver")) return {};
+    if (!origin || origin->second.find("[]") == std::string::npos || reaches_reference_field(expression))
+        return indexed_read ? complete_class_paths(type) : std::unordered_set<std::string>{};
+    if (!indexed_read && known_uninitialized_array_alias(expression)) return {};
+    auto paths = complete_class_paths(type);
+    // Explicit writes through this known local alias retain their actual
+    // field proofs even for an originally unfilled array.
+    if (const auto stored = class_initialized_paths_.find(origin->first);
+        stored != class_initialized_paths_.end()) {
+        const auto prefix = origin->second + ".";
+        for (const auto& path : stored->second) {
+            if (path.starts_with(prefix)) paths.insert(path.substr(prefix.size()));
+            else if (path.starts_with(origin->second + "("))
+                paths.insert(path.substr(origin->second.size()));
+        }
+    }
+    const auto below = [](const std::string& path, const std::string& parent) {
+        return parent.empty() || path == parent || path.starts_with(parent + ".") ||
+               path.starts_with(parent + "(") || path.starts_with(parent + "[]");
+    };
+    const StorageEffect* live = nullptr;
+    if (origin->first == "$receiver") live = &current_receiver_effect_;
+    else if (const auto found = current_reference_effects_.find(origin->first);
+             found != current_reference_effects_.end()) live = &found->second;
+    const Expr* root_expression = &expression;
+    while (true) {
+        if (const auto* member = std::get_if<MemberExpr>(&root_expression->data)) root_expression = member->base.get();
+        else if (const auto* index = std::get_if<IndexExpr>(&root_expression->data)) root_expression = index->base.get();
+        else break;
+    }
+    const auto* source_root = std::get_if<NameExpr>(&root_expression->data);
+    const bool captured_base = source_root && !current_reference_parameters_.contains(source_root->name) &&
+        reference_paths_.contains(source_root->name);
+    const auto filter = [&](const auto& invalidations, bool captured) {
+        for (const auto& invalid : invalidations) {
+            if (invalid.empty()) { paths.clear(); continue; }
+            // Direct indexed reads follow the current array's existing
+            // effect restoration; persistent facts below are for captures.
+            if (captured && indexed_read && live && !captured_base) continue;
+            // An element alias captures its array storage. Replacing the
+            // parent array does not replace this captured element. Changes
+            // below an element step can change the captured value.
+            if (invalid.find("[]") == std::string::npos) continue;
+            for (auto it = paths.begin(); it != paths.end();) {
+                const auto full = origin->second + (it->starts_with('(') ? "" : ".") + *it;
+                if (below(full, invalid) && (captured || !live || storage_effect_invalidates(*live, full)))
+                    it = paths.erase(it); else ++it;
+            }
+        }
+    };
+    if (const auto invalid = traversal_element_invalidations_.find(origin->first);
+        invalid != traversal_element_invalidations_.end()) filter(invalid->second, true);
+    if (live) filter(live->invalidates, false);
+    return paths;
+}
+
+bool Checker::known_uninitialized_array_alias(const Expr& expression) const {
+    const auto* name = binding_name(expression);
+    if (!name || !variables_.contains(name->name) ||
+        (variables_.at(name->name).kind != TypeKind::Class && variables_.at(name->name).kind != TypeKind::Tuple)) return false;
+    const auto origin = reference_paths_.find(name->name);
+    if (origin == reference_paths_.end() || !origin->second.second.ends_with("[]")) return false;
+    const auto declaration = binding_declarations_.find(origin->second.first);
+    if (declaration == binding_declarations_.end()) return false;
+    const auto* binding = std::get_if<BindingStmt>(&declaration->second->data);
+    if (!binding || binding->reference) return false;
+    // Keep raw fixed/dynamic allocations fail-closed, even if the parent
+    // variable was subsequently replaced. A whole-value store through the
+    // alias records its actual prefix below and makes a later read valid.
+    const auto* allocation = binding->value ? std::get_if<CallExpr>(&binding->value->data) : nullptr;
+    const bool unfilled = !binding->value ||
+        (allocation && allocation->callee == "array" && allocation->args.size() == 1 && !allocation->args.front().name);
+    if (!unfilled) return false;
+    return !initialized_.contains("$array_value." + name->name);
+}
+
+void Checker::record_array_ingress_invalidations(const Expr& target, const StorageEffect& effect) {
+    const auto origin = alias_storage_path(target);
+    if (!origin || unknown_reference_access_path(target) || reaches_reference_field(target)) return;
+    for (const auto& relative : effect.invalidates) {
+        const auto full = origin->second.empty() ? relative : relative.empty() ? origin->second :
+            origin->second + (relative.starts_with('(') ? "" : ".") + relative;
+        if (full.find("[]") != std::string::npos)
+            traversal_element_invalidations_[origin->first].insert(full);
+    }
 }
 
 std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& expression) const {
@@ -1031,6 +1768,10 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
     }
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
         if (name->self_reference) return in_constructor_ ? current_receiver_effect_.initializes : complete_class_paths(Type::class_type(current_class_));
+        if (!unknown_reference_access_path(expression) && variables_.contains(name->name) &&
+            (variables_.at(name->name).kind == TypeKind::Class || variables_.at(name->name).kind == TypeKind::Tuple) &&
+            reference_paths_.contains(name->name) && reference_paths_.at(name->name).second.ends_with("[]"))
+            return array_ingress_initialized_paths(expression, variables_.at(name->name), false);
         if (const auto reference = current_reference_parameter_path(expression)) {
             std::unordered_set<std::string> paths;
             const auto relative = [&](const std::string& path) {
@@ -1045,19 +1786,24 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
             };
             if (const auto it = current_reference_effects_.find(reference->first);
                 it != current_reference_effects_.end()) {
-                for (const auto& path : it->second.required) relative(path);
+                for (const auto& path : it->second.required)
+                    if (!storage_effect_invalidates(it->second, path)) relative(path);
                 for (const auto& path : it->second.initializes) relative(path);
             }
             return paths;
         }
-        if (receiver_field(expression)) {
-            if (!current_receiver_effect_.initializes.contains(name->name)) return {};
+        if (const auto receiver = current_receiver_path(expression)) {
             std::unordered_set<std::string> nested;
-            const auto prefix = name->name + ".";
-            for (const auto& path : current_receiver_effect_.initializes) {
-                if (path.rfind(prefix, 0) == 0) nested.insert(path.substr(prefix.size()));
-                else if (path.starts_with(name->name + "(")) nested.insert(path.substr(name->name.size()));
-            }
+            const auto prefix = receiver->empty() ? std::string{} : *receiver + ".";
+            const auto collect = [&](const auto& paths, bool entry) {
+                for (const auto& path : paths) {
+                    if (entry && storage_effect_invalidates(current_receiver_effect_, path)) continue;
+                    if (path.rfind(prefix, 0) == 0) nested.insert(path.substr(prefix.size()));
+                    else if (path.starts_with(*receiver + "(")) nested.insert(path.substr(receiver->size()));
+                }
+            };
+            collect(current_receiver_effect_.required, true);
+            collect(current_receiver_effect_.initializes, false);
             return nested;
         }
         if (name->this_qualifier) return {};
@@ -1177,6 +1923,42 @@ std::optional<std::string> Checker::current_receiver_path(const Expr& expression
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
         if (name->self_reference && !current_class_.empty()) return std::string{};
         if (receiver_field(expression)) return name->name;
+        if (!name->this_qualifier && !unknown_reference_targets_.contains(name->name)) {
+            if (const auto alias = reference_paths_.find(name->name);
+                alias != reference_paths_.end() && alias->second.first == "$receiver" &&
+                !alias->second.second.empty() &&
+                ((alias->second.second.find("[]") == std::string::npos &&
+                  alias->second.second.find('.') == std::string::npos) ||
+                 (alias->second.second.ends_with("[]") && variables_.contains(name->name) &&
+                  (variables_.at(name->name).kind == TypeKind::Class ||
+                   variables_.at(name->name).kind == TypeKind::Tuple)))) {
+                // This origin describes owned value fields, never the fixed
+                // instance itself or storage reached through a reference field.
+                auto type = Type::class_type(current_class_);
+                std::string_view remaining = alias->second.second;
+                while (!remaining.empty()) {
+                    if (type.kind != TypeKind::Class) return std::nullopt;
+                    const auto dot = remaining.find('.');
+                    auto component = remaining.substr(0, dot);
+                    const auto projection = component.find("[]");
+                    const auto* field = find_field(type.class_name, std::string(component.substr(0, projection)));
+                    if (!field || field->reference) return std::nullopt;
+                    type = field->type;
+                    if (projection != std::string_view::npos) {
+                        component.remove_prefix(projection);
+                        while (!component.empty()) {
+                            if (!component.starts_with("[]") || type.kind != TypeKind::Array || !type.first)
+                                return std::nullopt;
+                            auto element_type = *type.first;
+                            type = std::move(element_type);
+                            component.remove_prefix(2);
+                        }
+                    }
+                    if (dot == std::string_view::npos) return alias->second.second;
+                    remaining.remove_prefix(dot + 1);
+                }
+            }
+        }
         return std::nullopt;
     }
     if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
@@ -1296,6 +2078,9 @@ bool Checker::storage_initialized(const Expr& expression) const {
             return receiver_field(expression) &&
                    current_receiver_effect_.initializes.contains(name->name);
         }
+        if (!unknown_reference_access_path(expression) && variables_.contains(name->name) &&
+            (variables_.at(name->name).kind == TypeKind::Class || variables_.at(name->name).kind == TypeKind::Tuple) &&
+            reference_paths_.contains(name->name) && reference_paths_.at(name->name).second.ends_with("[]")) return !known_uninitialized_array_alias(expression);
         if (const auto reference = current_reference_parameter_path(expression)) {
             if (const auto it = current_reference_effects_.find(reference->first);
                 it != current_reference_effects_.end()) {
@@ -1399,6 +2184,39 @@ std::optional<std::string> Checker::initialization_root(const std::string& name)
 void Checker::check_maybe_initialized_read(const Expr& read, const std::string& name) {
     const auto root = initialization_root(name);
     if (!root) {
+        if (unknown_reference_targets_.contains(name) && in_function_ && !in_constructor_ &&
+            !copy_dependencies_disabled_ && variables_.contains(name) &&
+            variables_.at(name).kind == TypeKind::String &&
+            !maybe_initialized_.contains("$scalar_parent_changed")) {
+            const auto origins = traversal_reference_origins_.find(name);
+            std::string parent;
+            StorageEffect required;
+            bool valid = origins != traversal_reference_origins_.end() && !origins->second.empty();
+            if (valid) for (const auto& [candidate, field_name] : origins->second) {
+                if (!current_reference_parameters_.contains(candidate) ||
+                    !variables_.contains(candidate) || variables_.at(candidate).kind != TypeKind::Class ||
+                    field_name.empty() || field_name.find_first_of(".[](") != std::string::npos ||
+                    (!parent.empty() && parent != candidate)) { valid = false; break; }
+                const auto* field = find_field(variables_.at(candidate).class_name, field_name);
+                const auto poison = traversal_element_invalidations_.find(candidate);
+                if (!field || field->reference || field->type.kind != TypeKind::String ||
+                    storage_effect_invalidates(current_reference_effects_[candidate], field_name) ||
+                    (poison != traversal_element_invalidations_.end() && poison->second.contains(""))) {
+                    valid = false; break;
+                }
+                parent = candidate;
+                required.required.insert(field_name);
+            }
+            if (valid) {
+                // Taking an address was not a read. Require entry fields only
+                // here, unless an ordinary scalar store already initialized
+                // that same stable field in this function.
+                compose_storage_effect(current_reference_effects_[parent], required);
+                initialized_.insert(name);
+                initialized_.insert("$bound_target." + name);
+                return;
+            }
+        }
         if (unknown_reference_targets_.contains(name)) {
             error("UNINITIALIZED",
                   "'" + name + "' may be uninitialized through a reference whose target is not known.",
@@ -1504,7 +2322,9 @@ std::unordered_set<std::string> copied_reference_maybe_paths(
         }
         if (current.kind != TypeKind::Class ||
             !visiting.insert(current.class_name).second) return;
-        for (const auto& field : classes.at(current.class_name).fields) {
+        const auto info = classes.find(current.class_name);
+        if (info == classes.end()) { visiting.erase(current.class_name); return; }
+        for (const auto& field : info->second.fields) {
             const auto path = prefix.empty() ? field.name : prefix + "." + field.name;
             if (field.reference) {
                 if (initialized.contains(path)) continue;
@@ -1585,6 +2405,11 @@ void Checker::note_class_value(const std::string& root, const std::string& path,
                                const std::unordered_set<std::string>& initialized,
                                const Expr* source) {
     if ((type.kind != TypeKind::Class && type.kind != TypeKind::Tuple) || !path.empty()) return;
+    if (source) {
+        NameExpr name; name.name = root;
+        Expr target; target.data = std::move(name);
+        replace_local_copy_initializations(target, class_copy_initializations(*source, type));
+    }
     // A successful direct generation starts with a fresh mask. Only trust
     // entries checked without any untracked writes; copies, factories
     // and fallible generation results keep their conservative classification.
@@ -1664,7 +2489,11 @@ const NameExpr* place_root(const Expr& expression) {
 // receivers and the targets of scan formats.
 void collect_possible_initializations(const std::vector<StmtPtr>& body,
                                       std::unordered_set<std::string>& names,
-                                      bool& unknown) {
+                                      bool& unknown, bool* has_try = nullptr,
+                                      const FunctionDecl* signature = nullptr,
+                                      const std::function<void(const Expr&, bool)>* observe_expression = nullptr,
+                                      const std::function<void(const Stmt&, bool)>* observe_statement = nullptr,
+                                      bool repeated = false) {
     const auto place = [&](const Expr& expression) {
         if (const auto* root = place_root(expression)) {
             names.insert(root->name);
@@ -1678,13 +2507,18 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         else
             unknown = true;
     };
+    bool expression_repeated = repeated;
+    std::function<void(const TypeName&)> type_expressions;
     std::function<void(const Expr&)> expression = [&](const Expr& node) {
         const auto each = [&](const ExprPtr& item) {
             if (item) expression(*item);
         };
+        if (observe_expression) (*observe_expression)(node, expression_repeated);
         const auto& data = node.data;
+        if ((has_try || observe_expression || observe_statement) && node.contextual_default_type) type_expressions(*node.contextual_default_type);
         if (const auto* call = std::get_if<CallExpr>(&data)) {
             names.insert("$this");
+            if (has_try || observe_expression || observe_statement) for (const auto& type : call->type_arguments) type_expressions(type);
             for (const auto& argument : call->args) {
                 if (argument.writable) place(*argument.value);
                 each(argument.value);
@@ -1699,6 +2533,7 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         } else if (const auto* call = std::get_if<MethodCallExpr>(&data)) {
             if (const auto* root = place_root(*call->receiver)) names.insert(root->name);
             each(call->receiver);
+            if (has_try || observe_expression || observe_statement) for (const auto& type : call->type_arguments) type_expressions(type);
             for (const auto& argument : call->args) {
                 if (argument.writable) place(*argument.value);
                 each(argument.value);
@@ -1708,7 +2543,13 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         } else if (const auto* array = std::get_if<TupleExpr>(&data)) {
             for (const auto& item : array->elements) each(item);
         } else if (const auto* array = std::get_if<ArrayComprehensionExpr>(&data)) {
-            visit_array_comprehension(*array, [&](const Expr& child) { expression(child); });
+            each(array->source); // source is evaluated once in this ambient context
+            const bool previous = expression_repeated;
+            expression_repeated = true;
+            if ((has_try || observe_expression || observe_statement) && array->type) type_expressions(*array->type);
+            each(array->condition);
+            each(array->value);
+            expression_repeated = previous;
         } else if (const auto* array = std::get_if<ArrayExpr>(&data)) {
             for (const auto& item : array->elements) each(item);
         } else if (const auto* index = std::get_if<IndexExpr>(&data)) {
@@ -1729,19 +2570,39 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         } else if (const auto* chain = std::get_if<ComparisonChainExpr>(&data)) {
             for (const auto& operand : chain->operands) each(operand);
         } else if (const auto* attempt = std::get_if<TryExpr>(&data)) {
+            if (has_try) *has_try = true;
             each(attempt->value);
+        } else if (const auto* literal = std::get_if<LiteralConstantExpr>(&data)) {
+            if (has_try || observe_expression || observe_statement) each(literal->value);
         } else if (const auto* choice = std::get_if<IfExpr>(&data)) {
             for (const auto& item : choice->conditions) each(item);
             for (const auto& item : choice->values) each(item);
             each(choice->otherwise);
         }
     };
+    type_expressions = [&](const TypeName& type) {
+        for (const auto& argument : type.arguments) type_expressions(argument);
+        for (const auto& parameter : type.function_parameters) type_expressions(parameter);
+        for (const auto& value : type.dimension_expressions) if (value) expression(*value);
+        for (const auto& value : type.tensor_shape_expressions) if (value) expression(*value);
+        for (const auto& axis : type.shape_axes) if (axis.value) expression(*axis.value);
+    };
+    if ((has_try || observe_expression || observe_statement) && signature) {
+        type_expressions(signature->return_type);
+        for (const auto& parameter : signature->parameters) {
+            type_expressions(parameter.type);
+            if (parameter.default_value) expression(*parameter.default_value);
+        }
+    }
     for (const auto& statement : body) {
+        if (observe_statement) (*observe_statement)(*statement, repeated);
         const auto& data = statement->data;
         if (const auto* node = std::get_if<BindingStmt>(&data)) {
+            if (has_try || observe_expression || observe_statement) type_expressions(node->declared_type);
+            if ((has_try || observe_expression || observe_statement) && node->pattern) visit_pattern(*node->pattern, [&](const Pattern& pattern) { if (pattern.type) type_expressions(*pattern.type); });
             if (node->value) expression(*node->value);
         } else if (const auto* node = std::get_if<AssignStmt>(&data)) {
-            if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if(p.place){place(*p.place);expression(*p.place);}});
+            if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if((has_try || observe_expression || observe_statement) && p.type)type_expressions(*p.type);if(p.place){place(*p.place);expression(*p.place);}});
             else {place(*node->target_expr());expression(*node->target_expr());}
             expression(*node->value);
         } else if (const auto* node = std::get_if<RebindStmt>(&data)) {
@@ -1750,27 +2611,174 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         } else if (const auto* node = std::get_if<ReturnStmt>(&data)) {
             if (node->value) expression(*node->value);
         } else if (const auto* node = std::get_if<ExprStmt>(&data)) {
+            if (has_try || observe_expression || observe_statement) collect_possible_initializations(node->inline_bindings, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
             expression(*node->value);
         } else if (const auto* node = std::get_if<IfStmt>(&data)) {
+            if (has_try || observe_expression || observe_statement) collect_possible_initializations(node->condition_bindings, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
             expression(*node->condition);
-            collect_possible_initializations(node->then_body, names, unknown);
-            collect_possible_initializations(node->else_body, names, unknown);
+            collect_possible_initializations(node->then_body, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
+            collect_possible_initializations(node->else_body, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
         } else if (const auto* node = std::get_if<WhileStmt>(&data)) {
+            const bool previous = expression_repeated;
+            expression_repeated = true;
+            if (has_try || observe_expression || observe_statement) collect_possible_initializations(node->condition_bindings, names, unknown, has_try, nullptr, observe_expression, observe_statement, true);
             expression(*node->condition);
-            collect_possible_initializations(node->body, names, unknown);
+            collect_possible_initializations(node->body, names, unknown, has_try, nullptr, observe_expression, observe_statement, true);
+            expression_repeated = previous;
         } else if (const auto* node = std::get_if<ForStmt>(&data)) {
+            const bool previous = expression_repeated;
+            expression_repeated = true; // iteration-variable type checks may repeat
+            if ((has_try || observe_expression || observe_statement) && node->type) type_expressions(*node->type);
+            if ((has_try || observe_expression || observe_statement) && node->pattern) visit_pattern(*node->pattern, [&](const Pattern& pattern) { if (pattern.type) type_expressions(*pattern.type); });
+            if (has_try || observe_expression || observe_statement) for (const auto& binding : node->collections) if (binding.type) type_expressions(*binding.type);
+            expression_repeated = previous;
             visit_for_header(*node,[&](const Expr& operand) { expression(operand); });
-            collect_possible_initializations(node->body, names, unknown);
+            collect_possible_initializations(node->body, names, unknown, has_try, nullptr, observe_expression, observe_statement, true);
         } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
             expression(*node->value);
-            for (const auto& match_case : node->cases)
-                collect_possible_initializations(match_case.body, names, unknown);
+            for (const auto& match_case : node->cases) {
+                if (has_try || observe_expression || observe_statement) type_expressions(match_case.type);
+                if ((has_try || observe_expression || observe_statement) && match_case.pattern) visit_pattern(*match_case.pattern, [&](const Pattern& pattern) { if (pattern.type) type_expressions(*pattern.type); });
+                collect_possible_initializations(match_case.body, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
+            }
         } else if (const auto* node = std::get_if<ParallelStmt>(&data)) {
-            collect_possible_initializations(node->body, names, unknown);
+            collect_possible_initializations(node->body, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
         } else if (const auto* node = std::get_if<MainGuardStmt>(&data)) {
-            collect_possible_initializations(node->body, names, unknown);
+            collect_possible_initializations(node->body, names, unknown, has_try, nullptr, observe_expression, observe_statement, repeated);
         }
     }
+}
+
+// This proof concerns caller storage, not IO/resources. Only exact static
+// callees without writable parameters, numeric casts/parsers and a small
+// immutable builtin set qualify; every evaluated subexpression must qualify.
+bool operand_storage_pure(const Expr& value, const auto& calls,
+                               const auto& functions, const auto& methods) {
+    std::function<bool(const Expr&)> expression;
+    std::function<bool(const TypeName&)> type = [&](const TypeName& item) {
+        for (const auto& child : item.arguments) if (!type(child)) return false;
+        for (const auto& child : item.function_parameters) if (!type(child)) return false;
+        for (const auto& child : item.dimension_expressions) if (child && !expression(*child)) return false;
+        for (const auto& child : item.tensor_shape_expressions) if (child && !expression(*child)) return false;
+        for (const auto& axis : item.shape_axes) if (axis.value && !expression(*axis.value)) return false;
+        return true;
+    };
+    expression = [&](const Expr& item) {
+        const auto each = [&](const auto& values) {
+            for (const auto& child : values) if (child && !expression(*child)) return false;
+            return true;
+        };
+        if (item.contextual_default_type && !type(*item.contextual_default_type)) return false;
+        const auto* direct = std::get_if<CallExpr>(&item.data);
+        const auto* method = std::get_if<MethodCallExpr>(&item.data);
+        if (direct || method) {
+            if (direct ? direct->mutation_marker : method->mutation_marker) return false;
+            const auto& args = direct ? direct->args : method->args;
+            for (const auto& arg : args) if (arg.writable || !expression(*arg.value)) return false;
+            for (const auto& argument : direct ? direct->type_arguments : method->type_arguments)
+                if (!type(argument)) return false;
+            if (method && !expression(*method->receiver)) return false;
+            if (method && method->method == "parse")
+                if (const auto* name = binding_name(*method->receiver))
+                    if (const auto scalar = builtin_scalar_type(name->name);
+                        scalar && (is_numeric(*scalar) || scalar->kind == TypeKind::Bin)) return true;
+            if (direct && direct->callee == "error") return true;
+            std::string target;
+            bool constructor = false;
+            if (const auto call = calls.find(&item); call != calls.end()) {
+                if (call->second.kind == CallKind::NumericCast) return true;
+                if (call->second.kind == CallKind::Builtin)
+                    return call->second.builtin && (*call->second.builtin == BuiltinCallable::Len ||
+                        *call->second.builtin == BuiltinCallable::Array || *call->second.builtin == BuiltinCallable::JsonParse);
+                if (call->second.kind == CallKind::Function || call->second.kind == CallKind::Constructor) {
+                    target = call->second.target;
+                    constructor = call->second.kind == CallKind::Constructor;
+                }
+            }
+            if (target.empty()) if (const auto found = methods.find(&item); found != methods.end())
+                target = found->second.internal_name;
+            const auto signature = functions.find(target);
+            if (signature == functions.end()) return false;
+            const auto nonaliasing = [&](const auto& self,const Type& type) -> bool {
+                if (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple ||
+                    type.kind == TypeKind::Function) return false;
+                if (type.first && !self(self,*type.first)) return false;
+                for (const auto& child : type.cases) if (!self(self,child)) return false;
+                return true;
+            };
+            for (const auto& parameter : signature->second.parameters)
+                if (parameter.writable || !nonaliasing(nonaliasing,parameter.type)) return false;
+            if (!constructor && (!signature->second.receiver_effect.writes.empty() ||
+                                 !signature->second.receiver_effect.invalidates.empty())) return false;
+            for (const auto& [_, effect] : signature->second.reference_effects)
+                if (!effect.writes.empty() || !effect.invalidates.empty() || !effect.initializes.empty()) return false;
+            return true;
+        }
+        if (const auto* x = std::get_if<MemberExpr>(&item.data)) return expression(*x->base);
+        if (const auto* x = std::get_if<IndexExpr>(&item.data)) {
+            if (!expression(*x->base)) return false;
+            for (const auto& part : x->items)
+                for (const auto* child : {part.index.get(),part.start.get(),part.stop.get(),part.step.get()})
+                    if (child && !expression(*child)) return false;
+            return true;
+        }
+        if (const auto* x = std::get_if<UnaryExpr>(&item.data)) return expression(*x->operand);
+        if (const auto* x = std::get_if<BinaryExpr>(&item.data)) return expression(*x->left) && expression(*x->right);
+        if (const auto* x = std::get_if<ComparisonChainExpr>(&item.data)) return each(x->operands);
+        if (const auto* x = std::get_if<StringTemplateExpr>(&item.data)) return each(x->expressions);
+        if (const auto* x = std::get_if<ArrayExpr>(&item.data)) return each(x->elements);
+        if (const auto* x = std::get_if<TupleExpr>(&item.data)) return each(x->elements);
+        if (const auto* x = std::get_if<LiteralConstantExpr>(&item.data)) return expression(*x->value);
+        if (const auto* x = std::get_if<TryExpr>(&item.data)) return expression(*x->value);
+        if (const auto* x = std::get_if<IfExpr>(&item.data))
+            return each(x->conditions) && each(x->values) && expression(*x->otherwise);
+        if (const auto* x = std::get_if<ArrayComprehensionExpr>(&item.data))
+            return (!x->type || type(*x->type)) && expression(*x->source) &&
+                   (!x->condition || expression(*x->condition)) && expression(*x->value);
+        return std::holds_alternative<IntegerExpr>(item.data) || std::holds_alternative<RealLiteralExpr>(item.data) ||
+               std::holds_alternative<ImaginaryLiteralExpr>(item.data) || std::holds_alternative<StringExpr>(item.data) ||
+               std::holds_alternative<BoolExpr>(item.data) || std::holds_alternative<VoidExpr>(item.data) ||
+               std::holds_alternative<NoneExpr>(item.data) || std::holds_alternative<NameExpr>(item.data) ||
+               std::holds_alternative<TupleProjectionExpr>(item.data);
+    };
+    return expression(value);
+}
+
+// Existing loop flow does not model a per-iteration fixed point for
+// class replacements. Do not introduce NEW copy-dependent proofs in a body
+// whose loops can replace class storage with an unproven partial value.
+bool copy_loop_replacement(const AssignStmt& assignment,
+    const std::unordered_map<const Expr*,Type>& types,
+    const std::function<bool(const Expr&,const Type&)>& complete,
+    const std::function<bool(const Expr&)>& pure_target,
+    const std::function<bool(const Expr&)>& owned_array_store) {
+    if (!assignment.compound_op.empty()) return false;
+    const Expr* target = assignment.target_expr();
+    if (assignment.pattern) {
+        if (assignment.pattern->kind == Pattern::Kind::Place) {
+            target = assignment.pattern->place.get();
+        } else {
+            bool unsafe = false;
+            visit_pattern(*assignment.pattern,[&](const Pattern& leaf) {
+                if (leaf.kind == Pattern::Kind::Tuple || leaf.kind == Pattern::Kind::Discard) return;
+                if (leaf.kind != Pattern::Kind::Place || !leaf.place) { unsafe = true; return; }
+                const auto type = types.find(leaf.place.get());
+                unsafe |= type == types.end() || type->second.kind == TypeKind::Invalid ||
+                    type->second.kind == TypeKind::Class || type->second.kind == TypeKind::Tuple ||
+                    !pure_target(*leaf.place);
+            });
+            return unsafe;
+        }
+    }
+    if (!target) return assignment.pattern.has_value();
+    const auto type = types.find(target);
+    if (type == types.end() || (type->second.kind != TypeKind::Class && type->second.kind != TypeKind::Tuple))
+        return false;
+    // A whole Class/Tuple array element store already checks complete ingress.
+    // This exception covers independent local arrays or direct ordinary
+    // owned receiver array fields; it excludes borrowed/reference roots.
+    if (pure_target(*target) && owned_array_store(*target)) return false;
+    return !complete(*assignment.value,type->second);
 }
 
 // Whether `body` holds a break or continue of the loop it is the body of
@@ -1834,6 +2842,250 @@ bool loop_runs_at_least_once(const ForStmt& loop, const Type& iterable,const Typ
 }
 
 } // namespace
+
+bool Checker::copy_body_has_unmodeled_loops(const std::vector<StmtPtr>& body) const {
+    bool found = false, unknown = false;
+    std::unordered_set<std::string> names;
+    const auto complete = [&](const Expr& value, const Type& type) {
+        const auto known = initialized_paths_for_expr(value);
+        const auto paths = complete_class_paths(type);
+        return std::all_of(paths.begin(),paths.end(),[&](const auto& path){return known.contains(path);});
+    };
+    // An earlier copied constructor argument may need this body's proof
+    // before a later method call resolves. Recover the receiver's nominal class
+    // from direct constructor bindings, without assuming an unknown call pure.
+    // Same-spelled bindings in disjoint scopes all constrain the fallback.
+    std::unordered_map<std::string,std::unordered_set<std::string>> constructed_classes;
+    std::unordered_set<std::string> opaque_bindings;
+    std::unordered_set<std::string> local_value_arrays, other_array_bindings;
+    std::unordered_set<const AssignStmt*> fresh_value_member_stores;
+    const auto opaque_binding = [&](const std::string& name) {
+        opaque_bindings.insert(name);
+        other_array_bindings.insert(name);
+    };
+    const auto opaque_pattern = [&](const Pattern& pattern) {
+        visit_pattern(pattern,[&](const auto& part) {
+            if (part.kind == Pattern::Kind::Declare) opaque_binding(part.name);
+        });
+    };
+    const std::function<void(const Expr&,bool)> observe_bound_expression = [&](const Expr& item,bool) {
+        if (const auto* array = std::get_if<ArrayComprehensionExpr>(&item.data))
+            opaque_binding(array->name);
+    };
+    const std::function<void(const Stmt&,bool)> observe_binding = [&](const Stmt& item, bool) {
+        if (const auto* loop = std::get_if<ForStmt>(&item.data)) {
+            // A value-array foreach copies a new Class binder each iteration.
+            // Owned member replacement cannot carry partial state to its next
+            // iteration. Never apply this to a nested repeated scope reusing
+            // the outer binder, references, patterns, or structural traversal.
+            // The parser consumes collection [] separately: iterable is
+            // already the source Array expression, not an empty IndexExpr.
+            const auto source = expr_types_.find(loop->iterable.get());
+            if (!loop->writable && loop->declares && !loop->parallel && !loop->pattern &&
+                !loop->range && loop->collections.empty() && !loop->discards() &&
+                source != expr_types_.end() &&
+                source->second.kind == TypeKind::Array && source->second.first &&
+                source->second.first->kind == TypeKind::Class) {
+                const auto owned_member = [&](const Expr& target) {
+                    const Expr* root = &target;
+                    bool member = false;
+                    while (const auto* field = std::get_if<MemberExpr>(&root->data)) {
+                        const auto access = field_accesses_.find(root);
+                        if (access == field_accesses_.end() ||
+                            classes_.at(access->second.owner).fields.at(access->second.index).reference) return false;
+                        member = true;
+                        root = field->base.get();
+                    }
+                    const auto* name = std::get_if<NameExpr>(&root->data);
+                    return member && name && !name->this_qualifier && !name->self_reference &&
+                        name->name == loop->name;
+                };
+                const auto collect = [&](const auto& self, const std::vector<StmtPtr>& body) -> void {
+                    for (const auto& statement : body) {
+                        if (const auto* assignment = std::get_if<AssignStmt>(&statement->data)) {
+                            if (!assignment->pattern && assignment->compound_op.empty() &&
+                                assignment->target_expr() && owned_member(*assignment->target_expr()))
+                                fresh_value_member_stores.insert(assignment);
+                        } else if (const auto* choice = std::get_if<IfStmt>(&statement->data)) {
+                            self(self, choice->then_body); self(self, choice->else_body);
+                        } else if (const auto* choice = std::get_if<MatchStmt>(&statement->data)) {
+                            for (const auto& arm : choice->cases) self(self, arm.body);
+                        }
+                        // Stop at every nested For/While/Parallel boundary.
+                    }
+                };
+                collect(collect, loop->body);
+            }
+            opaque_binding(loop->name);
+            if (loop->index) opaque_binding(loop->index->name);
+            for (const auto& collection : loop->collections) {
+                opaque_binding(collection.name);
+                if (collection.index) opaque_binding(collection.index->name);
+            }
+            if (loop->pattern) opaque_pattern(*loop->pattern);
+        }
+        if (const auto* match = std::get_if<MatchStmt>(&item.data))
+            for (const auto& arm : match->cases) {
+                if (arm.binder) opaque_binding(*arm.binder);
+                if (arm.pattern) opaque_pattern(*arm.pattern);
+            }
+        const auto* binding = std::get_if<BindingStmt>(&item.data);
+        if (!binding) return;
+        if (binding->pattern) opaque_pattern(*binding->pattern);
+        if (binding->name.empty()) return;
+        const auto declared = binding_types_.find(&item);
+        const auto value = binding->value ? expr_types_.find(binding->value.get()) : expr_types_.end();
+        const bool array = binding->declared_type.array_depth ||
+            (declared != binding_types_.end() && declared->second.kind == TypeKind::Array) ||
+            (value != expr_types_.end() && value->second.kind == TypeKind::Array);
+        if (!binding->reference && !binding->reference_initializer && !binding->pattern && array)
+            local_value_arrays.insert(binding->name);
+        else other_array_bindings.insert(binding->name);
+        const auto* constructor = binding->value ? std::get_if<CallExpr>(&binding->value->data) : nullptr;
+        if (!binding->reference && constructor && classes_.contains(constructor->callee))
+            constructed_classes[binding->name].insert(constructor->callee);
+        else if (!binding->reference && !binding->reference_initializer && !binding->value &&
+                 declared != binding_types_.end() && declared->second.kind == TypeKind::Class &&
+                 (standard_class::is_map_instance(declared->second.class_name,
+                                                 standard_library_class(declared->second.class_name)) ||
+                  standard_class::is_distinct_instance(declared->second.class_name,
+                                                      standard_library_class(declared->second.class_name)))) {
+            // Bare standard collections construct their default value. Their
+            // known nominal class can select the method summary even when an
+            // earlier copy-dependent condition has not typed that call yet.
+            // This supplies no field-initialization or purity assumption.
+            constructed_classes[binding->name].insert(declared->second.class_name);
+        } else opaque_bindings.insert(binding->name);
+    };
+    collect_possible_initializations(body,names,unknown,nullptr,nullptr,&observe_bound_expression,&observe_binding);
+    const std::function<bool(const Expr&)> pure_target = [&](const Expr& target) {
+        return operand_storage_pure(target,call_resolutions_,functions_,method_calls_);
+    };
+    const std::function<bool(const Expr&)> owned_array_store = [&](const Expr& target) {
+        const Expr* current = &target;
+        bool indexed = false;
+        while (const auto* index = std::get_if<IndexExpr>(&current->data)) {
+            if (index->items.size() != 1 || index->items.front().slice || !index->items.front().index) return false;
+            indexed = true;
+            current = index->base.get();
+        }
+        const auto* root = std::get_if<NameExpr>(&current->data);
+        if (!indexed || !root || root->self_reference) return false;
+        if (root->this_qualifier) {
+            // A direct owned receiver array field has the same complete
+            // Class/Tuple element-ingress check as a local value array.
+            // Reference fields and longer captured member paths stay gated.
+            const auto* field = receiver_field(*current);
+            return field && field->owner == current_class_ && !field->reference && !field->is_const &&
+                field->type.kind == TypeKind::Array;
+        }
+        return local_value_arrays.contains(root->name) && !other_array_bindings.contains(root->name);
+    };
+    const std::function<void(const Stmt&, bool)> observe_statement = [&](const Stmt& item, bool repeated) {
+        if (!repeated) return;
+        if (const auto* assignment = std::get_if<AssignStmt>(&item.data))
+            if (!fresh_value_member_stores.contains(assignment))
+                found |= copy_loop_replacement(*assignment,expr_types_,complete,pure_target,owned_array_store);
+        // Even a scalar alias can be rebound to an unset Class field on
+        // the next iteration. Without target alternatives, keep all rebinds
+        // outside new copy-dependent loop proofs.
+        if (std::holds_alternative<RebindStmt>(item.data)) found = true;
+    };
+    const auto class_storage = [&](const Expr& value) {
+        const auto type = expr_types_.find(&value);
+        if (type == expr_types_.end() || type->second.kind == TypeKind::Invalid) return true; // not resolved: cannot assume pure
+        auto current = type->second;
+        while (current.kind == TypeKind::Array && current.first) current = *current.first;
+        return current.kind == TypeKind::Class || current.kind == TypeKind::Tuple;
+    };
+    const std::function<void(const Expr&, bool)> observe_expression = [&](const Expr& expression, bool repeated) {
+        if (!repeated) return;
+        const auto* direct = std::get_if<CallExpr>(&expression.data);
+        const auto* method = std::get_if<MethodCallExpr>(&expression.data);
+        if (!direct && !method) return;
+        std::string target;
+        if (const auto call = call_resolutions_.find(&expression); call != call_resolutions_.end() &&
+            (call->second.kind == CallKind::Function || call->second.kind == CallKind::Constructor))
+            target = call->second.target;
+        if (target.empty()) {
+            if (const auto selected = method_calls_.find(&expression); selected != method_calls_.end())
+                target = selected->second.internal_name;
+        }
+        // A failed earlier condition can prevent this call from being checked.
+        // Recover only the same enclosing-class member selected by check_call;
+        // local/function-value bindings still take precedence. Stored reference
+        // descriptors are excluded from this new fallback because ordinary
+        // initialization invalidates do not summarize their bound state.
+        if (target.empty() && direct && !current_class_.empty() &&
+            !variables_.contains(direct->callee) && !opaque_bindings.contains(direct->callee)) {
+            if (const auto* member = find_method(current_class_,direct->callee)) {
+                std::unordered_set<std::string> visiting;
+                const std::function<bool(const Type&)> reference_free = [&](const Type& type) {
+                    if (type.kind == TypeKind::Invalid) return false;
+                    if (type.kind == TypeKind::Class) {
+                        const auto info = classes_.find(type.class_name);
+                        if (info == classes_.end()) return false;
+                        if (!visiting.insert(type.class_name).second) return true;
+                        for (const auto& field : info->second.fields)
+                            if (field.reference || !reference_free(field.type)) return false;
+                    }
+                    if (type.first && !reference_free(*type.first)) return false;
+                    for (const auto& item : type.cases) if (!reference_free(item)) return false;
+                    for (const auto& item : type.parameters) if (!reference_free(item)) return false;
+                    return true;
+                };
+                const auto signature = functions_.find(*member);
+                if (signature != functions_.end() &&
+                    reference_free(Type::class_type(current_class_)) &&
+                    reference_free(signature->second.result) &&
+                    std::all_of(signature->second.parameters.begin(),signature->second.parameters.end(),
+                        [&](const auto& parameter){return reference_free(parameter.type);})) target = *member;
+            }
+        }
+        std::unordered_set<std::string> targets;
+        if (!target.empty()) targets.insert(target);
+        if (targets.empty() && method) {
+            const auto* receiver = std::get_if<NameExpr>(&method->receiver->data);
+            if (receiver && !receiver->this_qualifier && !receiver->self_reference &&
+                !opaque_bindings.contains(receiver->name)) {
+                if (const auto classes = constructed_classes.find(receiver->name);
+                    classes != constructed_classes.end()) {
+                    bool resolved = true;
+                    for (const auto& name : classes->second) {
+                        const auto& info = classes_.at(name);
+                        const auto member = info.methods.find(method->method);
+                        const auto hidden = info.private_methods.find(method->method);
+                        if (member != info.methods.end()) targets.insert(member->second);
+                        else if (hidden != info.private_methods.end()) targets.insert(hidden->second);
+                        else resolved = false;
+                    }
+                    if (!resolved) targets.clear();
+                }
+            }
+        }
+        if (!targets.empty() && std::all_of(targets.begin(),targets.end(),
+                [&](const auto& name){ return functions_.contains(name); })) {
+            for (const auto& name : targets) {
+                const auto& signature = functions_.at(name);
+                if ((!direct || !classes_.contains(direct->callee)) &&
+                    !signature.receiver_effect.invalidates.empty()) found = true;
+                for (const auto& [_, effect] : signature.reference_effects)
+                    if (!effect.invalidates.empty()) found = true;
+            }
+            return;
+        }
+        // Opaque function-value/constructor/builtin calls have no trustworthy
+        // class-write summary. Mutable Class/Tuple places cannot be assumed pure.
+        const bool marked = direct ? direct->mutation_marker : method->mutation_marker;
+        if (method && marked && class_storage(*method->receiver)) found = true;
+        const auto& args = direct ? direct->args : method->args;
+        for (const auto& argument : args)
+            if ((argument.writable || marked) && class_storage(*argument.value)) found = true;
+    };
+    collect_possible_initializations(body,names,unknown,nullptr,nullptr,
+                                      &observe_expression,&observe_statement);
+    return found;
+}
 
 void Checker::note_loop_initializations(const std::vector<StmtPtr>& body) {
     std::unordered_set<std::string> names;
@@ -2033,11 +3285,18 @@ void Checker::check_static_index_bounds(const Type& base, const Expr& index) {
 }
 
 Type Checker::check_index_operand(const Expr& index) {
+    const auto consume_operand = [&](const Expr& value, const Type& source) {
+        const auto success = consume_error_operand(value, source,
+            fail_fast_expressions_, expr_types_);
+        if (success != source && success.kind == TypeKind::Class)
+            class_expr_initialized_paths_[&value].merge(complete_class_paths(success));
+        return success;
+    };
     if (integer_category(numeric_literal_family(index))) {
         const auto int_type = simple(TypeKind::Int);
         return check_expr(index, &int_type);
     }
-    const auto type = check_expr(index);
+    const auto type = consume_operand(index, check_expr(index));
     if (!poisoned(type) && !is_integer_family_type(type)) {
         error("TYPE_MISMATCH", "An index must be an integer, not " + type_name(type) + ".",
               index.span);
@@ -2241,6 +3500,13 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
                     required.required.insert("");
                     compose_storage_effect(current_reference_effects_[reference->first], required,
                                            reference->second);
+                } else if (reference_paths_.contains(name->name) &&
+                           reference_paths_.at(name->name).second.ends_with("[]") &&
+                           !unknown_reference_access_path(expression)) {
+                    // Borrowing a slot is not a value read; a later load
+                    // remains guarded, and a write-only alias can fill it.
+                } else if (current_receiver_path(expression)) {
+                    check_name_expr(expression, *name, nullptr);
                 } else if (!storage_initialized(expression)) {
                     check_maybe_initialized_read(expression, name->name);
                 }
@@ -2331,6 +3597,17 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         error("REFERENCE_BINDING", "Address requires a binding, field, or array element.", expression.span);
     }
     raw_types_[&expression] = expr_types_[&expression] = type;
+    if (const auto* index = std::get_if<IndexExpr>(&expression.data);
+        index && (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple) &&
+        !current_receiver_path(expression) && !current_reference_parameter_path(expression) &&
+        operand_storage_pure(expression, call_resolutions_, functions_, method_calls_)) {
+        // Addressing an element reads its array storage. Pure indices cannot
+        // replace that storage during evaluation. Field reads in the callee
+        // retain LoadReference's slot guard and the live invalidation filter.
+        check_address_value_read(*index->base);
+        class_expr_initialized_paths_[&expression] =
+            array_ingress_initialized_paths(expression, type, true);
+    }
     return type;
 }
 
@@ -2404,6 +3681,9 @@ void Checker::record_storage_assignment(StorageEffect& effect, const std::string
         }
     };
 
+    const auto initialized = initialized_paths_for_expr(value);
+    const auto copy_initializes = class_copy_initializations(value, type);
+    erase_copy_initializations(effect.copy_initializes, path);
     effect.writes.insert(path);
     effect.invalidates.erase(path);
     erase_path(effect.initializes, path);
@@ -2411,7 +3691,8 @@ void Checker::record_storage_assignment(StorageEffect& effect, const std::string
 
     if (type.kind != TypeKind::Class && type.kind != TypeKind::Tuple) return;
 
-    const auto initialized = initialized_paths_for_expr(value);
+    for (const auto& [relative, dependencies] : copy_initializes)
+        effect.copy_initializes[qualify(relative)] = dependencies;
     for (const auto& relative : complete_class_paths(type)) {
         const auto full = qualify(relative);
         if (initialized.contains(relative)) {
@@ -2481,14 +3762,33 @@ void Checker::compose_storage_effect(StorageEffect& destination, const StorageEf
         }
     };
 
+    destination.restores_entry_state |= source.restores_entry_state;
     for (const auto& path : source.required) {
         // Whole-self publication also requires the nested instance binding.
         // Its ordinary field requirements are composed separately below.
         const auto full = element_owner_path(
             path == "$complete" && !prefix.empty() ? prefix : qualify(path));
+        // Reading a nested value also needs every enclosing binding. Field
+        // projection follows those prefixes, just as initialized writes do.
+        for (std::size_t i = 0; i < full.size(); ++i) {
+            if (i && (full[i] == '.' || full[i] == '(')) {
+                const auto parent = full.substr(0,i);
+                if (!destination.initializes.contains(parent)) destination.required.insert(parent);
+            }
+        }
         if (!destination.initializes.contains(full)) destination.required.insert(full);
     }
     for (const auto& path : source.writes) destination.writes.insert(qualify(path));
+    // An entry receipt is a sufficient initialization condition, not a value
+    // identity. A non-invalidating write (including a conditional scalar set)
+    // preserves it. Definite field initialization replaces only that key;
+    // a parent binding alone does not establish every descendant field.
+    for (const auto& path : source.invalidates)
+        erase_copy_initializations(destination.copy_initializes, qualify(path));
+    for (const auto& path : source.initializes)
+        destination.copy_initializes.erase(qualify(path));
+    for (const auto& [path, dependencies] : source.copy_initializes)
+        destination.copy_initializes[qualify(path)] = dependencies;
     for (const auto& path : source.invalidates) {
         const auto full = qualify(path);
         destination.invalidates.insert(full);
@@ -2512,6 +3812,12 @@ void Checker::apply_method_effects(const Expr& receiver, const FunctionType& sig
 }
 
 void Checker::mark_storage_initialized(const Expr& expression) {
+    if (const auto path = current_receiver_path(expression)) {
+        StorageEffect initialized;
+        initialized.initializes.insert("");
+        compose_storage_effect(current_receiver_effect_, initialized, *path);
+        return;
+    }
     if (const auto path = current_reference_parameter_path(expression)) {
         const auto insert_prefixes = [](std::unordered_set<std::string>& paths,
                                         const std::string& target) {
@@ -2572,15 +3878,33 @@ void Checker::check_storage_effect_requirements(
     if (const auto receiver_path = current_receiver_path(target)) {
         if (in_constructor_ && effect.required.contains("$complete"))
             error("UNINITIALIZED", "A method cannot publish an instance while its generation is in progress.", span);
+        for (const auto& path : effect.required) {
+            const auto full = receiver_path->empty() ? path : path.empty() ? *receiver_path :
+                *receiver_path + (path.starts_with('(') ? "" : ".") + path;
+            if (storage_effect_invalidates(current_receiver_effect_, full) &&
+                !require_class_copy_initialization(target, {path}))
+                error("UNINITIALIZED", "Method receiver requires initialized field '" + full + "'.", span);
+        }
         compose_storage_effect(current_receiver_effect_, requirements, *receiver_path);
         return;
     }
     if (const auto reference_path = current_reference_parameter_path(target)) {
+        const auto& current = current_reference_effects_[reference_path->first];
+        for (const auto& path : effect.required) {
+            const auto& prefix = reference_path->second;
+            const auto full = prefix.empty() ? path : path.empty() ? prefix :
+                prefix + (path.starts_with('(') ? "" : ".") + path;
+            if (storage_effect_invalidates(current, full) &&
+                !require_class_copy_initialization(target, {path}))
+                error("UNINITIALIZED", "Reference argument requires initialized field '" + full + "'.", span);
+        }
         compose_storage_effect(
             current_reference_effects_[reference_path->first], requirements, reference_path->second);
         return;
     }
 
+    for (const auto& path : effect.required)
+        if (!path.empty() && path != "$complete") (void)require_class_copy_initialization(target, {path});
     const auto initialized_paths = initialized_paths_for_expr(target);
     for (const auto& path : effect.required) {
         if (path == "$complete") continue;
@@ -2690,6 +4014,37 @@ void Checker::apply_storage_effect_postconditions(
     if (const auto* name = std::get_if<NameExpr>(&target.data); name && name->self_reference &&
         (effect.writes.contains("") || effect.invalidates.contains("")))
         error("WRITE_CAPABILITY", "A reference to the fixed instance name cannot replace the instance.", target.span);
+    if (const auto storage = class_copy_storage(target); storage && !storage->first.starts_with("$")) {
+        auto& copies = class_initialized_paths_[storage->first].copy_initializes;
+        const auto qualify = [&](const std::string& path) {
+            return storage->second.empty() ? path : path.empty() ? storage->second :
+                storage->second + (path.starts_with('(') ? "" : ".") + path;
+        };
+        for (const auto& path : effect.invalidates)
+            erase_copy_initializations(copies, qualify(path));
+        if (allow_initializes)
+            for (const auto& path : effect.initializes) copies.erase(qualify(path));
+    } else if (unknown_reference_access_path(target) && !effect.invalidates.empty()) {
+        discard_unknown_class_initializations();
+    }
+    if (!effect.writes.empty() || !effect.initializes.empty() ||
+        !effect.invalidates.empty() || effect.restores_entry_state) {
+        const auto actual = expr_types_.find(&target);
+        const auto may_hold_class = [&](const auto& self, const Type& type) -> bool {
+            if (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple) return true;
+            if (type.kind == TypeKind::Array && type.first) return self(self, *type.first);
+            if (type.kind == TypeKind::Union)
+                return std::any_of(type.cases.begin(), type.cases.end(),
+                    [&](const auto& item) { return self(self, item); });
+            return false;
+        };
+        // A final scalar-field write summary can hide an earlier whole-class
+        // replacement followed by repair. Without a transient-write summary,
+        // keep all mutating class-capable callees outside this new proof.
+        if (actual != expr_types_.end() && may_hold_class(may_hold_class, actual->second))
+            maybe_initialized_.insert("$scalar_parent_changed");
+    }
+    record_array_ingress_invalidations(target, effect);
     apply_traversal_storage_effect(target, effect);
     if(!effect.invalidates.empty())reference_invalidations_[&target].insert(effect.invalidates.begin(),effect.invalidates.end());
     StorageEffect postconditions = effect;
@@ -2834,7 +4189,7 @@ void Checker::finish_call_effects(
         const auto path = alias_storage_path(*pending[i].target);
         if (path) {
             if (receiver_alias && storage_paths_overlap(*path, *receiver_alias) &&
-                !signature.receiver_effect.invalidates.empty()) {
+                (!signature.receiver_effect.invalidates.empty() || signature.receiver_effect.restores_entry_state)) {
                 allow_initializes = false;
             }
             for (std::size_t j = 0; allow_initializes && j < pending.size(); ++j) {
@@ -2843,7 +4198,7 @@ void Checker::finish_call_effects(
                 if (!other_path || !storage_paths_overlap(*path, *other_path)) continue;
                 const auto effect = signature.reference_effects.find(pending[j].parameter->name);
                 if (effect != signature.reference_effects.end() &&
-                    !effect->second.invalidates.empty()) {
+                    (!effect->second.invalidates.empty() || effect->second.restores_entry_state)) {
                     // Independent parameter summaries do not encode cross-alias write
                     // ordering. If an overlapping alias may invalidate storage, do not
                     // claim another parameter's initialization as a post-call guarantee.
@@ -2864,7 +4219,7 @@ void Checker::finish_call_effects(
                 if (!path || !storage_paths_overlap(*receiver_alias, *path)) continue;
                 const auto effect = signature.reference_effects.find(item.parameter->name);
                 if (effect != signature.reference_effects.end() &&
-                    !effect->second.invalidates.empty()) {
+                    (!effect->second.invalidates.empty() || effect->second.restores_entry_state)) {
                     allow_receiver_initializes = false;
                     break;
                 }
@@ -2890,6 +4245,14 @@ void Checker::finish_call_effects(
 }
 
 void Checker::record_effect_exit() {
+    if (!current_effect_exit_summary_seen_) {
+        current_exit_receiver_copy_state_ = current_receiver_effect_;
+        current_exit_reference_copy_state_ = current_reference_effects_;
+    } else {
+        merge_copy_exit(current_exit_receiver_copy_state_, current_receiver_effect_);
+        for (const auto& name : current_reference_parameters_)
+            merge_copy_exit(current_exit_reference_copy_state_[name], current_reference_effects_[name], name);
+    }
     const auto intersect = [](std::unordered_set<std::string>& destination,
                               const std::unordered_set<std::string>& source) {
         for (auto it = destination.begin(); it != destination.end();) {
@@ -2947,6 +4310,23 @@ void Checker::finalize_receiver_effects(FunctionType& signature, bool include_fa
     }
     signature.receiver_effect.initializes =
         seen ? std::move(guaranteed) : std::unordered_set<std::string>{};
+    auto copies = current_exit_receiver_copy_state_;
+    if (include_fallthrough) {
+        if (current_effect_exit_summary_seen_) merge_copy_exit(copies, current_receiver_effect_);
+        else copies = current_receiver_effect_;
+    }
+    union_set(signature.receiver_effect.invalidates, copies.invalidates);
+    signature.receiver_effect.restores_entry_state |= copies.restores_entry_state;
+    if (!copy_dependencies_disabled_) {
+        export_identity_copy_preservation(signature.receiver_effect, copies, "");
+        // Empty receipts are unconditional proofs on every normal exit.
+        // Publish exact fields without exporting a relational contract.
+        for (const auto& [path, dependencies] : copies.copy_initializes) {
+            if (!dependencies.empty()) continue;
+            signature.receiver_effect.initializes.insert(path);
+            signature.receiver_effect.invalidates.erase(path);
+        }
+    } else signature.receiver_effect.copy_initializes.clear();
 }
 
 void Checker::finalize_reference_effects(FunctionType& signature, bool include_fallthrough) {
@@ -2955,6 +4335,8 @@ void Checker::finalize_reference_effects(FunctionType& signature, bool include_f
     std::unordered_set<std::string> names;
     for (const auto& [name, _] : current_reference_effects_) names.insert(name);
     for (const auto& [name, _] : current_exit_reference_initialized_) names.insert(name);
+    for (const auto& exit : constructor_reference_error_exits_)
+        for (const auto& [name, _] : exit) names.insert(name);
 
     for (const auto& name : names) {
         std::unordered_set<std::string> guaranteed;
@@ -2982,6 +4364,27 @@ void Checker::finalize_reference_effects(FunctionType& signature, bool include_f
                 }
             }
         }
+        auto copies = current_exit_reference_copy_state_[name];
+        if (include_fallthrough) {
+            if (current_effect_exit_summary_seen_) merge_copy_exit(copies, current_reference_effects_[name], name);
+            else copies = current_reference_effects_[name];
+        }
+        for (const auto& exit : constructor_reference_error_exits_) {
+            static const StorageEffect empty;
+            const auto item = exit.find(name);
+            const auto& failed = item == exit.end() ? empty : item->second;
+            merge_copy_exit(copies, failed, name);
+            for (auto it = guaranteed.begin(); it != guaranteed.end();)
+                if (!failed.initializes.contains(*it)) it = guaranteed.erase(it); else ++it;
+            union_set(signature.reference_effects[name].required, failed.required);
+            union_set(signature.reference_effects[name].writes, failed.writes);
+            union_set(signature.reference_effects[name].invalidates, failed.invalidates);
+        }
+        union_set(signature.reference_effects[name].invalidates, copies.invalidates);
+        signature.reference_effects[name].restores_entry_state |= copies.restores_entry_state;
+        if (!copy_dependencies_disabled_)
+            export_identity_copy_preservation(signature.reference_effects[name], copies, name);
+        else signature.reference_effects[name].copy_initializes.clear();
         if (seen || signature.reference_effects.contains(name)) {
             signature.reference_effects[name].initializes =
                 seen ? std::move(guaranteed) : std::unordered_set<std::string>{};
@@ -3003,6 +4406,10 @@ void Checker::reset_current_effect_state() {
     current_reference_effects_.clear();
     current_exit_receiver_initialized_.clear();
     current_exit_reference_initialized_.clear();
+    copy_dependencies_disabled_ = false;
+    constructor_reference_error_exits_.clear();
+    current_exit_receiver_copy_state_ = {};
+    current_exit_reference_copy_state_.clear();
     current_effect_exit_summary_seen_ = false;
     current_true_return_seen_ = false;
     current_true_return_initialized_.clear();
@@ -3182,6 +4589,10 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
         type = Type::class_type(current_class_);
         current_receiver_effect_.required.insert("$complete");
         const auto complete = complete_class_paths(type);
+        for (const auto& path : complete)
+            if (storage_effect_invalidates(current_receiver_effect_, path) &&
+                !require_class_copy_initialization(expression, {path}))
+                error("UNINITIALIZED", "The instance has an uninitialized field after replacement: '" + path + "'.", expression.span);
         current_receiver_effect_.required.insert(complete.begin(), complete.end());
         class_expr_initialized_paths_[&expression] = complete;
         return type;
@@ -3208,18 +4619,33 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
                           "Field '" + node->name + "' is read before the constructor initializes it.",
                           expression.span);
                 } else {
-                    current_receiver_effect_.required.insert(node->name);
+                    if (storage_effect_invalidates(current_receiver_effect_, node->name) &&
+                        !require_class_copy_initialization(expression, {""}))
+                        error("UNINITIALIZED", "Field '" + node->name + "' may be uninitialized after replacement.", expression.span);
+                    if (!current_receiver_effect_.initializes.contains(node->name))
+                        current_receiver_effect_.required.insert(node->name);
                 }
             }
             type = field.type;
         } else if (is_builtin_text_constant(node->name)) {
             type = simple(TypeKind::String);
         } else if (variables_.contains(node->name)) {
-            if (const auto reference = current_reference_parameter_path(expression)) {
+            if (!unknown_reference_access_path(expression) &&
+                reference_paths_.contains(node->name) && reference_paths_.at(node->name).second.ends_with("[]") &&
+                (variables_.at(node->name).kind == TypeKind::Class || variables_.at(node->name).kind == TypeKind::Tuple)) {
+                if (known_uninitialized_array_alias(expression))
+                    error("UNINITIALIZED", "The captured array element has not been initialized.", expression.span);
+            } else if (const auto reference = current_reference_parameter_path(expression)) {
                 StorageEffect required;
                 required.required.insert("");
                 compose_storage_effect(current_reference_effects_[reference->first], required,
                                        reference->second);
+            } else if (const auto receiver = current_receiver_path(expression)) {
+                if (!current_receiver_effect_.initializes.contains(*receiver)) {
+                    if (in_constructor_ || storage_effect_invalidates(current_receiver_effect_, *receiver))
+                        error("UNINITIALIZED", "Receiver field '" + *receiver + "' may be uninitialized.", expression.span);
+                    current_receiver_effect_.required.insert(*receiver);
+                }
             } else if (!storage_initialized(expression)) {
                 check_maybe_initialized_read(expression, node->name);
             }
@@ -3439,9 +4865,11 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
 
         const auto reference_base = current_reference_parameter_path(*node->base);
         Type base;
-        if (reference_base) {
+        if (reference_base && reference_base->second.find("[]") == std::string::npos) {
             base = check_address_target(*node->base);
         } else {
+            // A member read beneath an array element reads the stored value,
+            // recovering its ingress proof and checking element availability.
             base = check_expr(*node->base);
         }
         if (poisoned(base)) {
@@ -3495,7 +4923,8 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             } else if (reaches_reference_field(*node->base)) {
                 // Accessing the holder already checked that it is bound;
                 // a stored reference keeps its ordinary target fields complete.
-            } else if (const auto receiver_base = current_receiver_path(*node->base)) {
+            } else if (const auto receiver_base = current_receiver_path(*node->base);
+                       receiver_base && receiver_base->find("[]") == std::string::npos) {
                 const auto full = element_owner_path(*receiver_base + "." + node->name);
                 if (!current_receiver_effect_.initializes.contains(full)) {
                     if (in_constructor_) {
@@ -3503,18 +4932,26 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
                               "Field '" + full + "' is read before the constructor initializes it.",
                               expression.span);
                     }
-                    current_receiver_effect_.required.insert(full);
+                    if (storage_effect_invalidates(current_receiver_effect_, full) &&
+                        !require_class_copy_initialization(*node->base, {node->name}))
+                        error("UNINITIALIZED", "Field '" + full + "' may be uninitialized after replacement.", expression.span);
+                    if (!current_receiver_effect_.initializes.contains(full))
+                        current_receiver_effect_.required.insert(full);
                 }
-            } else if (reference_base) {
+            } else if (reference_base && reference_base->second.find("[]") == std::string::npos) {
                 auto full = reference_base->second;
                 if (!full.empty()) full += ".";
                 full += node->name;
                 full = element_owner_path(full);
                 auto& effect = current_reference_effects_[reference_base->first];
+                if (storage_effect_invalidates(effect, full) &&
+                    !require_class_copy_initialization(*node->base, {node->name}))
+                    error("UNINITIALIZED", "Field '" + full + "' may be uninitialized after replacement.", expression.span);
                 if (!effect.initializes.contains(full)) effect.required.insert(full);
             } else {
                 const auto paths = initialized_paths_for_expr(*node->base);
-                if (!paths.contains(node->name)) {
+                if (!paths.contains(node->name) &&
+                    !require_class_copy_initialization(*node->base, {node->name})) {
                     // L13: a field of a local value initialized on some
                     // paths only is checked at run time.
                     field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
@@ -3542,10 +4979,17 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
 }
 
 Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_value) {
+    const auto consume_operand = [&](const Expr& value, const Type& source) {
+        const auto success = consume_error_operand(value, source,
+            fail_fast_expressions_, expr_types_);
+        if (success != source && success.kind == TypeKind::Class)
+            class_expr_initialized_paths_[&value].merge(complete_class_paths(success));
+        return success;
+    };
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
 
-    auto base = check_expr(*node->base);
+    auto base = consume_operand(*node->base, check_expr(*node->base));
     if (poisoned(base)) return base;
     if(base.kind==TypeKind::Tuple) error("TUPLE","Tuples have no positional access; destructure the tuple instead.",expression.span);
 
@@ -3558,7 +5002,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
             node->items.front().index &&
             !integer_category(numeric_literal_family(*node->items.front().index))) {
             const auto& selector = *node->items.front().index;
-            const Type mask = check_expr(selector);
+            const Type mask = consume_operand(selector, check_expr(selector));
             if (mask.kind == TypeKind::Tensor) {
                 if (!mask.first || mask.first->kind != TypeKind::Bool) {
                     error("TYPE_MISMATCH",
@@ -3718,7 +5162,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         } else if (integer_category(numeric_literal_family(selector))) {
             selector_type = check_index_operand(selector);
         } else {
-            selector_type = check_expr(selector);
+            selector_type = consume_operand(selector, check_expr(selector));
         }
         if (selector_type.kind == TypeKind::Array && selector_type.first) {
             const auto kind = selector_type.first->kind;
@@ -3778,22 +5222,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         // indexed read of a stored class value therefore recovers the complete
         // class-field initialization proof.
         if (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple) {
-            auto paths = complete_class_paths(type);
-            if (const auto owner = writable_storage_path(*node->base)) {
-                const auto invalid = traversal_element_invalidations_.find(owner->first);
-                if (invalid != traversal_element_invalidations_.end()) {
-                    const auto prefix = owner->second + "[]";
-                    for (const auto& field : invalid->second) {
-                        if (!field.starts_with(prefix + ".") && !field.starts_with(prefix + "(")) continue;
-                        const auto relative = field.substr(prefix.size() + (field[prefix.size()] == '.' ? 1 : 0));
-                        for (auto it = paths.begin(); it != paths.end();) {
-                            if (*it == relative || it->starts_with(relative + ".") || it->starts_with(relative + "(")) it = paths.erase(it);
-                            else ++it;
-                        }
-                    }
-                }
-            }
-            class_expr_initialized_paths_[&expression] = std::move(paths);
+            class_expr_initialized_paths_[&expression] = array_ingress_initialized_paths(expression, type, true);
         }
     } else if (base.kind == TypeKind::String) {
         type = simple(TypeKind::String);
@@ -3837,9 +5266,18 @@ bool Checker::check_input_template(const Expr& expression,
            actual.kind!=TypeKind::String && actual.kind!=TypeKind::Bool)
             error("TYPE_MISMATCH","Input target must be string, bool or a numeric scalar.",target->span);
         format.target_types.push_back(actual);
-        if(!file_reader){
-            if(terminating) mark_storage_initialized(*target);
-            else if(!storage_initialized(*target))
+    }
+    if (!any_poison && !file_reader) {
+        // Target-address evaluation itself can replace storage. Capture error
+        // only after every address is checked, before any success-only mark.
+        if (propagates_operand_error(error_terminating_expr_,expression)) {
+            if (in_constructor_) constructor_reference_error_exits_.push_back(current_reference_effects_);
+            else if (in_function_) record_effect_exit();
+            error_terminating_expr_ = &expression;
+        }
+        for (const auto* target : format.targets) {
+            if (terminating) mark_storage_initialized(*target);
+            else if (!storage_initialized(*target))
                 error("UNINITIALIZED",
                     "A scan with a handled error needs already initialized targets; use a scan statement or try scan.",
                     target->span);
@@ -3977,7 +5415,12 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 receiver = variables_.at(receiver_name->name);
                 expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = receiver;
             } else {
-                receiver = check_expr(*node->receiver);
+                const bool literal_array = std::holds_alternative<ArrayExpr>(node->receiver->data) ||
+                    std::holds_alternative<ArrayComprehensionExpr>(node->receiver->data);
+                receiver = node->method == "concat" && literal_array && expected &&
+                    expected->kind == TypeKind::Array
+                    ? check_expr(*node->receiver, expected)
+                    : check_expr(*node->receiver);
             }
 
             if(receiver.kind==TypeKind::Tuple)error("TUPLE","Tuples have no members; destructure the tuple instead.",expression.span);
@@ -5019,7 +6462,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         format.targets.push_back(argument.value.get());
                     } else if (const auto* text = std::get_if<StringTemplateExpr>(&argument.value->data)) {
                         const bool valid=check_input_template(expression,*text,false,
-                                                              error_terminating_expr_==&expression);
+                                                              terminates_operand_error(error_terminating_expr_,expression));
                         type=valid
                             ? Type::union_of({simple(TypeKind::Void),simple(TypeKind::Error)})
                             : simple(TypeKind::Invalid);
@@ -5033,7 +6476,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               "scan takes an input target such as scan(&n) or a format string literal such as scan(\"{&n} {&m}\").",
                               argument.span);
                     }
-                    const bool terminating = error_terminating_expr_ == &expression;
+                    const bool terminating = terminates_operand_error(error_terminating_expr_,expression);
                     bool any_poison = false;
                     for (const auto* target : format.targets) {
                         if (!stable_writable_storage(*target)) {
@@ -5057,12 +6500,19 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   target->span);
                         }
                         format.target_types.push_back(actual);
-                        if (terminating) {
-                            mark_storage_initialized(*target);
-                        } else if (!storage_initialized(*target)) {
-                            error("UNINITIALIZED",
-                                  "A scan whose error is handled leaves its targets unchanged on failure, so this target must be initialized first; as a statement or under try, scan initializes it.",
-                                  target->span);
+                    }
+                    if (!any_poison) {
+                        if (propagates_operand_error(error_terminating_expr_,expression)) {
+                            if (in_constructor_) constructor_reference_error_exits_.push_back(current_reference_effects_);
+                            else if (in_function_) record_effect_exit();
+                            error_terminating_expr_ = &expression;
+                        }
+                        for (const auto* target : format.targets) {
+                            if (terminating) mark_storage_initialized(*target);
+                            else if (!storage_initialized(*target))
+                                error("UNINITIALIZED",
+                                      "A scan whose error is handled leaves its targets unchanged on failure, so this target must be initialized first; as a statement or under try, scan initializes it.",
+                                      target->span);
                         }
                     }
                     type = any_poison
@@ -6266,6 +7716,13 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 Type Checker::check_call_expr(const Expr& expression,
                               const CallExpr& node_value,
                               const Type* expected) {
+    const auto consume_operand = [&](const Expr& value, const Type& source) {
+        const auto success = consume_error_operand(value, source,
+            fail_fast_expressions_, expr_types_);
+        if (success != source && success.kind == TypeKind::Class)
+            class_expr_initialized_paths_[&value].merge(complete_class_paths(success));
+        return success;
+    };
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
         const auto& name = node->callee;
@@ -6415,6 +7872,30 @@ Type Checker::check_call_expr(const Expr& expression,
                 any_poison |= poisoned(actual);
             }
             type = any_poison ? simple(TypeKind::Invalid) : *callable.first;
+            if (type.kind == TypeKind::Class) {
+                // A func value holds a free-function code target. Intersect
+                // every addressable function with this nominal result, even
+                // ones not captured at any already-checked expression. The
+                // parameter signature deliberately does not narrow this safe
+                // superset (shaped func types may rename shape variables).
+                auto& paths = class_expr_initialized_paths_[&expression];
+                paths.clear(); // summaries can shrink between iterations
+                bool found = false;
+                for (const auto& [target, candidate] : functions_) {
+                    if (candidate.result != type || candidate.external ||
+                        std::any_of(candidate.parameters.begin(), candidate.parameters.end(),
+                            [](const auto& parameter) { return parameter.writable; }) ||
+                        std::any_of(method_internal_names_.begin(), method_internal_names_.end(),
+                            [&](const auto& method) { return method.second == target; })) continue;
+                    if (!found) { paths = candidate.return_initialized_fields; found = true; }
+                    else {
+                        for (auto path = paths.begin(); path != paths.end();)
+                            if (!candidate.return_initialized_fields.contains(*path)) path = paths.erase(path);
+                            else ++path;
+                    }
+                    if (paths.empty()) break;
+                }
+            }
             call_resolutions_[&expression] =
                 CallResolution{CallKind::FunctionValue, name, std::nullopt, type};
         } else if (!current_class_.empty() && find_method(current_class_, name)) {
@@ -6633,7 +8114,14 @@ Type Checker::check_call_expr(const Expr& expression,
                 call_resolutions_[&expression] =
                     CallResolution{CallKind::NumericCast, name, std::nullopt, source};
             } else {
-                const auto result = cast_result(source);
+                auto result = cast_result(source);
+                if (!result) {
+                    if (const auto success = error_free_operand_type(source)) {
+                        result = cast_result(*success);
+                        if (result)
+                            source = consume_operand(*node->args[0].value, source);
+                    }
+                }
                 if (!result) {
                     Type leaf = source;
                     while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
@@ -6678,10 +8166,53 @@ Type Checker::check_call_expr(const Expr& expression,
                       "bin(value) is an explicit conversion; use bin.fill(n, bit) to allocate raw bits.",
                       expression.span);
             }
-            const auto source = check_expr(*node->args[0].value);
-            bool valid = is_fixed_integer(source) || source.kind == TypeKind::Bool;
-            if (source.kind == TypeKind::Array && source.first)
-                valid = is_fixed_integer(*source.first) || source.first->kind == TypeKind::Bool;
+            auto source = check_expr(*node->args[0].value);
+            const auto supported = [](const Type& input) {
+                if (is_fixed_integer(input) || input.kind == TypeKind::Bool) return true;
+                return input.kind == TypeKind::Array && input.first &&
+                    (is_fixed_integer(*input.first) || input.first->kind == TypeKind::Bool);
+            };
+            if (source.kind == TypeKind::Array && source.first) {
+                const auto success = error_free_operand_type(*source.first);
+                std::vector<const Expr*> values;
+                if (const auto* literal = std::get_if<ArrayExpr>(&node->args[0].value->data))
+                    for (const auto& value : literal->elements) values.push_back(value.get());
+                else if (const auto* generation = std::get_if<ArrayComprehensionExpr>(&node->args[0].value->data))
+                    values.push_back(generation->value.get());
+                // A literal being constructed for bin's flat scalar domain
+                // consumes element failures. Named error-element arrays retain
+                // their declared type; no array union representation is cast.
+                if (success && supported(Type::array(*success)) && !values.empty() &&
+                    std::all_of(values.begin(), values.end(), [&](const Expr* value) {
+                        const auto raw = raw_types_.find(value);
+                        const auto checked = expr_types_.find(value);
+                        if (raw == raw_types_.end() || checked == expr_types_.end()) return false;
+                        return error_free_operand_type(raw->second).value_or(raw->second) == *success &&
+                               error_free_operand_type(checked->second).value_or(checked->second) == *success;
+                    })) {
+                    for (const auto* value : values) {
+                        const auto raw = raw_types_.at(value);
+                        if (error_free_operand_type(raw)) {
+                            consume_operand(*value, raw);
+                        } else {
+                            // Context may have injected an already-successful
+                            // raw value into the array's error union. Undo that
+                            // injection; a scalar value is never a fail-fast union.
+                            fail_fast_expressions_.erase(value);
+                            expr_types_[value] = raw;
+                        }
+                    }
+                    source = Type::array(*success, source.length);
+                    raw_types_[node->args[0].value.get()] = source;
+                    expr_types_[node->args[0].value.get()] = source;
+                }
+            }
+            if (!supported(source)) {
+                if (const auto success = error_free_operand_type(source);
+                    success && supported(*success))
+                    source = consume_operand(*node->args[0].value, source);
+            }
+            const bool valid = supported(source);
             if (!poisoned(source) && !valid) {
                 error("TYPE_MISMATCH",
                       "bin(value) accepts an integer, bool, or a flat integer/bool array.",
@@ -6862,6 +8393,7 @@ FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const Func
     current_return_ = signature.result;
     current_class_ = class_decl.name;
     in_function_ = true;
+    copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(method.body);
     in_constructor_ = method.is_constructor;
     constructor_block_depth_ = 0;
     if (method.is_constructor) {
@@ -7031,8 +8563,12 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
     // conversion, so named storage and generic inference remain unchanged.
     // Read declared result/storage types without checking the expression:
     // probing with check_expr would apply receiver and reference effects twice.
+    std::unordered_map<std::string, Type> contextual_bindings;
     const auto declared_source_type = [&](const auto& self, const Expr& value) -> std::optional<Type> {
         if (const auto* name = std::get_if<NameExpr>(&value.data)) {
+            if (!name->this_qualifier && !name->self_reference)
+                if (const auto bound = contextual_bindings.find(name->name); bound != contextual_bindings.end())
+                    return bound->second;
             if (name->self_reference && !current_class_.empty()) return Type::class_type(current_class_);
             if (const auto* field = receiver_field(value)) return field->type;
             if (!name->this_qualifier) {
@@ -7058,6 +8594,9 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
                 if (const auto* field = find_field(base->class_name, member->name)) return field->type;
             }
         } else if (const auto* call = std::get_if<MethodCallExpr>(&value.data)) {
+            if (const auto* name = binding_name(*call->receiver); name && call->method == "parse")
+                if (const auto parsed = builtin_scalar_type(name->name); parsed && is_numeric(*parsed))
+                    return Type::union_of({*parsed, simple(TypeKind::Error)});
             const auto receiver = self(self, *call->receiver);
             if (receiver && receiver->kind == TypeKind::Class) {
                 if (const auto* method = find_method(receiver->class_name, call->method))
@@ -7081,6 +8620,18 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
     };
     const auto contextual_literal = [&](const auto& self, const Expr& value,
                                         const Type& target) -> bool {
+        if (const auto* generation = std::get_if<ArrayComprehensionExpr>(&value.data);
+            generation && target.kind == TypeKind::Array && target.first) {
+            auto source = declared_source_type(declared_source_type, *generation->source);
+            if (source)
+                if (const auto success = error_free_operand_type(*source)) source = success;
+            const auto saved = contextual_bindings;
+            if (source && source->kind == TypeKind::Array && source->first)
+                contextual_bindings[generation->name] = *source->first;
+            const bool accepted = self(self, *generation->value, *target.first);
+            contextual_bindings = saved;
+            return accepted;
+        }
         if (const auto* array = std::get_if<ArrayExpr>(&value.data);
             array && target.kind == TypeKind::Array && target.first) {
             return std::all_of(array->elements.begin(), array->elements.end(),
@@ -7284,10 +8835,12 @@ struct BranchFlow {
     std::unordered_set<std::string> unknown_reference_targets;
     std::unordered_set<std::string> const_bindings;
     std::unordered_set<std::string> initialized;
-    std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths;
+    ClassInitializationStates class_initialized_paths;
     std::unordered_set<std::string> receiver_initializes;
     std::unordered_set<std::string> receiver_writes;
     std::unordered_set<std::string> receiver_invalidates;
+    ClassCopyInitializations receiver_copies;
+    bool receiver_restores_entry{};
     std::unordered_map<std::string, StorageEffect> reference_effects;
     std::unordered_set<std::string> maybe_initialized{};
 
@@ -7359,6 +8912,13 @@ void Checker::check_const_argument_uses(const CheckedProgram& checked) {
 }
 
 Type Checker::check_comparison_chain(const Expr& expression, const ComparisonChainExpr& node) {
+    const auto consume_operand = [&](const Expr& value, const Type& source) {
+        const auto success = consume_error_operand(value, source,
+            fail_fast_expressions_, expr_types_);
+        if (success != source && success.kind == TypeKind::Class)
+            class_expr_initialized_paths_[&value].merge(complete_class_paths(success));
+        return success;
+    };
     const auto relational = [](const std::string& op) {
         return op == "<" || op == "<=" || op == ">" || op == ">=";
     };
@@ -7433,7 +8993,11 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     std::vector<bool> literal(count);
     for (std::size_t i = 0; i < count; ++i) {
         literal[i] = single_family_category(numeric_literal_family(*node.operands[i]));
-        if (!literal[i]) types[i] = check_expr(*node.operands[i]);
+        if (!literal[i]) {
+            types[i] = check_expr(*node.operands[i]);
+            if (!first_equality)
+                types[i] = consume_operand(*node.operands[i], types[i]);
+        }
     }
     if (std::any_of(types.begin(), types.end(),
                     [](const Type& type) {
@@ -7451,11 +9015,25 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
             if (i >= distance && !literal[i - distance]) context = &types[i - distance];
             else if (i + distance < count && !literal[i + distance]) context = &types[i + distance];
         }
+        const auto success_context = context ? error_free_operand_type(*context) : std::nullopt;
+        if (success_context && is_numeric(*success_context)) context = &*success_context;
         const auto family = numeric_literal_family(*node.operands[i]);
         const auto literal_context = numeric_literal_context(context, family);
         const Type* scalar = context && is_numeric(*context) && literal_context.type &&
                              !literal_context.ambiguous ? context : nullptr;
         types[i] = check_expr(*node.operands[i], scalar);
+    }
+    if (first_equality && !types.empty() &&
+        !std::all_of(types.begin(), types.end(), [&](const Type& item) { return item == types.front(); })) {
+        std::vector<Type> success;
+        for (const auto& item : types)
+            success.push_back(error_free_operand_type(item).value_or(item));
+        if (std::all_of(success.begin(), success.end(), [&](const Type& item) {
+                return item == success.front() || numeric_common_type(item, success.front());
+            })) {
+            for (std::size_t i = 0; i < count; ++i)
+                types[i] = consume_operand(*node.operands[i], types[i]);
+        }
     }
     if (!shape_valid) return simple(TypeKind::Invalid);
     if (std::any_of(types.begin(), types.end(), [](const Type& type) { return poisoned(type); }))
@@ -7521,7 +9099,7 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
                           unknown_reference_targets_, const_bindings_, initialized_,
                           class_initialized_paths_, current_receiver_effect_.initializes,
                           current_receiver_effect_.writes,
-                          current_receiver_effect_.invalidates, current_reference_effects_,
+                          current_receiver_effect_.invalidates, current_receiver_effect_.copy_initializes, current_receiver_effect_.restores_entry_state, current_reference_effects_,
                           maybe_initialized_};
     };
     const auto restore = [&](const BranchFlow& state) {
@@ -7536,6 +9114,8 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         current_receiver_effect_.initializes = state.receiver_initializes;
         current_receiver_effect_.writes = state.receiver_writes;
         current_receiver_effect_.invalidates = state.receiver_invalidates;
+        current_receiver_effect_.copy_initializes = state.receiver_copies;
+        current_receiver_effect_.restores_entry_state = state.receiver_restores_entry;
         current_reference_effects_ = state.reference_effects;
     };
     // The state after a two-way choice from `before`, as check_if_stmt
@@ -7594,12 +9174,22 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
                 }
             }
         }
+        merge_local_copy_initializations(class_initialized_paths_, yes.class_initialized_paths,
+            no.class_initialized_paths, yes_terminates, no_terminates);
+        current_receiver_effect_.restores_entry_state = yes.receiver_restores_entry || no.receiver_restores_entry;
+        current_receiver_effect_.copy_initializes = yes_terminates ? no.receiver_copies :
+            no_terminates ? yes.receiver_copies : merge_copy_initializations(
+                yes.receiver_copies, yes.receiver_initializes, no.receiver_copies, no.receiver_initializes);
         current_receiver_effect_.writes = before.receiver_writes;
         current_receiver_effect_.writes.insert(yes.receiver_writes.begin(), yes.receiver_writes.end());
         current_receiver_effect_.writes.insert(no.receiver_writes.begin(), no.receiver_writes.end());
-        current_receiver_effect_.invalidates = yes.receiver_invalidates;
-        current_receiver_effect_.invalidates.insert(no.receiver_invalidates.begin(),
-                                                    no.receiver_invalidates.end());
+        if (yes_terminates) current_receiver_effect_.invalidates = no.receiver_invalidates;
+        else if (no_terminates) current_receiver_effect_.invalidates = yes.receiver_invalidates;
+        else {
+            current_receiver_effect_.invalidates = yes.receiver_invalidates;
+            current_receiver_effect_.invalidates.insert(no.receiver_invalidates.begin(),
+                                                        no.receiver_invalidates.end());
+        }
         current_reference_effects_ =
             merge_reference_branches(before.reference_effects, yes.reference_effects,
                                      no.reference_effects, yes_terminates, no_terminates);
@@ -7817,7 +9407,144 @@ Type Checker::check_literal_constant(const Expr& expression, const LiteralConsta
     return type;
 }
 
+Type Checker::check_numeric_array_operand(const Expr& value, const Type* candidate) {
+    const auto literal_context_for = [&](const Type* target,
+                                         NumericLiteralCategory family) -> const Type* {
+        if (!target) return nullptr;
+        if (complex_category(family)) return is_complex(*target) ? target : nullptr;
+        const auto context = numeric_literal_context(target, family);
+        return context.type && !context.ambiguous ? target : nullptr;
+    };
+    const auto array_accepts_context = [&](const auto& self, const Expr& value,
+                                            const Type& candidate) -> bool {
+        if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
+            if (candidate.kind != TypeKind::Array || !candidate.first) return false;
+            return std::all_of(array->elements.begin(), array->elements.end(),
+                [&](const auto& child) { return self(self, *child, *candidate.first); });
+        }
+        return literal_context_for(&candidate, numeric_literal_family(value)) != nullptr;
+    };
+    const auto literal_array_context = [&](const auto& self, const Expr& value,
+                                             const Type& candidate) -> Type {
+        const auto* array = std::get_if<ArrayExpr>(&value.data);
+        if (!array || array->elements.empty()) return candidate;
+        auto element = self(self, *array->elements.front(), *candidate.first);
+        for (std::size_t i = 1; i < array->elements.size(); ++i) {
+            const auto other = self(self, *array->elements[i], *candidate.first);
+            Type* merged = &element;
+            const Type* next = &other;
+            while (merged->kind == TypeKind::Array && next->kind == TypeKind::Array) {
+                if (merged->length != next->length) merged->length = -1;
+                merged = merged->first.get();
+                next = next->first.get();
+            }
+        }
+        return Type::array(std::move(element),
+                           static_cast<long long>(array->elements.size()));
+    };
+    if (!candidate || !array_accepts_context(array_accepts_context, value, *candidate))
+        return check_expr(value);
+    const auto context = literal_array_context(literal_array_context, value, *candidate);
+    return check_expr(value, &context);
+}
+
+Type Checker::check_numeric_array_result(
+    const Type& left, const Type& right, const std::string& op,
+    const Expr& right_expression, SourceSpan span) {
+    const bool pair = left.kind == TypeKind::Array &&
+                      right.kind == TypeKind::Array;
+    const Type* lhs = &left;
+    const Type* rhs = &right;
+    bool valid = true;
+    if (pair) {
+        // Array/array operands must have identical ranks and shapes;
+        // static lengths are proven at every known nesting level.
+        while (lhs->kind == TypeKind::Array || rhs->kind == TypeKind::Array) {
+            if (lhs->kind != TypeKind::Array ||
+                rhs->kind != TypeKind::Array) {
+                error("ARRAY_SHAPE",
+                      "Elementwise array operations require identical array ranks.",
+                      span);
+                valid = false;
+                break;
+            }
+            if (lhs->length >= 0 && rhs->length >= 0 &&
+                lhs->length != rhs->length) {
+                error("ARRAY_SHAPE",
+                      "Elementwise array operations require identical lengths.",
+                      span);
+                valid = false;
+            }
+            lhs = lhs->first.get();
+            rhs = rhs->first.get();
+        }
+    } else {
+        while (lhs->kind == TypeKind::Array && lhs->first)
+            lhs = lhs->first.get();
+        while (rhs->kind == TypeKind::Array && rhs->first)
+            rhs = rhs->first.get();
+    }
+    const bool relational = op == "<" || op == "<=" ||
+                            op == ">" || op == ">=";
+    const bool arithmetic = op == "+" || op == "-" ||
+                            op == "*" || op == "/" ||
+                            op == "%" || op == "^";
+    if (!relational && !arithmetic) {
+        error("TYPE_MISMATCH",
+              "Array operators are +, -, *, /, %, ^ and the four ordering comparisons.",
+              span);
+        valid = false;
+    }
+    const auto common = numeric_common_type(*lhs, *rhs);
+    if (!common || (relational && is_complex(*common)) ||
+        (op == "%" && !is_integer_family_type(*common))) {
+        error("TYPE_MISMATCH",
+              "Array elementwise operators require compatible numeric leaf types.",
+              span);
+        valid = false;
+    }
+    if (op == "^" &&
+        (left.kind != TypeKind::Array || right.kind == TypeKind::Array ||
+         (common && common->kind == TypeKind::Com))) {
+        error("TYPE_MISMATCH",
+              "Array exponentiation is defined only as array ^ scalar.",
+              span);
+        valid = false;
+    }
+    if (op == "^" && common && is_integer_family_type(*common)) {
+        const auto exponent = constant_eval::integer(right_expression);
+        if (exponent && *exponent < 0) {
+            error("POWER_DOMAIN", "Integer array exponent must be non-negative.",
+                  right_expression.span);
+            valid = false;
+        }
+    }
+    std::function<Type(const Type&, const Type&)> result_type;
+    result_type = [&](const Type& a, const Type& b) -> Type {
+        if (a.kind == TypeKind::Array || b.kind == TypeKind::Array) {
+            const auto& arr = a.kind == TypeKind::Array ? a : b;
+            auto nested = result_type(
+                a.kind == TypeKind::Array ? *a.first : a,
+                b.kind == TypeKind::Array ? *b.first : b);
+            long long extent = arr.length;
+            if (a.kind == TypeKind::Array && b.kind == TypeKind::Array &&
+                extent < 0)
+                extent = b.length;
+            return Type::array(std::move(nested), extent);
+        }
+        return relational ? simple(TypeKind::Bool) : *common;
+    };
+    return valid ? result_type(left, right) : simple(TypeKind::Invalid);
+}
+
 Type Checker::check_expr(const Expr& expression, const Type* expected) {
+    const auto consume_operand = [&](const Expr& value, const Type& source) {
+        const auto success = consume_error_operand(value, source,
+            fail_fast_expressions_, expr_types_);
+        if (success != source && success.kind == TypeKind::Class)
+            class_expr_initialized_paths_[&value].merge(complete_class_paths(success));
+        return success;
+    };
     // An inferred tuple slot supplies no concrete literal context.
     if (expected && expected->kind == TypeKind::Auto) expected = nullptr;
     nesting::DepthGuard guard(
@@ -8201,7 +9928,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
         if (!materialized_signed_minimum) {
-            type = check_expr(*node->operand, operand_expected);
+            type = consume_operand(*node->operand,
+                check_expr(*node->operand, operand_expected));
         }
         if (!poisoned(type)) {
             if (node->op == "not") {
@@ -8241,9 +9969,21 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         const auto joined_family =
             numeric_policy::join_numeric_literal_categories(left_family, right_family);
 
+        const bool aggregate_equality = node->op == "==" || node->op == "!=";
+        const auto check_operand = [&](const Expr& operand, const Type* context = nullptr) {
+            const auto source = check_expr(operand, context);
+            return aggregate_equality ? source : consume_operand(operand, source);
+        };
         Type left;
         Type right;
-        const auto scalar_context = [](const Type& other) -> const Type* {
+        const auto scalar_context = [](const Type& supplied) -> const Type* {
+            const Type* context = &supplied;
+            if (supplied.kind == TypeKind::Union && supplied.union_name.empty() &&
+                supplied.cases.size() == 2 && case_index(supplied, simple(TypeKind::Error)) >= 0) {
+                for (const auto& item : supplied.cases)
+                    if (item.kind != TypeKind::Error) context = &item;
+            }
+            const Type& other = *context;
             if (is_numeric(other)) return &other;
             if (other.kind == TypeKind::Array) {
                 const Type* leaf = &other;
@@ -8272,15 +10012,6 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     [&](const auto& child) { return self(self, *child); });
             return numeric_literal_family(value) != NumericLiteralCategory::None;
         };
-        const auto array_accepts_context = [&](const auto& self, const Expr& value,
-                                                const Type& candidate) -> bool {
-            if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
-                if (candidate.kind != TypeKind::Array || !candidate.first) return false;
-                return std::all_of(array->elements.begin(), array->elements.end(),
-                    [&](const auto& child) { return self(self, *child, *candidate.first); });
-            }
-            return literal_context_for(&candidate, numeric_literal_family(value)) != nullptr;
-        };
         const auto scalar_array_context = [&](const auto& self, const Expr& value,
                                                const Type& scalar) -> Type {
             if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
@@ -8290,31 +10021,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
             return scalar;
         };
-        const auto literal_array_context = [&](const auto& self, const Expr& value,
-                                                 const Type& candidate) -> Type {
-            const auto* array = std::get_if<ArrayExpr>(&value.data);
-            if (!array || array->elements.empty()) return candidate;
-            auto element = self(self, *array->elements.front(), *candidate.first);
-            for (std::size_t i = 1; i < array->elements.size(); ++i) {
-                const auto other = self(self, *array->elements[i], *candidate.first);
-                Type* merged = &element;
-                const Type* next = &other;
-                while (merged->kind == TypeKind::Array && next->kind == TypeKind::Array) {
-                    if (merged->length != next->length) merged->length = -1;
-                    merged = merged->first.get();
-                    next = next->first.get();
-                }
-            }
-            return Type::array(std::move(element),
-                               static_cast<long long>(array->elements.size()));
-        };
         const auto check_array_operand = [&](const Expr& value, const Type* candidate) -> Type {
-            if (!candidate || !array_accepts_context(array_accepts_context, value, *candidate))
-                return check_expr(value);
-            // Numeric operator contexts choose leaf representations without
-            // discarding the literal's known extents used by generic inference.
-            const auto context = literal_array_context(literal_array_context, value, *candidate);
-            return check_expr(value, &context);
+            return check_numeric_array_operand(value, candidate);
         };
 
         const bool left_literal =
@@ -8335,8 +10043,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 const bool previous = complex_literal_context_;
                 complex_literal_context_ = true;
                 try {
-                    left = check_expr(*node->left, &*complex);
-                    right = check_expr(*node->right, &*complex);
+                    left = check_operand(*node->left, &*complex);
+                    right = check_operand(*node->right, &*complex);
                 } catch (...) {
                     complex_literal_context_ = previous;
                     throw;
@@ -8356,13 +10064,13 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             const bool left_array_literal = literal_array(literal_array, *node->left);
             const bool right_array_literal = literal_array(literal_array, *node->right);
             if (aggregate_equality) {
-                left = check_expr(*node->left);
-                right = check_expr(*node->right, &left);
+                left = check_operand(*node->left);
+                right = check_operand(*node->right, &left);
             } else if (left_array_literal && !right_array_literal) {
-                right = check_expr(*node->right);
+                right = check_operand(*node->right);
                 left = check_array_operand(*node->left, &right);
             } else if (right_array_literal && !left_array_literal) {
-                left = check_expr(*node->left);
+                left = check_operand(*node->left);
                 right = check_array_operand(*node->right, &left);
             } else {
                 left = check_array_operand(*node->left, array_context);
@@ -8389,41 +10097,50 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 // Pass an incompatible destination through so the established
                 // destination-conversion diagnostics remain precise.
                 const Type* materialized = context.type ? &*context.type : operand_context;
-                left = check_expr(*node->left, materialized);
-                right = check_expr(*node->right, materialized);
+                left = check_operand(*node->left, materialized);
+                right = check_operand(*node->right, materialized);
             } else {
-                left = check_expr(*node->left, literal_context_for(operand_context, left_family));
-                right = check_expr(*node->right, literal_context_for(operand_context, right_family));
+                left = check_operand(*node->left, literal_context_for(operand_context, left_family));
+                right = check_operand(*node->right, literal_context_for(operand_context, right_family));
             }
         } else if (left_literal) {
             right = std::holds_alternative<ArrayExpr>(node->right->data)
-                ? check_array_operand(*node->right, array_context) : check_expr(*node->right);
-            left = check_expr(*node->left, literal_context_for(scalar_context(right), left_family));
+                ? check_array_operand(*node->right, array_context) : check_operand(*node->right);
+            left = check_operand(*node->left, literal_context_for(scalar_context(right), left_family));
         } else if (right_literal) {
             left = std::holds_alternative<ArrayExpr>(node->left->data)
-                ? check_array_operand(*node->left, array_context) : check_expr(*node->left);
-            right = check_expr(*node->right, literal_context_for(scalar_context(left), right_family));
+                ? check_array_operand(*node->left, array_context) : check_operand(*node->left);
+            right = check_operand(*node->right, literal_context_for(scalar_context(left), right_family));
         } else if (std::holds_alternative<ArrayExpr>(node->right->data)) {
-            left = check_expr(*node->left);
+            left = check_operand(*node->left);
             if (left.kind == TypeKind::Array)
                 right = node->op == "==" || node->op == "!="
-                    ? check_expr(*node->right, &left) : check_array_operand(*node->right, &left);
+                    ? check_operand(*node->right, &left) : check_array_operand(*node->right, &left);
             else if (is_numeric(left)) {
                 const auto array_context = scalar_array_context(scalar_array_context, *node->right, left);
                 right = check_array_operand(*node->right, &array_context);
-            } else right = check_expr(*node->right);
+            } else right = check_operand(*node->right);
         } else if (std::holds_alternative<ArrayExpr>(node->left->data)) {
-            right = check_expr(*node->right);
+            right = check_operand(*node->right);
             if (right.kind == TypeKind::Array)
                 left = node->op == "==" || node->op == "!="
-                    ? check_expr(*node->left, &right) : check_array_operand(*node->left, &right);
+                    ? check_operand(*node->left, &right) : check_array_operand(*node->left, &right);
             else if (is_numeric(right)) {
                 const auto array_context = scalar_array_context(scalar_array_context, *node->left, right);
                 left = check_array_operand(*node->left, &array_context);
-            } else left = check_expr(*node->left);
+            } else left = check_operand(*node->left);
         } else {
-            left = check_expr(*node->left);
-            right = check_expr(*node->right);
+            left = check_operand(*node->left);
+            right = check_operand(*node->right);
+        }
+
+        if (aggregate_equality && left != right) {
+            const auto success_left = error_free_operand_type(left).value_or(left);
+            const auto success_right = error_free_operand_type(right).value_or(right);
+            if (success_left == success_right || numeric_common_type(success_left, success_right)) {
+                left = consume_operand(*node->left, left);
+                right = consume_operand(*node->right, right);
+            }
         }
 
         if (poisoned(left) || poisoned(right)) {
@@ -8544,90 +10261,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 check_element_read(*node->left, nullptr, expression.span);
             if (right.kind == TypeKind::Array)
                 check_element_read(*node->right, nullptr, expression.span);
-            const bool pair = left.kind == TypeKind::Array &&
-                              right.kind == TypeKind::Array;
-            const Type* lhs = &left;
-            const Type* rhs = &right;
-            bool valid = true;
-            if (pair) {
-                // Array/array operands must have identical ranks and shapes;
-                // static lengths are proven at every known nesting level.
-                while (lhs->kind == TypeKind::Array || rhs->kind == TypeKind::Array) {
-                    if (lhs->kind != TypeKind::Array ||
-                        rhs->kind != TypeKind::Array) {
-                        error("ARRAY_SHAPE",
-                              "Elementwise array operations require identical array ranks.",
-                              expression.span);
-                        valid = false;
-                        break;
-                    }
-                    if (lhs->length >= 0 && rhs->length >= 0 &&
-                        lhs->length != rhs->length) {
-                        error("ARRAY_SHAPE",
-                              "Elementwise array operations require identical lengths.",
-                              expression.span);
-                        valid = false;
-                    }
-                    lhs = lhs->first.get();
-                    rhs = rhs->first.get();
-                }
-            } else {
-                while (lhs->kind == TypeKind::Array && lhs->first)
-                    lhs = lhs->first.get();
-                while (rhs->kind == TypeKind::Array && rhs->first)
-                    rhs = rhs->first.get();
-            }
-            const bool relational = node->op == "<" || node->op == "<=" ||
-                                    node->op == ">" || node->op == ">=";
-            const bool arithmetic = node->op == "+" || node->op == "-" ||
-                                    node->op == "*" || node->op == "/" ||
-                                    node->op == "%" || node->op == "^";
-            if (!relational && !arithmetic) {
-                error("TYPE_MISMATCH",
-                      "Array operators are +, -, *, /, %, ^ and the four ordering comparisons.",
-                      expression.span);
-                valid = false;
-            }
-            const auto common = numeric_common_type(*lhs, *rhs);
-            if (!common || (relational && is_complex(*common)) ||
-                (node->op == "%" && !is_integer_family_type(*common))) {
-                error("TYPE_MISMATCH",
-                      "Array elementwise operators require compatible numeric leaf types.",
-                      expression.span);
-                valid = false;
-            }
-            if (node->op == "^" &&
-                (left.kind != TypeKind::Array || right.kind == TypeKind::Array ||
-                 (common && common->kind == TypeKind::Com))) {
-                error("TYPE_MISMATCH",
-                      "Array exponentiation is defined only as array ^ scalar.",
-                      expression.span);
-                valid = false;
-            }
-            if (node->op == "^" && common && is_integer_family_type(*common)) {
-                const auto exponent = constant_eval::integer(*node->right);
-                if (exponent && *exponent < 0) {
-                    error("POWER_DOMAIN", "Integer array exponent must be non-negative.",
-                          node->right->span);
-                    valid = false;
-                }
-            }
-            std::function<Type(const Type&, const Type&)> result_type;
-            result_type = [&](const Type& a, const Type& b) -> Type {
-                if (a.kind == TypeKind::Array || b.kind == TypeKind::Array) {
-                    const auto& arr = a.kind == TypeKind::Array ? a : b;
-                    auto nested = result_type(
-                        a.kind == TypeKind::Array ? *a.first : a,
-                        b.kind == TypeKind::Array ? *b.first : b);
-                    long long extent = arr.length;
-                    if (a.kind == TypeKind::Array && b.kind == TypeKind::Array &&
-                        extent < 0)
-                        extent = b.length;
-                    return Type::array(std::move(nested), extent);
-                }
-                return relational ? simple(TypeKind::Bool) : *common;
-            };
-            type = valid ? result_type(left, right) : simple(TypeKind::Invalid);
+            type = check_numeric_array_result(
+                left, right, node->op, *node->right, expression.span);
         } else {
             if (const auto common = numeric_common_type(left, right)) left = right = *common;
             if (left != right) {
@@ -8793,7 +10428,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<TryExpr>(&expression.data)) {
         const auto error_type = simple(TypeKind::Error);
         Type source;
-        error_terminating_expr_ = node->value.get();
+        ScopedErrorConsumption propagation(error_terminating_expr_,&expression);
         if (expected) {
             const auto operand_expected = Type::union_of({*expected, error_type});
             source = check_expr(*node->value, &operand_expected);
@@ -8808,6 +10443,13 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
             if (!in_function_ || !assignable(error_type, current_return_)) {
                 error("TRY_CONTEXT", "Enclosing return type must accept error.", expression.span);
+            }
+            if (error_terminating_expr_ == &expression) {
+                // Ordinary calls already expose their all-normal-completion
+                // effects. Direct scan operands captured their own failure
+                // state before success-only initialization above.
+                if (in_constructor_) constructor_reference_error_exits_.push_back(current_reference_effects_);
+                else record_effect_exit();
             }
             auto cases = source.cases;
             cases.erase(std::remove(cases.begin(), cases.end(), error_type), cases.end());
@@ -8833,6 +10475,15 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     }
 
     raw_types_[&expression] = type;
+    if (type.kind == TypeKind::Class &&
+        (std::holds_alternative<CallExpr>(expression.data) ||
+         std::holds_alternative<MethodCallExpr>(expression.data))) {
+        // Snapshot only unconditional copy facts at call evaluation. Later
+        // operands may replace the source; they must not repair this value.
+        const auto copies = class_copy_initializations(expression, type);
+        for (const auto& [path, dependencies] : copies)
+            if (dependencies.empty()) class_expr_initialized_paths_[&expression].insert(path);
+    }
     std::optional<Type> completed_context;
     if (expected && tuple_context_incomplete(*expected)) {
         completed_context = complete_tuple_context(*expected, type);
@@ -9014,7 +10665,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         if (is_discard_name(node.name)) error("DISCARD", discard_typed_message, statement.span);
         if (node.name.starts_with(abi::symbol_namespace::internal_prefix))
             error("SHADOWING", compiler_name_message(node.name), statement.span);
-        if (variables_.contains(node.name) || declaration_name_visible(node.name) ||
+        if (variables_.contains(node.name) || declaration_name_visible(node.name, statement.span) ||
             is_reserved_value_name(node.name) || member_name_visible(node.name)) {
             error("SHADOWING", "Name is already visible or reserved.", statement.span);
         }
@@ -9131,6 +10782,11 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         }
 
         if (node.reference) {
+            std::vector<std::pair<std::string,std::string>> inherited_origins;
+            if (node.value) if (const auto* source = binding_name(*node.value))
+                if (const auto found = traversal_reference_origins_.find(source->name);
+                    found != traversal_reference_origins_.end()) inherited_origins = found->second;
+            traversal_reference_origins_.erase(node.name);
             if (node.value && is_if_expression(*node.value)) {
                 error("IF_EXPRESSION", if_expression_reference_message, node.value->span);
             }
@@ -9166,6 +10822,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                       node.value->span);
             }
             auto actual = check_address_target(*node.value);
+            if (actual.kind == TypeKind::Class || actual.kind == TypeKind::Tuple) {
+                if (const auto* element = std::get_if<IndexExpr>(&node.value->data))
+                    check_address_value_read(*element->base);
+            }
             if (type.kind == TypeKind::Auto) type = actual;
             else if (!poisoned(actual) && actual != type) {
                 error("TYPE_MISMATCH", "Reference bindings require identical types.", statement.span);
@@ -9176,6 +10836,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             variables_[node.name] = type;
             binding_declarations_[node.name] = &statement;
             initialized_.insert("$bound." + node.name);
+            initialized_.erase("$array_value." + node.name);
             maybe_initialized_.erase("$bound." + node.name);
             maybe_initialized_.erase(node.name);
             untracked_initialized_.erase(node.name);
@@ -9191,7 +10852,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 reference_paths_[node.name] = {node.name, ""};
                 unknown_reference_targets_.insert(node.name);
             } else if (const auto* source = binding_name(*node.value);
-                       source && variables_.contains(source->name)) {
+                       source && variables_.contains(source->name) &&
+                       (!reference_paths_.contains(source->name) ||
+                        reference_paths_.at(source->name).first != "$receiver" ||
+                        current_receiver_path(*node.value).has_value())) {
                 reference_roots_[node.name] = reference_root(source->name);
                 if (const auto existing = reference_paths_.find(source->name); existing != reference_paths_.end()) {
                     reference_paths_[node.name] = existing->second;
@@ -9203,7 +10867,22 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 reference_roots_[node.name] = path->first;
                 reference_paths_[node.name] = *path;
                 unknown_reference_targets_.erase(node.name);
-            } else if (const auto path = member_storage_path(*node.value)) {
+            } else if (const auto path = alias_storage_path(*node.value);
+                       path && path->second.ends_with("[]") && path->first != "$unknown" &&
+                       (actual.kind == TypeKind::Class || actual.kind == TypeKind::Tuple) &&
+                       !reaches_reference_field(*node.value)) {
+                reference_roots_[node.name] = path->first;
+                reference_paths_[node.name] = *path;
+                unknown_reference_targets_.erase(node.name);
+            } else if (const auto path = current_receiver_path(*node.value);
+                       path && !path->empty() && path->find("[]") == std::string::npos &&
+                       path->find('.') == std::string::npos &&
+                       !reaches_reference_field(*node.value)) {
+                reference_roots_[node.name] = "$receiver";
+                reference_paths_[node.name] = {"$receiver", *path};
+                unknown_reference_targets_.erase(node.name);
+            } else if (const auto path = member_storage_path(*node.value);
+                       path && path->first != "$receiver") {
                 reference_roots_[node.name] = path->first;
                 reference_paths_[node.name] = *path;
                 unknown_reference_targets_.erase(node.name);
@@ -9212,6 +10891,8 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 reference_paths_[node.name] = {node.name, ""};
                 unknown_reference_targets_.insert(node.name);
             }
+            if (!inherited_origins.empty() && type.kind == TypeKind::String)
+                traversal_reference_origins_[node.name] = std::move(inherited_origins);
             binding_types_[&statement] = type;
             if (storage_initialized(*node.value)) {
                 initialized_.insert(node.name);
@@ -9432,6 +11113,11 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
             current_receiver_effect_.writes.insert(field.name);
             return;
         }
+        std::vector<std::pair<std::string,std::string>> inherited_origins;
+        if (const auto* source = binding_name(*node.target))
+            if (const auto found = traversal_reference_origins_.find(source->name);
+                found != traversal_reference_origins_.end()) inherited_origins = found->second;
+        traversal_reference_origins_.erase(node.name);
         if (current_reference_parameters_.contains(node.name))
             error("REFERENCE_BINDING", "A reference parameter cannot be rebound; it is lent by the caller.", statement.span);
         if (is_discard_name(node.name)) error("DISCARD", discard_read_message, statement.span);
@@ -9450,7 +11136,12 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
                   node.target->span);
         }
         auto actual = check_address_target(*node.target);
+        if (actual.kind == TypeKind::Class || actual.kind == TypeKind::Tuple) {
+            if (const auto* element = std::get_if<IndexExpr>(&node.target->data))
+                check_address_value_read(*element->base);
+        }
         initialized_.insert("$bound." + node.name);
+        initialized_.erase("$array_value." + node.name);
         maybe_initialized_.erase("$bound." + node.name);
         const auto expected = variables_.at(node.name);
         if (!poisoned(actual) && actual != expected) {
@@ -9461,7 +11152,10 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
             reference_paths_[node.name] = {node.name, ""};
             unknown_reference_targets_.insert(node.name);
         } else if (const auto* source = binding_name(*node.target);
-                   source && variables_.contains(source->name)) {
+                   source && variables_.contains(source->name) &&
+                   (!reference_paths_.contains(source->name) ||
+                    reference_paths_.at(source->name).first != "$receiver" ||
+                    current_receiver_path(*node.target).has_value())) {
             reference_roots_[node.name] = reference_root(source->name);
             if (const auto existing = reference_paths_.find(source->name); existing != reference_paths_.end()) {
                 reference_paths_[node.name] = existing->second;
@@ -9473,7 +11167,22 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
             reference_roots_[node.name] = path->first;
             reference_paths_[node.name] = *path;
             unknown_reference_targets_.erase(node.name);
-        } else if (const auto path = member_storage_path(*node.target)) {
+        } else if (const auto path = alias_storage_path(*node.target);
+                   path && path->second.ends_with("[]") && path->first != "$unknown" &&
+                   (actual.kind == TypeKind::Class || actual.kind == TypeKind::Tuple) &&
+                   !reaches_reference_field(*node.target)) {
+            reference_roots_[node.name] = path->first;
+            reference_paths_[node.name] = *path;
+            unknown_reference_targets_.erase(node.name);
+        } else if (const auto path = current_receiver_path(*node.target);
+                   path && !path->empty() && path->find("[]") == std::string::npos &&
+                       path->find('.') == std::string::npos &&
+                   !reaches_reference_field(*node.target)) {
+            reference_roots_[node.name] = "$receiver";
+            reference_paths_[node.name] = {"$receiver", *path};
+            unknown_reference_targets_.erase(node.name);
+        } else if (const auto path = member_storage_path(*node.target);
+                   path && path->first != "$receiver") {
             reference_roots_[node.name] = path->first;
             reference_paths_[node.name] = *path;
             unknown_reference_targets_.erase(node.name);
@@ -9482,6 +11191,8 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
             reference_paths_[node.name] = {node.name, ""};
             unknown_reference_targets_.insert(node.name);
         }
+        if (!inherited_origins.empty() && expected.kind == TypeKind::String)
+            traversal_reference_origins_[node.name] = std::move(inherited_origins);
         if (storage_initialized(*node.target)) {
             initialized_.insert(node.name);
             initialized_.insert("$bound_target." + node.name);
@@ -9624,6 +11335,12 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         }
         if (!node.compound_op.empty()) {
             const auto read_type = check_expr(*node.target_expr());
+            if (read_type.kind == TypeKind::Array)
+                if (const auto* index = std::get_if<IndexExpr>(&node.target_expr()->data);
+                    index && index->items.size() == 1 && index->items.front().slice)
+                    error("INVALID_ASSIGNMENT",
+                          "Array slice compound assignment needs an explicit array result.",
+                          statement.span);
             if (read_type.kind == TypeKind::Tensor &&
                 std::holds_alternative<IndexExpr>(node.target_expr()->data)) {
                 error("WRITE_CAPABILITY",
@@ -9631,12 +11348,16 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                       statement.span);
             }
             if (!poisoned(read_type)) {
+                const Type* leaf = &read_type;
+                while (leaf->kind == TypeKind::Array && leaf->first)
+                    leaf = leaf->first.get();
+                const bool numeric_array = read_type.kind == TypeKind::Array && is_numeric(*leaf);
                 const bool valid =
                     (node.compound_op == "+" &&
-                     (is_numeric(read_type) || read_type.kind == TypeKind::String)) ||
+                     (is_numeric(read_type) || numeric_array || read_type.kind == TypeKind::String)) ||
                     ((node.compound_op == "-" || node.compound_op == "*" ||
-                      node.compound_op == "/") && is_numeric(read_type)) ||
-                    (node.compound_op == "%" && is_integer_family_type(read_type));
+                      node.compound_op == "/") && (is_numeric(read_type) || numeric_array)) ||
+                    (node.compound_op == "%" && is_integer_family_type(*leaf));
                 if (!valid) {
                     error("TYPE_MISMATCH",
                           "Operator '" + node.compound_op +
@@ -9645,7 +11366,43 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
             }
         }
-        const auto check_value = [&](const Type& destination) -> Type {
+        const auto check_assigned_value = [&](const Type& destination) -> Type {
+            if (!node.compound_op.empty() && destination.kind == TypeKind::Array) {
+                check_element_read(*node.target_expr(), nullptr, statement.span);
+                const Type* leaf = &destination;
+                while (leaf->kind == TypeKind::Array && leaf->first) leaf = leaf->first.get();
+                Type source;
+                if (std::holds_alternative<ArrayExpr>(node.value->data)) {
+                    source = check_numeric_array_operand(*node.value, &destination);
+                } else {
+                    const auto family = numeric_literal_family(*node.value);
+                    const auto context = numeric_literal_context(leaf, family);
+                    const bool complex_literal = complex_category(family) && is_complex(*leaf);
+                    source = check_expr(*node.value,
+                        complex_literal || (context.type && !context.ambiguous) ? leaf : nullptr);
+                }
+                if (poisoned(source)) return source;
+                if (source.kind == TypeKind::Union && source.union_name.empty() &&
+                    case_index(source, simple(TypeKind::Error)) >= 0) {
+                    std::vector<Type> success;
+                    for (const auto& alternative : source.cases)
+                        if (alternative.kind != TypeKind::Error) success.push_back(alternative);
+                    if (success.size() == 1 &&
+                        (is_numeric(success.front()) || success.front().kind == TypeKind::Array)) {
+                        source = success.front();
+                        fail_fast_expressions_.insert(node.value.get());
+                        expr_types_[node.value.get()] = source;
+                    }
+                }
+                if (source.kind == TypeKind::Array)
+                    check_element_read(*node.value, nullptr, statement.span);
+                const auto result = check_numeric_array_result(
+                    destination, source, node.compound_op, *node.value, statement.span);
+                if (!poisoned(result) && !assignable(result, destination))
+                    error("TYPE_MISMATCH", "Compound assignment result cannot be stored in " +
+                          type_name(destination) + ".", statement.span);
+                return source;
+            }
             if (node.compound_op.empty() || !is_numeric(destination))
                 return check_expr(*node.value, &destination);
             const auto family = numeric_literal_family(*node.value);
@@ -9674,6 +11431,12 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                       type_name(destination) + ".", statement.span);
             }
             return source;
+        };
+        ClassCopyInitializations assigned_copies;
+        const auto check_value = [&](const Type& destination) {
+            auto result = check_assigned_value(destination);
+            assigned_copies = class_copy_initializations(*node.value, destination);
+            return result;
         };
         Type type;
         if (auto* name = std::get_if<NameExpr>(&node.target_expr()->data)) {
@@ -9723,6 +11486,11 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     record_storage_assignment(
                         current_reference_effects_[reference->first], reference->second,
                         type, *node.value);
+                } else if (const auto receiver = current_receiver_path(*node.target_expr())) {
+                    record_current_receiver_assignment(*receiver, type, *node.value);
+                    note_field_store("$this", *receiver);
+                    note_class_value("$this", *receiver, type,
+                                     initialized_paths_for_expr(*node.value));
                 } else if (const auto ref = reference_paths_.find(name->name);
                            ref != reference_paths_.end() && !ref->second.second.empty()) {
                     auto& fields = class_initialized_paths_[ref->second.first];
@@ -9901,6 +11669,26 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 apply_traversal_storage_effect(*node.target_expr(), assigned);
             }
         }
+        if (type.kind == TypeKind::Class || type.kind == TypeKind::Tuple) {
+            StorageEffect assigned;
+            record_storage_assignment(assigned, "", type, *node.value);
+            record_array_ingress_invalidations(*node.target_expr(), assigned);
+            if (const auto* alias = binding_name(*node.target_expr());
+                alias && reference_paths_.contains(alias->name) &&
+                reference_paths_.at(alias->name).second.ends_with("[]") &&
+                !unknown_reference_access_path(*node.target_expr()))
+                initialized_.insert("$array_value." + alias->name);
+        }
+        const auto may_hold_class = [&](const auto& self, const Type& current) -> bool {
+            if (current.kind == TypeKind::Class || current.kind == TypeKind::Tuple) return true;
+            if (current.kind == TypeKind::Array && current.first) return self(self, *current.first);
+            if (current.kind == TypeKind::Union)
+                return std::any_of(current.cases.begin(), current.cases.end(),
+                    [&](const auto& item) { return self(self, item); });
+            return false;
+        };
+        if (may_hold_class(may_hold_class, type)) maybe_initialized_.insert("$scalar_parent_changed");
+        replace_local_copy_initializations(*node.target_expr(), assigned_copies);
         if(type.kind==TypeKind::Class) {
             const auto value_paths=initialized_paths_for_expr(*node.value);
             for(const auto& path:complete_class_paths(type))
@@ -9950,6 +11738,7 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
                       "Class initialization completes with a bare return; the current instance is its result, so the only value it can return is an error.",
                       statement.span);
             }
+            constructor_reference_error_exits_.push_back(current_reference_effects_);
             return;
         }
         check_expr(*node.value, &current_return_);
@@ -9993,9 +11782,8 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
 
 void Checker::check_expression_stmt(const Stmt& statement, const ExprStmt& node) {
         for (const auto& binding : node.inline_bindings) check_stmt(*binding);
-        error_terminating_expr_ = node.value.get();
+        ScopedErrorConsumption consumption(error_terminating_expr_,node.value.get());
         auto type = check_expr(*node.value);
-        error_terminating_expr_ = nullptr;
         if (type.kind == TypeKind::Range) {
             error("RANGE_CONTEXT", "range is only a for iterable.", statement.span);
         }
@@ -10074,6 +11862,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto references = reference_roots_;
         auto reference_paths = reference_paths_;
         auto unknown_references = unknown_reference_targets_;
+        auto origins_before = traversal_reference_origins_;
         auto const_bindings = const_bindings_;
         auto before = initialized_;
         auto before_maybe = maybe_initialized_;
@@ -10081,6 +11870,8 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto before_method = current_receiver_effect_.initializes;
         auto before_method_written = current_receiver_effect_.writes;
         auto before_method_invalidated = current_receiver_effect_.invalidates;
+        auto before_method_copies = current_receiver_effect_.copy_initializes;
+        auto before_method_restores = current_receiver_effect_.restores_entry_state;
         auto before_reference_effects = current_reference_effects_;
 
         // Only the success edge may observe new output bindings.
@@ -10103,14 +11894,18 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto yes_method = current_receiver_effect_.initializes;
         auto yes_method_written = current_receiver_effect_.writes;
         auto yes_method_invalidated = current_receiver_effect_.invalidates;
+        auto yes_method_copies = current_receiver_effect_.copy_initializes;
+        auto yes_method_restores = current_receiver_effect_.restores_entry_state;
         auto yes_reference_effects = current_reference_effects_;
         ReferenceTargetState yes_targets{reference_paths_, unknown_reference_targets_};
+        auto yes_origins = traversal_reference_origins_;
         const bool yes_terminates = block_always_terminates(node.then_body);
 
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
         unknown_reference_targets_ = unknown_references;
+        traversal_reference_origins_ = origins_before;
         const_bindings_ = const_bindings;
         initialized_ = before;
         maybe_initialized_ = before_maybe;
@@ -10118,6 +11913,8 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.initializes = before_method;
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.invalidates = before_method_invalidated;
+        current_receiver_effect_.copy_initializes = before_method_copies;
+        current_receiver_effect_.restores_entry_state = before_method_restores;
         current_reference_effects_ = before_reference_effects;
         for (const auto& binding : node.condition_bindings) {
             const auto& name = std::get<BindingStmt>(binding->data).name;
@@ -10133,20 +11930,26 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto no_method = current_receiver_effect_.initializes;
         auto no_method_written = current_receiver_effect_.writes;
         auto no_method_invalidated = current_receiver_effect_.invalidates;
+        auto no_method_copies = current_receiver_effect_.copy_initializes;
+        auto no_method_restores = current_receiver_effect_.restores_entry_state;
         auto no_reference_effects = current_reference_effects_;
         ReferenceTargetState no_targets{reference_paths_, unknown_reference_targets_};
+        auto no_origins = traversal_reference_origins_;
         const bool no_terminates = block_always_terminates(node.else_body);
 
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
         unknown_reference_targets_ = unknown_references;
+        traversal_reference_origins_ = origins_before;
         const_bindings_ = const_bindings;
         initialized_ = before;
         class_initialized_paths_ = before_paths;
         current_receiver_effect_.initializes = before_method;
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.invalidates = before_method_invalidated;
+        current_receiver_effect_.copy_initializes = before_method_copies;
+        current_receiver_effect_.restores_entry_state = before_method_restores;
         current_reference_effects_ = before_reference_effects;
         for (const auto& [name, base_type] : variables) {
             if (base_type.kind == TypeKind::Tensor) {
@@ -10200,11 +12003,21 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
                 if (no_method.contains(field)) current_receiver_effect_.initializes.insert(field);
             }
         }
+        merge_local_copy_initializations(class_initialized_paths_, yes_paths, no_paths,
+                                          yes_terminates, no_terminates);
+        current_receiver_effect_.restores_entry_state = yes_method_restores || no_method_restores;
+        current_receiver_effect_.copy_initializes = yes_terminates ? no_method_copies :
+            no_terminates ? yes_method_copies : merge_copy_initializations(
+                yes_method_copies, yes_method, no_method_copies, no_method);
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.writes.insert(yes_method_written.begin(), yes_method_written.end());
         current_receiver_effect_.writes.insert(no_method_written.begin(), no_method_written.end());
-        current_receiver_effect_.invalidates = yes_method_invalidated;
-        current_receiver_effect_.invalidates.insert(no_method_invalidated.begin(), no_method_invalidated.end());
+        if (yes_terminates) current_receiver_effect_.invalidates = no_method_invalidated;
+        else if (no_terminates) current_receiver_effect_.invalidates = yes_method_invalidated;
+        else {
+            current_receiver_effect_.invalidates = yes_method_invalidated;
+            current_receiver_effect_.invalidates.insert(no_method_invalidated.begin(), no_method_invalidated.end());
+        }
         current_reference_effects_ =
             merge_reference_branches(before_reference_effects, yes_reference_effects,
                                      no_reference_effects, yes_terminates, no_terminates);
@@ -10214,6 +12027,38 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         if (!no_terminates) continuing_targets.push_back(std::move(no_targets));
         auto joined = join_reference_targets(
             references, reference_paths, unknown_references, continuing_targets);
+        traversal_reference_origins_ = origins_before;
+        for (const auto& [name, type] : variables) {
+            if (type.kind != TypeKind::String || !reference_paths.contains(name)) continue;
+            traversal_reference_origins_.erase(name);
+            if (!joined.unknown.contains(name)) continue;
+            std::vector<std::pair<std::string,std::string>> candidates;
+            std::string parent;
+            bool valid = true;
+            const auto include = [&](const ReferenceTargetState& state, const auto& origins) {
+                if (!valid) return;
+                std::vector<std::pair<std::string,std::string>> paths;
+                const auto target = reference_target(state, name);
+                if (!target.unknown) paths.push_back(target.path);
+                else if (const auto found = origins.find(name); found != origins.end()) paths = found->second;
+                else { valid = false; return; }
+                if (paths.empty()) { valid = false; return; }
+                for (const auto& path : paths) {
+                    if (!current_reference_parameters_.contains(path.first) || !variables.contains(path.first) ||
+                        variables.at(path.first).kind != TypeKind::Class || path.second.empty() ||
+                        path.second.find_first_of(".[](") != std::string::npos ||
+                        (!parent.empty() && parent != path.first)) { valid = false; return; }
+                    const auto* field = find_field(variables.at(path.first).class_name, path.second);
+                    if (!field || field->reference || field->type.kind != TypeKind::String) { valid = false; return; }
+                    parent = path.first;
+                    if (std::find(candidates.begin(), candidates.end(), path) == candidates.end()) candidates.push_back(path);
+                }
+            };
+            std::size_t index = 0;
+            if (!yes_terminates) include(continuing_targets[index++], yes_origins);
+            if (!no_terminates) include(continuing_targets[index++], no_origins);
+            if (valid && !candidates.empty()) traversal_reference_origins_[name] = std::move(candidates);
+        }
         reference_roots_ = std::move(joined.roots);
         reference_paths_ = std::move(joined.paths);
         unknown_reference_targets_ = std::move(joined.unknown);
@@ -10268,6 +12113,7 @@ void Checker::check_parallel_stmt(const Stmt&, const ParallelStmt& node) {
     };
     const auto trim_set=[&](auto& values) {
         for(auto it=values.begin();it!=values.end();) {
+            if (*it == "$scalar_parent_changed") { ++it; continue; }
             const auto end=it->find_first_of(".[");
             const auto root=it->substr(0,end);
             if(!outer.contains(root)) it=values.erase(it); else ++it;
@@ -10296,6 +12142,7 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         auto unknown_references = unknown_reference_targets_;
         auto const_bindings = const_bindings_;
         auto initialized = initialized_;
+        const auto maybe_before_loop = maybe_initialized_;
         auto paths = class_initialized_paths_;
         auto method_initialized = current_receiver_effect_.initializes;
         auto method_written = current_receiver_effect_.writes;
@@ -10318,6 +12165,7 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         }
         // The body may run after itself: what it may initialize may be
         // initialized at its start (L13).
+        discard_loop_copy_initializations();
         note_loop_initializations(node.body);
         const auto first_check = initialization_check_order_.size();
         {
@@ -10330,6 +12178,7 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         auto body_invalidated = current_receiver_effect_.invalidates;
         auto body_initialized = initialized_;
         auto body_maybe = maybe_initialized_;
+        const auto body_class_paths = class_initialized_paths_;
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
@@ -10337,6 +12186,9 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = paths;
+        retain_conditional_loop_class_paths(class_initialized_paths_,body_class_paths,variables,references,current_reference_parameters_,
+            initialized,maybe_before_loop,body_initialized,body_maybe,
+            [&](const Type& value){ return complete_class_paths(value); }, in_function_ && !copy_dependencies_disabled_);
         // The loop may run zero times.
         join_maybe_initialized({{&body_initialized, &body_maybe}});
         for (const auto& [name, base_type] : variables) {
@@ -10352,6 +12204,7 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         current_receiver_effect_.invalidates = method_invalidated;
         current_receiver_effect_.invalidates.insert(body_invalidated.begin(), body_invalidated.end());
         current_reference_effects_ = merge_reference_loop(reference_effects, current_reference_effects_);
+        discard_loop_copy_initializations();
         std::unordered_set<std::string> rebound;
         collect_rebound_references(node.body, rebound);
         for (const auto& name : rebound) {
@@ -10434,13 +12287,16 @@ TraversalBinding Checker::traversal_binding(const Expr& expression) {
 Type Checker::check_array_comprehension(const Expr& expression,
                                         const ArrayComprehensionExpr& node,
                                         const Type* expected) {
-    const auto source = check_expr(*node.source);
+    auto source = check_expr(*node.source);
+    if (const auto success = error_free_operand_type(source);
+        success && success->kind == TypeKind::Array)
+        source = consume_error_operand(*node.source, source, fail_fast_expressions_, expr_types_);
     if (source.kind != TypeKind::Array)
         error("ARRAY_COMPREHENSION", "A generation expression iterates one Array value.", node.source->span);
     const auto item = node.type ? resolve_type(*node.type) : *source.first;
     if (item != *source.first)
         error("TYPE_MISMATCH", "A generation binding requires its exact Array element type.", node.binding_span);
-    if (variables_.contains(node.name) || declaration_name_visible(node.name) ||
+    if (variables_.contains(node.name) || declaration_name_visible(node.name, node.binding_span) ||
         is_reserved_value_name(node.name) || member_name_visible(node.name) ||
         node.name.starts_with(abi::symbol_namespace::internal_prefix))
         error("SHADOWING", "Generation binding name is already visible or reserved.", node.binding_span);
@@ -10479,11 +12335,27 @@ Type Checker::check_array_comprehension(const Expr& expression,
             if (!current_receiver_effect_.initializes.contains(*it)) it = receiver.initializes.erase(it); else ++it;
         current_receiver_effect_.initializes = receiver.initializes;
         current_reference_effects_ = merge_reference_loop(references, current_reference_effects_);
+        discard_loop_copy_initializations();
     };
     Type element;
+    ScopedCounter copy_loop(loop_depth_);
+    discard_loop_copy_initializations();
     try {
         if (node.condition) { const auto boolean = simple(TypeKind::Bool); check_expr(*node.condition, &boolean); }
         element = check_expr(*node.value, context ? context->first.get() : nullptr);
+        if (!context) {
+            // An inferred generated value follows inferred binding consumption.
+            // An explicit error-element context keeps its failure alternative.
+            const auto source = element;
+            element = consume_error_operand(*node.value, element,
+                fail_fast_expressions_, expr_types_);
+            if (element != source &&
+                (element.kind == TypeKind::Class || element.kind == TypeKind::Tuple) &&
+                !class_expr_initialized_paths_.contains(node.value.get())) {
+                // Preserve exact constructor facts, including a partial mask.
+                class_expr_initialized_paths_[node.value.get()] = complete_class_paths(element);
+            }
+        }
         if (!is_storable(element)) error("TYPE_MISMATCH", "Generated Array elements must be storable values.", node.value->span);
         if ((element.kind == TypeKind::Class || element.kind == TypeKind::Tuple) &&
             !fully_initialized_for_equality(*node.value, element))
@@ -10615,7 +12487,15 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                 const auto binding=traversal_binding(*node.iterable);
                 if(binding.root){traversal_bindings_[node.iterable.get()]=binding;if(!primitive)source=binding.root;}
                 traversal_forms_[node.iterable.get()]=node.writable;
-            } else type=check_expr(*node.iterable);
+            } else {
+                type=check_expr(*node.iterable);
+                if (!node.writable) {
+                    if (const auto success = error_free_operand_type(type);
+                        success && success->kind == TypeKind::Array)
+                        type = consume_error_operand(*node.iterable, type,
+                            fail_fast_expressions_, expr_types_);
+                }
+            }
             if(type.kind==TypeKind::Invalid) return;
             if(type.kind!=TypeKind::Array && type.kind!=TypeKind::Bin && type.kind!=TypeKind::Traversal &&
                (!node.legacy || type.kind!=TypeKind::Range))
@@ -10636,7 +12516,11 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                    (call->callee=="$std.reflect.each" ||
                     (functions_.contains(call->callee) && functions_.at(call->callee).result.kind==TypeKind::Traversal)))
                     error("FOR_HEADER","Multiple collections require array values, not structural traversal.",binding.iterable->span);
-                const auto collection=check_expr(*binding.iterable);
+                auto collection=check_expr(*binding.iterable);
+                if (const auto success = error_free_operand_type(collection);
+                    success && success->kind == TypeKind::Array)
+                    collection = consume_error_operand(*binding.iterable, collection,
+                        fail_fast_expressions_, expr_types_);
                 if(collection.kind!=TypeKind::Array)
                     error("FOR_HEADER","Every source in a multiple-collection for must be an array.",binding.iterable->span);
                 const auto element=*collection.first;
@@ -10658,7 +12542,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
                 if(binding.name.starts_with(abi::symbol_namespace::internal_prefix))
                     error("SHADOWING",compiler_name_message(binding.name),binding.span);
                 if(binding.declares) {
-                    if(variables_.contains(binding.name) || declaration_name_visible(binding.name) ||
+                    if(variables_.contains(binding.name) || declaration_name_visible(binding.name, binding.span) ||
                        is_reserved_value_name(binding.name) || member_name_visible(binding.name))
                         error("SHADOWING","Iteration name is already visible or reserved.",binding.span);
                 } else {
@@ -10681,7 +12565,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
             error("SHADOWING",compiler_name_message(node.name),statement.span);
         if(discard || node.pattern) {
         } else if(node.declares) {
-            if(variables_.contains(node.name) || declaration_name_visible(node.name) ||
+            if(variables_.contains(node.name) || declaration_name_visible(node.name, statement.span) ||
                is_reserved_value_name(node.name) || member_name_visible(node.name))
                 error("SHADOWING","Iteration name is already visible or reserved.",statement.span);
         } else {
@@ -10715,7 +12599,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
             if(!header_names.insert(name).second)
                 error("SHADOWING","Element and index names in one header must be distinct.",index.span);
             if(index.declares) {
-                if(variables_.contains(name) || declaration_name_visible(name) ||
+                if(variables_.contains(name) || declaration_name_visible(name, index.span) ||
                    is_reserved_value_name(name) || member_name_visible(name))
                     error("SHADOWING","Iteration index name is already visible or reserved.",index.span);
             } else {
@@ -10743,6 +12627,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         auto unknown_references = unknown_reference_targets_;
         auto const_bindings = const_bindings_;
         auto initialized = initialized_;
+        const auto maybe_before_loop = maybe_initialized_;
         auto class_paths = class_initialized_paths_;
         auto method_initialized = current_receiver_effect_.initializes;
         auto method_written = current_receiver_effect_.writes;
@@ -10941,6 +12826,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         for(const auto& binding:node.collections) if(binding.index) bind_index(*binding.index);
         // The body may run after itself: what it may initialize may be
         // initialized at its start (L13).
+        discard_loop_copy_initializations();
         note_loop_initializations(node.body);
         const auto first_check = initialization_check_order_.size();
         {
@@ -10962,6 +12848,9 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         initialized_ = initialized;
         auto body_class_paths = std::move(class_initialized_paths_);
         class_initialized_paths_ = class_paths;
+        retain_conditional_loop_class_paths(class_initialized_paths_,body_class_paths,variables,references,current_reference_parameters_,
+            initialized,maybe_before_loop,body_initialized,body_maybe,
+            [&](const Type& value){ return complete_class_paths(value); }, in_function_ && !node.parallel && !copy_dependencies_disabled_);
         if (traversal && node.writable) {
             for (auto& [name, paths] : class_initialized_paths_) {
                 const auto after = body_class_paths.find(name);
@@ -10995,6 +12884,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         current_receiver_effect_.invalidates = method_invalidated;
         current_receiver_effect_.invalidates.insert(body_invalidated.begin(), body_invalidated.end());
         current_reference_effects_ = merge_reference_loop(reference_effects, current_reference_effects_);
+        discard_loop_copy_initializations();
         if (traversal && node.writable) {
             const auto forget = [](StorageEffect& effect) {
                 for (const auto& invalid : effect.invalidates)
@@ -11039,6 +12929,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto references = reference_roots_;
     auto reference_paths = reference_paths_;
     auto unknown_references = unknown_reference_targets_;
+    auto origins_before = traversal_reference_origins_;
     auto const_bindings = const_bindings_;
     auto initialized = initialized_;
     auto maybe_before = maybe_initialized_;
@@ -11050,8 +12941,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     std::vector<std::unordered_map<std::string, Type>> continuing_variables;
     std::vector<std::unordered_set<std::string>> continuing_initialized;
     std::vector<std::unordered_set<std::string>> continuing_maybe;
-    std::vector<std::unordered_map<std::string, std::unordered_set<std::string>>>
-        continuing_class_paths;
+    std::vector<ClassInitializationStates> continuing_class_paths;
     std::vector<std::unordered_set<std::string>> continuing_receiver_initialized;
     std::vector<std::unordered_map<std::string, StorageEffect>> continuing_reference_effects;
     std::vector<ReferenceTargetState> continuing_reference_targets;
@@ -11137,6 +13027,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         reference_roots_ = references;
         reference_paths_ = reference_paths;
         unknown_reference_targets_ = unknown_references;
+        traversal_reference_origins_ = origins_before;
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         maybe_initialized_ = maybe_before;
@@ -11175,7 +13066,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
             if (match_case.binder->starts_with(abi::symbol_namespace::internal_prefix))
                 error("SHADOWING", compiler_name_message(*match_case.binder), match_case.span);
             if (variables_.contains(*match_case.binder) ||
-                declaration_name_visible(*match_case.binder) ||
+                declaration_name_visible(*match_case.binder, match_case.span) ||
                 is_reserved_value_name(*match_case.binder) ||
                 member_name_visible(*match_case.binder)) {
                 error("SHADOWING", "Case binder is already visible or reserved.", match_case.span);
@@ -11211,11 +13102,13 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
             if (!case_plan->conditional) seen.insert(tag);
         }
 
+        matched_receiver.restores_entry_state |= current_receiver_effect_.restores_entry_state;
         union_set(matched_receiver.required, current_receiver_effect_.required);
         union_set(matched_receiver.writes, current_receiver_effect_.writes);
         union_set(matched_receiver.invalidates, current_receiver_effect_.invalidates);
         for (const auto& [name, effect] : current_reference_effects_) {
             auto& matched = matched_reference_effects[name];
+            matched.restores_entry_state |= effect.restores_entry_state;
             union_set(matched.required, effect.required);
             union_set(matched.writes, effect.writes);
             union_set(matched.invalidates, effect.invalidates);
@@ -11341,6 +13234,24 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         }
     }
 
+    // Until match-specific dependency joins are modeled, retain only
+    // unchanged formulas common to every continuing case.
+    if (!continuing_class_paths.empty()) {
+        auto common = continuing_class_paths.front();
+        for (std::size_t i = 1; i < continuing_class_paths.size(); ++i) {
+            auto previous = common;
+            merge_local_copy_initializations(common, previous, continuing_class_paths[i]);
+            for (auto& [name, fields] : common) {
+                const auto other = continuing_class_paths[i].find(name);
+                for (auto it = fields.begin(); it != fields.end();)
+                    if (other == continuing_class_paths[i].end() || !other->second.contains(*it)) it = fields.erase(it); else ++it;
+            }
+        }
+        for (auto& [name, fields] : class_initialized_paths_)
+            fields.copy_initializes = common[name].copy_initializes;
+    }
+    matched_receiver.copy_initializes.clear();
+    for (auto& [_, effect] : matched_reference_effects) effect.copy_initializes.clear();
     current_receiver_effect_ = std::move(matched_receiver);
     current_reference_effects_ = std::move(matched_reference_effects);
 
@@ -11353,6 +13264,8 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     for (const auto& match_case : node.cases) {
         collect_rebound_references(match_case.body, rebound_in_match);
     }
+    traversal_reference_origins_ = origins_before;
+    for (const auto& name : rebound_in_match) traversal_reference_origins_.erase(name);
     for (const auto& name : rebound_in_match) {
         if (unknown_reference_targets_.contains(name)) joined.ambiguous.insert(name);
     }
@@ -11525,7 +13438,9 @@ void Checker::check_block(const std::vector<StmtPtr>& body) {
             current_effect_exit_summary_seen_,
             narrowed_,
             borrowed_,
-            const_bindings_);
+            const_bindings_, current_receiver_effect_.copy_initializes,
+            current_exit_receiver_copy_state_, current_exit_reference_copy_state_,
+            constructor_reference_error_exits_, current_receiver_effect_.restores_entry_state);
     };
 
     auto restore_flow = [&](auto&& snapshot) {
@@ -11548,6 +13463,11 @@ void Checker::check_block(const std::vector<StmtPtr>& body) {
         narrowed_ = std::move(std::get<16>(snapshot));
         borrowed_ = std::move(std::get<17>(snapshot));
         const_bindings_ = std::move(std::get<18>(snapshot));
+        current_receiver_effect_.copy_initializes = std::move(std::get<19>(snapshot));
+        current_exit_receiver_copy_state_ = std::move(std::get<20>(snapshot));
+        current_exit_reference_copy_state_ = std::move(std::get<21>(snapshot));
+        constructor_reference_error_exits_ = std::move(std::get<22>(snapshot));
+        current_receiver_effect_.restores_entry_state = std::get<23>(snapshot);
     };
 
     auto recover_binding = [&](const Stmt& statement) {
@@ -11621,9 +13541,42 @@ bool Checker::stmt_always_terminates(const Stmt& statement) const {
                                return block_always_terminates(match_case.body);
                            });
     }
-    // Loops are not assumed to be infinite. Only proven non-continuing
-    // operations and exhaustive terminating branches establish this fact.
+    if (const auto* node = std::get_if<WhileStmt>(&statement.data)) {
+        const auto* condition = std::get_if<BoolExpr>(&node->condition->data);
+        return condition && condition->value && !block_has_reachable_break(node->body);
+    }
     return false;
+}
+
+bool Checker::block_has_reachable_break(const std::vector<StmtPtr>& body) const {
+    constexpr unsigned next = 1, breaks = 2;
+    const auto exits = [&](const auto& self, const std::vector<StmtPtr>& block) -> unsigned {
+        unsigned result = next;
+        for (const auto& statement : block) {
+            if (!(result & next)) break;
+            unsigned current = next;
+            if (const auto* control = std::get_if<LoopControlStmt>(&statement->data)) {
+                current = control->is_continue ? 0 : breaks;
+            } else if (const auto* branch = std::get_if<IfStmt>(&statement->data)) {
+                const auto* condition = std::get_if<BoolExpr>(&branch->condition->data);
+                current = 0;
+                if (!condition || condition->value) current |= self(self, branch->then_body);
+                if (!condition || !condition->value) current |= self(self, branch->else_body);
+            } else if (const auto* match = std::get_if<MatchStmt>(&statement->data)) {
+                current = 0;
+                for (const auto& item : match->cases) current |= self(self, item.body);
+            } else if (const auto* parallel = std::get_if<ParallelStmt>(&statement->data)) {
+                current = self(self, parallel->body);
+            } else if (stmt_always_terminates(*statement)) {
+                current = 0;
+            }
+            // Nested-loop breaks are consumed by that loop, while returns,
+            // divergence and continues make following outer breaks unreachable.
+            result = (result & ~next) | current;
+        }
+        return result;
+    };
+    return exits(exits, body) & breaks;
 }
 
 bool Checker::block_always_terminates(const std::vector<StmtPtr>& body) const {
@@ -11723,6 +13676,19 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     current_root_source_file_ = program.root_source_file;
     error_members_.clear();
     functions_.clear();
+    declaration_exposure_.clear();
+    const auto expose = [&](const auto& declaration) {
+        const auto offset = declaration.prototype_span
+            ? declaration.prototype_span->start.offset
+            : declaration.source_declaration_offset.value_or(declaration.span.start.offset);
+        const auto [entry, inserted] = declaration_exposure_.try_emplace(declaration.name, offset);
+        if (!inserted) entry->second = std::min(entry->second, offset);
+    };
+    for (const auto& function : program.functions) expose(function);
+    for (const auto& declaration : program.classes) expose(declaration);
+    for (const auto& declaration : program.enums)
+        declaration_exposure_[declaration.name] =
+            declaration.source_declaration_offset.value_or(declaration.span.start.offset);
     mask_tracked_constructors_.clear();
     traversal_functions_.clear();traversal_borrows_.clear();traversal_bindings_.clear();traversal_forms_.clear();
     root_functions_.clear();
@@ -11850,8 +13816,18 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 declaration.standard_library ||
                 declaration.name.find('.') != std::string::npos;
             for (auto& field : declaration.fields) {
+                auto binding_span = field.span;
+                if (declaration.prototype_span) {
+                    for (const auto& method : declaration.methods) {
+                        if (!method.is_constructor) continue;
+                        for (const auto& parameter : method.parameters) {
+                            if (!parameter.is_local && parameter.name == field.name)
+                                binding_span = *declaration.prototype_span;
+                        }
+                    }
+                }
                 if ((!namespace_scoped && is_reserved_value_name(field.name)) ||
-                    type_name_declared_in(field.name, declaration.module_namespace)) {
+                    declaration_name_visible_in(field.name, declaration.module_namespace, binding_span)) {
                     error("SHADOWING", "Class field name is reserved or conflicts with a class name.", field.span);
                 }
                 if (!own_fields.insert(field.name).second) {
@@ -11871,7 +13847,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             for (auto& method : declaration.methods) {
                 if (!method.is_constructor) {
                     if ((!namespace_scoped && is_reserved_value_name(method.name)) ||
-                        type_name_declared_in(method.name, declaration.module_namespace) || method.name == "main") {
+                        declaration_name_visible_in(method.name, declaration.module_namespace, method.span) || method.name == "main") {
                         error("DUPLICATE_NAME", "Method name is reserved or conflicts with a class/entry point.", method.span);
                     }
                     if (!own_methods.insert(method.name).second) {
@@ -11895,7 +13871,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 bool defaults = false;
                 for (auto& parameter : method.parameters) {
                     if (is_reserved_value_name(parameter.name) ||
-                        type_name_declared_in(parameter.name, declaration.module_namespace) ||
+                        declaration_name_visible_in(parameter.name, declaration.module_namespace,
+                            method.is_constructor ? declaration.prototype_span.value_or(parameter.span)
+                                                  : parameter.span) ||
                         info.methods.contains(parameter.name) || parameter.name == method.name) {
                         error("SHADOWING", "Method parameter shadows a class method or reserved name.", parameter.span);
                     }
@@ -12125,7 +14103,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             bool defaults = false;
             for (auto& parameter : function.parameters) {
                 if (is_reserved_value_name(parameter.name) ||
-                    type_name_declared_in(parameter.name, function.module_namespace)) {
+                    declaration_name_visible_in(parameter.name, function.module_namespace,
+                                                 function.prototype_span.value_or(parameter.span))) {
                     error("SHADOWING", "Parameter name is reserved.", parameter.span);
                 }
                 if (!names.insert(parameter.name).second) {
@@ -12239,6 +14218,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         signature.receiver_effect.initializes.clear();
         signature.receiver_effect.writes.clear();
         signature.receiver_effect.invalidates.clear();
+        signature.receiver_effect.restores_entry_state = false;
         signature.reference_effects.clear();
         signature.success_reference_initializes.clear();
         signature.no_normal_return = false;
@@ -12254,6 +14234,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                left.receiver_effect.initializes == right.receiver_effect.initializes &&
                left.receiver_effect.writes == right.receiver_effect.writes &&
                left.receiver_effect.invalidates == right.receiver_effect.invalidates &&
+               left.receiver_effect.restores_entry_state == right.receiver_effect.restores_entry_state &&
                left.return_initialized_fields == right.return_initialized_fields &&
                left.reference_effects == right.reference_effects;
     };
@@ -12309,6 +14290,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 current_module_namespace_ = function.module_namespace;
                 enter_error_code_scope(function.source_file);
                 in_function_ = true;
+                copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(function.body);
                 check_block(function.body);
                 signature.no_normal_return =
                     !block_contains_return(function.body) &&
@@ -12512,6 +14494,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         current_module_namespace_ = function.module_namespace;
         enter_error_code_scope(function.source_file);
         in_function_ = true;
+        copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(function.body);
         try {
             for (const auto& parameter : function.parameters) {
                 check_type_extent_expressions(parameter.type);

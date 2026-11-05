@@ -103,6 +103,8 @@ std::string suffix_after_first(const std::string& name) {
 }
 
 struct Exports {
+    // A source file owns declarations once; import aliases only name its exports.
+    std::string module_namespace;
     std::unordered_map<std::string,std::string> pseudo_types;
     std::unordered_map<std::string, std::string> classes;
     std::unordered_map<std::string, std::string> enums;
@@ -252,6 +254,21 @@ ExprPtr clone_package_constant_expression(const Expr& source, SourceSpan use_spa
         result->data = *value;
         return result;
     }
+    if (const auto* name = std::get_if<NameExpr>(&source.data);
+        name && !name->this_qualifier && !name->self_reference &&
+        is_builtin_text_constant(name->name)) {
+        result->data = StringExpr{std::string(builtin_text_constant(name->name))};
+        return result;
+    }
+    if (const auto* text = std::get_if<StringTemplateExpr>(&source.data)) {
+        StringTemplateExpr copy;
+        copy.literals = text->literals;
+        copy.formats = text->formats;
+        for (const auto& expression : text->expressions)
+            copy.expressions.push_back(clone_package_constant_expression(*expression, use_span));
+        result->data = std::move(copy);
+        return result;
+    }
     if (const auto* value = std::get_if<BoolExpr>(&source.data)) {
         result->data = *value;
         return result;
@@ -330,6 +347,119 @@ ExprPtr clone_package_constant_expression(const Expr& source, SourceSpan use_spa
         "PACKAGE_CONST",
         "Imported top-level const initializers must be side-effect-free scalar constant expressions.",
         source.span);
+}
+
+// Ordinary numeric constants are values with a fixed representation, including
+// the int/real defaults of inferred declarations. Only `const literal` remains
+// contextual at each use.
+std::optional<TypeName> scalar_constant_numeric_type(const Expr& expression) {
+    const auto named = [&](std::string name) {
+        TypeName type;
+        type.name = std::move(name);
+        type.span = expression.span;
+        return type;
+    };
+    if (expression.contextual_default_type) return expression.contextual_default_type;
+    const auto family = numeric_policy::numeric_literal_family(expression);
+    if (numeric_policy::integer_category(family)) return named("int");
+    if (family == numeric_policy::NumericLiteralCategory::Real) return named("real");
+    if (numeric_policy::complex_category(family)) return named("com");
+    if (const auto* call = std::get_if<CallExpr>(&expression.data);
+        call && numeric_type_name(call->callee)) return named(call->callee);
+    if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
+        const auto* receiver = std::get_if<NameExpr>(&call->receiver->data);
+        if (receiver && receiver->name == "real" && call->method == "atom") return named("real");
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data))
+        return scalar_constant_numeric_type(*unary->operand);
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
+        if (binary->op != "+" && binary->op != "-" && binary->op != "*" &&
+            binary->op != "/" && binary->op != "%" && binary->op != "^" &&
+            !operator_policy::is_fixed_width_bitwise_binary(binary->op)) return std::nullopt;
+        auto left = scalar_constant_numeric_type(*binary->left);
+        auto right = scalar_constant_numeric_type(*binary->right);
+        if (!left || !right) return std::nullopt;
+        const auto contextualize = [&](const Expr& literal, const TypeName& other, TypeName& actual) {
+            const auto* target = numeric_type_name(other.name);
+            const auto category = numeric_policy::numeric_literal_family(literal);
+            if (target && ((numeric_policy::integer_category(category) &&
+                (target->family == NumericFamily::Integer || target->family == NumericFamily::Natural)) ||
+                (category == numeric_policy::NumericLiteralCategory::Real && target->family == NumericFamily::Real)))
+                actual.name = other.name;
+        };
+        contextualize(*binary->left, *right, *left);
+        contextualize(*binary->right, *left, *right);
+        const auto* a = numeric_type_name(left->name);
+        const auto* b = numeric_type_name(right->name);
+        if (a && b)
+            if (const auto common = numeric_common_type(Type::simple(a->kind), Type::simple(b->kind)))
+                return named(type_name(*common));
+    }
+    return std::nullopt;
+}
+
+void preserve_constant_numeric_type(Expr& value, const BindingStmt& binding) {
+    if (binding.literal_constant) return;
+    if (binding.declared_type.name != "auto") value.contextual_default_type = binding.declared_type;
+    else value.contextual_default_type = scalar_constant_numeric_type(value);
+}
+
+struct ModuleConstant {
+    std::shared_ptr<Expr> value;
+    std::size_t declaration_offset;
+};
+using ModuleConstants = std::unordered_map<std::string, ModuleConstant>;
+thread_local const ModuleConstants* current_module_constants{};
+thread_local const std::unordered_set<std::string>* current_class_methods{};
+thread_local const std::unordered_set<std::string>* current_value_bindings{};
+thread_local std::optional<std::size_t> current_constant_lookup_offset;
+struct ConstantLookupScope {
+    std::optional<std::size_t> previous;
+    explicit ConstantLookupScope(std::optional<SourceSpan> exposure)
+        : previous(current_constant_lookup_offset) {
+        if (exposure) current_constant_lookup_offset = exposure->start.offset;
+    }
+    ~ConstantLookupScope() { current_constant_lookup_offset = previous; }
+};
+struct ValueBindingScope {
+    const std::unordered_set<std::string>* previous;
+    explicit ValueBindingScope(const std::unordered_set<std::string>& bindings)
+        : previous(std::exchange(current_value_bindings, &bindings)) {}
+    ~ValueBindingScope() { current_value_bindings = previous; }
+};
+struct ClassMethodScope {
+    const std::unordered_set<std::string>* previous;
+    explicit ClassMethodScope(const std::unordered_set<std::string>& methods)
+        : previous(std::exchange(current_class_methods, &methods)) {}
+    ~ClassMethodScope() { current_class_methods = previous; }
+};
+struct ModuleConstantScope {
+    const ModuleConstants* previous;
+    explicit ModuleConstantScope(const ModuleConstants& constants)
+        : previous(std::exchange(current_module_constants, &constants)) {}
+    ~ModuleConstantScope() { current_module_constants = previous; }
+};
+
+const Expr* module_constant_at(const std::string& name, SourceSpan span) {
+    if (!current_module_constants) return nullptr;
+    const auto found = current_module_constants->find(name);
+    if (found == current_module_constants->end() ||
+        span.start.offset <= found->second.declaration_offset) return nullptr;
+    return found->second.value.get();
+}
+
+const Expr* visible_module_constant(const std::string& name, SourceSpan span) {
+    if (current_class_methods && current_class_methods->contains(name)) return nullptr;
+    if (current_value_bindings && current_value_bindings->contains(name)) return nullptr;
+    if (current_constant_lookup_offset)
+        span.start.offset = std::min(span.start.offset, *current_constant_lookup_offset);
+    return module_constant_at(name, span);
+}
+
+void reject_module_constant_shadow(const std::string& name, SourceSpan span) {
+    if (module_constant_at(name, span)) {
+        frontend_error("SHADOWING", "Binding shadows a module constant '" + name + "'.", span);
+    }
 }
 
 void insert_class_export(
@@ -647,10 +777,19 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return -1
 
     int64 __find(K key, int64 hash)
-        int64 __slot := __slot_of(key, hash)
-        if __slot < 0
-            return -1
-        return __slots[__slot]
+        int64 __capacity := int64(len(__slots))
+        int64 __mask := __capacity - 1
+        int64 __slot := hash AND __mask
+        int64 __scanned := 0
+        while __scanned < __capacity
+            int64 __index := __slots[__slot]
+            if __index == -1
+                return -1
+            if __index >= 0 and __hashes[__index] == hash and __keys[__index] == key
+                return __index
+            __slot = (__slot + 1) AND __mask
+            __scanned += 1
+        return -1
 
     void __place(int64 index)
         int64 __capacity := int64(len(__slots))
@@ -697,16 +836,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     V | none get(K key)
         int64 __hash_value := __hash(key)
         int64 __index := __find(key, __hash_value)
-        __last_hash = __hash_value
-        __last_index = __index
-        __last_slot = __empty_slot
-        __last_version = __version
         if __index >= 0
             return __values[__index]
-        if len(__last_key) == 0
-            __last_key = __last_key.append(key)
-        else
-            __last_key[0] = key
         return none
 
     void .set(K key, V value)
@@ -729,7 +860,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             __insert_slot = __last_slot
         else
             __hash_value = __hash(key)
-            __index = __find(key, __hash_value)
+            int64 __slot := __slot_of(key, __hash_value)
+            if __slot >= 0
+                __index = __slots[__slot]
             __insert_slot = __empty_slot
 
         if __index >= 0
@@ -791,15 +924,27 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     K[] keys()
         int64 __count := int64(len(__keys))
-        if __size != __count
-            __compact()
-        return __keys
+        if __size == __count
+            return __keys
+        K[] __result := array(nat(__size))
+        int64 __write := 0
+        for: 0 <= nat __index < len(__keys)
+            if __active[__index]
+                __result[__write] = __keys[__index]
+                __write += 1
+        return __result
 
     V[] values()
         int64 __count := int64(len(__values))
-        if __size != __count
-            __compact()
-        return __values
+        if __size == __count
+            return __values
+        V[] __result := array(nat(__size))
+        int64 __write := 0
+        for: 0 <= nat __index < len(__values)
+            if __active[__index]
+                __result[__write] = __values[__index]
+                __write += 1
+        return __result
 )QUI";
         Parser parser(Lexer(std::string(source)).scan(), 20);
         auto program = parser.parse();
@@ -1025,9 +1170,15 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     T[] values()
         int64 __count := int64(len(__values))
-        if __size != __count
-            __compact()
-        return __values
+        if __size == __count
+            return __values
+        T[] __result := array(nat(__size))
+        int64 __write := 0
+        for: 0 <= nat __index < len(__values)
+            if __active[__index]
+                __result[__write] = __values[__index]
+                __write += 1
+        return __result
 
     distinct<T> union(const distinct<T> other)
         distinct<T> result
@@ -1083,12 +1234,39 @@ struct ImportBinding {
     Exports exports;
 };
 
+void rename_expr(
+    Expr&, const std::string&, const std::unordered_set<std::string>&,
+    const std::unordered_set<std::string>&,
+    const std::unordered_map<std::string, ImportBinding>&,
+    const std::unordered_set<std::string>&);
+
 void rename_type(
     TypeName& type,
     const std::string& ns,
     const std::unordered_set<std::string>& local_classes,
     const std::unordered_map<std::string, ImportBinding>& imports,
-    const std::unordered_set<std::string>& type_parameters) {
+    const std::unordered_set<std::string>& type_parameters,
+    std::optional<SourceSpan> binding_exposure = std::nullopt) {
+    ConstantLookupScope constant_lookup_scope(binding_exposure);
+    for (auto& extent : type.dimension_expressions)
+        if (extent) rename_expr(*extent, ns, local_classes, {}, imports, type_parameters);
+    for (auto& extent : type.tensor_shape_expressions)
+        if (extent) rename_expr(*extent, ns, local_classes, {}, imports, type_parameters);
+    for (auto& axis : type.shape_axes) {
+        if (axis.kind == ShapeAxisKind::Declare || axis.kind == ShapeAxisKind::DeclareEqual) {
+            auto exposure = axis.span;
+            if (binding_exposure) exposure.start.offset = binding_exposure->start.offset;
+            reject_module_constant_shadow(axis.name, exposure);
+        }
+        if (axis.kind == ShapeAxisKind::Bare) {
+            if (const auto* constant = visible_module_constant(axis.name, axis.span)) {
+                axis.value = clone_package_constant_expression(*constant, axis.span);
+                axis.kind = ShapeAxisKind::Unnamed;
+                axis.name.clear();
+            }
+        }
+        if (axis.value) rename_expr(*axis.value, ns, local_classes, {}, imports, type_parameters);
+    }
     // A bare axis name refers only to a nat value, and a shape variable is a
     // new name: neither can be a type parameter of the declaration.
     for (const auto& axis : type.shape_axes) {
@@ -1108,16 +1286,16 @@ void rename_type(
     }
     if (type.name == "union" || type.name == "$tuple" || type.name == "$std.reflect.Each") {
         for (auto& argument : type.arguments) {
-            rename_type(argument, ns, local_classes, imports, type_parameters);
+            rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure);
         }
         return;
     }
 
     for (auto& argument : type.arguments) {
-        rename_type(argument, ns, local_classes, imports, type_parameters);
+        rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure);
     }
     for (auto& parameter : type.function_parameters) {
-        rename_type(parameter, ns, local_classes, imports, type_parameters);
+        rename_type(parameter, ns, local_classes, imports, type_parameters, binding_exposure);
     }
 
     // The reserved collection namespace is also its concise generic type name.
@@ -1255,6 +1433,13 @@ void rename_expr(
             if (const auto* initializer = visible_literal_constant(node->name)) {
                 auto use = literal_constant_use(node->name, *initializer, expression.span);
                 expression.data = std::move(use->data);
+            } else if (const auto* initializer = visible_module_constant(node->name, expression.span)) {
+                const auto name = node->name;
+                auto use = clone_package_constant_expression(*initializer, expression.span);
+                expression.data = std::move(use->data);
+                expression.contextual_default_type = std::move(use->contextual_default_type);
+                if (expression.contextual_default_type) expression.constant_name = name;
+                rename_expr(expression, ns, local_classes, local_functions, imports, type_parameters);
             }
         }
         return;
@@ -1276,6 +1461,7 @@ void rename_expr(
         return;
     }
     if (auto* node = std::get_if<ArrayComprehensionExpr>(&expression.data)) {
+        reject_module_constant_shadow(node->name, node->binding_span);
         if (node->type) rename_type(*node->type, ns, local_classes, imports, type_parameters);
         visit_array_comprehension(*node, [&](Expr& child) {
             rename_expr(child, ns, local_classes, local_functions, imports, type_parameters);
@@ -1388,7 +1574,8 @@ void rename_expr(
             node->callee = standard_class::map;
         } else if (node->callee == "distinct" && !node->type_arguments.empty()) {
             node->callee = standard_class::distinct;
-        } else if (local_classes.contains(node->callee) || local_functions.contains(node->callee)) {
+        } else if ((local_classes.contains(node->callee) || local_functions.contains(node->callee)) &&
+                   (!current_class_methods || !current_class_methods->contains(node->callee))) {
             node->callee = qualify(ns, node->callee);
         }
         return;
@@ -1582,8 +1769,9 @@ void rename_stmt(
     const std::unordered_set<std::string>& local_functions,
     const std::unordered_map<std::string, ImportBinding>& imports,
     const std::unordered_set<std::string>& type_parameters) {
-    const auto rename_pattern=[&](Pattern& pattern){visit_pattern(pattern,[&](Pattern& p){if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters);if(p.place)rename_expr(*p.place,ns,local_classes,local_functions,imports,type_parameters);});};
+    const auto rename_pattern=[&](Pattern& pattern){visit_pattern(pattern,[&](Pattern& p){if(p.kind==Pattern::Kind::Declare)reject_module_constant_shadow(p.name,p.span);if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters);if(p.place)rename_expr(*p.place,ns,local_classes,local_functions,imports,type_parameters);});};
     if (auto* node = std::get_if<BindingStmt>(&statement.data)) {
+        if (!node->pattern) reject_module_constant_shadow(node->name, statement.span);
         if(node->pattern)rename_pattern(*node->pattern);
         rename_type(node->declared_type, ns, local_classes, imports, type_parameters);
         if (node->value) rename_expr(*node->value, ns, local_classes, local_functions, imports, type_parameters);
@@ -1652,12 +1840,19 @@ void rename_stmt(
         return;
     }
     if (auto* node = std::get_if<ForStmt>(&statement.data)) {
+        if (node->declares && !node->pattern)
+            reject_module_constant_shadow(node->name, statement.span);
+        if (node->index) reject_module_constant_shadow(node->index->name, node->index->span);
+        for (const auto& binding : node->collections) {
+            if (binding.declares) reject_module_constant_shadow(binding.name, binding.span);
+            if (binding.index) reject_module_constant_shadow(binding.index->name, binding.index->span);
+        }
         visit_for_header(*node,[&](Expr& operand) {
             rename_expr(operand,ns,local_classes,local_functions,imports,type_parameters);
         });
         if(node->type) rename_type(*node->type,ns,local_classes,imports,type_parameters);
         for(auto& binding:node->collections) if(binding.type) rename_type(*binding.type,ns,local_classes,imports,type_parameters);
-        if(node->pattern)visit_pattern(*node->pattern,[&](Pattern& p){if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters);if(p.place)rename_expr(*p.place,ns,local_classes,local_functions,imports,type_parameters);});
+        if(node->pattern)rename_pattern(*node->pattern);
         LiteralConstantScope scope;
         for (auto& child : node->body) {
             rename_stmt(*child, ns, local_classes, local_functions, imports, type_parameters);
@@ -1667,7 +1862,8 @@ void rename_stmt(
     auto& node = std::get<MatchStmt>(statement.data);
     rename_expr(*node.value, ns, local_classes, local_functions, imports, type_parameters);
     for (auto& match_case : node.cases) {
-        if(match_case.pattern)visit_pattern(*match_case.pattern,[&](Pattern& p){if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters);});
+        if (match_case.binder) reject_module_constant_shadow(*match_case.binder, match_case.span);
+        if(match_case.pattern)rename_pattern(*match_case.pattern);
         else rename_type(match_case.type, ns, local_classes, imports, type_parameters);
         LiteralConstantScope scope;
         for (auto& child : match_case.body) {
@@ -1682,9 +1878,13 @@ void rename_function(
     const std::unordered_set<std::string>& local_classes,
     const std::unordered_set<std::string>& local_functions,
     const std::unordered_map<std::string, ImportBinding>& imports,
-    const std::unordered_set<std::string>& inherited_type_parameters = {}) {
+    const std::unordered_set<std::string>& inherited_type_parameters = {},
+    std::optional<SourceSpan> parameter_exposure = std::nullopt) {
     std::unordered_set<std::string> type_parameters = inherited_type_parameters;
     type_parameters.insert(function.type_parameters.begin(), function.type_parameters.end());
+    for (const auto& parameter : function.type_parameters)
+        reject_module_constant_shadow(parameter, parameter_exposure.value_or(
+            function.prototype_span.value_or(function.span)));
     // A function sees its own contextual constants only.
     auto outer = std::move(literal_constant_scopes);
     literal_constant_scopes.clear();
@@ -1694,10 +1894,31 @@ void rename_function(
     } restore{outer};
     LiteralConstantScope scope;
 
-    rename_type(function.return_type, ns, local_classes, imports, type_parameters);
+    std::unordered_set<std::string> value_bindings;
+    if (current_value_bindings) value_bindings = *current_value_bindings;
+    for (const auto& parameter : function.parameters) value_bindings.insert(parameter.name);
+    const auto shape_bindings = [&](const auto& self, const TypeName& type) -> void {
+        for (const auto& axis : type.shape_axes)
+            if (axis.kind == ShapeAxisKind::Declare || axis.kind == ShapeAxisKind::DeclareEqual)
+                value_bindings.insert(axis.name);
+        for (const auto& argument : type.arguments) self(self, argument);
+        for (const auto& parameter : type.function_parameters) self(self, parameter);
+    };
+    shape_bindings(shape_bindings, function.return_type);
+    for (const auto& parameter : function.parameters) shape_bindings(shape_bindings, parameter.type);
+    const auto inherited_bindings = current_value_bindings;
+    ValueBindingScope value_binding_scope(value_bindings);
+    const auto interface_exposure = parameter_exposure ? parameter_exposure : function.prototype_span;
+    rename_type(function.return_type, ns, local_classes, imports, type_parameters, interface_exposure);
     for (auto& parameter : function.parameters) {
-        rename_type(parameter.type, ns, local_classes, imports, type_parameters);
+        auto exposure = parameter.span;
+        if (const auto prototype = interface_exposure)
+            exposure.start.offset = prototype->start.offset;
+        reject_module_constant_shadow(parameter.name, exposure);
+        rename_type(parameter.type, ns, local_classes, imports, type_parameters, interface_exposure);
         if (parameter.default_value) {
+            const std::unordered_set<std::string> no_bindings;
+            ValueBindingScope defaults_scope(inherited_bindings ? *inherited_bindings : no_bindings);
             rename_expr(*parameter.default_value, ns, local_classes, local_functions, imports, type_parameters);
         }
     }
@@ -2089,21 +2310,30 @@ public:
             }
         }
         for (const auto& declaration : program_.classes) {
+            BindingScope class_scope(bound_names_);
+            for (const auto& method : declaration.methods)
+                if (!method.is_constructor) bound_names_.insert(method.name);
             for (const auto& field : declaration.fields) {
                 check_type(field.type, field.span.start.offset, true);
                 if (field.default_value) check_expr(*field.default_value, {});
             }
+            for (const auto& field : declaration.fields) bound_names_.insert(field.name);
+            if (!declaration.self_name.empty()) bound_names_.insert(declaration.self_name);
             for (const auto& method : declaration.methods) {
+                BindingScope method_scope(bound_names_);
                 for (const auto& parameter : method.parameters)
                     check_type(parameter.type, method.span.start.offset, false);
                 check_type(method.return_type, method.span.start.offset, false);
                 for (const auto& parameter : method.parameters)
                     if (parameter.default_value) check_expr(*parameter.default_value, {});
+                for (const auto& parameter : method.parameters)
+                    bound_names_.insert(parameter.name);
                 for (const auto& statement : method.body)
                     check_stmt(*statement, {});
             }
         }
         for (const auto& function : program_.functions) {
+            BindingScope function_scope(bound_names_);
             const auto interface_offset = function.prototype_span
                 ? function.prototype_span->start.offset
                 : function.span.start.offset;
@@ -2112,6 +2342,8 @@ public:
             check_type(function.return_type, interface_offset, false);
             for (const auto& parameter : function.parameters)
                 if (parameter.default_value) check_expr(*parameter.default_value, function.name);
+            for (const auto& parameter : function.parameters)
+                bound_names_.insert(parameter.name);
             for (const auto& statement : function.body)
                 check_stmt(*statement, function.name);
         }
@@ -2123,6 +2355,26 @@ private:
     std::unordered_map<std::string, std::size_t> function_exposure_;
     std::unordered_map<std::string, std::size_t> class_exposure_;
     std::unordered_map<std::string, std::size_t> class_completion_;
+    mutable std::unordered_set<std::string> bound_names_;
+    struct BindingScope {
+        std::unordered_set<std::string>& names;
+        std::unordered_set<std::string> saved;
+        explicit BindingScope(std::unordered_set<std::string>& current)
+            : names(current), saved(current) {}
+        ~BindingScope() { names = std::move(saved); }
+    };
+
+    void bind_pattern(const Pattern& pattern) const {
+        visit_pattern(pattern, [&](const Pattern& part) {
+            if (part.kind == Pattern::Kind::Declare) bound_names_.insert(part.name);
+        });
+    }
+
+    void check_block(const std::vector<StmtPtr>& body,
+                     std::string_view current_function) const {
+        BindingScope scope(bound_names_);
+        for (const auto& statement : body) check_stmt(*statement, current_function);
+    }
 
     void check_type(const TypeName& type, std::size_t offset, bool complete) const {
         if (const auto found = class_exposure_.find(type.name); found != class_exposure_.end()) {
@@ -2142,6 +2394,7 @@ private:
 
     void check_call_name(std::string_view name, SourceSpan span,
                          std::string_view current_function) const {
+        if (bound_names_.contains(std::string(name))) return;
         if (const auto found = function_exposure_.find(std::string(name));
             found != function_exposure_.end() && name != current_function &&
             span.start.offset < found->second) {
@@ -2164,6 +2417,7 @@ private:
     void check_expr(const Expr& expression, std::string_view current_function) const {
         if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
             if (name->this_qualifier || name->self_reference) return;
+            if (bound_names_.contains(name->name)) return;
             if (const auto found = function_exposure_.find(name->name);
                 found != function_exposure_.end() && name->name != current_function &&
                 expression.span.start.offset < found->second) {
@@ -2197,7 +2451,11 @@ private:
         }
         if (const auto* node = std::get_if<ArrayComprehensionExpr>(&expression.data)) {
             if (node->type) check_type(*node->type, node->binding_span.start.offset, false);
-            visit_array_comprehension(*node, [&](const Expr& child) { check_expr(child, current_function); });
+            check_expr(*node->source, current_function);
+            BindingScope scope(bound_names_);
+            bound_names_.insert(node->name);
+            if (node->condition) check_expr(*node->condition, current_function);
+            check_expr(*node->value, current_function);
             return;
         }
         if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
@@ -2252,6 +2510,8 @@ private:
             if (node->declared_type.name != "auto")
                 check_type(node->declared_type, statement.span.start.offset, true);
             if (node->value) check_expr(*node->value, current_function);
+            if (node->pattern) bind_pattern(*node->pattern);
+            else bound_names_.insert(node->name);
             return;
         }
         if (const auto* node = std::get_if<AssignStmt>(&statement.data)) {
@@ -2269,28 +2529,35 @@ private:
             return;
         }
         if (const auto* node = std::get_if<ExprStmt>(&statement.data)) {
+            BindingScope scope(bound_names_);
             for (const auto& binding : node->inline_bindings)
                 check_stmt(*binding, current_function);
             if (node->value) check_expr(*node->value, current_function);
             return;
         }
         if (const auto* node = std::get_if<IfStmt>(&statement.data)) {
+            BindingScope scope(bound_names_);
+            for (const auto& binding : node->condition_bindings)
+                check_stmt(*binding, current_function);
             check_expr(*node->condition, current_function);
-            for (const auto& child : node->then_body) check_stmt(*child, current_function);
-            for (const auto& child : node->else_body) check_stmt(*child, current_function);
+            check_block(node->then_body, current_function);
+            check_block(node->else_body, current_function);
             return;
         }
         if (const auto* node = std::get_if<MainGuardStmt>(&statement.data)) {
-            for (const auto& child : node->body) check_stmt(*child, current_function);
+            check_block(node->body, current_function);
             return;
         }
         if (const auto* node = std::get_if<ParallelStmt>(&statement.data)) {
-            for (const auto& child : node->body) check_stmt(*child, current_function);
+            check_block(node->body, current_function);
             return;
         }
         if (const auto* node = std::get_if<WhileStmt>(&statement.data)) {
+            BindingScope scope(bound_names_);
+            for (const auto& binding : node->condition_bindings)
+                check_stmt(*binding, current_function);
             check_expr(*node->condition, current_function);
-            for (const auto& child : node->body) check_stmt(*child, current_function);
+            check_block(node->body, current_function);
             return;
         }
         if (const auto* node = std::get_if<ForStmt>(&statement.data)) {
@@ -2298,7 +2565,16 @@ private:
             if(node->type) check_type(*node->type,node->type->span.start.offset,false);
             for(const auto& binding:node->collections) if(binding.type) check_type(*binding.type,binding.type->span.start.offset,false);
             if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if(p.type)check_type(*p.type,p.span.start.offset,false);if(p.place)check_expr(*p.place,current_function);});
-            for (const auto& child : node->body) check_stmt(*child, current_function);
+            BindingScope scope(bound_names_);
+            if (node->pattern) bind_pattern(*node->pattern);
+            else if (node->declares) bound_names_.insert(node->name);
+            if (node->index && node->index->declares) bound_names_.insert(node->index->name);
+            for (const auto& binding : node->collections) {
+                if (binding.declares) bound_names_.insert(binding.name);
+                if (binding.index && binding.index->declares)
+                    bound_names_.insert(binding.index->name);
+            }
+            check_block(node->body, current_function);
             return;
         }
         if (const auto* node = std::get_if<MatchStmt>(&statement.data)) {
@@ -2306,7 +2582,10 @@ private:
             for (const auto& match_case : node->cases) {
                 if(match_case.pattern)visit_pattern(*match_case.pattern,[&](const Pattern& p){if(p.type)check_type(*p.type,p.span.start.offset,false);});
                 else check_type(match_case.type, match_case.span.start.offset, false);
-                for (const auto& child : match_case.body) check_stmt(*child, current_function);
+                BindingScope scope(bound_names_);
+                if (match_case.pattern) bind_pattern(*match_case.pattern);
+                else if (match_case.binder) bound_names_.insert(*match_case.binder);
+                check_block(match_case.body, current_function);
             }
         }
     }
@@ -2379,6 +2658,11 @@ private:
     std::unordered_set<std::string> loaded_standard_declarations_;
     std::shared_ptr<semantics::InterfaceSources> interface_sources_{std::make_shared<semantics::InterfaceSources>()};
     std::map<std::string,std::size_t> interface_namespaces_;
+    struct LoadedModule {
+        Exports exports;
+        std::size_t interface_index;
+    };
+    std::map<fs::path, LoadedModule> loaded_modules_;
 
     void record_package(
         const std::string& name, const fs::path& package_main, SourceSpan span) {
@@ -2612,6 +2896,15 @@ private:
             frontend_error("IMPORT_CYCLE", "Module import cycle includes '" + absolute.string() + "'.");
         }
 
+        if (const auto loaded = loaded_modules_.find(absolute); loaded != loaded_modules_.end()) {
+            interface_namespaces_[ns] = loaded->second.interface_index;
+            if (user && std::find(merged.user_sources.begin(), merged.user_sources.end(),
+                                  absolute.string()) == merged.user_sources.end()) {
+                merged.user_sources.push_back(absolute.string());
+            }
+            return loaded->second.exports;
+        }
+
         std::string source;
         if (root && root_source_) {
             source = *root_source_;
@@ -2762,6 +3055,7 @@ private:
 
         reject_private_exposure(program);
         Exports exports;
+        exports.module_namespace = ns;
         for (const auto& class_decl : program.classes) {
             if (class_decl.is_private) {
                 exports.private_names.insert(class_decl.name);
@@ -2804,9 +3098,7 @@ private:
                 auto value = binding->literal_constant
                     ? literal_constant_use(binding->name, *binding->value, binding->value->span)
                     : clone_package_constant_expression(*binding->value, binding->value->span);
-                if (!binding->literal_constant && binding->declared_type.name != "auto") {
-                    value->contextual_default_type = binding->declared_type;
-                }
+                preserve_constant_numeric_type(*value, *binding);
                 exports.constants.emplace(
                     binding->name, std::shared_ptr<Expr>(value.release()));
             }
@@ -2888,7 +3180,7 @@ private:
                     exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
                 }
                 imports.emplace(
-                    import_decl.alias, ImportBinding{child_ns, std::move(child_exports)});
+                    import_decl.alias, ImportBinding{child_exports.module_namespace, std::move(child_exports)});
                 continue;
             }
 
@@ -2909,7 +3201,7 @@ private:
             if (import_decl.is_public) {
                 exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
             }
-            imports.emplace(import_decl.alias, ImportBinding{child_ns, std::move(child_exports)});
+            imports.emplace(import_decl.alias, ImportBinding{child_exports.module_namespace, std::move(child_exports)});
         }
         stack_.pop_back();
 
@@ -2919,10 +3211,37 @@ private:
         for (const auto& import_decl : program.imports) {
             auto resolved_import = import_decl;
             resolved_import.alias = qualify(ns, import_decl.alias);
+            // The merged graph is internal to generic expansion: retain the
+            // lexical edge separately from the destination's canonical scope.
+            resolved_import.target = imports.at(import_decl.alias).ns;
             merged.imports.push_back(std::move(resolved_import));
         }
 
         reject_import_alias_shadowing(program, aliases);
+
+        // Module constants have no runtime initialization. Retain their scalar
+        // expressions for bare uses in this file, including private constants;
+        // each module gets its own environment and original declaration offsets.
+        ModuleConstants module_constants;
+        for (const auto& statement : program.statements) {
+            const auto* binding = std::get_if<BindingStmt>(&statement->data);
+            if (!binding || !binding->is_const || binding->is_local || !binding->value) continue;
+            ExprPtr value;
+            try {
+                value = binding->literal_constant
+                    ? literal_constant_use(binding->name, *binding->value, binding->value->span)
+                    : clone_package_constant_expression(*binding->value, binding->value->span);
+            } catch (const CompileError& error) {
+                // Root files may also contain ordinary runtime const bindings;
+                // those remain ordinary storage and are never captured here.
+                if (root && error.diagnostic().code == "PACKAGE_CONST") continue;
+                throw;
+            }
+            preserve_constant_numeric_type(*value, *binding);
+            module_constants.emplace(binding->name, ModuleConstant{
+                std::shared_ptr<Expr>(value.release()), statement->span.start.offset});
+        }
+        ModuleConstantScope module_constant_scope(module_constants);
 
         for (auto& enum_decl : program.enums) {
             for (auto& variant : enum_decl.variants)
@@ -2933,16 +3252,43 @@ private:
         for (auto& class_decl : program.classes) {
             std::unordered_set<std::string> class_parameters(
                 class_decl.type_parameters.begin(), class_decl.type_parameters.end());
+            for (const auto& parameter : class_decl.type_parameters)
+                reject_module_constant_shadow(parameter, class_decl.prototype_span.value_or(class_decl.span));
+            std::unordered_set<std::string> class_methods;
+            for (const auto& method : class_decl.methods)
+                if (!method.is_constructor) {
+                    reject_module_constant_shadow(method.name, method.span);
+                    class_methods.insert(method.name);
+                }
+            ClassMethodScope class_method_scope(class_methods);
+            std::unordered_set<std::string> class_bindings;
+            for (const auto& field : class_decl.fields) class_bindings.insert(field.name);
+            for (const auto& method : class_decl.methods)
+                if (method.is_constructor)
+                    for (const auto& parameter : method.parameters)
+                        class_bindings.insert(parameter.name);
+            if (!class_decl.self_name.empty()) class_bindings.insert(class_decl.self_name);
+            ValueBindingScope class_binding_scope(class_bindings);
 
             for (auto& field : class_decl.fields) {
-                rename_type(field.type, ns, local_classes, imports, class_parameters);
+                auto exposure = field.span;
+                if (class_decl.prototype_span) {
+                    for (const auto& method : class_decl.methods)
+                        if (method.is_constructor)
+                            for (const auto& parameter : method.parameters)
+                                if (!parameter.is_local && parameter.name == field.name)
+                                    exposure.start.offset = class_decl.prototype_span->start.offset;
+                }
+                reject_module_constant_shadow(field.name, exposure);
+                rename_type(field.type, ns, local_classes, imports, class_parameters, exposure);
                 if (field.default_value) {
                     rename_expr(*field.default_value, ns, local_classes, local_functions, imports, class_parameters);
                 }
             }
             for (auto& method : class_decl.methods) {
                 rename_function(
-                    method, ns, local_classes, local_functions, imports, class_parameters);
+                    method, ns, local_classes, local_functions, imports, class_parameters,
+                    method.is_constructor ? class_decl.prototype_span : std::nullopt);
                 method.module_namespace = ns;
             }
             class_decl.name = qualify(ns, class_decl.name);
@@ -2956,6 +3302,8 @@ private:
         }
 
         {
+            const ModuleConstants no_module_constants;
+            ModuleConstantScope statement_constants(root ? no_module_constants : module_constants);
             LiteralConstantScope scope;
             for (auto& statement : program.statements) {
                 if (root || std::holds_alternative<MainGuardStmt>(statement->data))
@@ -2967,14 +3315,17 @@ private:
             // spans as non-root. Source inspection/patching can then remain root-file scoped.
             const auto imported_offset = std::numeric_limits<std::size_t>::max();
             for (auto& enum_decl : program.enums) {
+                enum_decl.source_declaration_offset = enum_decl.span.start.offset;
                 enum_decl.span.start.offset = imported_offset;
                 enum_decl.span.end.offset = imported_offset;
             }
             for (auto& class_decl : program.classes) {
+                class_decl.source_declaration_offset = class_decl.span.start.offset;
                 class_decl.span.start.offset = imported_offset;
                 class_decl.span.end.offset = imported_offset;
             }
             for (auto& function : program.functions) {
+                function.source_declaration_offset = function.span.start.offset;
                 function.span.start.offset = imported_offset;
                 function.span.end.offset = imported_offset;
             }
@@ -2988,6 +3339,7 @@ private:
                 merged.statements.push_back(std::move(statement));
         }
 
+        loaded_modules_.emplace(absolute, LoadedModule{exports, interface_index});
         return exports;
     }
 };
@@ -3466,6 +3818,7 @@ public:
             copy.name = declaration.name;
             copy.source_file = declaration.source_file;
             copy.span = declaration.span;
+            copy.source_declaration_offset = declaration.source_declaration_offset;
             for (const auto& variant : declaration.variants) {
                 EnumVariantDecl item;
                 item.name = variant.name;
@@ -4258,10 +4611,10 @@ private:
                 if (!visible.insert(module).second) return;
                 if (const auto descendants = children.find(module); descendants != children.end()) {
                     for (const auto* child : descendants->second)
-                        if (child->is_public) self(self, child->alias);
+                        if (child->is_public) self(self, child->target);
                 }
             };
-            for (const auto* import : imports) add_public(add_public, import->alias);
+            for (const auto* import : imports) add_public(add_public, import->target);
         }
     }
 
@@ -4619,7 +4972,19 @@ private:
 
         if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
             if (unary->op == "not") return simple_type("bool");
-            return infer_expression_type(*unary->operand, current_class);
+            auto operand = infer_expression_type(*unary->operand, current_class);
+            if (operand && (unary->op == "-" || unary->op == "+" || unary->op == "NOT")) {
+                if (auto success = non_error_type(*operand)) {
+                    const auto* numeric = success->name == "tensor" && success->arguments.size() == 1
+                        ? numeric_type_name(success->arguments.front().name)
+                        : success->arguments.empty() ? numeric_type_name(success->name) : nullptr;
+                    if (numeric && (unary->op != "NOT" ||
+                        (numeric->width != 0 && (numeric->family == NumericFamily::Integer ||
+                                                numeric->family == NumericFamily::Natural))))
+                        return success;
+                }
+            }
+            return operand;
         }
 
         if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
@@ -4638,6 +5003,17 @@ private:
                     return numeric_type_name(value.arguments.front().name);
                 return value.arguments.empty() ? numeric_type_name(value.name) : nullptr;
             };
+            // Numeric operators consume a sole error channel before selecting
+            // their common value type. Equality still compares error values.
+            if (!equality) {
+                const auto consume_numeric_error = [&](std::optional<TypeName>& operand) {
+                    if (!operand) return;
+                    auto success = non_error_type(*operand);
+                    if (success && numeric_leaf(*success)) operand = std::move(success);
+                };
+                consume_numeric_error(left);
+                consume_numeric_error(right);
+            }
             const auto literal_source = [&](const auto& self, const Expr& value) -> bool {
                 if (const auto* array = std::get_if<ArrayExpr>(&value.data))
                     return std::all_of(array->elements.begin(), array->elements.end(),
@@ -4910,6 +5286,11 @@ private:
                 return variant;
             const auto base = infer_expression_type(*member->base, current_class);
             if (!base || !base->dimensions.empty()) return std::nullopt;
+            if (member->name == "real" || member->name == "imag") {
+                if (const auto* numeric = numeric_type_name(base->name);
+                    numeric && numeric->family == NumericFamily::Complex)
+                    return simple_type(type_name(complex_part_type(Type::simple(numeric->kind))));
+            }
             if (base->name == "tensor" && member->name == "grad") {
                 auto result = clone_type(*base);
                 result.span = expression.span;
@@ -5349,9 +5730,16 @@ private:
             if (numeric_policy::numeric_literal_family(value) != numeric_policy::NumericLiteralCategory::None)
                 return true;
             if (const auto* array = std::get_if<ArrayExpr>(&value.data))
-                return !array->elements.empty() && std::all_of(array->elements.begin(), array->elements.end(),
+                // Empty arrays need the element type inferred elsewhere;
+                // they provide no independent evidence for a type parameter.
+                return std::all_of(array->elements.begin(), array->elements.end(),
                     [&](const auto& item) { return self(self, *item); });
             return false;
+        };
+        const auto empty_array_literal = [&](const auto& self, const Expr& value) -> bool {
+            const auto* array = std::get_if<ArrayExpr>(&value.data);
+            return array && std::all_of(array->elements.begin(), array->elements.end(),
+                [&](const auto& item) { return self(self, *item); });
         };
         const auto solve = [&](const CallArg& argument, std::size_t index) -> bool {
             const auto& parameter = callee_parameters[index];
@@ -5373,6 +5761,8 @@ private:
             if (!literal_value(literal_value, *argument->value)) continue;
             const auto contextual = substitute_raw(callee_parameters[index].type, typed_inferred);
             if (!contains_parameter(contextual, parameters)) continue;
+            // An empty literal cannot bind a type parameter to its own name.
+            if (empty_array_literal(empty_array_literal, *argument->value)) continue;
             // No resolved context: use int/real/com defaults. Two differently
             // typed defaults must not invent a cast to solve a repeated T.
             if (!solve(*argument, index)) return std::nullopt;
@@ -5655,6 +6045,13 @@ private:
                 generic_matches.push_back(
                     GenericMatch{function, *inferred});
             }
+        }
+
+        if (concrete_matches.empty() && generic_matches.empty()) {
+            for (const auto* function : family->second)
+                if (function->type_parameters.empty() &&
+                    concrete_family_match(*function, args, current_class, nullptr, true, false))
+                    concrete_matches.push_back(function);
         }
 
         if (concrete_matches.empty() && generic_matches.empty()) {
@@ -6037,8 +6434,17 @@ private:
             }
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<MemberExpr>(&source.data)) {
-            out->data = MemberExpr{
-                clone_expr(*node->base, substitution, deferred, current_class), node->name};
+            auto base = clone_expr(*node->base, substitution, deferred, current_class);
+            // Field inference and specialization need the receiver's completed
+            // layout, independently of concrete-class hash-table iteration order.
+            if (const auto receiver = infer_expression_type(*base, current_class);
+                receiver && receiver->dimensions.empty() && !class_index_.contains(receiver->name)) {
+                if (const auto declaration = concrete_classes_.find(receiver->name);
+                    declaration != concrete_classes_.end()) {
+                    materialize_concrete_class(*declaration->second);
+                }
+            }
+            out->data = MemberExpr{std::move(base), node->name};
         } else if (const auto* node = std::get_if<UnaryExpr>(&source.data)) {
             out->data = UnaryExpr{
                 node->op, clone_expr(*node->operand, substitution, deferred, current_class)};
@@ -6857,6 +7263,8 @@ private:
             out.return_type = materialize_type(source.return_type, substitution, deferred,true);
             traversal_expected_result_=out.return_type.name=="$std.reflect.Each"?std::optional<TypeName>{substitute_raw(source.return_type,substitution)}:std::nullopt;
             out.span = source.span;
+            out.prototype_span = source.prototype_span;
+            out.source_declaration_offset = source.source_declaration_offset;
             out.is_private = source.is_private;
             out.mutation_marker = source.mutation_marker;
             out.is_constructor = source.is_constructor;
@@ -6997,6 +7405,8 @@ private:
         out.source_file = source.source_file;
         out.module_namespace = source.module_namespace;
         out.span = source.span;
+        out.prototype_span = source.prototype_span;
+        out.source_declaration_offset = source.source_declaration_offset;
         out.standard_library = source.standard_library;
         out.self_name = source.self_name;
         out.self_span = source.self_span;
@@ -7256,6 +7666,13 @@ private:
                 generic_matches.push_back(
                     GenericMethodMatch{&member, *inferred});
             }
+        }
+
+        if (concrete_matches.empty() && generic_matches.empty()) {
+            for (auto& member : family)
+                if (member.signature.type_parameters.empty() &&
+                    concrete_family_match(member.signature, args, current_class, nullptr, true, false))
+                    concrete_matches.push_back(&member);
         }
 
         if (concrete_matches.empty() && generic_matches.empty()) {

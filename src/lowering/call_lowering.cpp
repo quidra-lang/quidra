@@ -585,10 +585,21 @@ ValueId CallLowering::lower_constructor_call(
     if(resolution.type.kind==TypeKind::Bin){
         if(resolution.target=="bin.cast"){
             auto value=lowerer_.lower_argument(*n.args[0].value),out=builder_.fresh();
+            auto source=lowerer_.argument_type(*n.args[0].value);
+            auto runtime_value=value;
+            // The bin runtime accepts a dynamic array header. Fixed arrays
+            // contain only payload, so reuse the normal shape conversion.
+            const bool fixed_array=source.kind==TypeKind::Array && source.length>=0;
+            if(fixed_array){
+                const auto dynamic=Type::array(*source.first);
+                runtime_value=conversions_.convert(value,source,dynamic);
+                source=dynamic;
+            }
             builder_.emit(BinConvert{
-                out,value,lowerer_.argument_type(*n.args[0].value),Type::simple(TypeKind::Bin),
+                out,runtime_value,source,Type::simple(TypeKind::Bin),
                 {static_cast<std::uint32_t>(e.span.start.line),
                 static_cast<std::uint32_t>(e.span.start.column)}});
+            if(fixed_array) release_owned(builder_,runtime_value,source);
             lowerer_.release_argument(*n.args[0].value,value);
             return out;
         }

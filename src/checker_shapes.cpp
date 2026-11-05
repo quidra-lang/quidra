@@ -205,7 +205,7 @@ void Checker::reject_visible_shape_variable_name(const std::string& name, Source
         declared(article(type_name(type)) + " binding");
     }
     if (is_builtin_text_constant(name)) declared("a built-in text constant");
-    if (declaration_name_visible(name)) {
+    if (declaration_name_visible(name, span)) {
         const auto scoped = current_module_namespace_.empty()
                                 ? name
                                 : current_module_namespace_ + "." + name;
@@ -233,7 +233,7 @@ void Checker::resolve_bare_axis_name(const ShapeAxis& axis) {
                   "' is a built-in text constant, not a nat value; choose another axis name.",
               axis.span);
     }
-    if (declaration_name_visible(name) || is_reserved_value_name(name) ||
+    if (declaration_name_visible(name, axis.span) || is_reserved_value_name(name) ||
         member_name_visible(name) || visible_function_name(name)) {
         error("SHAPE_VARIABLE", "'" + name + "' is not a nat value.", axis.span);
     }
@@ -392,7 +392,8 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
                     break;
                 }
                 case ShapeAxisKind::Unnamed: {
-                    if (std::holds_alternative<IntegerExpr>(axis.value->data)) {
+                    if (std::holds_alternative<IntegerExpr>(axis.value->data) &&
+                        !axis.value->contextual_default_type) {
                         // A literal axis: today's literal constraint, an int
                         // capture checked against the extent.
                         const auto int_type = simple(TypeKind::Int);

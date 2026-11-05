@@ -8,6 +8,7 @@
 #include "lowering/ir_names.hpp"
 #include "lowering/local_scope.hpp"
 #include <optional>
+#include <string>
 
 namespace quidra::lowering {
 
@@ -28,6 +29,10 @@ public:
 
     // binary operators
     ValueId lower_binary(const Expr& e, const BinaryExpr& n);
+    ValueId lower_array_elementwise_values(
+        const std::string& op, ValueId lhs, const Type& lhs_type,
+        ValueId rhs, const Type& rhs_type, const Type& result_type,
+        SourcePosition site);
     // a comparison chain (L14): `a < b <= c` as `a < b and b <= c`, the
     // middle operands evaluated once
     ValueId lower_comparison_chain(const Expr& e, const ComparisonChainExpr& n);

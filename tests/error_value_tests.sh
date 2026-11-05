@@ -12,6 +12,7 @@ trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 
 failures=0
+build_extra_arguments=()
 fail() { echo "FAIL $*"; failures=$((failures + 1)); }
 
 # build NAME < PROGRAM: $TMP/NAME.qui built to $TMP/NAME (packages from
@@ -19,7 +20,7 @@ fail() { echo "FAIL $*"; failures=$((failures + 1)); }
 build() {
     local name=$1
     cat > "$TMP/$name.qui"
-    if ! QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" build "$TMP/$name.qui" -o "$TMP/$name" \
+    if ! QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" build "$TMP/$name.qui" -o "$TMP/$name" "${build_extra_arguments[@]}" \
             > "$TMP/$name.build" 2>&1; then
         fail "$name: build failed"; cat "$TMP/$name.build"; return 1
     fi
@@ -595,6 +596,379 @@ accepts package-passthrough-error <<'QUI'
 import pkg = code_pkg
 error original := error("user failure")
 error returned := pkg.forward(original)
+QUI
+
+# Insert after accepts/rejects definitions and before final failure summary.
+# Operators consume a fallible success in their operand domain; they do not
+# narrow ordinary unions, and full same-union equality remains union equality.
+prints operand-success-domains $'3\n3\n-3\ntrue\ntrue\ntrue\n9\n3\n5:6\ntrue\nhandled' <<'QUI'
+bool | error flag()
+    return true
+int[] | error items()
+    return [4, 5]
+println(int.parse("1") + int.parse("2"))
+println(int8.parse("1") + 2)
+println(-int.parse("3"))
+println(not flag() or flag())
+println(int.parse("1") < int.parse("2"))
+println(int.parse("1") < int.parse("2") < int.parse("3"))
+int[] values := [8, 9]
+println(values[int.parse("1")])
+println(int64(int.parse("3")))
+int[] shifted := items() + 1
+println("{shifted[0]}:{shifted[1]}")
+int | error problem := error("kept")
+println(problem == problem)
+match problem
+    int value
+        println(value)
+    error failure
+        println("handled")
+QUI
+prints operand-short-circuit $'false\ntrue\nleft\nmiddle\nfalse' <<'QUI'
+bool | error skipped()
+    println("unexpected")
+    return error("skipped")
+int | error value(string tag, int number)
+    println(tag)
+    return number
+println(false and skipped())
+println(true or skipped())
+println(value("left", 3) < value("middle", 2) < value("unexpected", 1))
+QUI
+stops operand-error-before-right ERROR 3 12 'left failed' <<'QUI'
+int | error left()
+    println("before")
+    return error("left failed")
+int right()
+    println("unexpected")
+    return 2
+println(left() + right())
+QUI
+stops array-operand-error-before-right ERROR 3 12 'array failed' <<'QUI'
+int[] | error left()
+    println("before")
+    return error("array failed")
+int[] right()
+    println("unexpected")
+    return [2]
+values := left() + right()
+QUI
+stops index-base-error-before-index ERROR 3 12 'base failed' <<'QUI'
+int[] | error base()
+    println("before")
+    return error("base failed")
+int index()
+    println("unexpected")
+    return 0
+println(base()[index()])
+QUI
+stops cast-source-error ERROR 3 12 'source failed' <<'QUI'
+int | error source()
+    println("before")
+    return error("source failed")
+println(int64(source()))
+QUI
+rejects ordinary-union-operand TYPE_MISMATCH <<'QUI'
+int | real64 value := 1
+println(value + 1)
+QUI
+rejects optional-fallible-operand TYPE_MISMATCH <<'QUI'
+int | none | error value := none
+println(value + 1)
+QUI
+rejects multi-success-fallible-operand TYPE_MISMATCH <<'QUI'
+int | real64 | error value := 1
+println(value + 1)
+QUI
+rejects optional-cast-source NUMERIC_CAST <<'QUI'
+int | none | error value := none
+println(int64(value))
+QUI
+prints fallible-value-iteration-and-bin $'4\n5\n5:6\n8\n10\n8\n16' <<'QUI'
+int[] | error items()
+    return [4, 5]
+nat8[] | error bytes()
+    return [1, 2]
+for value := items()[]
+    println(value)
+result := [for value := items()[] then value + 1]
+println("{result[0]}:{result[1]}")
+for left := items()[], right := items()[]
+    println(left + right)
+nat number := 3
+println(len(bin(nat8(number))))
+println(len(bin(bytes())))
+QUI
+stops foreach-source-error ERROR 3 12 'source failed' <<'QUI'
+int[] | error values()
+    println("before")
+    return error("source failed")
+for value := values()[]
+    println("unexpected")
+QUI
+stops comprehension-source-error ERROR 3 12 'source failed' <<'QUI'
+int[] | error values()
+    println("before")
+    return error("source failed")
+result := [for value := values()[] then value + 1]
+println("unexpected")
+QUI
+stops multi-foreach-source-error-before-next ERROR 3 12 'source failed' <<'QUI'
+int[] | error first()
+    println("before")
+    return error("source failed")
+int[] second()
+    println("unexpected")
+    return [2]
+for left := first()[], right := second()[]
+    println("unexpected")
+QUI
+stops bin-source-error ERROR 3 12 'source failed' <<'QUI'
+nat8 | error source()
+    println("before")
+    return error("source failed")
+bits := bin(source())
+println("unexpected")
+QUI
+rejects optional-foreach-source TYPE_MISMATCH <<'QUI'
+int[] | none | error values()
+    return none
+for value := values()[]
+    println(value)
+QUI
+rejects optional-comprehension-source ARRAY_COMPREHENSION <<'QUI'
+int[] | none | error values()
+    return none
+result := [for value := values()[] then value]
+QUI
+rejects ordinary-union-foreach-source TYPE_MISMATCH <<'QUI'
+int[] | nat[] values()
+    return [1]
+for value := values()[]
+    println(value)
+QUI
+rejects ordinary-union-bin-source TYPE_MISMATCH <<'QUI'
+nat8 | bool value := true
+bits := bin(value)
+QUI
+rejects optional-bin-source TYPE_MISMATCH <<'QUI'
+nat8 | none | error value := none
+bits := bin(value)
+QUI
+rejects fallible-reference-iteration TYPE_MISMATCH <<'QUI'
+int[] | error values()
+    return [1, 2]
+for int &value := &values()[]
+    value = 4
+QUI
+# Uncontextualized nonliteral if branches still require identical types.
+rejects inferred-if-success-fallible-branches TYPE_MISMATCH <<'QUI'
+int value := 1
+result := if true then value else int.parse("2")
+QUI
+prints contextual-if-fallible-branch $'1\nhandled' <<'QUI'
+int value := 1
+int selected := if true then value else int.parse("bad")
+println(selected)
+int | error result := if false then value else int.parse("bad")
+match result
+    int number
+        println(number)
+    error failure
+        println("handled")
+QUI
+
+# Exact runtime owner counts catch a retained payload even if a small allocator
+# pool makes RSS insensitive. This weak observation never retains/releases it.
+cat > "$TMP/owner-probe.cpp" <<'CPP'
+#include <cstddef>
+#include <cstdint>
+namespace quidra::runtime { std::size_t managed_owners(const void*); }
+static const char* remembered;
+extern "C" std::uint64_t qtest_string_owners(const char* text, std::uint64_t) {
+    return quidra::runtime::managed_owners(text);
+}
+extern "C" void qtest_string_remember(const char* text, std::uint64_t) {
+    remembered = text;
+}
+extern "C" std::uint64_t qtest_string_remaining() {
+    return quidra::runtime::managed_owners(remembered);
+}
+CPP
+if ! "${CXX:-c++}" -std=c++20 -c "$TMP/owner-probe.cpp" -o "$TMP/owner-probe.o"; then
+    fail "owner probe: C++ compilation failed"
+else
+    owner_prints() {
+        build_extra_arguments=(--link "$TMP/owner-probe.o")
+        prints "$@"
+        build_extra_arguments=()
+    }
+    owner_prints fail-fast-owned-success-borrowed-root $'aaaaaaaa\n0\n8\n0\naaaaaaaa\n0\n8\n0\naaaaaaaa\n0' <<'QUI'
+extern nat64 owners(const string text) = "qtest_string_owners"
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+class Holder()
+    string | error text := string.repeat("a", 8)
+void inspect_name()
+    string | error text := string.repeat("a", 8)
+    remember(text)
+    nat64 before := owners(text)
+    println(text)
+    println(owners(text) - before)
+    match text
+        string original
+            println(len(original))
+        error problem
+            println("unexpected")
+inspect_name()
+println(remaining())
+void inspect_member()
+    holder := Holder()
+    remember(holder.text)
+    nat64 before := owners(holder.text)
+    println(holder.text)
+    println(owners(holder.text) - before)
+    match holder.text
+        string original
+            println(len(original))
+        error problem
+            println("unexpected")
+inspect_member()
+println(remaining())
+string | error owned()
+    string text := string.repeat("a", 8)
+    remember(text)
+    return text
+println(owned())
+println(remaining())
+QUI
+    owner_prints string-prefix-try-cleanup 0 <<'QUI'
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+string left()
+    string text := string.repeat("a", 1024)
+    remember(text)
+    return text
+string | error right()
+    return error("stop")
+string | error compute()
+    return left() + try right()
+match compute()
+    string result
+        println("unexpected")
+    error problem
+        println(remaining())
+QUI
+    owner_prints eager-operand-try-cleanup 0 <<'QUI'
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+class Payload()
+    string text := string.repeat("a", 1024)
+Payload make()
+    value := Payload()
+    remember(value.text)
+    return value
+Payload | error stop()
+    return error("stop")
+bool | error compute()
+    return make() == try stop()
+match compute()
+    bool result
+        println("unexpected")
+    error problem
+        println(remaining())
+QUI
+    owner_prints comparison-first-prefix-try-cleanup 0 <<'QUI'
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+class Payload()
+    string text := string.repeat("a", 1024)
+Payload make()
+    value := Payload()
+    remember(value.text)
+    return value
+Payload | error stop()
+    return error("stop")
+bool | error compute()
+    return make() == try stop() == make()
+match compute()
+    bool result
+        println("unexpected")
+    error problem
+        println(remaining())
+QUI
+    owner_prints comparison-middle-prefix-try-cleanup 0 <<'QUI'
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+class Payload()
+    string text := string.repeat("a", 1024)
+Payload make()
+    value := Payload()
+    remember(value.text)
+    return value
+Payload | error stop()
+    return error("stop")
+bool | error compute()
+    return make() == make() == try stop()
+match compute()
+    bool result
+        println("unexpected")
+    error problem
+        println(remaining())
+QUI
+    owner_prints consumed-managed-operand-owner-balance $'9\n0\n8\n0\n8\n0\n8\n0\n8\n8\n0' <<'QUI'
+extern nat64 owners(const string text) = "qtest_string_owners"
+extern void remember(const string text) = "qtest_string_remember"
+extern nat64 remaining() = "qtest_string_remaining"
+void inspect()
+    string original := string.repeat("a", 8)
+    string | error text := original
+    string[] | error values := [original]
+    remember(original)
+    nat64 before := owners(original)
+    string joined := text + "!"
+    println(len(joined))
+    println(owners(original) - before)
+    println(len(values[0]))
+    println(owners(original) - before)
+    for value := values[]
+        println(len(value))
+    println(owners(original) - before)
+    counts := [for value := values[] then len(value)]
+    println(counts[0])
+    println(owners(original) - before)
+    match text
+        string kept
+            println(len(kept))
+        error problem
+            println("unexpected")
+    match values
+        string[] kept
+            println(len(kept[0]))
+        error problem
+            println("unexpected")
+inspect()
+println(remaining())
+QUI
+fi
+prints string-prefix-survives-root-replacement $'1025\na\nb' <<'QUI'
+string replace(string &text)
+    text = string.repeat("b", 1024)
+    return "!"
+string text := string.repeat("a", 1024)
+string joined := text + replace(&text)
+println(len(joined))
+println(joined[0])
+println(text[0])
+QUI
+prints ascii-index-base-survives-index-replacement $'true\nb' <<'QUI'
+int choose(string &text)
+    text = string.repeat("b", 1024)
+    return 0
+string text := string.repeat("a", 1024)
+println(text[choose(&text)] == "a")
+println(text[0])
 QUI
 
 if [[ "$failures" -ne 0 ]]; then

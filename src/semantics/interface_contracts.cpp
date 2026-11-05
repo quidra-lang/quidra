@@ -62,7 +62,8 @@ FunctionInterface function(const FunctionDecl& declaration, bool parent_private,
 }
 StorageInitializationContract storage(const StorageEffect& value) {
     return {{value.required.begin(),value.required.end()},{value.writes.begin(),value.writes.end()},
-            {value.initializes.begin(),value.initializes.end()},{value.invalidates.begin(),value.invalidates.end()}};
+            {value.initializes.begin(),value.initializes.end()},{value.invalidates.begin(),value.invalidates.end()},
+            value.restores_entry_state};
 }
 InitializationContract initialization(const FunctionType& value) {
     InitializationContract result;

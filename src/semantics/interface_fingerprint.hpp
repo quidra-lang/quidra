@@ -24,6 +24,7 @@ struct SignatureType {
 struct ForeignInterface { std::string abi, symbol; };
 struct StorageInitializationContract {
     std::set<std::string> required, writes, initializes, invalidates;
+    bool restores_entry_state{};
 };
 struct InitializationContract {
     StorageInitializationContract receiver;

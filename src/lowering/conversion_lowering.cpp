@@ -222,7 +222,7 @@ ValueId ConversionLowering::convert(ValueId v,const Type& from,const Type& to,bo
     }
     if(from.kind==TypeKind::Never)return v;
     if(array_shape_conversion(from,to)) return convert_array_shape(v,from,to);
-    if(from.kind==TypeKind::Union && (from!=to||copy)) {
+    if(from.kind==TypeKind::Union && from.union_name.empty() && (from!=to||copy)) {
         auto tag=builder_.fresh();
         builder_.emit(VariantTag{tag,v});
         const auto done=builder_.label("union.end");
@@ -254,7 +254,7 @@ ValueId ConversionLowering::convert(ValueId v,const Type& from,const Type& to,bo
         builder_.emit(LoadLocal{out,result_name,to});
         return out;
     }
-    if(to.kind==TypeKind::Union && from.kind!=TypeKind::Union){if(copy)v=lifetime_.copy_value(v,from);auto out=builder_.fresh();builder_.emit(VariantMake{out,compatible_case_index(to,from),v,to,from});return out;}
+    if(to.kind==TypeKind::Union && to.union_name.empty() && (from.kind!=TypeKind::Union || !from.union_name.empty())){if(copy)v=lifetime_.copy_value(v,from);auto out=builder_.fresh();builder_.emit(VariantMake{out,compatible_case_index(to,from),v,to,from});return out;}
     if(from!=to && is_numeric(from) && is_numeric(to)){
         auto out=builder_.fresh();
         builder_.emit(NumericConvert{out,v,from,to,false});

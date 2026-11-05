@@ -149,7 +149,49 @@ GENERATION_CONDITION
 GENERATION_SOURCE
 [6]
 OUT
-for name in selection evaluation propagation; do
+cat > "$TMP/primitive-items.qui" <<'QUI'
+real64[] doubles := [for entry := [real64(1), real64(2)][] then entry * 2.0]
+print(doubles[0] == 2.0 and doubles[1] == 4.0)
+bool[] flipped := [for flag := [true, false][] then not flag]
+print(not flipped[0] and flipped[1])
+int8[] narrow := [for entry := [int8(3)][] then entry + 1]
+print(narrow[0] == 4)
+com32[] complex_values := [1.0 + 1.0i]
+com32[] complex_copy := [for entry := complex_values[] then entry]
+print(complex_copy == complex_values)
+real64[] empty := []
+empty_copy := [for entry := empty[] then entry]
+print(len(empty_copy))
+class Observation(real64[] values)
+Observation value := Observation([for entry := [real64(1)][] then entry])
+print(value.values[0] == 1.0)
+print(NL)
+QUI
+cat > "$TMP/primitive-items.expected" <<'OUT'
+truetruetruetrue0true
+OUT
+cat > "$TMP/inferred-cast-products.qui" <<'QUI'
+real64[] weighted_values(int[] counts, real64[] scale)
+    return [for count := counts[] then real64(count)] * scale
+int[] counts := [1, 2]
+real64[] scale := [2.0, 3.0]
+weighted := [for count := counts[] then real64(count)] * scale
+real64[] expected := [2.0, 6.0]
+println(weighted == expected)
+println(weighted_values(counts, scale) == expected)
+(real64 | error)[] preserved := [for text := ["bad"][] then real64.parse(text)]
+match preserved[0]
+    real64 value
+        println("unexpected")
+    error problem
+        println("handled")
+QUI
+cat > "$TMP/inferred-cast-products.expected" <<'OUT'
+true
+true
+handled
+OUT
+for name in selection evaluation propagation primitive-items inferred-cast-products; do
     "$QUIDRA" build "$TMP/$name.qui" -o "$TMP/$name"
     "$TMP/$name" > "$TMP/$name.actual"
     cmp "$TMP/$name.expected" "$TMP/$name.actual"
@@ -166,3 +208,115 @@ status=$?
 set -e
 [[ "$status" == 101 && ! -s "$TMP/uninitialized.out" ]]
 grep -Fq 'UNINITIALIZED' "$TMP/uninitialized.err"
+
+cat > "$TMP/inferred-value-error-order.qui" <<'QUI'
+int8 | error convert(string text)
+    println(text)
+    return int8.parse(text)
+result := [for text := ["1", "bad", "2"][] then convert(text)]
+println("unexpected")
+QUI
+"$QUIDRA" build "$TMP/inferred-value-error-order.qui" -o "$TMP/inferred-value-error-order"
+set +e
+"$TMP/inferred-value-error-order" > "$TMP/inferred-value-error-order.out" 2> "$TMP/inferred-value-error-order.err"
+status=$?
+set -e
+[[ "$status" == 101 ]]
+printf '1\nbad\n' > "$TMP/inferred-value-error-order.expected"
+cmp "$TMP/inferred-value-error-order.expected" "$TMP/inferred-value-error-order.out"
+grep -q 'NUMERIC_PARSE' "$TMP/inferred-value-error-order.err"
+cat > "$TMP/ordinary-union-negative.qui" <<'QUI'
+(int | real64)[] input := [int(1)]
+generated := [for value := input[] then value]
+real64[] scale := [1.0]
+result := generated * scale
+QUI
+cat > "$TMP/error-multisuccess-negative.qui" <<'QUI'
+(int | real64 | error)[] input := [int(1)]
+generated := [for value := input[] then value]
+real64[] scale := [1.0]
+result := generated * scale
+QUI
+cat > "$TMP/error-none-negative.qui" <<'QUI'
+(real64 | none | error)[] input := [none]
+generated := [for value := input[] then value]
+real64[] scale := [1.0]
+result := generated * scale
+QUI
+cat > "$TMP/explicit-error-arithmetic-negative.qui" <<'QUI'
+(real64 | error)[] generated := [for text := ["1"][] then real64.parse(text)]
+real64[] scale := [1.0]
+result := generated * scale
+QUI
+for name in ordinary-union-negative error-multisuccess-negative error-none-negative explicit-error-arithmetic-negative; do
+    if "$QUIDRA" check "$TMP/$name.qui" > "$TMP/$name.check" 2>&1; then
+        echo "accepted invalid generated element union: $name" >&2
+        exit 1
+    fi
+    grep -q 'TYPE_MISMATCH' "$TMP/$name.check"
+done
+cat > "$TMP/partial-class-negative.qui" <<'QUI'
+class Payload()
+    int slot
+value := Payload()
+generated := [for entry := [1][] then value]
+QUI
+if "$QUIDRA" check "$TMP/partial-class-negative.qui" > "$TMP/partial-class-negative.check" 2>&1; then
+    echo "accepted partially initialized generated Class value" >&2
+    exit 1
+fi
+grep -q 'UNINITIALIZED_ARGUMENT' "$TMP/partial-class-negative.check"
+cat > "$TMP/class-field-dtype-control.qui" <<'QUI'
+class Holder()
+    values := [for code := [65][] then nat8(code)]
+holder := Holder()
+nat8[] required := holder.values
+nat8[] shifted := holder.values + nat8(1)
+bits := bin(holder.values)
+println(required[0] == 65 and shifted[0] == 66 and len(bits) == 8)
+QUI
+"$QUIDRA" build "$TMP/class-field-dtype-control.qui" -o "$TMP/class-field-dtype-control"
+cat > "$TMP/class-field-dtype-control.expected" <<'OUT'
+true
+OUT
+"$TMP/class-field-dtype-control" > "$TMP/class-field-dtype-control.actual"
+cmp "$TMP/class-field-dtype-control.expected" "$TMP/class-field-dtype-control.actual"
+cat > "$TMP/fallible-complete-generated.qui" <<'QUI'
+class Whole() | error
+    int value := 7
+constructed := [for index := [0][] then Whole()]
+println(constructed[0].value)
+class Complete(int value)
+Complete | error make(int value)
+    return Complete(value)
+returned := [for index := [8][] then make(index)]
+println(returned[0].value)
+QUI
+"$QUIDRA" build "$TMP/fallible-complete-generated.qui" -o "$TMP/fallible-complete-generated"
+cat > "$TMP/fallible-complete-generated.expected" <<'OUT'
+7
+8
+OUT
+"$TMP/fallible-complete-generated" > "$TMP/fallible-complete-generated.actual"
+cmp "$TMP/fallible-complete-generated.expected" "$TMP/fallible-complete-generated.actual"
+cat > "$TMP/fallible-partial-constructor-negative.qui" <<'QUI'
+class Partial() | error
+    int value
+items := [for index := [0][] then Partial()]
+println(items[0].value)
+QUI
+cat > "$TMP/fallible-partial-return-negative.qui" <<'QUI'
+class Partial()
+    int value
+Partial | error make()
+    return Partial()
+items := [for index := [0][] then make()]
+println(items[0].value)
+QUI
+for name in fallible-partial-constructor-negative fallible-partial-return-negative; do
+    if "$QUIDRA" check "$TMP/$name.qui" > "$TMP/$name.check" 2>&1; then
+        echo "accepted partially initialized fallible generated Class: $name" >&2
+        exit 1
+    fi
+    grep -q 'UNINITIALIZED_UNION_PAYLOAD' "$TMP/$name.check"
+done

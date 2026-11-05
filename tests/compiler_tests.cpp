@@ -559,6 +559,68 @@ static void imported_locals_use_module_scope() {
             throw std::runtime_error("standalone guard shadowing was not reported");
         if (!compile_reports_shadowing(root / "own_guard_main.qui", root))
             throw std::runtime_error("imported guard shadowing was not reported");
+
+        // Import qualification keeps the declaring module's source positions:
+        // later globals do not reserve earlier parameters, fields or locals.
+        write("later.qui",
+              "int echo(int amount)\n"
+              "    return amount\n"
+              "class Member(bool active)\n"
+              "int read_local()\n"
+              "    int value := 7\n"
+              "    return value\n"
+              "int amount()\n"
+              "    return 1\n"
+              "bool active()\n"
+              "    return true\n"
+              "int value()\n"
+              "    return 2\n");
+        write("later_main.qui",
+              "import later = \"./later.qui\"\n"
+              "int amount()\n"
+              "    return 9\n"
+              "bool active()\n"
+              "    return false\n"
+              "int value()\n"
+              "    return 0\n"
+              "test.equal(later.echo(3), 3)\n"
+              "test.equal(later.read_local(), 7)\n"
+              "later.Member member := later.Member(true)\n"
+              "test.check(member.active)\n");
+        (void)quidra::compile_file(root / "later_main.qui", {}, root);
+
+        // Prototype headers bind their names before a later same-spelling
+        // global; materialization must retain that earlier binding point.
+        write("prototypes.qui",
+              "int render(int later);\n"
+              "class Member(bool active);\n"
+              "int later()\n"
+              "    return 1\n"
+              "bool active()\n"
+              "    return true\n"
+              "int render(int later)\n"
+              "    return later\n"
+              "class Member(bool active)\n");
+        write("prototype_main.qui",
+              "import prototypes = \"./prototypes.qui\"\n"
+              "test.equal(prototypes.render(7), 7)\n"
+              "prototypes.Member member := prototypes.Member(true)\n"
+              "test.check(member.active)\n");
+        (void)quidra::compile_file(root / "prototype_main.qui", {}, root);
+
+        write("prototype_shadow.qui",
+              "int visible();\n"
+              "void use()\n"
+              "    int visible := 7\n"
+              "    println(visible)\n"
+              "int visible()\n"
+              "    return 1\n");
+        write("prototype_shadow_main.qui",
+              "import shadow = \"./prototype_shadow.qui\"\n"
+              "shadow.use()\n");
+        if (!compile_reports_shadowing(root / "prototype_shadow.qui", root) ||
+            !compile_reports_shadowing(root / "prototype_shadow_main.qui", root))
+            throw std::runtime_error("prototype-visible local shadowing was not reported");
         std::filesystem::remove_all(root);
     } catch (const quidra::CompileErrors& errors) {
         std::error_code ignored;
@@ -2493,13 +2555,13 @@ class Counter this(local int value)
     int total
 
     this.total = value
-    int increment(int value)
+    int increment_copy(int value)
         value += 1
         return value
 Counter counter := Counter(0)
 for: int value < 3
     print(increment(value))
-    print(counter.increment(value))
+    print(counter.increment_copy(value))
     Counter copy := Counter(value)
     print(copy.total)
 nat[] values := [0, 1]
@@ -7367,10 +7429,37 @@ int no_return()
 int still_returns()
     maybe_stop(true)
 )", "MISSING_RETURN");
- bad_code(R"(int loop_only()
+ good(R"(int loop_only()
     while true
         print("loop")
         print(NL)
+)");
+ good(R"(int loop_return()
+    while true
+        return 7
+test.equal(loop_return(), 7)
+)");
+ good(R"(int nested_loop_return()
+    while true
+        while true
+            break
+        return 7
+test.equal(nested_loop_return(), 7)
+)");
+ good(R"(int unreachable_break()
+    while true
+        continue
+        break
+)");
+ bad_code(R"(int reachable_break()
+    while true
+        break
+)", "MISSING_RETURN");
+ bad_code(R"(int conditional_break(bool selected)
+    while true
+        if selected
+            break
+        return 7
 )", "MISSING_RETURN");
  llvm_contains(R"(void | error read_open_file(string path)
     file.read reader := try file.read(path)
@@ -7427,6 +7516,77 @@ match state
         print(value)
         print(NL)
 )");
+ // Named enums remain single nominal alternatives inside structural unions.
+ good(R"(enum Mode
+    First
+    Second
+Mode | error parse_mode(string text)
+    if text == "first"
+        return Mode.First
+    return error("bad")
+Mode mode := parse_mode("first")
+test.equal(mode, Mode.First)
+Mode | none optional := Mode.Second
+match optional
+    Mode selected
+        test.equal(selected, Mode.Second)
+    none
+        void
+)");
+ good(R"(enum Token
+    Number(int)
+    End
+T | error checked<T>(T input)
+    return input
+Token token := checked<Token>(Token.Number(7))
+match token
+    Token.Number(value)
+        test.equal(value, 7)
+    Token.End
+        void
+)");
+ bad_code(R"(enum First
+    Value(int)
+enum Second
+    Value(int)
+First | error result := Second.Value(7)
+)", "TYPE_MISMATCH");
+ bad_code(R"(enum Token
+    Number(int)
+    Name(string)
+int | string payload := Token.Number(7)
+)", "TYPE_MISMATCH");
+ bad_code(R"(enum Token
+    Number(int)
+Token | none token := Token.Number("bad")
+)", "TYPE_MISMATCH");
+ bad_code(R"(enum First
+    Value(int)
+enum Second
+    Value(int)
+println(First.Value(7) == Second.Value(7))
+)", "TYPE_MISMATCH");
+ bad_code(R"(enum Token
+    Number(int)
+    Name(string)
+Token | none value := Token.Number(7)
+match value
+    Token token
+        match token
+            Token.Number(number)
+                println(number)
+    none
+        void
+)", "MATCH_EXHAUSTIVE");
+ {
+     const auto diagnostic = modules_diagnostic(
+         "import lib = \"./lib.qui\"\nlib.Mode mode := lib.parse_mode()\ntest.equal(mode, lib.Mode.Second)\n",
+         {{"lib.qui", "enum Mode\n    First\n    Second\nMode | error parse_mode()\n    return Mode.Second\n"}});
+     if (!diagnostic.empty()) {
+         std::cerr << "imported enum union: " << diagnostic << "\n";
+         std::exit(1);
+     }
+ }
  bad_code(R"(enum Token
     Number(real64)
     End
@@ -7587,6 +7747,152 @@ tensor<int64> powered := base ^ -1
  bad_code("int scan := 1\n", "SHADOWING");
  bad_code("int len := 1\n", "SHADOWING");
  bad_code("void use(int print)\n    return\n", "SHADOWING");
+ // Lexical bindings declared before future globals remain usable. The
+ // same spelling cannot be introduced after the global becomes visible.
+ good(R"(void emit(string text)
+    println(text)
+string text(int value)
+    return value.string()
+emit("ok")
+)");
+ good(R"(class Member(bool active)
+    bool is_active()
+        return active
+bool active()
+    return true
+Member member := Member(true)
+test.check(member.is_active())
+)");
+ good(R"(int read_local()
+    int amount := 7
+    return amount
+int amount()
+    return 1
+test.equal(read_local(), 7)
+)");
+ bad_code(R"(string text(int value)
+    return value.string()
+void emit(string text)
+    println(text)
+)", "SHADOWING");
+ bad_code(R"(bool active()
+    return true
+class Member(bool active)
+)", "SHADOWING");
+ bad_code(R"(int amount()
+    return 1
+int read_local()
+    int amount := 7
+    return amount
+)", "SHADOWING");
+ bad_code(R"(int read_later()
+    return later()
+int later()
+    return 1
+)", "SOURCE_ORDER");
+ good(R"(int identity(int value)
+    return value
+int invoke(func<int>(int) callback)
+    return callback(3)
+int callback(int value)
+    return value
+test.equal(invoke(identity), 3)
+)");
+ good(R"(int[] copy_values(int[] values)
+    for int entry := values[]
+        println(entry)
+    return [for int entry := values[] then entry]
+int entry()
+    return 1
+test.equal(copy_values([2, 3]), [2, 3])
+)");
+ // A local in one branch must not hide a genuine forward call outside it.
+ bad_code(R"(void check_branch(bool selected)
+    if selected
+        int future := 1
+        println(future)
+    println(future())
+int future()
+    return 2
+)", "SOURCE_ORDER");
+ bad_code(R"(int forward_name();
+void emit(int forward_name)
+    println(forward_name)
+int forward_name()
+    return 1
+)", "SHADOWING");
+ good(R"(int render(int later);
+int later()
+    return 1
+int render(int later)
+    return later
+test.equal(render(7), 7)
+)");
+ good(R"(class Member(bool active);
+bool active()
+    return true
+class Member(bool active)
+Member member := Member(true)
+test.check(member.active)
+)");
+ bad_code(R"(class Member();
+int conflict()
+    return 1
+class Member()
+    int conflict := 2
+)", "SHADOWING");
+ good(R"(class Box()
+    int value()
+        return 7
+    int read()
+        return value()
+int value()
+    return 9
+box := Box()
+test.equal(box.read(), 7)
+)");
+ bad_code(R"(int increment(int value)
+    return value + 1
+class Counter()
+    int increment(int value)
+        return value + 1
+)", "DUPLICATE_NAME");
+ good(R"(class Box()
+    int descend(int count)
+        if count == 0
+            return 0
+        return descend(count - 1)
+int descend(int count)
+    return count
+box := Box()
+test.equal(box.descend(3), 0)
+)");
+ good(R"(class Box()
+    int read()
+        return value()
+    int value()
+        return 7
+box := Box()
+println(box.read())
+)");
+ good(R"(class Box()
+    int read()
+        return value()
+    int value()
+        return 7
+int value()
+    return 9
+box := Box()
+println(box.read())
+)");
+ bad_code(R"(class Box()
+    int read()
+        return later_global()
+int later_global()
+    return 9
+box := Box()
+println(box.read())
+)", "SOURCE_ORDER");
   bad_code("range(3)\n", "UNKNOWN_NAME");
  bad_code("int main()\n    return 0\n", "RESERVED_MAIN");
  bad_code("return\n", "RETURN_OUTSIDE_FUNCTION");
@@ -8849,5 +9155,413 @@ match initial_level()
     Level.Advanced
         test.check(false)
 )");
+// Shared frontend follow-up regressions: paste beside existing generic inference tests.
+
+// generic-empty-array.qui
+ good(R"(T[] choose<T>(T[] empty, T[] values)
+    return values
+int[] values := [1]
+int[] result := choose([], values)
+)");
+
+// generic-empty-array-reversed.qui
+ good(R"(T[] choose<T>(T[] values, T[] empty)
+    return values
+int[] values := [1]
+int[] result := choose(values, [])
+)");
+
+// generic-empty-array-callback.qui
+ good(R"(int[] transfer(int[] values)
+    return values
+T[] choose<T>(T[] empty, T[] values, func<T[]>(T[]) operation)
+    return operation(values)
+int[] values := [1]
+int[] result := choose([], values, transfer)
+)");
+
+// generic-empty-array-deferred.qui
+ good(R"(T[] choose<T>(T[] empty, T[] values)
+    return values
+class Caller()
+    T[] forward<T>(T[] values)
+        return choose([], values)
+Caller caller := Caller()
+int[] values := [1]
+int[] result := caller.forward(values)
+)");
+
+// generic-empty-array-class.qui
+ good(R"(class Bag<T>(T[] empty, T[] values)
+int[] values := [1]
+result := Bag([], values)
+)");
+
+// typed-family.qui
+ good(R"(T choose<T: floating>(T value)
+    return value
+real choose(real value)
+    return value
+real32 choose(real32 value)
+    return value
+real64 choose(real64 value)
+    return value
+real64 result := choose(real64(2.0))
+)");
+
+// fallible-operand-family.qui
+ good(R"(real64 | error next()
+    return 1.0
+T choose<T: floating>(T value)
+    return value
+real choose(real value)
+    return value
+real32 choose(real32 value)
+    return value
+real64 choose(real64 value)
+    return value
+real64 result := choose(-2.0 * next())
+)");
+
+// fallible-call-family.qui
+ good(R"(real64 | error next()
+    return 1.0
+T choose<T: floating>(T value)
+    return value
+real choose(real value)
+    return value
+real32 choose(real32 value)
+    return value
+real64 choose(real64 value)
+    return value
+real64 result := choose(next())
+)");
+
+// generic-empty-array-both.qui
+ bad_code(R"(T[] choose<T>(T[] empty, T[] values)
+    return values
+result := choose([], [])
+)", "GENERIC_INFERENCE");
+
+// generic-empty-array-conflicting.qui
+ bad_code(R"(T[] choose<T>(T[] empty, T[] values)
+    return values
+int[] values := [1]
+real32[] other := [1.0]
+result := choose(other, values)
+)", "GENERIC_INFERENCE");
+
+// generic-union.qui
+ bad_code(R"(T minimum<T>(T left, T right)
+    return left
+int result := minimum(int.parse("1"), int(2))
+)", "GENERIC_INFERENCE");
+
+// literal-family.qui
+ bad_code(R"(T choose<T: floating>(T value)
+    return value
+real choose(real value)
+    return value
+real32 choose(real32 value)
+    return value
+real64 choose(real64 value)
+    return value
+real64 result := choose(2.0)
+)", "AMBIGUOUS_SPECIALIZATION");
+
+// Contextual array construction preserves explicit error-element arrays.
+
+// constructor-comprehension.qui
+ good(R"(class Observation(real64[] values)
+Observation observation := Observation([for value := ["1"][] then real64.parse(value)])
+)");
+
+// constructor-nested-empty.qui
+ good(R"(class Target(real64[][] values)
+Target value := Target([for label := ["x"][] then []])
+)");
+
+// binder-error-success-context.qui
+ good(R"((real64 | error)[] preserved := [real64.parse("1")]
+class Observation(real64[] values)
+Observation value := Observation([for entry := preserved[] then entry])
+)");
+
+// literal-concat.qui
+ good(R"(nat[] ancestors := []
+int ancestor := 1
+nat[] result := [nat(ancestor)].concat(ancestors)
+)");
+
+// literal-bin.qui
+ good(R"(nat code := 65
+bin result := bin([nat8(code)])
+)");
+
+// complex-part-family.qui
+ good(R"(T choose<T: floating>(T value)
+    return value
+real64 choose(real64 value)
+    return value
+real64 magnitude(com64 value)
+    return choose(value.real * value.real + value.imag * value.imag)
+)");
+
+// normal-control.qui
+ good(R"(class Observation(real64[] values)
+Observation value := Observation([for entry := [real64(1)][] then entry])
+)");
+
+// typed-conversion-control.qui
+ good(R"(class Observation(real64[] values)
+int32[] source := [1]
+Observation value := Observation([for entry := source[] then entry])
+)");
+
+// explicit-error-elements.qui
+ good(R"((real64 | error)[] preserved := [real64.parse("x")]
+class Preserved((real64 | error)[] values)
+Preserved value := Preserved([for entry := preserved[] then entry])
+match value.values[0]
+    real64 number
+        test.check(false)
+    error problem
+        test.check(true)
+)");
+
+// explicit-error-concat.qui
+ good(R"((nat | error)[] preserved := [nat.parse("1")]
+int ancestor := 1
+(nat | error)[] result := [nat(ancestor)].concat(preserved)
+)");
+
+// named-error-array-bin-reject.qui
+ bad_code(R"((nat8 | error)[] preserved := [nat8.parse("65")]
+bin result := bin(preserved)
+)", "TYPE_MISMATCH");
+
+// multi-success-reject.qui
+ bad_code(R"(real64 | none | error next()
+    return none
+class Observation(real64[] values)
+Observation value := Observation([for text := ["x"][] then next()])
+)", "TYPE_MISMATCH");
+
+// Mixed raw success/fallible child representations must normalize separately.
+ good(R"(nat code := 65
+bin result := bin([nat8(code), nat8(65)])
+)");
+
+// typed-concat-receiver-reject.qui
+ bad_code(R"(real64[] tail := [real64(2)]
+real64[] result := [int32(1)].concat(tail)
+)", "TYPE_MISMATCH");
+
+// named-typed-concat-receiver-reject.qui
+ bad_code(R"(int32[] head := [1]
+real64[] tail := [real64(2)]
+real64[] result := head.concat(tail)
+)", "TYPE_MISMATCH");
+
+// Bounded pure getter/conditional copy regressions; no source edits yet.
+
+// 01_receiver_method_result.qui
+ good(R"(class Point(int x, int y)
+class Routes()
+    Point depot := Point(0, 0)
+    Point coordinates(int id)
+        if id == 0
+            return depot
+        return Point(1, 2)
+    int distance()
+        Point a := coordinates(1)
+        Point b := coordinates(2)
+        return a.x - b.x
+Routes routes := Routes()
+println(routes.distance())
+)");
+
+// 05_field_only.qui
+ good(R"(class Point(int x, int y)
+class Routes()
+    Point depot := Point(0, 0)
+    Point coordinates(int id)
+        return depot
+    int distance()
+        Point a := coordinates(1)
+        Point b := coordinates(2)
+        return a.x - b.x
+Routes routes := Routes()
+println(routes.distance())
+)");
+
+// 10_conditional_receiver_copy.qui
+ good(R"(class Point(int x, int y)
+class Container(Point first, Point second)
+    int use(bool choose)
+        Point copied := if choose then first else second
+        return copied.x
+Container container := Container(Point(1, 2), Point(3, 4))
+println(container.use(true))
+)");
+
+// 12_partial_owned_return_unused.qui
+ good(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point get()
+        return value
+Container container := Container()
+Point unused := container.get()
+println("ok")
+)");
+
+// 18_getter_copy_later_replace_positive.qui
+ good(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point get()
+        return value
+Container container := Container()
+container.value.y = 2
+Point copied := container.get()
+container.value = Point(3)
+println(copied.y)
+)");
+
+// 13_partial_owned_return_read_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point get()
+        return value
+Container container := Container()
+Point copied := container.get()
+println(copied.y)
+)", "UNINITIALIZED");
+
+// 16_conditional_partial_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point first := Point(1)
+    Point second := Point(2)
+    int use(bool choose)
+        Point copied := if choose then first else second
+        return copied.y
+Container container := Container()
+println(container.use(true))
+)", "UNINITIALIZED");
+
+// 17_conditional_late_init_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Holder()
+    Point first := Point(1)
+    Point second := Point(2)
+void use(Holder &holder, bool choose)
+    Point copied := if choose then holder.first else holder.second
+    holder.first.y = 9
+    holder.second.y = 9
+    println(copied.y)
+Holder holder := Holder()
+use(&holder, true)
+)", "UNINITIALIZED");
+
+// 19_getter_copy_late_init_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point get()
+        return value
+Container container := Container()
+Point copied := container.get()
+container.value.y = 2
+println(copied.y)
+)", "UNINITIALIZED");
+
+// 20_getter_argument_mutation_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point get(int ignored)
+        return value
+int replace(Container &container)
+    container.value = Point(3)
+    return 0
+Container container := Container()
+container.value.y = 2
+Point copied := container.get(replace(&container))
+println(copied.y)
+)", "UNINITIALIZED");
+
+// 21_getter_mutation_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+class Container()
+    Point value := Point(1)
+    Point .get()
+        value = Point(3)
+        return value
+Container container := Container()
+container.value.y = 2
+Point copied := .container.get()
+println(copied.y)
+)", "UNINITIALIZED");
+
+// 22_getter_unknown_call_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+void replace(Point &value)
+    value = Point(3)
+class Container()
+    Point value := Point(1)
+    Point .get()
+        replace(&value)
+        return value
+Container container := Container()
+container.value.y = 2
+Point copied := .container.get()
+println(copied.y)
+)", "UNINITIALIZED");
+
+// 23_getter_opaque_return_negative.qui
+ bad_code(R"(class Point this(local int initial)
+    int x
+    int y
+    this.x = initial
+Point partial(int initial)
+    return Point(initial)
+class Container()
+    Point get(func<Point>(int) action)
+        return action(0)
+Container container := Container()
+Point copied := container.get(partial)
+println(copied.y)
+)", "UNINITIALIZED");
+
  std::cout<<"all compiler tests passed\n";
 }

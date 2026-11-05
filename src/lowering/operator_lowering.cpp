@@ -22,6 +22,52 @@
 #include <vector>
 
 namespace quidra::lowering {
+namespace {
+
+// Keep an operand's value stable while later source code runs. An owned
+// declared local also participates in ordinary return/try cleanup; a plain
+// SSA temporary alone would leak if a later operand propagates an error.
+class HeldOperatorOperand {
+public:
+    HeldOperatorOperand(ir::FunctionBuilder& builder, LocalScope& scope,
+                        LifetimeLowering& lifetime, const Expr& expression,
+                        const Type& type, ValueId value, bool later_code)
+        : builder_(builder), lifetime_(lifetime), expression_(expression),
+          type_(type), value_(value) {
+        if (!later_code || !owns_managed(type_)) return;
+        if (!lifetime_.expression_owns_result(expression_))
+            value_ = lifetime_.copy_value(value_, type_);
+        slot_ = builder_.hidden("operator.operand");
+        builder_.emit(DeclareLocal{slot_, type_, "", 0, 0});
+        scope.local_type(slot_) = type_;
+        builder_.emit(StoreLocal{slot_, value_, type_});
+    }
+
+    ValueId value() const { return value_; }
+    bool owned() const {
+        return !slot_.empty() || lifetime_.expression_owns_result(expression_);
+    }
+    void release() const {
+        if (slot_.empty()) {
+            lifetime_.release_temporary(expression_, value_);
+            return;
+        }
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, slot_, type_, true});
+        release_owned(builder_, consumed, type_);
+    }
+
+private:
+    ir::FunctionBuilder& builder_;
+    LifetimeLowering& lifetime_;
+    const Expr& expression_;
+    Type type_;
+    ValueId value_;
+    std::string slot_;
+};
+
+} // namespace
+
 
 // Operator conversions check the selected static type's range before the
 // operation. Keep the source expression/storage type intact: its value may be
@@ -74,11 +120,28 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
         builder_.emit(StoreLocal{left_slot, lhs, lhs_type});
     }
     const auto rhs = lowerer_.lower(*n.right);
-    const auto index_type = Type::simple(TypeKind::Int64);
-    const auto bool_type = Type::simple(TypeKind::Bool);
     const SourcePosition site{
         static_cast<std::uint32_t>(e.span.start.line),
         static_cast<std::uint32_t>(e.span.start.column)};
+    const auto output = lower_array_elementwise_values(
+        n.op, lhs, lhs_type, rhs, rhs_type, result_type, site);
+    if (hold_left) {
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, left_slot, lhs_type, true});
+        release_owned(builder_, consumed, lhs_type);
+    } else lifetime_.release_temporary(*n.left, lhs);
+    lifetime_.release_temporary(*n.right, rhs);
+    return output;
+}
+
+// Both binary expressions and compound assignments materialize the same
+// shape-checked independent result from operands already evaluated once.
+ValueId OperatorLowering::lower_array_elementwise_values(
+    const std::string& op, ValueId lhs, const Type& lhs_type,
+    ValueId rhs, const Type& rhs_type, const Type& result_type,
+    SourcePosition site) {
+    const auto index_type = Type::simple(TypeKind::Int64);
+    const auto bool_type = Type::simple(TypeKind::Bool);
     std::function<ValueId(ValueId, const Type&, ValueId, const Type&, const Type&)> apply;
     apply = [&](ValueId l, const Type& lt, ValueId r, const Type& rt,
                 const Type& ot) -> ValueId {
@@ -89,7 +152,7 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
             const auto right = common ? convert_numeric_operand(r, rt, operand, site) : r;
             auto result = builder_.fresh();
             emit_checked_binary(builder_, Binary{
-                result, n.op, left, right, operand, ot, site.line, site.column});
+                result, op, left, right, operand, ot, site.line, site.column});
             if (left != l) release_owned(builder_, left, operand);
             if (right != r) release_owned(builder_, right, operand);
             return result;
@@ -142,14 +205,7 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
         builder_.enter(builder_.add_block(done));
         return result;
     };
-    const auto output = apply(lhs, lhs_type, rhs, rhs_type, result_type);
-    if (hold_left) {
-        auto consumed = builder_.fresh();
-        builder_.emit(LoadLocal{consumed, left_slot, lhs_type, true});
-        release_owned(builder_, consumed, lhs_type);
-    } else lifetime_.release_temporary(*n.left, lhs);
-    lifetime_.release_temporary(*n.right, rhs);
-    return output;
+    return apply(lhs, lhs_type, rhs, rhs_type, result_type);
 }
 
 // A comparison chain compares operand 0 with operand 1, then, while every
@@ -185,49 +241,34 @@ ValueId OperatorLowering::lower_comparison_chain(const Expr& e, const Comparison
         if (converted_right != right) release_owned(builder_, converted_right, operand);
         return out;
     };
-    auto left=lowerer_.lower(*n.operands[0]);
+    HeldOperatorOperand left(builder_, scope_, lifetime_, *n.operands[0],
+        type_of(checked_, *n.operands[0]), lowerer_.lower(*n.operands[0]),
+        expression_runs_code(*n.operands[1]));
     auto right=lowerer_.lower(*n.operands[1]);
-    auto result=compare(0,left,right);
-    lifetime_.release_temporary(*n.operands[0],left);
+    auto result=compare(0,left.value(),right);
+    left.release();
     for(std::size_t link=1;link<n.ops.size();++link){
         const auto& middle=*n.operands[link];
-        const auto middle_type=type_of(checked_,middle);
-        bool owned=lifetime_.expression_owns_result(middle);
-        auto held=right;
-        if(!owned && owns_managed(middle_type)){
-            bool later_code=false;
-            for(std::size_t i=link+1;i<n.operands.size();++i)
-                later_code=later_code||expression_runs_code(*n.operands[i]);
-            if(later_code){
-                if(middle_type.kind==TypeKind::Tuple) held=lifetime_.copy_value(right,middle_type);
-                else {
-                    held=builder_.fresh();builder_.emit(Retain{held,right,middle_type});
-                }
-                owned=true;
-            }
-        }
-        const auto slot=builder_.hidden("chain.operand");
-        scope_.local_type(slot)=middle_type;
-        builder_.emit(StoreLocal{slot,held,middle_type,true});
+        bool later_code=false;
+        for(std::size_t i=link+1;i<n.operands.size();++i)
+            later_code=later_code||expression_runs_code(*n.operands[i]);
+        HeldOperatorOperand held(builder_, scope_, lifetime_, middle,
+            type_of(checked_, middle), right, later_code);
         builder_.emit(StoreLocal{result_name,result,bool_type,true});
         const auto next=builder_.label("chain.next");
-        if(owned){
+        if(held.owned()){
             const auto failed=builder_.label("chain.false");
             builder_.emit(Branch{result,next,failed});
             builder_.enter(builder_.add_block(failed));
-            auto dropped=builder_.fresh();
-            builder_.emit(LoadLocal{dropped,slot,middle_type});
-            release_owned(builder_,dropped,middle_type);
+            held.release();
             builder_.emit(Jump{merge});
         }else{
             builder_.emit(Branch{result,next,merge});
         }
         builder_.enter(builder_.add_block(next));
-        auto kept=builder_.fresh();
-        builder_.emit(LoadLocal{kept,slot,middle_type});
         right=lowerer_.lower(*n.operands[link+1]);
-        result=compare(link,kept,right);
-        if(owned) release_owned(builder_,kept,middle_type);
+        result=compare(link,held.value(),right);
+        held.release();
     }
     lifetime_.release_temporary(*n.operands.back(),right);
     builder_.emit(StoreLocal{result_name,result,bool_type,true});
@@ -297,18 +338,18 @@ std::optional<ValueId> OperatorLowering::lower_ascii_character_test(const Binary
        literal->value.size()==1){
         const auto byte=static_cast<unsigned char>(literal->value[0]);
         if(byte!=0 && byte<0x80U){
-            const bool base_owned=lifetime_.expression_owns_result(*indexed->base);
-            auto text=lowerer_.lower(*indexed->base);
+            HeldOperatorOperand text(builder_, scope_, lifetime_, *indexed->base,
+                type_of(checked_, *indexed->base), lowerer_.lower(*indexed->base),
+                expression_runs_code(*indexed->items.front().index));
             auto index=lowerer_.lower_int64(*indexed->items.front().index);
             auto out=builder_.fresh();
             // An element index failure reports the index operand.
             const auto& at=indexed->items.front().index->span.start;
             builder_.emit(StringIndexAsciiCompare{
-                out,text,index,byte,n.op=="!=",
+                out,text.value(),index,byte,n.op=="!=",
                 {static_cast<std::uint32_t>(at.line),
                 static_cast<std::uint32_t>(at.column)}});
-            if(base_owned)
-                release_owned(builder_,text,Type::simple(TypeKind::String));
+            text.release();
             return out;
         }
     }
@@ -317,13 +358,24 @@ std::optional<ValueId> OperatorLowering::lower_ascii_character_test(const Binary
 
 ValueId OperatorLowering::lower_string_concatenation(const Expr& e) {
     const auto parts=string_concat_chain(e,checked_);
+    std::vector<bool> later_code(parts.size());
+    bool runs_code=false;
+    for(std::size_t i=parts.size();i-->0;){
+        later_code[i]=runs_code;
+        runs_code=runs_code||expression_runs_code(*parts[i]);
+    }
+    std::vector<HeldOperatorOperand> held;
     std::vector<ValueId> values;
+    held.reserve(parts.size());
     values.reserve(parts.size());
-    for(const auto* part:parts) values.push_back(lowerer_.lower(*part));
+    for(std::size_t i=0;i<parts.size();++i){
+        held.emplace_back(builder_, scope_, lifetime_, *parts[i],
+            type_of(checked_, *parts[i]), lowerer_.lower(*parts[i]), later_code[i]);
+        values.push_back(held.back().value());
+    }
     auto out=builder_.fresh();
     builder_.emit(StringConcat{out,values});
-    for(std::size_t i=0;i<parts.size();++i)
-        lifetime_.release_temporary(*parts[i],values[i]);
+    for(const auto& operand:held) operand.release();
     return out;
 }
 
@@ -367,35 +419,45 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
     // Operator trees are frequently left-deep. Lower every eager binary
     // node iteratively so scalar and tensor expressions do not
     // depend on the host compiler process stack size.
-    std::vector<std::pair<const Expr*,bool>> pending;
+    // Three stages let us keep the completed left operand before entering
+    // the right subtree, without recursing through the host compiler stack.
+    std::vector<std::pair<const Expr*,unsigned>> pending;
     std::unordered_map<const Expr*,ValueId> values;
-    pending.push_back({&e,false});
+    std::unordered_map<const Expr*,HeldOperatorOperand> held_left;
+    pending.push_back({&e,0});
     while(!pending.empty()){
-        const auto [current,visited]=pending.back();
+        const auto [current,stage]=pending.back();
         pending.pop_back();
         const auto* binary=eager_binary(*current);
         if(!binary){
             values[current]=lowerer_.lower(*current);
             continue;
         }
-        if(!visited)
+        if(stage==0)
             if(const auto complex=type_of(checked_,*current);is_complex(complex))
                 if(const auto parts=complex_literal_parts(*current)){
                     values[current]=emit_complex_literal(builder_,*parts,complex);
                     continue;
                 }
-        if(!visited) if(const auto scaled=lowerer_.try_scaled_expression(*current)) {
+        if(stage==0) if(const auto scaled=lowerer_.try_scaled_expression(*current)) {
             values[current]=*scaled;
             continue;
         }
-        if(!visited){
-            pending.push_back({current,true});
-            pending.push_back({binary->right.get(),false});
-            pending.push_back({binary->left.get(),false});
+        if(stage==0){
+            pending.push_back({current,1});
+            pending.push_back({binary->left.get(),0});
+            continue;
+        }
+        if(stage==1){
+            held_left.try_emplace(current, builder_, scope_, lifetime_, *binary->left,
+                type_of(checked_, *binary->left), values.at(binary->left.get()),
+                expression_runs_code(*binary->right));
+            pending.push_back({current,2});
+            pending.push_back({binary->right.get(),0});
             continue;
         }
 
-        const auto left_value=values.at(binary->left.get());
+        const auto left_value=held_left.at(current).value();
         const auto right_value=values.at(binary->right.get());
         auto left=left_value;
         auto right=right_value;
@@ -460,7 +522,8 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
 
         // Source operands are evaluated once. Release the original values;
         // converted operands above have their own temporary ownership.
-        lifetime_.release_temporary(*binary->left,left_value);
+        held_left.at(current).release();
+        held_left.erase(current);
         lifetime_.release_temporary(*binary->right,right_value);
 
         ValueId result=out;

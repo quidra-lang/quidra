@@ -317,7 +317,7 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
         n.value.get()==replay_.displayed_expression() || &s==replay_.replayed_top_level_statement();
     if(!displayed_result && checked_.raw_types.at(n.value.get()).kind==TypeKind::Error){
         auto problem=lowerer_.lower_at_raw_type(*n.value);
-        if(lifetime_.expression_owns_result(*n.value)){
+        if(lifetime_.raw_expression_owns_result(*n.value)){
             if(const auto hop=lowerer_.error_hop_call(*n.value))
                 problem=lowerer_.error_hop(problem,Type::simple(TypeKind::Error),
                                           *hop,abi::ErrorHopKind::fail_fast);
@@ -333,7 +333,7 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
         // value to discard: the program fails here.
         auto value=lowerer_.lower_at_raw_type(*n.value);
         const auto source=checked_.raw_types.at(n.value.get());
-        const bool owned=lifetime_.expression_owns_result(*n.value);
+        const bool owned=lifetime_.raw_expression_owns_result(*n.value);
         const auto hop=owned?lowerer_.error_hop_call(*n.value):std::nullopt;
         conversions_.consume_fail_fast(value,source,Type::simple(TypeKind::Void),
                           owned,s.span,hop?&*hop:nullptr);
@@ -358,7 +358,12 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
         builder_.emit(
             ReplDisplay{value,type,std::move(initialized_paths)});
     }
-    lifetime_.release_temporary(*n.value,value);
+    if (preserve_error_value) {
+        if (lifetime_.raw_expression_owns_result(*n.value))
+            release_owned(builder_, value, type);
+    } else {
+        lifetime_.release_temporary(*n.value,value);
+    }
 }
 
 void StatementLowering::lower_main_guard(const MainGuardStmt& n) {

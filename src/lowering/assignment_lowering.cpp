@@ -137,6 +137,38 @@ void AssignmentLowering::release_compound_rhs(const Expr& expression, ValueId va
 
 void AssignmentLowering::lower_compound_assignment(
     const Stmt& s, const AssignStmt& n, const Type& t) {
+    if (t.kind == TypeKind::Array) {
+        std::vector<ValueId> indices;
+        std::optional<std::size_t> first;
+        const bool named = std::holds_alternative<NameExpr>(n.target_expr()->data);
+        auto address = named ? lowerer_.lower_address(*n.target_expr())
+                             : lower_target_address(*n.target_expr(), indices, first);
+        auto old = builder_.fresh();
+        builder_.emit(LoadAddress{old, address, t});
+        old = copy_owned(builder_, old, t);
+        // An owned local protects the old array across RHS replacement or a
+        // propagated error; each result leaf still uses checked arithmetic.
+        const auto snapshot = builder_.hidden("array.compound.left");
+        builder_.emit(DeclareLocal{snapshot, t, "", 0, 0});
+        lowerer_.scope_.local_type(snapshot) = t;
+        builder_.emit(StoreLocal{snapshot, old, t});
+        const auto rhs = lowerer_.lower(*n.value);
+        const auto result = lowerer_.operators_.lower_array_elementwise_values(
+            n.compound_op, old, t, rhs, type_of(checked_, *n.value), t,
+            {static_cast<std::uint32_t>(s.span.start.line),
+             static_cast<std::uint32_t>(s.span.start.column)});
+        lifetime_.release_temporary(*n.value, rhs);
+        auto consumed = builder_.fresh();
+        builder_.emit(LoadLocal{consumed, snapshot, t, true});
+        release_owned(builder_, consumed, t);
+        // Resolve the current logical target after RHS code, reusing each
+        // captured index instead of repeating its effects.
+        std::optional<std::size_t> replay{0};
+        auto current = named ? lowerer_.lower_address(*n.target_expr())
+                             : lower_target_address(*n.target_expr(), indices, replay);
+        builder_.emit(StoreAddress{current, result, t});
+        return;
+    }
     // Compiler-owned Map/Set fields are all initialized by their
     // generated class construction. Scalar compound updates inside
     // those methods therefore do not need to take a tracked field

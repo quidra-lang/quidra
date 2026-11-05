@@ -23,7 +23,12 @@ public:
 
     // copies, owned temporaries, releases
     ValueId copy_value(ValueId v,const Type& t);
+    // Ownership of the value returned by lower()/lower_into(). Contextual
+    // fail-fast always copies its successful payload into an owned result.
     bool expression_owns_result(const Expr& expression) const;
+    // Ownership before contextual consumption, for lower_at_raw_type() only.
+    // A borrowed union must remain owned by its original storage.
+    bool raw_expression_owns_result(const Expr& expression) const;
     // A borrowed indexed value must survive code in later index operands,
     // including writes that replace its storage or mutate its elements.
     bool index_base_needs_snapshot(const IndexExpr& index) const;

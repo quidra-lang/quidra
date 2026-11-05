@@ -52,13 +52,17 @@ bool LifetimeLowering::index_base_needs_snapshot(const IndexExpr& index) const {
 }
 
 bool LifetimeLowering::expression_owns_result(const Expr& expression) const {
+    if (checked_.fail_fast_expressions.contains(&expression))
+        return owns_managed(type_of(checked_, expression));
+    return raw_expression_owns_result(expression);
+}
+
+bool LifetimeLowering::raw_expression_owns_result(const Expr& expression) const {
     if (checked_.enum_constructions.contains(&expression)) return true;
     const auto type = type_of(checked_, expression);
-    // A contextual fail-fast expression is source-visible as T | error but
-    // type_of(expression) is the narrowed success type T.  Ownership still
-    // belongs to the raw temporary container.  Use the raw type only for
-    // the lifetime gate; the structural cases below continue to distinguish
-    // owned temporaries from borrowed names/members.
+    // Raw ownership describes the unconsumed union, before fail-fast copies
+    // the successful payload. Structural children still use result ownership:
+    // raw member/index lowering evaluates its base through lower().
     const auto raw = checked_.raw_types.find(&expression);
     const auto& lifetime_type =
         checked_.fail_fast_expressions.contains(&expression) &&

@@ -315,6 +315,190 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
         print(receiver().plus(argument()))
     ''', expected='ra3')
 
+    # Every compound form shares the binary array operator's numeric/shape rules.
+    operations = [('+', [15, 24], [15, 21]), ('-', [9, 12], [9, 15]),
+                  ('*', [36, 108], [36, 54]), ('/', [4, 3], [4, 6]),
+                  ('%', [0, 0], [0, 0])]
+    for index, (operator, pair, scalar) in enumerate(operations):
+        case(f'array-compound-{index}', f'''
+            int64[] pair := [12, 18]
+            int64[] scalar := [12, 18]
+            pair {operator}= [3, 6]
+            scalar {operator}= 3
+            int64[] expected_pair := [{pair[0]}, {pair[1]}]
+            int64[] expected_scalar := [{scalar[0]}, {scalar[1]}]
+            print(pair == expected_pair and scalar == expected_scalar)
+        ''')
+    case('array-compound-fixed-nested-and-common-type', '''
+        int32[2] fixed := [1, 2]
+        fixed += [3, 4]
+        int16[2] small := [1, 2]
+        fixed += small
+        int32[2] expected_fixed := [5, 8]
+        int64[][] nested := [[1], [2, 3]]
+        nested += [[4], [5, 6]]
+        nested *= 2
+        int64[][] expected_nested := [[10], [14, 18]]
+        print(fixed == expected_fixed and nested == expected_nested)
+    ''')
+    case('array-compound-exact-real', '''
+        real[] values := [real(1), real(2)]
+        values += real(1) / real(2)
+        print(values[0] == real(3) / real(2) and values[1] == real(5) / real(2))
+    ''')
+    case('array-compound-complex-literal', '''
+        com32[] values := [1.0 + 1.0i, 2.0 + 2.0i]
+        values += 1.0i
+        com32[] expected := [1.0 + 2.0i, 2.0 + 3.0i]
+        print(values == expected)
+    ''')
+    case('array-compound-root-replacement', '''
+        int64 change(int64[] &values)
+            values = [90, 91, 92]
+            return 3
+        int64[] values := [1, 2]
+        int64[] independent := values
+        values += change(&values)
+        int64[] expected := [4, 5]
+        int64[] original := [1, 2]
+        print(values == expected and independent == original)
+    ''')
+    case('array-compound-rhs-element-mutation', '''
+        int64 change(int64[] &values)
+            values[0] = 99
+            return 1
+        int64[] values := [1, 2]
+        values += change(&values)
+        int64[] expected := [2, 3]
+        print(values == expected)
+    ''')
+    case('array-compound-index-once-current-storage', '''
+        int next(int &calls)
+            calls += 1
+            print("i")
+            return 0
+        int64[] replace(int64[][] &rows)
+            print("r")
+            rows = [[90, 91], [80, 81]]
+            return [3, 4]
+        int64[][] rows := [[1, 2]]
+        int calls := 0
+        rows[next(&calls)] += replace(&rows)
+        print("={calls}:{rows[0][0]}:{rows[0][1]}:{rows[1][0]}")
+    ''', expected='ir=1:4:6:80')
+    case('array-compound-current-object-field', '''
+        class Box(int64[] values, int64 stamp)
+        int64[] replace(Box &box)
+            box = Box([90, 91], 7)
+            return [3, 4]
+        box := Box([1, 2], 0)
+        box.values += replace(&box)
+        int64[] expected := [4, 6]
+        print(box.values == expected and box.stamp == 7)
+    ''')
+    case('array-compound-fallible-rhs', '''
+        int32[] | error increments()
+            return [int32(2), int32(3)]
+        int64 | error scalar()
+            return int64(1)
+        int64[] values := [1, 2]
+        values += increments()
+        values += scalar()
+        int64[] expected := [4, 6]
+        print(values == expected)
+    ''')
+    case('array-compound-try-error', '''
+        int64[] | error fail()
+            return error("array RHS failed")
+        bool | error attempt()
+            int64[] values := [1, 2]
+            values += try fail()
+            return true
+        match attempt()
+            bool value
+                print(false)
+            error problem
+                print(true)
+    ''')
+    case('array-compound-const', '''
+        const int64[] values := [1, 2]
+        values += 1
+    ''', 'WRITE_CAPABILITY')
+    case('array-compound-mask-read-only', '''
+        int64[] values := [1, 2]
+        bool[] mask := [true, false]
+        values[mask] += 1
+    ''', 'INVALID_ASSIGNMENT')
+    case('array-compound-slice-not-whole-storage', '''
+        int64[] values := [1, 2]
+        values[0:1] += [3, 4]
+    ''', 'INVALID_ASSIGNMENT')
+    case('array-compound-fixed-shape', '''
+        int64[2] values := [1, 2]
+        int64[3] other := [3, 4, 5]
+        values += other
+    ''', 'ARRAY_SHAPE')
+    case('array-compound-rank', '''
+        int64[][] values := [[1, 2]]
+        int64[] other := [3, 4]
+        values += other
+    ''', 'ARRAY_SHAPE')
+    case('array-compound-widening-result', '''
+        int32[] values := [1, 2]
+        real64[] other := [real64(3), real64(4)]
+        values += other
+    ''', 'TYPE_MISMATCH')
+    case('array-compound-remainder-real', '''
+        real64[] values := [real64(1), real64(2)]
+        values %= 2
+    ''', 'TYPE_MISMATCH')
+    case('array-compound-uninitialized-elements', '''
+        int64[2] values
+        values += 1
+    ''', 'UNINITIALIZED')
+
+    def runtime_failure(name, source, code):
+        path = write(name, source)
+        if check_only:
+            result = subprocess.run([compiler, 'check', str(path), '--json'],
+                                    text=True, capture_output=True, env=env, timeout=120)
+            passed = result.returncode == 0
+        else:
+            result = subprocess.run([compiler, str(path)], text=True,
+                                    capture_output=True, env=env, timeout=120)
+            passed = result.returncode == 101 and f'[{code}]' in result.stderr
+        if not passed:
+            failures.append(name)
+            print(f'FAIL {name}: exit {result.returncode}\n{result.stdout}{result.stderr}', flush=True)
+        else:
+            print(f'PASS {name}', flush=True)
+
+    runtime_failure('array-compound-runtime-shape', '''
+        int64[][] values := [[1], [2, 3]]
+        int64[][] other := [[4], [5]]
+        values += other
+    ''', 'SHAPE_MISMATCH')
+    runtime_failure('array-compound-overflow', '''
+        int8[] values := [127]
+        values += 1
+    ''', 'INTEGER_OVERFLOW')
+    runtime_failure('array-compound-zero-divisor', '''
+        int64[] values := [1, 2]
+        values /= 0
+    ''', 'DIVISION_BY_ZERO')
+    runtime_failure('array-compound-operand-range', '''
+        int32[] values := [1]
+        nat64 large := 2147483648
+        values += large
+    ''', 'NUMERIC_CONVERSION')
+    runtime_failure('array-compound-current-storage-bounds', '''
+        int64[] shrink(int64[][] &rows)
+            rows = []
+            return [3, 4]
+        int64[][] rows := [[1, 2]]
+        rows[0] += shrink(&rows)
+    ''', 'INDEX_BOUNDS')
+
 if failures:
     raise SystemExit(f'{len(failures)} array/extension contracts failed: ' + ', '.join(failures))
 print('array/extension contracts: ok')

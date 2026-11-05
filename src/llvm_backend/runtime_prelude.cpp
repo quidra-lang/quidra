@@ -606,18 +606,26 @@ ok:
   call void @quidra_init_create_unowned(ptr %p, i64 %n, i64 %stride, i64 8, i32 %initialized)
   ret ptr %p
 }
-define ptr @quidra_array_slot(ptr %array, i64 %index, i64 %stride, i64 %line, i64 %column) alwaysinline {
+define internal i64 @quidra_normalize_array_index(i64 %index, i64 %len, i64 %line, i64 %column) alwaysinline {
 entry:
-  %len = load i64, ptr %array, align 1
   %negative = icmp slt i64 %index, 0
-  %past = icmp sge i64 %index, %len
-  %bad = or i1 %negative, %past
+  %from.end = add i64 %len, %index
+  %position = select i1 %negative, i64 %from.end, i64 %index
+  ; Unsigned comparison also rejects a position still below zero.
+  %bad = icmp uge i64 %position, %len
   br i1 %bad, label %fail, label %ok
 fail:
   call void @quidra_runtime_bounds_fail(i64 %index, i64 %len, i64 %line, i64 %column)
   unreachable
 ok:
-  %mul = mul i64 %index, %stride
+  ret i64 %position
+}
+
+define ptr @quidra_array_slot(ptr %array, i64 %index, i64 %stride, i64 %line, i64 %column) alwaysinline {
+entry:
+  %len = load i64, ptr %array, align 1
+  %position = call i64 @quidra_normalize_array_index(i64 %index, i64 %len, i64 %line, i64 %column)
+  %mul = mul i64 %position, %stride
   %off = add i64 %mul, 8
   %slot = getelementptr inbounds i8, ptr %array, i64 %off
   ret ptr %slot
@@ -625,15 +633,8 @@ ok:
 
 define ptr @quidra_fixed_array_slot(ptr %array, i64 %index, i64 %len, i64 %stride, i64 %line, i64 %column) alwaysinline {
 entry:
-  %negative = icmp slt i64 %index, 0
-  %past = icmp sge i64 %index, %len
-  %bad = or i1 %negative, %past
-  br i1 %bad, label %fail, label %ok
-fail:
-  call void @quidra_runtime_bounds_fail(i64 %index, i64 %len, i64 %line, i64 %column)
-  unreachable
-ok:
-  %off = mul i64 %index, %stride
+  %position = call i64 @quidra_normalize_array_index(i64 %index, i64 %len, i64 %line, i64 %column)
+  %off = mul i64 %position, %stride
   %slot = getelementptr inbounds i8, ptr %array, i64 %off
   ret ptr %slot
 }

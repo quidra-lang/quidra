@@ -242,4 +242,75 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/nested-index-assignment.qui")" == "$(printf 'true\ntrue')" ]]
 
+cat > "$TMP/negative-indices.qui" <<'QUI'
+values := [10, 20, 30]
+int64 from_end := -2
+println(values[-1])
+println(values[-3])
+values[-1] = 40
+values[from_end] += 1
+&tail := &values[-1]
+tail += 2
+println(values[2])
+println(values[1])
+int[3] fixed
+fixed[-1] = 9
+println(fixed[2])
+fixed[0] = 7
+println(fixed[-3])
+int[] pending := array(2)
+pending[0] = 6
+println(pending[-2])
+int[2][2] matrix := [[1, 2], [3, 4]]
+matrix[-1][-2] = 5
+println(matrix[1][0])
+int[3] ready := [1, 2, 3]
+selected := ready[[-1, -3, 1, -1]]
+for value := selected[]
+    println(value)
+QUI
+[[ "$("$QUIDRA" "$TMP/negative-indices.qui")" == $'30\n10\n42\n21\n9\n7\n6\n5\n3\n1\n2\n3' ]]
+
+cat > "$TMP/negative-uninitialized.qui" <<'QUI'
+int[3] values
+values[-1] = 7
+println(values[-2])
+QUI
+cat > "$TMP/negative-fixed-bounds.qui" <<'QUI'
+int[3] values := [1, 2, 3]
+println(values[-4])
+QUI
+cat > "$TMP/negative-duplicate-place.qui" <<'QUI'
+int[3] values := [1, 2, 3]
+(values[-1], values[2]) = (4, 5)
+QUI
+for case in 'negative-uninitialized:UNINITIALIZED' 'negative-fixed-bounds:INDEX_BOUNDS' 'negative-duplicate-place:TUPLE'; do
+    name=${case%:*}
+    code=${case#*:}
+    if "$QUIDRA" check "$TMP/$name.qui" --json > "$TMP/$name.json"; then
+        printf '%s unexpectedly accepted\n' "$name" >&2
+        exit 1
+    fi
+    python3 - "$TMP/$name.json" "$code" <<'PY'
+import json
+import sys
+
+report = json.load(open(sys.argv[1]))
+assert any(item['code'] == sys.argv[2] for item in report['diagnostics']), report
+PY
+done
+
+for case in '3:-4' '0:-1' '3:-9223372036854775808'; do
+    length=${case%:*}
+    index=${case#*:}
+    cat > "$TMP/negative-bounds.qui" <<QUI
+values := array($length, fill = 0)
+println(values[$index])
+QUI
+    status=0
+    "$QUIDRA" "$TMP/negative-bounds.qui" > "$TMP/out" 2> "$TMP/err" || status=$?
+    [[ "$status" == 101 && ! -s "$TMP/out" ]]
+    grep -Fq "index $index out of bounds for length $length" "$TMP/err"
+done
+
 echo "array selection ownership, independent copies and operator contracts passed"

@@ -314,6 +314,12 @@ print("before")
 for int &value := &matrix[selected][]
     matrix[other] = [9]
 QUI
+fails negative_child_alias FOR_ITERATION <<'QUI'
+int[][] matrix := [[1, 2], [3, 4]]
+print("before")
+for &value := &matrix[-1][]
+    matrix[1] = [9]
+QUI
 expect nested_snapshot $'1\n2\n77' <<'QUI'
 int[][] matrix := [[1, 2]]
 for int[] &row := &matrix[]
@@ -397,6 +403,11 @@ rejects replace_path WRITE_CAPABILITY <<'QUI'
 int[][] values := [[1]]
 for int &value := &values[0][]
     values = [[2]]
+QUI
+rejects replace_negative_path WRITE_CAPABILITY <<'QUI'
+int[2][2] matrix := [[1, 2], [3, 4]]
+for &value := &matrix[-1][]
+    matrix[1] = [9, 10]
 QUI
 rejects index_type FOR_HEADER <<'QUI'
 int[] values := [1]

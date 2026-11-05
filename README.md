@@ -304,6 +304,7 @@ text := number.string()
 ```quidra
 values := [1, 2, 3]
 int[3] fixed := [4, 5, 6]
+last := values[-1]    // 3
 
 int[] pending := array(100)
 pending[0] = 7
@@ -322,6 +323,9 @@ uninitialized with `array(n)` or fully initialized with
 value semantics, including nested arrays. `append`, `concat`, and `sorted`
 return new array values rather than hiding mutation of another value.
 `sorted(descending = true)` returns a descending value.
+
+Array indices count from zero at the start and from `-1` at the end.
+Fixed and runtime-sized arrays accept negative indices for reads and writes.
 
 Slices make inclusion and direction explicit: `values[1:<3]` excludes the end,
 `values[len(values)>:0]` reverses, and `values[::2]` selects every second

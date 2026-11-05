@@ -74,6 +74,15 @@ void ConcurrencyLowering::lower_parallel_for(const ForStmt& loop) {
         if(!loop.range->end_inclusive)
             stop=binary(loop.range->descending?"+":"-",end,constant(1),integer,integer);
         const auto nonempty=binary(loop.range->descending?">=":"<=",first,stop,integer,boolean);
+        if (!plan.outputs.empty()) {
+            // Indices on opposite sides of zero can resolve to one slot.
+            // Run such output ranges in ordinal order on the joining thread.
+            const auto zero = constant(0);
+            const auto first_negative = binary("<", first, zero, integer, boolean);
+            const auto stop_negative = binary("<", stop, zero, integer, boolean);
+            const auto same_side = binary("==", first_negative, stop_negative, boolean, boolean);
+            worker_safe = binary("and", worker_safe, same_side, boolean, boolean);
+        }
         const auto count_slot=builder_.hidden("parallel.for.count");parent.scope_.local_type(count_slot)=raw;
         builder_.emit(StoreLocal{count_slot,builder_.const_int(0),raw});
         const auto prepare=builder_.label("parallel.for.nonempty"),ready=builder_.label("parallel.for.ready");

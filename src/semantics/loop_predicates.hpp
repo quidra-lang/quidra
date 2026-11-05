@@ -7,10 +7,23 @@
 #include "constant_integer_eval.hpp"
 #include <functional>
 #include <optional>
+#include <unordered_map>
 
 namespace quidra::semantics {
 
 enum class LoopWrite { none, replaces, in_place };
+
+inline std::optional<long long> loop_element_offset(
+    const Expr& index, const Expr& base, const std::unordered_map<const Expr*, Type>& types) {
+    const auto value = constant_eval::integer(index);
+    if (!value || *value >= 0) return value;
+    const auto type = types.find(&base);
+    // A negative index can alias a nonnegative index. Without a static
+    // length the effect path must allow any element.
+    if (type == types.end() || type->second.kind != TypeKind::Array || type->second.length < 0)
+        return std::nullopt;
+    return type->second.length + *value;
+}
 
 inline std::optional<StoragePath> loop_storage_path(const CheckedProgram& checked,const Expr& expression) {
     if(const auto* name=std::get_if<NameExpr>(&expression.data)) {
@@ -26,7 +39,8 @@ inline std::optional<StoragePath> loop_storage_path(const CheckedProgram& checke
        index && index->items.size()==1 && !index->items[0].slice) {
         auto path=loop_storage_path(checked,*index->base);
         if(path) {
-            const auto value=constant_eval::integer(*index->items[0].index,nullptr);
+            const auto value = loop_element_offset(*index->items[0].index, *index->base,
+                                                   checked.expr_types);
             return path->child(value?PathStep::element(*value):PathStep::any_element());
         }
     }
@@ -37,7 +51,8 @@ inline bool loop_path_prefix(const StoragePath& prefix,const StoragePath& target
     return prefix.root==target.root && prefix.steps.size()<=target.steps.size() && overlaps(prefix,target);
 }
 
-inline bool loop_definite_place_prefix(const Expr& prefix,const Expr& path) {
+inline bool loop_definite_place_prefix(const Expr& prefix, const Expr& path,
+                                       const std::unordered_map<const Expr*, Type>& types) {
     const auto equal=[&](const auto& self,const Expr& a,const Expr& b)->bool {
         if(const auto* x=std::get_if<NameExpr>(&a.data)) {
             const auto* y=std::get_if<NameExpr>(&b.data);
@@ -49,9 +64,14 @@ inline bool loop_definite_place_prefix(const Expr& prefix,const Expr& path) {
         }
         if(const auto* x=std::get_if<IndexExpr>(&a.data)) {
             const auto* y=std::get_if<IndexExpr>(&b.data);
-            return y && x->items.size()==1 && y->items.size()==1 &&
-                !x->items[0].slice && !y->items[0].slice &&
-                self(self,*x->base,*y->base) && self(self,*x->items[0].index,*y->items[0].index);
+            if (!y || x->items.size() != 1 || y->items.size() != 1 ||
+                x->items[0].slice || y->items[0].slice || !self(self, *x->base, *y->base))
+                return false;
+            if (self(self, *x->items[0].index, *y->items[0].index)) return true;
+            // The borrowed path is already typed when checking a new write.
+            const auto left = loop_element_offset(*x->items[0].index, *y->base, types);
+            const auto right = loop_element_offset(*y->items[0].index, *y->base, types);
+            return left && left == right;
         }
         const auto x=constant_eval::integer(a,nullptr),y=constant_eval::integer(b,nullptr);
         return x && y && *x==*y;

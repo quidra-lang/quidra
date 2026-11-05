@@ -67,7 +67,11 @@ println(values[0])
 
 A fixed declaration such as `int[10] values` allocates its fixed storage immediately with all elements initially uninitialized. Individual elements may be written before the whole array is read. Fixed contiguous dimensions remain eligible for flattened native storage.
 
-`[]` requires enough contextual element-type information. An inferred binding initialized directly from an array literal infers runtime-sized `T[]`, preserving the normal appendable-array behavior. When an inferred binding receives an array-valued expression whose static type is already fixed, such as `.shape()` on a tensor whose rank is compiler-known, that fixed dimension is preserved rather than erased. A trailing comma does not add an element. Indexing accepts an index of every integer kind, starts at zero, and checks bounds. Assignment to an element does not append or resize an array. `len(array)` returns the runtime length as `nat`; lengths, counts, shapes, sizes and the index values APIs return are `nat`, so `len(a) - 1` is a checked `nat` subtraction that fails on an empty array, while the signed `int(len(a)) - 1` is `-1`. Write `int(len(a)) - int(len(b))` for a signed difference of lengths.
+`[]` requires enough contextual element-type information. An inferred binding initialized directly from an array literal infers runtime-sized `T[]`, preserving the normal appendable-array behavior. When an inferred binding receives an array-valued expression whose static type is already fixed, such as `.shape()` on a tensor whose rank is compiler-known, that fixed dimension is preserved rather than erased. A trailing comma does not add an element.
+
+Array element indices accept every integer kind. Nonnegative indices count from zero. A negative index `i` selects position `len(a) + i`, so `a[-1]` is the last element and `a[-int(len(a))]` is the first element of a nonempty array. For an array of length `n`, the valid indices satisfy `-n <= i < n`. Reads, writes and element references use the same rule for both `T[]` and `T[n]`. A constant out-of-bounds index into a statically sized array is a compile-time error. Other out-of-bounds indices fail at runtime. Slices use the separate bound rules below.
+
+Assignment to an element does not append or resize an array. `len(array)` returns the runtime length as `nat`; lengths, counts, shapes, sizes and the index values APIs return are `nat`, so `len(a) - 1` is a checked `nat` subtraction that fails on an empty array, while the signed `int(len(a)) - 1` is `-1`. Write `int(len(a)) - int(len(b))` for a signed difference of lengths.
 
 ### Array selection, elementwise operators and ranges
 
@@ -99,7 +103,8 @@ locations := values.indices()  // [0, 1, 2, 3]
 A `bool[]` mask must match the input array's outer length; it selects complete
 outer-axis elements and preserves their order. A `nat[]` or `int[]`
 index array gathers outer-axis elements in its specified order, including
-repeated positions. The result is a new independent array, and invalid index
+repeated positions. Negative indices in an `int[]` count from the end, just as
+with a scalar index. The result is a new independent array, and invalid index
 values are errors. Multi-element mask/index selection is read-only in this
 version: use individual indexed assignments for writes. The `.indices()`
 method always creates a `nat[]` for the outermost dimension, including an
@@ -1841,6 +1846,9 @@ integer range. Each output has one syntactic write per iteration and may not als
 be read, aliased or updated by a compound assignment. The parent prepares its
 independent array storage before workers start; workers write disjoint elements
 and synchronize initialization marks, including marks sharing one bitmap byte.
+When the output range crosses zero, negative and nonnegative indices can
+resolve to the same element, so the iterations run in range order on the
+joining thread.
 An output holds a fixed primitive scalar, or the unchanged inline `int`/`nat`
 iteration value. Previously boxed integer output elements are explicitly
 rejected. Iteration-local scalar calculation and proven pure scalar calls are

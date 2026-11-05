@@ -73,6 +73,20 @@ for int value := a[]
     print(value)
     print(NL)
 QUI
+expect signed_output_indices $'0\n1\n2\n3' <<'QUI'
+int[4] a
+parallel for: -4 <= x < 4
+    a[x] = x
+for value := a[]
+    println(value)
+QUI
+expect descending_signed_output_indices $'-4\n-3\n-2\n-1' <<'QUI'
+int[4] a
+parallel for: 3 >= x >= -4
+    a[x] = x
+for value := a[]
+    println(value)
+QUI
 expect endpoints $'0\n1\n20\n3\n40\n5\n60' <<'QUI'
 int32[] a := [0, 1, 2, 3, 4, 5, 6]
 parallel for: 0 < int32 x <= 6 step 2

@@ -9002,7 +9002,7 @@ sha256 = "36cba6062b49536da69e8854c4fc17ce71079dfcac10172d6e8f8cd5f4c9dd94"
 [[entry]]
 name = "docs/README-5.qui"
 status = "ok"
-sha256 = "93b1d75b454cb398f0bcf6025a22f6ada52f50113cc3c511391c2f9b693ae8bd"
+sha256 = "32d68af77ab14cf0df1b27b3c52bd4b261c6df976a06e35d61c3777c35765ca7"
 
 [[entry]]
 name = "docs/README-6.qui"
@@ -9748,6 +9748,26 @@ sha256 = "5adeefe924df2f8ec58cbd94891d01a0ef3a6e23ce95c3dde9bf91ad02124808"
 name = "heredoc/array_selection_contract_tests/literal-array-operators.qui"
 status = "ok"
 sha256 = "066ff1b90084ad52b963077a69c286b3235c6622f71bb253b8dca1373ae16826"
+
+[[entry]]
+name = "heredoc/array_selection_contract_tests/negative-duplicate-place.qui"
+status = "error:TUPLE"
+sha256 = "5b848315c85c027f8c4c665bb8b6808dc60cff159a26cf7d8b48ba5448ba64c9"
+
+[[entry]]
+name = "heredoc/array_selection_contract_tests/negative-fixed-bounds.qui"
+status = "error:INDEX_BOUNDS"
+sha256 = "70e73a429269223e86c6793846dc20a80478b2bc3e720be06fb332ee88b12e69"
+
+[[entry]]
+name = "heredoc/array_selection_contract_tests/negative-indices.qui"
+status = "ok"
+sha256 = "f2b61fb091ced8eddc8bfdf50f268ceadb0702b041fb52e76e359032c1404a54"
+
+[[entry]]
+name = "heredoc/array_selection_contract_tests/negative-uninitialized.qui"
+status = "error:UNINITIALIZED"
+sha256 = "c39f6afe1492469b6bc3b6a2f456a92bccef1c78318445583f0afc163fc4ab4f"
 
 [[entry]]
 name = "heredoc/array_selection_contract_tests/nested-index-assignment.qui"

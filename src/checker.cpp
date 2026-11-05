@@ -3170,6 +3170,11 @@ void Checker::declare_array_elements(const std::string& name, const Type& type,
         count(constant_eval::integer(*call->args.front().value, &const_integer_values_));
 }
 
+// Resolve a signed element index when the array length is known.
+static long long array_index_offset(long long index, long long length) {
+    return index < 0 ? length + index : index;
+}
+
 void Checker::note_element_store(const Expr& target) {
     const auto* index = std::get_if<IndexExpr>(&target.data);
     const auto* base = index ? std::get_if<NameExpr>(&index->base->data) : nullptr;
@@ -3179,11 +3184,14 @@ void Checker::note_element_store(const Expr& target) {
     std::optional<long long> position;
     if (index->items.size() == 1 && !index->items.front().slice && index->items.front().index)
         position = constant_eval::integer(*index->items.front().index, &const_integer_values_);
-    if (tracked->second >= 0 && position && *position >= 0 && *position < tracked->second) {
-        maybe_initialized_.insert(base->name + "[" + std::to_string(*position) + "]");
-    } else {
-        maybe_initialized_.insert(base->name + "[]");
+    if (tracked->second >= 0 && position) {
+        const auto offset = array_index_offset(*position, tracked->second);
+        if (offset >= 0 && offset < tracked->second) {
+            maybe_initialized_.insert(base->name + "[" + std::to_string(offset) + "]");
+            return;
+        }
     }
+    maybe_initialized_.insert(base->name + "[]");
 }
 
 void Checker::note_element_writes(const Expr& place) {
@@ -3209,7 +3217,8 @@ void Checker::check_element_read(const Expr& base, const Expr* index, SourceSpan
     std::optional<long long> position;
     if (index) position = constant_eval::integer(*index, &const_integer_values_);
     if (tracked->second >= 0 && position) {
-        if (*position >= 0 && *position < tracked->second && !element(*position))
+        const auto offset = array_index_offset(*position, tracked->second);
+        if (offset >= 0 && offset < tracked->second && !element(offset))
             reject(std::to_string(*position));
         return;
     }
@@ -3274,14 +3283,17 @@ void Checker::check_static_index_bounds(const Type& base, const Expr& index) {
     if (base.kind != TypeKind::Array || base.length < 0) return;
     const auto value = constant_eval::integer(index);
     if (!value) return;
-    if (*value < 0 || *value >= base.length) {
+    const auto offset = array_index_offset(*value, base.length);
+    if (offset < 0 || offset >= base.length) {
         error("INDEX_BOUNDS",
               "Index " + std::to_string(*value) + " out of bounds for length " +
                   std::to_string(base.length) + ".",
               index.span);
         return;
     }
-    bounds_proven_.insert(&index);
+    // Unchecked array slots take a zero-based offset. Keep the checked path
+    // for negative operands so it can resolve them against the array length.
+    if (*value >= 0) bounds_proven_.insert(&index);
 }
 
 Type Checker::check_index_operand(const Expr& index) {
@@ -11215,14 +11227,31 @@ void Checker::check_pattern_assignment(const Stmt& statement,const AssignStmt& n
         if(const auto* name=std::get_if<NameExpr>(&pattern.place->data);name && !name->this_qualifier && !name->self_reference && variables_.contains(name->name))return variables_.at(name->name);
         return check_address_target(*pattern.place,true);
     };
+    auto expected=contextual(contextual,*node.pattern);
     std::unordered_set<std::string> written;
     const auto key=[&](const auto& self,const Expr& place)->std::optional<std::string> {
         if(const auto* name=std::get_if<NameExpr>(&place.data))return (name->this_qualifier?"this.":"")+name->name;
         if(const auto* member=std::get_if<MemberExpr>(&place.data)){if(auto base=self(self,*member->base))return *base+"."+member->name;return std::nullopt;}
-        if(const auto* index=std::get_if<IndexExpr>(&place.data)){auto base=self(self,*index->base);if(!base)return std::nullopt;for(const auto& item:index->items){if(item.slice || !item.index)return std::nullopt;const auto value=constant_eval::integer(*item.index,&const_integer_values_);if(!value)return std::nullopt;*base+="["+std::to_string(*value)+"]";}return base;}return std::nullopt;
+        if (const auto* index = std::get_if<IndexExpr>(&place.data)) {
+            auto base = self(self, *index->base);
+            if (!base) return std::nullopt;
+            const auto type = raw_types_.find(index->base.get());
+            for (const auto& item : index->items) {
+                if (item.slice || !item.index) return std::nullopt;
+                const auto value = constant_eval::integer(*item.index, &const_integer_values_);
+                if (!value) return std::nullopt;
+                auto offset = *value;
+                if (type != raw_types_.end() && type->second.kind == TypeKind::Array &&
+                    type->second.length >= 0)
+                    offset = array_index_offset(offset, type->second.length);
+                *base += "[" + std::to_string(offset) + "]";
+            }
+            return base;
+        }
+        return std::nullopt;
     };
     visit_pattern(*node.pattern,[&](const Pattern& pattern){if(pattern.place)if(const auto place=key(key,*pattern.place);place && !written.insert(*place).second)error("TUPLE","'"+*place+"' is assigned twice in one pattern.",pattern.span);});
-    auto expected=contextual(contextual,*node.pattern);auto type=check_expr(*node.value,&expected);
+    auto type=check_expr(*node.value,&expected);
     if(type.kind!=TypeKind::Tuple)error("TUPLE","A tuple pattern requires a tuple value.",node.value->span);
     auto [entry, inserted] = pattern_expansions_.try_emplace(&statement);
     auto& expansion = entry->second;
@@ -11256,7 +11285,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                        (written->second.empty()||visit[written->second.size()]=='.'||visit[written->second.size()]=='['||visit[written->second.size()]=='('))
                         error("WRITE_CAPABILITY","Cannot replace a prefix of a structural traversal's visit.",statement.span);
         for(const auto* source:live_iteration_paths_)
-            if(semantics::loop_definite_place_prefix(*node.target_expr(),*source))
+            if(semantics::loop_definite_place_prefix(*node.target_expr(), *source, expr_types_))
                 error("WRITE_CAPABILITY","Cannot replace a binding while narrowed or borrowed by a writable loop.",statement.span);
         if (const auto* name = std::get_if<NameExpr>(&node.target_expr()->data);
             name && is_discard_name(name->name)) {

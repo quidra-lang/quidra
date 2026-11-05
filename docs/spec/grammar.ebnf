@@ -200,6 +200,8 @@ direct_call      = "(", [ arguments ], ")" ;
 index_suffix     = "[", index_item, { ",", index_item }, "]" ;
 index_item       = expression
                  | [ slice_start ], ":", [ slice_end ], [ ":", [ expression ] ] ;
+(* A negative array element index counts from the end. Slice bounds have
+   their own rules and are not translated relative to the length. *)
 slice_start      = expression, [ "<" | ">" ] ;   (* a marker touches the colon *)
 slice_end        = [ "<" | ">" ], expression ;   (* a marker touches the colon *)
 member_suffix    = ".", identifier, [ type_arguments ],

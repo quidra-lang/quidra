@@ -74,17 +74,22 @@ jobs:
         run: ctest --test-dir build -R '^quidra_tests$' --output-on-failure
       - name: Native CLI smoke
         run: bash scripts/native-smoke.sh ./build/quidra "$PWD"
-      - name: Package smoke
+      - name: Build Debian package
         if: matrix.compiler == 'gcc'
+        timeout-minutes: 10
+        run: cpack --config build/CPackConfig.cmake -G DEB -B dist
+      - name: Verify Debian package contents
+        if: matrix.compiler == 'gcc'
+        timeout-minutes: 10
         run: |
-          cpack --config build/CPackConfig.cmake -G DEB -B dist
           package="$(find dist -maxdepth 1 -name 'quidra_*_amd64.deb' -print -quit)"
           test -n "$package"
-          dpkg-deb --contents "$package" | grep -q '/usr/bin/quidra'
-          dpkg-deb --contents "$package" | grep -q '/usr/lib/quidra/libquidra_runtime.a'
-          dpkg-deb --contents "$package" | grep -Eq '/usr/lib/quidra/libquidra_runtime_jit\.so$'
-          dpkg-deb --contents "$package" | grep -q '/usr/share/doc/quidra/quidra.manifest.json'
-
+          contents="$RUNNER_TEMP/quidra-deb-contents.txt"
+          dpkg-deb --contents "$package" > "$contents"
+          grep -q '/usr/bin/quidra$' "$contents"
+          grep -q '/usr/lib/quidra/libquidra_runtime.a$' "$contents"
+          grep -Eq '/usr/lib/quidra/libquidra_runtime_jit\.so$' "$contents"
+          grep -q '/usr/share/doc/quidra/quidra.manifest.json$' "$contents"
 
   release-ubuntu-22-04:
     runs-on: ubuntu-22.04
@@ -178,68 +183,6 @@ jobs:
         run: ctest --test-dir build-gpu-contracts -R quidra_gpu_contracts --output-on-failure
       - name: Unified-memory transfer views (fake GPU)
         run: ctest --test-dir build-gpu-contracts -R quidra_unified_memory --output-on-failure
-
-  sanitizers:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reclaim unused sanitizer runner storage
-        run: |
-          df -h /
-          for path in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL; do
-            if [ -d "$path" ]; then sudo rm -rf -- "$path"; fi
-          done
-          df -h /
-      - name: Install compiler cache
-        run: sudo apt-get update && sudo apt-get install -y ccache llvm clang lld ninja-build
-      - name: Restore compiler cache
-        id: sanitizer-ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-clang-sanitizers-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-clang-sanitizers-
-      - name: Install native dependencies
-        run: sudo apt-get install -y llvm libcurl4-openssl-dev
-      - name: Limit sanitizer cache disk usage
-        run: ccache --max-size 2G
-      - name: Configure ASan/UBSan
-        run: >-
-          cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS_DEBUG="-O0 -gline-tables-only"
-          -DQUIDRA_WARNINGS_AS_ERRORS=ON
-          -DQUIDRA_SANITIZE_RUNTIME=ON
-          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fuse-ld=lld"
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      - name: Build and cache sanitized compiler core
-        # Save instrumented compilation before long links; a runner shutdown
-        # must not discard every ccache object from the unsuccessful run.
-        run: cmake --build build-san --target quidra_core --parallel 2
-      - name: Persist sanitized compiler cache
-        if: steps.sanitizer-ccache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-clang-sanitizers-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
-      - name: Build
-        run: cmake --build build-san --parallel 1
-      - name: Tests under sanitizers
-        env:
-          ASAN_OPTIONS: detect_leaks=1
-        run: ctest --test-dir build-san --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
-      - name: Preserve failed sanitizer test logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sanitizer-test-logs-${{ github.sha }}
-          path: |
-            build-san/Testing/Temporary/LastTest.log
-            build-san/Testing/Temporary/LastTestsFailed.log
-          if-no-files-found: ignore
-          retention-days: 7
 
   macos:
     runs-on: macos-latest

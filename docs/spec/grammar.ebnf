@@ -211,6 +211,27 @@ argument         = "&", identifier, "=", "&", expression
                  | [ "&" ], expression ;
 statement_end    = NEWLINE | EOF ;
 
+(* Output interpolation inside a string uses {expression[:format]}.
+   Brackets/braces/parentheses and nested strings in expression are balanced
+   before the first top-level colon introduces format. Literal braces use
+   {{ and }}. Input targets {&name} and {T &name} take no output format. *)
+interpolation_format = decimal_format | radix_format ;
+decimal_format   = decimal_precision, [ ":", decimal_count ]
+                 | ":", decimal_count ;
+decimal_precision = decimal_count
+                  | [ decimal_count ], ".", [ decimal_count ] ;
+decimal_count    = digit, { digit } ;
+radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
+                 | "upper", ",", "base", "=", decimal_count ;
+(* Decimal counts are bounded: width/significant/group 1..1000,
+   fraction 0..1000. A dot without either count is invalid. Without a dot
+   the count is significant precision and cannot start with zero. With a
+   dot the left count is minimum integer width, prefixed by 0 for zero
+   padding; the right count fixes fractional digits. An absent right count
+   leaves the fraction unchanged. Leading fractional zeros are accepted.
+   A final :G groups integer digits after rounding/padding. Named decimal
+   options are not aliases. Radix formats remain integer-only, base 2..36. *)
+
 (* Numeric lexical constraints:
    - integer literals are decimal digits only; 0x/0b/0o prefixes do not exist;
    - decimal real literals contain a decimal point; exponent notation only after it (1.0e8);

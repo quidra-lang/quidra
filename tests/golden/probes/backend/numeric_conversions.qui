@@ -129,7 +129,7 @@ real | error kept_bigreal(string text)
     return result
 
 string formatted(int8 a, nat32 b, int c, real d, real e, real32 f)
-    return "{a:int=4} {b:int=6,zero} {c:int=3} {d:sig=5} {e:int=3,frac=2} {f:frac=2}"
+    return "{a:4.} {b:06.} {c:3.} {d:5} {e:3.2} {f:.2}"
 
 string bin_text(bin value)
     return value.string()

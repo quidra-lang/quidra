@@ -3949,22 +3949,29 @@ QUI
 
 cat > "$TMP/interpolation-format.qui" <<'QUI'
 real64 value := 12.3456
-print("{value:frac=2}")
+print("{value:.2}")
 print(NL)
-print("{value:int=4,frac=2,zero}")
+print("{value:04.2}")
 print(NL)
-print("{value:int=4,frac=2}")
+print("{value:4.2}")
 print(NL)
-print("{value:sig=4}")
+print("{value:4}")
 print(NL)
-print("{int(12345):sig=4}")
+print("{int(12345):4}")
 print(NL)
-print("{real64(0.00123456):sig=3}")
+print("{real64(0.00123456):3}")
 print(NL)
-print("{int(12):sig=4}")
+print("{int(12):4}")
 print(NL)
+println("{int(7):3.}|{int(7):03.}")
+println("{int(12345):3.}|{int(12345):03.}")
+println("{real64(7.125):03.}|{real64(7.125):3.}")
+println("{real64(1.2):.2}|{real64(1.2):.02}|{real64(1.2):03.2}|{real64(1.2):03.02}")
+println("{real64(0.001234):3}|{real64(0.001234):.2}")
+println("{real64(999.996):03.2:3}|{int(123456):3:3}")
+println("{real64(-7.125):03.2}|{real64(-0.0):03.2}|{real64(12.6):.0}")
 QUI
-expected_format="$(printf '12.35\n0012.35\n  12.35\n12.35\n12350\n0.00123\n12.00')"
+expected_format="$(printf '12.35\n0012.35\n  12.35\n12.35\n12350\n0.00123\n12.00\n  7|007\n12345|12345\n007.125|  7.125\n1.20|1.20|001.20|001.20\n0.00123|0.00\n1,000.00|123,000\n-007.12|-000.00|13')"
 [[ "$($QUIDRA run "$TMP/interpolation-format.qui")" == "$expected_format" ]]
 
 cat > "$TMP/interpolation-format-invalid.qui" <<'QUI'
@@ -3978,8 +3985,7 @@ $QUIDRA check "$TMP/interpolation-format-invalid.qui" > "$TMP/interpolation-form
 status=$?
 set -e
 [[ $status -ne 0 ]]
-grep -Eq "frac.*sig|sig.*frac" "$TMP/interpolation-format-invalid.out"
-grep -Eq "zero.*requires.*int" "$TMP/interpolation-format-invalid.out"
+grep -q "Use compact decimal interpolation" "$TMP/interpolation-format-invalid.out"
 
 cat > "$TMP/numeric-types.qui" <<'QUI'
 int8 a := 10

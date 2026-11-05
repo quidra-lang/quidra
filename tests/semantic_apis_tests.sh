@@ -10,7 +10,7 @@ int value := 123456789
 int negative := -1234567
 int small := 12
 real64 decimal := 12345.75
-print("{value:group=3}|{negative:group=3}|{small:group=3}|{decimal:group=3,frac=2}|{value:group=3,int=12,zero}|{value:group=3,int=12}")
+print("{value::3}|{negative::3}|{small::3}|{decimal:.2:3}|{value:012.:3}|{value:12.:3}")
 QUI
 [[ "$("$QUIDRA" "$TMP/group.qui")" == "123,456,789|-1,234,567|12|12,345.75|000,123,456,789|   123,456,789" ]]
 
@@ -46,7 +46,7 @@ print(nothing.size() == 0)
 QUI
 [[ "$("$QUIDRA" "$TMP/distinct.qui")" == "truetruetruetruetruetruetruetrue" ]]
 
-for invalid in 'group=0' 'group=1001' 'group=3,group=2'; do
+for invalid in ':0' ':1001' ':3:2'; do
     cat > "$TMP/group-invalid.qui" <<QUI
 int value := 123456
 print("{value:$invalid}")
@@ -58,7 +58,7 @@ QUI
 done
 cat > "$TMP/group-string.qui" <<'QUI'
 string text := "hello"
-print("{text:group=3}")
+print("{text::3}")
 QUI
 if "$QUIDRA" check "$TMP/group-string.qui" >"$TMP/group-string.out" 2>"$TMP/group-string.err"; then
     echo "Grouping of a string was accepted" >&2

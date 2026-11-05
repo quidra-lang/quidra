@@ -371,7 +371,7 @@ static void brace_shapes() {
     }
     {
         auto p = parse("print(\"{count<tensor<real32>{2, 3}>(xs)}\")\n"
-                       "print(\"{first<tensor<real32>{2}>(xs):int=3}\")\n");
+                       "print(\"{first<tensor<real32>{2}>(xs):3.}\")\n");
         require(p.statements.size() == 2, "braced type arguments in interpolations");
     }
     {
@@ -957,10 +957,57 @@ int main() {
     }
 
     {
+        struct FormatCase {
+            const char* source;
+            std::optional<std::uint32_t> integer;
+            std::optional<std::uint32_t> fraction;
+            std::optional<std::uint32_t> significant;
+            std::optional<std::uint32_t> group;
+            bool zero;
+        };
+        const FormatCase cases[] = {
+            {"3", {}, {}, 3, {}, false},
+            {"3.", 3, {}, {}, {}, false},
+            {"03.", 3, {}, {}, {}, true},
+            {".2", {}, 2, {}, {}, false},
+            {".02", {}, 2, {}, {}, false},
+            {"03.2", 3, 2, {}, {}, true},
+            {"03.02", 3, 2, {}, {}, true},
+            {":3", {}, {}, {}, 3, false},
+            {"03.2:3", 3, 2, {}, 3, true},
+            {"3:3", {}, {}, 3, 3, false},
+            {"3.:3", 3, {}, {}, 3, false},
+            {".0", {}, 0, {}, {}, false},
+            {"1.0:1", 1, 0, {}, 1, false},
+            {"01000.1000:1000", 1000, 1000, {}, 1000, true},
+        };
+        for (const auto& test : cases) {
+            const auto program = parse("print(\"{value:" + std::string(test.source) + "}\")\n");
+            const auto& statement = std::get<ExprStmt>(program.statements[0]->data);
+            const auto& call = std::get<CallExpr>(statement.value->data);
+            const auto& templ = std::get<StringTemplateExpr>(call.args[0].value->data);
+            const auto& format = templ.formats.at(0);
+            require(format.integer_width == test.integer &&
+                    format.fractional_digits == test.fraction &&
+                    format.significant_digits == test.significant &&
+                    format.grouping == test.group && format.zero == test.zero,
+                    "compact decimal interpolation format");
+        }
+        for (const char* source : {"", ".", "0", "03", "0.", "00.2", "1001", ".1001",
+                                   "1001.", ":0", ":1001", "3:", "3:3:3", "3..2",
+                                   "-3", ".-2", "int=3", "frac=2", "sig=3", "group=3",
+                                   "zero", "base=16,.2", ".2,upper"}) {
+            reject("print(\"{value:" + std::string(source) + "}\")\n");
+        }
+        // Radix conversion is independent of the decimal format migration.
+        (void)parse("print(\"{value:base=16,upper}\")\n");
+    }
+
+    {
         auto p = parse(
             "real64 value := 12.3456\n"
-            "print(\"{value:int=5,frac=2,zero}\")\n"
-            "print(\"{value:sig=4}\")\n"
+            "print(\"{value:05.2}\")\n"
+            "print(\"{value:4}\")\n"
         );
         const auto& first = std::get<ExprStmt>(p.statements[1]->data);
         const auto& call = std::get<CallExpr>(first.value->data);

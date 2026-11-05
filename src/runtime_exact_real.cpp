@@ -1866,7 +1866,7 @@ std::string real_text(const RealPtr& x){
     return node_text(x);
 }
 
-// ---- Interpolation formats: frac=N, sig=N, int=N, zero.
+// ---- Decimal interpolation: :.N, :N, :N. and :0N.
 
 // The integer nearest to x * 10^fraction (fraction may be negative), ties
 // to even: exact for a rational, certified by refinement otherwise.

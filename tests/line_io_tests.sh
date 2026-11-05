@@ -13,7 +13,7 @@ println("Hello")
 println("answer={value}")
 println(value)
 println()
-println(value = "{value:int=4,zero}")
+println(value = "{value:04.}")
 print("tail")
 QUI
 "$QUIDRA" "$TMP/print-lines.qui" > "$TMP/print-lines.out"

@@ -37,7 +37,7 @@ print(NL)
 real16b c := 2.0
 print("{c ^ 0.5} {c - 3.0} {c != 2.0}")
 print(NL)
-print("{a:frac=4} {b:sig=3} {h:int=3,frac=1,zero}")
+print("{a:.4} {b:3} {h:03.1}")
 print(NL)
 print(a.string())
 print(NL)

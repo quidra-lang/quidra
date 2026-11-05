@@ -14,7 +14,7 @@ real64 b := real64.parse(read_input_line())
 real64 h := a / b
 real64 mean := (1.0 + h + 3.0) / 3.0
 real64 diff := h - h
-print("OBS=MEAN:{mean:frac=6}|DIFF:{diff:frac=6}")
+print("OBS=MEAN:{mean:.6}|DIFF:{diff:.6}")
 print(NL)
 flush()
 print("ADV-END")

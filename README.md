@@ -594,7 +594,7 @@ scan("{&n} {int &m}")
 println("{n} + {m}")
 
 amount := 123456789
-println("{amount:group=3}") // 123,456,789
+println("{amount::3}") // 123,456,789
 
 input := file.read("pairs.txt")
 while .input("{int &left} {int &right}")
@@ -607,6 +607,15 @@ output := file.write("output.txt")
 ```
 
 `println(value)` writes one value followed by `NL`, and `println()` writes only `NL`; `print` writes exactly the supplied value and never appends a newline. Prefer `println` for line output, retaining explicit `NL` only for embedded line breaks. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value, `{&name}` refers to an existing target, and `{int &age}` declares a new target in a standalone fail-fast statement. `bool`, strings and numeric scalars are supported. Delimiters are literal and every field is parsed before any target is modified; a bad field leaves all destinations unchanged. `file.read` accepts the same input format but returns `bool | error` (`false` on EOF), with inline declared targets scoped to the successful condition branch. `file.write` and `file.append` accept the same output interpolation as `print`, without inserting spaces or newlines. Their writable streams additionally support `.writer.line(value)` and `.writer.line()` to append exactly one `NL` after the value (or alone), with the same `void | error` status. `file.read` has no `.line()` method. `scan` EOF and malformed input are `error` and a standalone call fails fast.
+
+Numeric interpolation uses `"{value:3}"` for three significant digits,
+`"{value:3.}"` for a minimum three-digit integer part with spaces,
+`"{value:03.}"` for zero padding, and `"{value:.2}"` for exactly two
+fractional digits. Combine them as `"{value:03.2:3}"` to add three-digit
+grouping. Width never truncates digits; width-only formats retain the
+fraction. `:.02` is accepted as `:.2`; prefer the shorter spelling.
+See the [numeric interpolation rules](docs/spec/language.md#strings-and-arithmetic)
+for count bounds, exact-real precision and integer radix formatting.
 
 ## Tensors and explicit devices
 

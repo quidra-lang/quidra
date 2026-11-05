@@ -58,5 +58,5 @@ if args.mode == "steady"
 else
     total = workload()
 
-print("MB05 total={total:sig=17}")
+print("MB05 total={total:17}")
 print(NL)

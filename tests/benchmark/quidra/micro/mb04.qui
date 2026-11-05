@@ -75,5 +75,5 @@ if args.mode == "steady"
 else
     result = workload()
 
-print("MB04 s1={result.s1:sig=17} s2={result.s2:sig=17} s3={result.s3:sig=17} s4={result.s4:sig=17}")
+print("MB04 s1={result.s1:17} s2={result.s2:17} s3={result.s3:17} s4={result.s4:17}")
 print(NL)

@@ -40,7 +40,7 @@ print("{z.real} {z.imag} {w.imag} {h.real}")
 print(NL)
 print(z.string())
 print(NL)
-print("{w:frac=2}")
+print("{w:.2}")
 print(NL)
 QUI
 "$QUIDRA" run "$TMP/literals.qui" >"$TMP/literals.out"

@@ -71,5 +71,5 @@ if args.mode == "steady"
 else
     result = workload()
 
-print("MB06 sumC={result.sum_c:sig=17} c_first={result.c_first:sig=17} c_last={result.c_last:sig=17}")
+print("MB06 sumC={result.sum_c:17} c_first={result.c_first:17} c_last={result.c_last:17}")
 print(NL)

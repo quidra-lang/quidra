@@ -276,25 +276,25 @@ import exactprobe
 real third := real(1) / real(3)
 real p := exactprobe.pi
 real root := exactprobe.root2
-print("{p:frac=5} {p:sig=3} {third:frac=3} {real(1) / real(8):frac=2} {real(3) / real(8):frac=2} {root:sig=20}")
+print("{p:.5} {p:3} {third:.3} {real(1) / real(8):.2} {real(3) / real(8):.2} {root:20}")
 print(NL)
 real tiny := real(-1) / real(1000)
 real near := real(9966) / real(1000)
-print("{third:int=3,frac=2} {third:int=3,frac=2,zero} {tiny:frac=2} {near:sig=2} {near:sig=3} {real(0):sig=5}")
+print("{third:3.2} {third:03.2} {tiny:.2} {near:2} {near:3} {real(0):5}")
 print(NL)
 QUI
 rejects format-int-real TYPE_MISMATCH <<'QUI'
 real third := real(1) / real(3)
-print("{third:int=3}")
+print("{third:3.}")
 QUI
 rejects format-zero-real TYPE_MISMATCH <<'QUI'
 real third := real(1) / real(3)
-print("{third:int=4,zero}")
+print("{third:04.}")
 QUI
 stops digits-unproven 3 1 "exact digits could not be proven within the maximum precision" code=EXACT_UNPROVEN <<'QUI'
 import exactprobe
 real wide := exactprobe.omega
-print("{wide:frac=2}")
+print("{wide:.2}")
 QUI
 reason digits-unproven ZERO_UNDECIDED
 # real.parse reads what real prints for rationals, and no symbolic text.

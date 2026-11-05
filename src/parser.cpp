@@ -2141,57 +2141,58 @@ ExprPtr Parser::string_expression(const Token& token) {
         InterpolationFormat format;
         source = trim(source);
         if (source.empty()) error(token, "Interpolation format cannot be empty.");
-        std::size_t start = 0;
-        while (start <= source.size()) {
-            const auto comma = source.find(',', start);
-            auto item = trim(source.substr(start, comma == std::string_view::npos ? source.size() - start : comma - start));
-            if (item.empty()) error(token, "Interpolation format contains an empty option.");
-            if (item == "zero") {
-                if (format.zero) error(token, "Interpolation format 'zero' cannot be repeated.");
-                format.zero = true;
-            } else if (item == "upper") {
-                if (format.uppercase) error(token, "Interpolation format 'upper' cannot be repeated.");
-                format.uppercase = true;
-            } else {
-                const auto equal = item.find('=');
-                if (equal == std::string_view::npos || item.find('=', equal + 1) != std::string_view::npos)
-                    error(token, "Interpolation format options are int=N, frac=N, sig=N, group=N, or zero.");
-                const auto name = trim(item.substr(0, equal));
-                const auto value = item.substr(equal + 1);
-                if (name == "int") {
-                    if (format.integer_width) error(token, "Interpolation format 'int' cannot be repeated.");
-                    format.integer_width = parse_count(value, "int", false);
-                } else if (name == "frac") {
-                    if (format.fractional_digits) error(token, "Interpolation format 'frac' cannot be repeated.");
-                    format.fractional_digits = parse_count(value, "frac", true);
-                } else if (name == "sig") {
-                    if (format.significant_digits) error(token, "Interpolation format 'sig' cannot be repeated.");
-                    format.significant_digits = parse_count(value, "sig", false);
-                } else if (name == "group") {
-                    if (format.grouping) error(token, "Interpolation format 'group' cannot be repeated.");
-                    format.grouping = parse_count(value, "group", false);
-                } else if (name == "base") {
+        // Radix conversion has its own options, independent of decimal layout.
+        if (source.starts_with("base") || source.starts_with("upper")) {
+            std::size_t start = 0;
+            while (start <= source.size()) {
+                const auto comma = source.find(',', start);
+                const auto item = trim(source.substr(start, comma == std::string_view::npos ?
+                                                            source.size() - start : comma - start));
+                if (item == "upper") {
+                    if (format.uppercase) error(token, "Interpolation format 'upper' cannot be repeated.");
+                    format.uppercase = true;
+                } else {
+                    const auto equal = item.find('=');
+                    if (equal == std::string_view::npos || trim(item.substr(0, equal)) != "base")
+                        error(token, "Interpolation base=N accepts only the optional upper flag.");
                     if (format.radix) error(token, "Interpolation format 'base' cannot be repeated.");
-                    const auto radix = parse_count(value, "base", false);
+                    const auto radix = parse_count(item.substr(equal + 1), "base", false);
                     if (radix < 2 || radix > 36)
                         error(token, "Interpolation format 'base' must be between 2 and 36.");
                     format.radix = radix;
-                } else {
-                    error(token, "Unknown interpolation format option '" + std::string(name) + "'.");
                 }
+                if (comma == std::string_view::npos) break;
+                start = comma + 1;
             }
-            if (comma == std::string_view::npos) break;
-            start = comma + 1;
+            if (!format.radix) error(token, "Interpolation format 'upper' requires 'base'.");
+            return format;
         }
-        if (format.fractional_digits && format.significant_digits)
-            error(token, "Interpolation formats 'frac' and 'sig' cannot be used together.");
-        if (format.zero && !format.integer_width)
-            error(token, "Interpolation format 'zero' requires 'int'.");
-        if (format.radix && (format.integer_width || format.fractional_digits ||
-                             format.significant_digits || format.grouping || format.zero))
-            error(token, "Interpolation format 'base' cannot be mixed with decimal width, precision or grouping.");
-        if (format.uppercase && !format.radix)
-            error(token, "Interpolation format 'upper' requires 'base'.");
+        if (source.find_first_of("=,") != std::string_view::npos || source == "zero")
+            error(token, "Use compact decimal interpolation: :N, :N., :0N., :.N or :N.N, with an optional :G group.");
+
+        const auto colon = source.find(':');
+        if (colon != std::string_view::npos) {
+            format.grouping = parse_count(source.substr(colon + 1), "group width", false);
+            source = trim(source.substr(0, colon));
+            if (source.empty()) return format;
+        }
+        const auto dot = source.find('.');
+        if (dot == std::string_view::npos) {
+            format.significant_digits = parse_count(source, "significant digits", false);
+            if (source.front() == '0')
+                error(token, "Zero padding requires an integer width followed by a dot, such as :03.");
+        } else {
+            const auto integer = trim(source.substr(0, dot));
+            const auto fraction = trim(source.substr(dot + 1));
+            if (integer.empty() && fraction.empty())
+                error(token, "Interpolation format needs an integer width or fractional digits.");
+            if (!integer.empty()) {
+                format.integer_width = parse_count(integer, "integer width", false);
+                format.zero = integer.front() == '0';
+            }
+            if (!fraction.empty())
+                format.fractional_digits = parse_count(fraction, "fractional digits", true);
+        }
         return format;
     };
 

@@ -19,7 +19,7 @@ for: 1 <= nat i < 3
     if x > best
         best = x
 bool selfeq := m == m
-print("OBS=MAX:{best:frac=6}|SELFEQ:{selfeq}")
+print("OBS=MAX:{best:.6}|SELFEQ:{selfeq}")
 print(NL)
 flush()
 print("ADV-END")

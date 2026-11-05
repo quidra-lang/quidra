@@ -8027,7 +8027,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 (format.integer_width || format.zero || format.grouping) &&
                 !format.fractional_digits && !format.significant_digits)
                 error("TYPE_MISMATCH",
-                      "Interpolation formats int=N, zero and group=N need frac=N or sig=N for a real value.",
+                      "Integer padding and grouping need decimal precision (:N or :.N) for an exact real value.",
                       item->span);
             if (format.grouping && is_complex(item_type))
                 error("TYPE_MISMATCH",

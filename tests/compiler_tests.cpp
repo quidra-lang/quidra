@@ -60,11 +60,11 @@ static void string_templates_release_owned_inputs() {
     };
     const Case cases[] = {
         {"x ^ half", TypeKind::Real, false, true},
-        {"x ^ half:frac=2", TypeKind::Real, true, true},
+        {"x ^ half:.2", TypeKind::Real, true, true},
         {"z - z", TypeKind::Com, false, true},
         {"real32(x)", TypeKind::Union, false, true},
         {"x", TypeKind::Real, false, false},
-        {"x:frac=2", TypeKind::Real, true, false},
+        {"x:.2", TypeKind::Real, true, false},
         {"z", TypeKind::Com, false, false},
     };
     for (const auto& test : cases) {
@@ -1766,7 +1766,7 @@ static void brace_shapes_and_shape_variables() {
          "    return len(values)\n"
          "tensor<real32>[] xs := [tensor.zeros<real32>([2, 3])]\n"
          "print(\"{count<tensor<real32>{2, 3}>(xs)}{NL}\")\n"
-         "print(\"{count<tensor<real32>{2}>(xs):int=3}{NL}\")\n");
+         "print(\"{count<tensor<real32>{2}>(xs):3.}{NL}\")\n");
     // Signatures take literal and `_` axes until they take shape variables.
     good("void f(tensor<real32>{2, _} x)\n    print(x.shape()[1])\n");
     good("void f(tensor<real32>{nat N} x)\n    print(N)\n");

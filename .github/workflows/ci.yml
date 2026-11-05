@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install compiler cache
-        run: sudo apt-get update && sudo apt-get install -y ccache llvm
+        run: sudo apt-get update && sudo apt-get install -y ccache llvm ninja-build
       - name: Restore compiler cache
         uses: actions/cache@v4
         with:
@@ -64,7 +64,9 @@ jobs:
       - name: Install native dependencies
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        # Match release packaging: Makefiles' preinstall target also builds
+        # test binaries outside the matrix's explicit compiler test targets.
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       # Each compiler/C++ standard builds the complete CLI and language tests.
       # Full cross-domain CTest remains in Ubuntu 22.04, macOS, Windows
       # and ASan/UBSan, rather than duplicating 160+ binaries four times.

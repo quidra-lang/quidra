@@ -342,6 +342,16 @@ Exact conversions follow these rules:
 
 In short: **an explicit conversion may discard precision when the destination representation requires it, but it may not discard range or invent an integer rounding policy**.
 
+## Integer digit decomposition
+
+> Specified for `develop`. Math implementation is pending.
+
+After `import math`, `value.digits()` returns the decimal digits of an
+integer scalar's magnitude as an `int[]`, most significant first.
+The [Math digits specification](https://github.com/quidra-lang/math/blob/develop/README.md#integer-digit-decomposition)
+defines the equivalent function form, supported integer types, and edge
+cases.
+
 ## Parsing and text conversion
 
 Numeric parsing is distinct from conversion:

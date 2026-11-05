@@ -79,6 +79,10 @@ For example, `nat64` plus `int32` uses `int32` even if the natural operand curre
 
 Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion.
 
+For example, `fahrenheit := celsius * 1.8 + 32` uses exact `real` arithmetic when `celsius` is an integer. The decimal `1.8` is exactly nine fifths, and both integer operands convert at their respective operators. Celsius `22` therefore gives `71.6`.
+
+The [matrix multiplication operator](language.md#matrix-multiplication-operator) uses Math's `matmul` overload resolution and argument conversions.
+
 ## Type inference in declarations
 
 An inferred declaration uses the initializer's type, including the numeric defaults:
@@ -136,6 +140,27 @@ power that only a provider's refinement can decide.
 
 Bitwise XOR is deliberately separate and continues to use the uppercase `XOR`
 operator.
+
+## Factorial
+
+> Specified for `develop`. Compiler support is pending.
+
+Postfix `n!` computes the factorial of a non-negative integer scalar. The
+result is `1` for `0!` and the product of `1` through `n` otherwise. It keeps
+the operand's `int` or `nat` type, including fixed-width forms. A literal
+uses compatible integer context and defaults to `int`, so `5!` has value
+`120` and type `int` in an inferred declaration.
+
+Factorial applies after calls, member access, and indexing. It binds more
+tightly than exponentiation and unary minus, so `2 ^ 3!` is `2 ^ (3!)` and
+`-3!` is `-(3!)`. Parenthesize a factorial to use it with another postfix
+suffix. For example, `(3!)!` applies factorial twice.
+
+The operand must be an integer scalar. A negative operand such as `(-3)`
+fails with `FACTORIAL_DOMAIN`. A fixed-width result outside its type's range
+fails with `INTEGER_OVERFLOW`. Statically evaluated domain or range failures
+are compile-time errors. With a runtime operand, the program stops at the
+operation on either failure.
 
 ## Signed infinity without NaN
 

@@ -164,6 +164,8 @@ An explicit `error("message")` is instead a typed value (see [Error values](#err
 Real values, scalar or tensor elements, may be infinite but never NaN. Indeterminate arithmetic stops at the operation before NaN can be printed or consumed. A real tensor operation on the CPU stops at its first failing element; on a GPU its check is deferred to the next synchronization point and reported there (`TENSOR`, or `GPU_ASYNC` at exit) with the operation's message and `(deferred GPU check from FILE:L:C)`.
 
 
+The [factorial specification](numeric-and-bin.md#factorial) reserves `FACTORIAL_DOMAIN` for a negative operand and uses `INTEGER_OVERFLOW` for an out-of-range fixed-width result. These checks await compiler support for `!`.
+
 ## Runtime failure format
 
 Coded runtime safety failures use status 101. The report names the file, line and

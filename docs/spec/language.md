@@ -1,5 +1,7 @@
 # Quidra Language Specification
 
+The [factorial](numeric-and-bin.md#factorial), [matrix multiplication operator](#matrix-multiplication-operator), and [numerical reduction](#numerical-reductions) sections record the approved `develop` contracts and identify the features awaiting implementation.
+
 ## Source structure
 
 Top-level statements execute in source order. Functions have explicit return and parameter types and are declared at top level. User-defined top-level names are downward-visible by default: a function or class becomes visible at its declaration point rather than being implicitly hoisted.
@@ -1288,6 +1290,31 @@ right := tensor.ones<real32>([1, 1])
 product := math.matmul(left, right)
 ```
 
+#### Matrix multiplication operator
+
+> Specified for `develop`. Compiler support is pending.
+
+`a @ b` calls the first-party Math `matmul` overload for `a` and `b`, as in
+`a.matmul(b)` after `import math`. The Math package must be in scope. The
+operator inherits Math's supported operand types, shape checks, result shape,
+device placement, and autograd behavior. Both operands are evaluated once,
+left to right. `@` shares the precedence of `*`, `/`, and `%`, and groups
+left to right with them. Tensor `*` is elementwise.
+
+#### Numerical reductions
+
+> Specified for `develop`. The `max` and `min` names and the `dim` overloads await Math implementation.
+
+After `import math`, `values.sum()`, `values.mean()`, `values.max()`, and
+`values.min()` aggregate all elements. The equivalent function forms are
+`math.sum(values)`, `math.mean(values)`, `math.max(values)`, and
+`math.min(values)`. Arrays return scalars. Tensors return rank-0 tensors.
+For a tensor, `t.max(dim = 1)` selects the second dimension and removes it
+from the result. `sum`, `mean`, and `min` take `dim` by the same rule. The
+current Math package exports `max_all` and `min_all` for whole-value extrema.
+The [Math reduction reference](https://github.com/quidra-lang/math/blob/develop/README.md#reduction-specification)
+defines the supported element types, empty inputs, and `dim` behavior.
+
 ### Output flushing
 
 `flush()` explicitly flushes standard output. It is useful when output must be observable before a long-running process exits or is externally stopped; `print` does not imply a flush.
@@ -1555,7 +1582,7 @@ The native implementation uses libcurl directly in the runtime. It permits only 
 
 Core owns the language, tensor storage/layout, device execution substrate, basic operators, autograd graph machinery, and generic package extension mechanisms. Pointwise mathematical functions such as `abs`, `sqrt`, `exp`, and `log` are not Core tensor methods or Core numerical primitives.
 
-Mathematical semantics belong to the first-party `math` package. After `import math`, use `math.abs(value)`, `math.sqrt(value)`, `math.exp(value)`, `math.log(value)`, `math.sum(value)`, `math.mean(value)`, `math.sum_last(value)`, `math.max_last(value)`, and `math.min_last(value)`; general linear algebra likewise belongs to Math through APIs such as `math.dot(a, b)` and `math.matmul(a, b)`. Math owns those semantics, autograd, native/backend implementations, and compiler optimization policy. Core must not regain dedicated mathematical callables, numerical autograd op identities, numerical kernels, or domain-specific compiler lowering.
+The first-party `math` package owns tensor unary functions, [numerical reductions](#numerical-reductions), and linear algebra. After `import math`, examples include `math.sqrt(value)`, `math.sum(value)`, `math.dot(a, b)`, and `math.matmul(a, b)`. The [matrix multiplication operator](#matrix-multiplication-operator) is Core syntax for the Math operation. Math owns its numerical semantics, autograd, native/backend implementations, and compiler optimization policy. Core supplies the package-neutral mechanisms those implementations use.
 
 ### First-party domain packages
 

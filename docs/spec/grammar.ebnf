@@ -3,7 +3,8 @@
    Bracketed newlines are insignificant. String backslashes are literal;
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
-   NL, HT, CR, DQ, BS, FF, VT, and BL. *)
+   NL, HT, CR, DQ, BS, FF, VT, and BL.
+   Postfix ! and infix @ are specified for develop and await implementation. *)
 
 program          = { NEWLINE | import_decl | export_decl | cli_decl | top_declaration | main_guard | statement }, EOF ;
 top_declaration  = [ "private" ], ( extern_decl | enum_decl | class_decl | function_decl | const_binding ) ;
@@ -167,12 +168,16 @@ bit_xor_expr     = bit_and_expr, { "XOR", bit_and_expr } ;
 bit_and_expr     = shift_expr, { "AND", shift_expr } ;
 shift_expr       = term, { ( "<<" | ">>" ), term } ;
 term             = factor, { ( "+" | "-" ), factor } ;
-factor           = unary, { ( "*" | "/" | "%" ), unary } ;
+factor           = unary, { ( "*" | "/" | "%" | "@" ), unary } ;
 unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | power ;
-power            = ( bounded_range | marked_call | postfix ), [ "^", unary ] ;
+power            = ( bounded_range | marked_call | factorial ), [ "^", unary ] ;
+factorial        = postfix, [ "!" ] ;
+(* ! applies to an integer scalar. Parenthesize a factorial before applying
+   another postfix suffix. The lexer recognizes != as one token. @ resolves to
+   the first-party Math matmul and shares the multiplicative precedence. *)
 bounded_range    = [ range_operand, [ "<" | ">" ] ], ":", [ "<" | ">" ],
                    range_operand, [ ":", range_operand ] ;
-range_operand    = { "-" }, postfix ;
+range_operand    = { "-" }, factorial ;
 (* A standalone range materializes an integer array. Its end is mandatory;
    the omitted start is zero. Range markers touch the first colon. The leading
    sign belongs to the bound in -3:0; parentheses in -(3:0) negate the array.

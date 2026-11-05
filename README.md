@@ -1055,6 +1055,8 @@ compatibility alias.
 - [Diagnostics](docs/spec/diagnostics.md)
 - [Source patch schema](docs/spec/patch-schema.md)
 
+The `develop` specifications cover [factorial](docs/spec/numeric-and-bin.md#factorial), [matrix multiplication with `@`](docs/spec/language.md#matrix-multiplication-operator), and [Math reductions](docs/spec/language.md#numerical-reductions). Each section states its implementation status.
+
 ## Standard namespaces
 
 Standard namespaces keep common capabilities discoverable without consuming

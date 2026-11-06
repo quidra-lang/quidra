@@ -940,7 +940,8 @@ std::string ptx_gather_backward_kernel(int dtype) {
     return out.str();
 }
 
-std::string ptx_float_binary_kernel(int dtype, int operation, int scalar_side) {
+std::string ptx_float_binary_kernel(
+    int dtype, int operation, int scalar_side, bool inverse_root = false) {
     const bool f32 = dtype == QCORE_DTYPE_FLOAT32;
     const auto width = f32 ? 4 : 8;
     const char* kind = f32 ? "f32" : "f64";
@@ -964,7 +965,27 @@ std::string ptx_float_binary_kernel(int dtype, int operation, int scalar_side) {
            "  add.u64 %rd9, %rd2, %rd8;\n"
            "  add.u64 %rd10, %rd3, %rd8;\n"
            "  add.u64 %rd11, %rd1, %rd8;\n";
-    if (f32) {
+    if (operation == abi::tensor_binary_opcode::power) {
+        // CUDA supports the half powers used by standard deviation and its
+        // first derivative. Adding positive zero normalizes negative zero,
+        // so that the reciprocal root of either zero is positive infinity.
+        const char* value = f32 ? "%f1" : "%fd1";
+        const char* zero = f32 ? "0f00000000" : "0d0000000000000000";
+        const char* one = f32 ? "0f3f800000" : "0d3ff0000000000000";
+        out << "  ld.global." << kind << ' ' << value << ", [%rd9];\n"
+            << "  setp.lt." << kind << " %p3, " << value << ", " << zero << ";\n"
+            << "  add.rn." << kind << ' ' << value << ", " << value << ", " << zero << ";\n"
+            << "  sqrt.rn." << kind << ' ' << value << ", " << value << ";\n";
+        if (inverse_root)
+            out << "  div.rn." << kind << ' ' << value << ", " << one << ", " << value << ";\n";
+        out << "  testp.number." << kind << " %p2, " << value << ";\n"
+               "  @%p2 bra STORE;\n"
+            << "  selp.u32 %r6, " << real_status::negative_base << ", "
+            << real_status::overflow << ", %p3;\n"
+               "  atom.global.or.b32 %r7, [%rd12], %r6;\n"
+               "STORE:\n"
+            << "  st.global." << kind << " [%rd11], " << value << ";\n";
+    } else if (f32) {
         out << "  ld.global.f32 %f1, [%rd9];\n";
         if (scalar_side == abi::scalar_side::none) out << "  ld.global.f32 %f2, [%rd10];\n";
         else out << "  cvt.u32.u64 %r5, %rd4;\n  mov.b32 %f2, %r5;\n";
@@ -3788,19 +3809,24 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         defer_validation(status.release(),validation_error);
         return true;
     }
-    if ((dtype == QCORE_DTYPE_FLOAT64 || dtype == QCORE_DTYPE_FLOAT32) && operation == abi::tensor_binary_opcode::power &&
-        output->backend == Backend::Cuda) {
-        return real_compute_unavailable(output, "tensor power", dtype, error);
-    }
     if ((dtype == QCORE_DTYPE_FLOAT64 || dtype == QCORE_DTYPE_FLOAT32) && operation != abi::tensor_binary_opcode::remainder &&
         output->backend == Backend::Cuda) {
-        auto ptx = ptx_float_binary_kernel(dtype, operation, scalar_side);
+        std::uint64_t scalar_bits = 0;
+        if (scalar_side != abi::scalar_side::none) std::memcpy(&scalar_bits, scalar, width);
+        bool inverse_root = false;
+        if (operation == abi::tensor_binary_opcode::power) {
+            const double exponent = dtype == QCORE_DTYPE_FLOAT32
+                ? std::bit_cast<float>(static_cast<std::uint32_t>(scalar_bits))
+                : std::bit_cast<double>(scalar_bits);
+            if (exponent != 0.5 && exponent != -0.5)
+                return real_compute_unavailable(output, "tensor power", dtype, error);
+            inverse_root = exponent < 0.0;
+        }
+        auto ptx = ptx_float_binary_kernel(dtype, operation, scalar_side, inverse_root);
         auto out_ptr = output->cuda_pointer;
         auto left_ptr = left->cuda_pointer + left_offset;
         std::uint64_t right_ptr =
             scalar_side == abi::scalar_side::none ? right->cuda_pointer + right_offset : 0;
-        std::uint64_t scalar_bits = 0;
-        if (scalar_side != abi::scalar_side::none) std::memcpy(&scalar_bits, scalar, std::min(width,sizeof(scalar_bits)));
         auto n = static_cast<std::uint64_t>(count);
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
@@ -3811,7 +3837,8 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         if (!launch_ptx_1d(
             output,
             "binary-" + std::to_string(dtype) + "-" +
-                std::to_string(operation) + "-" + std::to_string(scalar_side),
+                std::to_string(operation) + "-" + std::to_string(scalar_side) +
+                (inverse_root ? "-inverse" : ""),
             ptx, count, args, error)) return false;
         defer_real_status(status.release(), dtype, operation);
         return true;

@@ -743,7 +743,6 @@ into concrete deep-neural-network model families.
 
 ```quidra
 import nn
-import math
 
 class Scale()
     nn.Parameter<real32> value
@@ -752,7 +751,7 @@ model := Scale()
 model.value = nn.Parameter<real32>(value = tensor.ones([1]))
 optimizer := nn.Adam<Scale>(&model)
 prediction := .model.value.track() * real32(2)
-loss := math.mean(prediction * prediction)
+loss := (prediction * prediction).mean()
 
 loss.backward(&model)
 .optimizer.update()
@@ -1116,7 +1115,7 @@ Quidra Core
 └── standard foundations
 
 Official source packages
-├── math                mathematical functions, reductions, linear algebra, and numerical algorithms
+├── math                mathematical functions, linear algebra, and numerical algorithms
 ├── collections         priority queues, frequency counting, reusable data structures
 ├── text                text parsing, CSV and URL query decoding
 ├── encoding            binary-to-text encoding and decoding

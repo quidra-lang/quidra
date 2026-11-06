@@ -1,6 +1,6 @@
 # Quidra Language Specification
 
-The [factorial](numeric-and-bin.md#factorial), [matrix multiplication operator](#matrix-multiplication-operator), and [numerical reduction](#numerical-reductions) sections record the approved `develop` contracts and identify the features awaiting implementation.
+The [factorial](numeric-and-bin.md#factorial) and [matrix multiplication operator](#matrix-multiplication-operator) sections record the approved `develop` contracts and identify the features awaiting implementation.
 
 ## Source structure
 
@@ -1297,7 +1297,7 @@ Package resolution never silently falls back to the current directory. This dist
 
 ### math
 
-Generic mathematical semantics are owned by the first-party Math package, not Core. Import it explicitly; Math owns its public operations, constants, exact-real semantics, native kernels, autograd rules, and compiler-extension policy. Core specifies only the package/tensor/autograd/device mechanisms that Math uses. The Math package documentation and tests are the API/semantic source of truth.
+The first-party Math package supplies mathematical functions, constants, linear algebra, and numerical algorithms. Import it explicitly. Math defines the semantics, native kernels, autograd rules, and compiler-extension policy for its operations.
 
 ```quidra
 import math
@@ -1320,19 +1320,55 @@ device placement, and autograd behavior. Both operands are evaluated once,
 left to right. `@` shares the precedence of `*`, `/`, and `%`, and groups
 left to right with them. Tensor `*` is elementwise.
 
-#### Numerical reductions
+### Numerical reductions
 
-> Specified for `develop`. The `max` and `min` names and the `dim` overloads await Math implementation.
+Core provides `sum()`, `mean()`, `var()`, `std()`, `min()`, and `max()`
+on numeric arrays and tensors without an import.
 
-After `import math`, `values.sum()`, `values.mean()`, `values.max()`, and
-`values.min()` aggregate all elements. The equivalent function forms are
-`math.sum(values)`, `math.mean(values)`, `math.max(values)`, and
-`math.min(values)`. Arrays return scalars. Tensors return rank-0 tensors.
-For a tensor, `t.max(dim = 1)` selects the second dimension and removes it
-from the result. `sum`, `mean`, and `min` take `dim` by the same rule. The
-current Math package exports `max_all` and `min_all` for whole-value extrema.
-The [Math reduction reference](https://github.com/quidra-lang/math/blob/develop/README.md#reduction-specification)
-defines the supported element types, empty inputs, and `dim` behavior.
+```quidra
+values := [2, 4, 6]
+average := values.mean()
+sample_variance := values.var(ddof = 1)
+
+matrix := tensor.ones<real32>([2, 3])
+rows := matrix.sum(dim = 1)
+```
+
+| Method | Array result | Tensor element types |
+| --- | --- | --- |
+| `sum()` | Element type for integers, reals, and complex numbers | Integers and floating-point reals |
+| `mean()` | Exact `real` for integers, element type for reals and complex numbers | Floating-point reals |
+| `var()`, `std()` | Exact `real` for integers, element type for reals | Floating-point reals |
+| `min()`, `max()` | Element type for integers and reals | Integers and floating-point reals |
+
+An array returns a scalar. An array sum starts from the element type's zero
+and visits elements in index order with the scalar addition rules. Integer
+means and variances accumulate in exact `real`. Extrema retain the first
+occurrence of a tie.
+
+A tensor reduction preserves the element type and device. Without `dim` it
+returns a rank-0 tensor. With a zero-based `dim` it reduces each slice on
+that dimension and removes it, keeping the order of all other dimensions.
+For example, `t.max(dim = 1)` reduces `[2, 3, 4]` to `[2, 4]`. Tensor sums
+combine adjacent pairs in logical order at each level and carry any odd last
+value to the next level. Tensor extrema select the first occurrence in each
+slice. Floating-point tensor reductions retain the input's autograd graph.
+Tensor extrema use one host snapshot to select indices and gather the winners
+from the original tensor. Tracked standard deviation uses a host snapshot of
+the reduced variance to assign zero gradients to zero-variance slices. CUDA
+supports the square root and reciprocal square root used for standard
+deviation and its first derivative.
+
+Variance centers the values at their mean, sums the squared deviations, and
+divides by `N - ddof`. `N` is the number of elements in the array, the tensor,
+or the selected tensor dimension. `ddof` is a `nat` with default `0`, and
+`std()` returns the square root of that variance. `ddof >= N` raises
+`REDUCTION_DDOF`.
+
+An empty sum gives the element type's zero. An empty mean or extremum and a
+dimension outside the tensor rank raise `MATH_SHAPE`. Math's `sum_last()`,
+`min_last()`, and `max_last()` helpers broadcast a last-dimension reduction
+back to the original tensor shape.
 
 ### Output flushing
 
@@ -1599,9 +1635,9 @@ The native implementation uses libcurl directly in the runtime. It permits only 
 
 ### Numerical packages
 
-Core owns the language, tensor storage/layout, device execution substrate, basic operators, autograd graph machinery, and generic package extension mechanisms. Pointwise mathematical functions such as `abs`, `sqrt`, `exp`, and `log` are not Core tensor methods or Core numerical primitives.
+Core owns the language, tensor storage and layout, device execution, basic operators, [numerical reductions](#numerical-reductions), autograd graph machinery, and generic package extension mechanisms.
 
-The first-party `math` package owns tensor unary functions, [numerical reductions](#numerical-reductions), and linear algebra. After `import math`, examples include `math.sqrt(value)`, `math.sum(value)`, `math.dot(a, b)`, and `math.matmul(a, b)`. The [matrix multiplication operator](#matrix-multiplication-operator) is Core syntax for the Math operation. Math owns its numerical semantics, autograd, native/backend implementations, and compiler optimization policy. Core supplies the package-neutral mechanisms those implementations use.
+The first-party `math` package owns tensor unary functions such as `math.sqrt(value)`, shape-preserving row reductions, and linear algebra such as `math.dot(a, b)` and `math.matmul(a, b)`. The [matrix multiplication operator](#matrix-multiplication-operator) is Core syntax for the Math operation. Math owns its numerical semantics, autograd, native and backend implementations, and compiler optimization policy. Core supplies the package-neutral mechanisms those implementations use.
 
 ### First-party domain packages
 

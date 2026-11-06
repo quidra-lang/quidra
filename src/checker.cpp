@@ -8331,7 +8331,9 @@ Type Checker::check_call_expr(const Expr& expression,
             type = check_builtin_call_expr(expression, *node, *builtin, expected);
         } else {
             const auto function_name = visible_function_name(name);
-            if (!function_name || (!name.empty() && name.front() == '$')) {
+            const bool standard_helper = current_module_namespace_.starts_with("$std.") &&
+                name.starts_with(current_module_namespace_ + ".");
+            if (!function_name || (!name.empty() && name.front() == '$' && !standard_helper)) {
                 error("UNKNOWN_NAME", "Unknown function '" + name + "'.", expression.span);
             }
             const auto& function = functions_.at(*function_name);

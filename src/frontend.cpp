@@ -1928,6 +1928,56 @@ void rename_function(
     }
 }
 
+constexpr std::string_view standard_array_reductions = "$std.array_reductions";
+constexpr std::string_view standard_tensor_reductions = "$std.tensor_reductions";
+
+bool standard_reduction_namespace(std::string_view name) {
+    return name == standard_array_reductions || name == standard_tensor_reductions;
+}
+
+void append_standard_reductions(Program& program) {
+    constexpr std::string_view names[] = {"sum", "mean", "min", "max", "var", "std"};
+    const bool referenced = std::any_of(
+        program.source_texts.begin(), program.source_texts.end(), [&](const auto& source) {
+            return std::any_of(std::begin(names), std::end(names), [&](const auto name) {
+                return source.second.find(name) != std::string::npos;
+            });
+        });
+    if (!referenced && !program.source_texts.empty()) return;
+
+    const auto append = [&](std::string ns, std::string_view source) {
+        Parser parser(Lexer(std::string(source)).scan(), 20);
+        auto declarations = parser.parse();
+        std::unordered_set<std::string> local_functions;
+        for (const auto& function : declarations.functions)
+            local_functions.insert(function.name);
+
+        std::unordered_map<std::string, ImportBinding> imports;
+        for (const auto module_name : standard_modules) {
+            const std::string module(module_name);
+            imports.emplace(
+                module, ImportBinding{"$std." + module, standard_exports(module, standard_span())});
+        }
+
+        for (auto& function : declarations.functions) {
+            rename_function(function, ns, {}, local_functions, imports);
+            function.name = qualify(ns, function.name);
+            function.module_namespace = ns;
+            function.source_file = ns;
+            function.source_declaration_offset = function.span.start.offset;
+            function.span.start.offset = std::numeric_limits<std::size_t>::max();
+            function.span.end.offset = function.span.start.offset;
+            program.functions.push_back(std::move(function));
+        }
+    };
+    append(std::string(standard_array_reductions),
+#include "standard_array_reductions.inc"
+    );
+    append(std::string(standard_tensor_reductions),
+#include "standard_tensor_reductions.inc"
+    );
+}
+
 
 std::string canonical_signature_type(const TypeName& type, const FunctionDecl& function);
 DeclarationIdentity original_declaration_identity(const FunctionDecl&, std::string package,
@@ -3787,6 +3837,7 @@ public:
         output_.package_directories = source_.package_directories;
         output_.declaration_catalog = source_.declaration_catalog;
         output_.interface_sources = source_.interface_sources;
+        append_standard_reductions(source_);
         build_extension_scopes();
         validate_declarations();
 
@@ -4620,6 +4671,7 @@ private:
     }
 
     bool extension_visible(const FunctionDecl& declaration) const {
+        if (standard_reduction_namespace(declaration.module_namespace)) return true;
         if (declaration.module_namespace == current_module_namespace_) return true;
         const auto scope = extension_visible_modules_.find(current_module_namespace_);
         return scope != extension_visible_modules_.end() &&
@@ -6668,6 +6720,7 @@ private:
                 bool truth_call_matches{};
                 bool preferred_call{};
                 bool receiver_collision{};
+                bool standard_reduction{};
             };
             std::vector<ExtensionCandidate> extensions;
             auto receiver = clone_expr(*node->receiver, substitution, deferred, current_class);
@@ -6793,7 +6846,9 @@ private:
                     call_matches |= declaration_matches;
                     truth_call_matches |= truth_matches;
                 }
-                if (!matches) continue;
+                const bool standard = standard_reduction_namespace(family.front()->module_namespace);
+                if (!matches || (standard && !receiver_type && !call_matches && !truth_call_matches))
+                    continue;
                 // Inferred dispatch keeps an exact generic union match ahead
                 // of a concrete member that only matches after error removal.
                 // Such an unused member cannot introduce a native collision.
@@ -6801,7 +6856,8 @@ private:
                     ? exact_contextual_collision
                     : call_matches ? fallback_contextual_collision : truth_contextual_collision;
                 extensions.push_back({name, family.front()->source_file, mutable_receiver,
-                                      call_matches, truth_call_matches, preferred_call, receiver_collision});
+                                      call_matches, truth_call_matches, preferred_call, receiver_collision,
+                                      standard});
             }
             if (!extensions.empty()) {
                 if (std::any_of(extensions.begin(), extensions.end(),
@@ -6812,6 +6868,15 @@ private:
                                       [](const auto& candidate) { return candidate.truth_call_matches; })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return !candidate.truth_call_matches; });
+                }
+                // Existing extensions keep their behavior for calls they accept.
+                // Standard reductions supply the methods when no scoped extension matches.
+                if (std::any_of(extensions.begin(), extensions.end(), [](const auto& candidate) {
+                        return !candidate.standard_reduction &&
+                               (candidate.call_matches || candidate.truth_call_matches);
+                    })) {
+                    std::erase_if(extensions,
+                                  [](const auto& candidate) { return candidate.standard_reduction; });
                 }
                 if (std::any_of(extensions.begin(), extensions.end(),
                                 [](const auto& candidate) { return candidate.preferred_call; })) {

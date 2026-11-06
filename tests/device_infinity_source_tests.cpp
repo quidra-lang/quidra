@@ -33,6 +33,17 @@ int main() {
                    hip_power.find("isnan(lv)||isnan(rv)||isnan(result)") != std::string::npos,
                    "HIP power admits zero to a negative exponent but cannot hide NaN");
         }
+        const auto root = d::ptx_float_binary_kernel(
+            dtype, a::tensor_binary_opcode::power, a::scalar_side::right);
+        const auto inverse_root = d::ptx_float_binary_kernel(
+            dtype, a::tensor_binary_opcode::power, a::scalar_side::right, true);
+        expect(root.find(wide ? "sqrt.rn.f64 %fd1, %fd1;" : "sqrt.rn.f32 %f1, %f1;") != std::string::npos &&
+               root.find("div.rn.") == std::string::npos &&
+               root.find("atom.global.or.b32") != std::string::npos,
+               "CUDA square root emits domain validation and no reciprocal");
+        expect(inverse_root.find(wide ? "div.rn.f64 %fd1, 0d3ff0000000000000, %fd1;" :
+                                       "div.rn.f32 %f1, 0f3f800000, %f1;") != std::string::npos,
+               "CUDA reciprocal square root is available for first derivatives");
         const auto ptx = d::ptx_validate_finite_kernel(wide ? 8 : 4);
         expect(ptx.find(wide ? "and.b64 %rd11, %rd10, 0x7fffffffffffffff;" :
                               "and.b32 %r7, %r6, 0x7fffffff;") != std::string::npos &&

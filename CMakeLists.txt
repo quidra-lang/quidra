@@ -1477,6 +1477,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_shape_variables COMMAND bash ${CMAKE_SOURCE_DIR}/tests/shape_variable_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_shape_ellipsis COMMAND bash ${CMAKE_SOURCE_DIR}/tests/shape_ellipsis_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_generic_container_reductions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/generic_container_reductions.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_core_reductions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/core_reductions.sh
+        $<TARGET_FILE:quidra> ${QUIDRA_ENABLE_TEST_GPU_BACKEND})
     add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     # Slices and slice assignment against a brute-force oracle.
     add_test(NAME quidra_slices COMMAND bash ${CMAKE_SOURCE_DIR}/tests/slice_tests.sh $<TARGET_FILE:quidra>)

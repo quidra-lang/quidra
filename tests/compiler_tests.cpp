@@ -3962,7 +3962,118 @@ indirect := operation(tensor.ones<real32>([2, 2]))
     verify(quidra::compile(source, options), true);
 }
 
+static void integer_radix_members() {
+    // Every canonical spelling is accepted, and keeps ordinary string typing.
+    std::string radices = "int value := 255\n";
+    for (int base = 2; base <= 36; ++base) {
+        for (const auto* prefix : {"b", "B"}) {
+            radices += "string radix_" + std::string(prefix) + std::to_string(base) +
+                       " := value." + prefix + std::to_string(base) + "\n";
+        }
+    }
+    good(radices);
+    for (const auto* type : {"int", "nat", "int8", "int16", "int32", "int64",
+                             "nat8", "nat16", "nat32", "nat64"}) {
+        good(std::string("string convert(") + type + " value)\n"
+             "    return value.B16\n" + type + " value := 31\n"
+             "text := value.b2\nstring inferred := text\n"
+             "print(convert(value))\nprint(text + value.b36)\n");
+        good(std::string("string convert(") + type + " &value)\n"
+             "    return value.b16\n" + type + " value := 31\n"
+             "print(convert(&value))\n");
+    }
+    const std::string literal = "text := 255.b16\nprint(text)\n";
+    good(literal);
+    good("print((-255).b16)\nprint((128 + 127).B16.upper_ascii())\n"
+         "print(\"{255.b16} {(-255).B16}\")\n");
+    const auto formatted = quidra::format_source(literal);
+    good(formatted);
+    if (formatted.find("255.b16") == std::string::npos ||
+        quidra::format_source(formatted) != formatted) {
+        std::cerr << "integer member formatting is not stable: " << formatted;
+        std::exit(1);
+    }
+    inspect_contains(literal, "\"inferred_type\":\"string\"");
+    ir_contains(literal, ": int base=16 uppercase=0");
+    ir_contains("int64 value := -255\nprint(value.B36)\n", ": int64 base=36 uppercase=1");
+    good("class Fields()\n    int b16 := 7\n    string B16 := \"field\"\n"
+         "    int b02 := 2\nFields value := Fields()\n"
+         "print(value.b16)\nprint(value.B16)\nprint(value.b02)\n");
+    good("class Methods()\n    string b16()\n        return \"method\"\n"
+         "Methods value := Methods()\nprint(value.b16())\n");
+    for (const auto* name : {"b0", "b1", "b37", "b02", "b016", "B01", "B37", "b16x"})
+        bad_code("int value := 1\nprint(value." + std::string(name) + ")\n", "TYPE_MISMATCH");
+    for (const auto* binding : {"real value := 1.0", "real64 value := 1.0",
+                                "bool value := true", "string value := \"a\"",
+                                "int[] value := [1]"})
+        bad_code(std::string(binding) + "\nprint(value.b16)\n", "TYPE_MISMATCH");
+    bad_code("com value := 1.0i\nprint(value.b16)\n", "UNKNOWN_MEMBER");
+    bad_code("print(-255.b16)\n", "TYPE_MISMATCH");
+    bad_code("int value := 1\nvalue.b16 = \"ff\"\n", "TYPE_MISMATCH");
+    bad_code("void change(string &value)\n    value = \"ff\"\n"
+             "int value := 1\nchange(&value.b16)\n", "TYPE_MISMATCH");
+    bad_code("print(255.b16())\n", "UNKNOWN_MEMBER");
+    bad_code("string text := 1.b16\nint value := text\n", "TYPE_MISMATCH");
+
+    good("T identity<T>(T value)\n    return value\n"
+         "string direct := identity(255.b16)\n"
+         "text := 255.B16\nstring inferred := identity(text)\n");
+    good("T identity<T>(T value)\n    return value\n"
+         "class Field()\n    int b16 := 7\nField value := Field()\n"
+         "int inferred := identity(value.b16)\n");
+    const std::string reference_conversion =
+        "string show(int &value)\n    return value.b16\n";
+    bad_code(reference_conversion + "int value\nprint(show(&value))\n", "UNINITIALIZED");
+    ir_function_contains(reference_conversion + "void caller(bool ready)\n"
+                         "    int value\n    if ready\n        value = 255\n"
+                         "    print(show(&value))\n", "caller", "init.check %");
+    const std::string field_conversion =
+        "class Holder()\n    int value\n"
+        "string show(Holder &holder)\n    return holder.value.b16\n";
+    bad_code(field_conversion + "Holder holder := Holder()\nprint(show(&holder))\n",
+             "UNINITIALIZED");
+    good("class ReferenceHolder(local int &input)\n    int &value\n    &value = &input\n"
+         "int value := 255\nReferenceHolder holder := ReferenceHolder(&value)\n"
+         "string text := holder.value.b16\nprint(text)\n");
+    bad_code("class ReferenceHolder()\n    int &value\n"
+             "ReferenceHolder holder := ReferenceHolder()\nprint(holder.value.b16)\n",
+             "UNBOUND_REFERENCE");
+    good("string show(int | none &value)\n    match value\n"
+         "        int number\n            return number.b16\n"
+         "        none\n            return \"none\"\n"
+         "int | none value := 255\nprint(show(&value))\n");
+
+    // The new string is owned even when its integer receiver is borrowed.
+    const auto module = quidra::ir::lower(quidra::check(
+        "int value := 255\nprint(value.b16)\nprint(value.B16.upper_ascii())\n"));
+    std::size_t conversions = 0;
+    for (const auto& function : module.functions) {
+        for (const auto& block : function.blocks) {
+            for (const auto& instruction : block.instructions) {
+                const auto* text = std::get_if<quidra::ir::ToString>(&instruction);
+                if (!text || text->radix != 16) continue;
+                ++conversions;
+                std::size_t releases = 0;
+                for (const auto& candidate : block.instructions) {
+                    const auto* release = std::get_if<quidra::ir::Release>(&candidate);
+                    if (release && release->value == text->out) ++releases;
+                }
+                if (releases != 1) {
+                    std::cerr << "integer radix string needs one temporary release\n"
+                              << quidra::ir::dump(module);
+                    std::exit(1);
+                }
+            }
+        }
+    }
+    if (conversions != 2) {
+        std::cerr << "integer radix members did not reuse ToString\n";
+        std::exit(1);
+    }
+}
+
 int main(){
+ integer_radix_members();
  good("x := 9223372036854775808\nint exact := x\n");
  // Defaults remain arbitrary precision until a concrete context is present.
  good("a := 5 + 6\nint32 b := 5 + 6\nc := b + 1\nnat d := 5\nint verify_a := a\nint32 verify_c := c\n");
@@ -8953,7 +9064,9 @@ print("{holder.read()}{NL}")
  good("T identity<T>(T value)\n    return value\nint[] values := [1, 2]\noutput := [for x := values[] then identity(x)]\ncopied := identity([for int item := values[] then item])\n");
  good("int change(int &value)\n    value = value + 1\n    return value\nint[] values := [1, 2]\noutput := [for int x := values[] then change(&x)]\n");
  bad_code("int[] values := []\noutput := [for int x := values[] then x]\nprint(x)\n", "UNKNOWN_NAME");
- bad_code("int[] values := []\noutput := [for int x := values[] if x then x]\n", "TYPE_MISMATCH");
+ good("int[] values := []\noutput := [for int x := values[] if x then x]\n");
+ good("nat[] values := []\noutput := [for nat x := values[] if x then x]\n");
+ bad_code("real[] values := []\noutput := [for real x := values[] if x then x]\n", "TYPE_MISMATCH");
  bad_code("int[] values := []\noutput := [for real32 x := values[] then x]\n", "TYPE_MISMATCH");
  bad_code("string value := \"abc\"\noutput := [for x := value[] then x]\n", "ARRAY_COMPREHENSION");
  bad_code("int[] values := []\nint x := 3\noutput := [for int x := values[] then x]\n", "SHADOWING");

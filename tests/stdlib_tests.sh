@@ -783,8 +783,16 @@ set -e
 grep -q 'time.now accepts only optional sync = bool' "$TMP/time-sync-must-be-named.json"
 
 
+cat > "$TMP/time-sync-integer-flags.qui" <<'QUI'
+int synchronize := 1
+nat asynchronous := 0
+time.Instant start := time.now(sync = synchronize)
+time.Duration elapsed := time.since(start, sync = asynchronous)
+QUI
+"$QUIDRA" check "$TMP/time-sync-integer-flags.qui" >/dev/null
+
 cat > "$TMP/time-now-sync-must-be-bool.qui" <<'QUI'
-time.Instant invalid := time.now(sync = 1)
+time.Instant invalid := time.now(sync = 1.0)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-now-sync-must-be-bool.qui" --json >"$TMP/time-now-sync-must-be-bool.json"
@@ -794,7 +802,7 @@ set -e
 
 cat > "$TMP/time-since-sync-must-be-bool.qui" <<'QUI'
 time.Instant start := time.now()
-time.Duration invalid := time.since(start, sync = 1)
+time.Duration invalid := time.since(start, sync = 1.0)
 QUI
 set +e
 "$QUIDRA" check "$TMP/time-since-sync-must-be-bool.qui" --json >"$TMP/time-since-sync-must-be-bool.json"

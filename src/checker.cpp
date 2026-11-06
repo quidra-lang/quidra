@@ -4875,10 +4875,16 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             return enum_type;
         }
 
+        const auto radix_member = integer_radix_member(node->name);
         const auto reference_base = current_reference_parameter_path(*node->base);
         Type base;
         if (reference_base && reference_base->second.find("[]") == std::string::npos) {
             base = check_address_target(*node->base);
+            // A radix conversion consumes the scalar value, so it needs the
+            // same initialization/read effects as .string(base=...). Class
+            // fields still use the address-only path for partial objects.
+            if (radix_member && base.kind != TypeKind::Class)
+                base = check_expr(*node->base);
         } else {
             // A member read beneath an array element reads the stored value,
             // recovering its ingress proof and checking element availability.
@@ -4886,6 +4892,9 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
         }
         if (poisoned(base)) {
             type = base;
+        } else if ((is_bare_integer(base) || is_fixed_integer(base)) && radix_member) {
+            integer_radix_members_[&expression] = *radix_member;
+            type = simple(TypeKind::String);
         } else if(base.kind==TypeKind::Tuple) {
             error("TUPLE","Tuples have no positional access; destructure the tuple instead.",expression.span);
         } else if (base.kind == TypeKind::Error) {
@@ -13773,6 +13782,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     package_directories_ = program.package_directories;
     current_root_source_file_ = program.root_source_file;
     error_members_.clear();
+    integer_radix_members_.clear();
     functions_.clear();
     declaration_exposure_.clear();
     const auto expose = [&](const auto& declaration) {
@@ -14727,6 +14737,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     checked.traversal_bindings=std::move(traversal_bindings_);
     checked.expression_initializes = std::move(expression_initializes_);
     checked.error_members = std::move(error_members_);
+    checked.integer_radix_members = std::move(integer_radix_members_);
     checked.literal_constant_slot_list = std::move(literal_constant_slot_list_);
     checked.literal_constant_slots = std::move(literal_constant_slots_);
     checked.slice_directions = std::move(slice_directions_);

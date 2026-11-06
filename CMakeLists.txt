@@ -1387,6 +1387,10 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
             $<TARGET_FILE:quidra>
   )
 
+  add_test(NAME quidra_integer_radix
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/integer_radix_tests.py $<TARGET_FILE:quidra>)
+  set_tests_properties(quidra_integer_radix PROPERTIES TIMEOUT 90)
+
   if(UNIX)
     add_test(NAME quidra_numeric_conversions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_conversions_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_numeric_conversion_matrix COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_conversion_tests.sh $<TARGET_FILE:quidra>)

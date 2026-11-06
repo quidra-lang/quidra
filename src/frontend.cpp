@@ -5,6 +5,7 @@
 #include "quidra/compile_inputs.hpp"
 #include "quidra/diagnostic.hpp"
 #include "quidra/import_path.hpp"
+#include "quidra/integer_radix.hpp"
 #include "quidra/language.hpp"
 #include "quidra/lexer.hpp"
 #include "quidra/member_function_names.hpp"
@@ -5287,6 +5288,12 @@ private:
                 return variant;
             const auto base = infer_expression_type(*member->base, current_class);
             if (!base || !base->dimensions.empty()) return std::nullopt;
+            if (integer_radix_member(member->name)) {
+                if (const auto* numeric = numeric_type_name(base->name);
+                    numeric && (numeric->family == NumericFamily::Integer ||
+                                numeric->family == NumericFamily::Natural))
+                    return simple_type("string");
+            }
             if (member->name == "real" || member->name == "imag") {
                 if (const auto* numeric = numeric_type_name(base->name);
                     numeric && numeric->family == NumericFamily::Complex)

@@ -78,6 +78,7 @@ bool LifetimeLowering::raw_expression_owns_result(const Expr& expression) const 
         return scope_.bit_place(name->name)!=nullptr;
     }
     if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+        if (checked_.integer_radix_members.contains(&expression)) return true;
         // Tensor .grad materializes a fresh tensor clone. Treat it as an owned
         // temporary so chained indexing/item() and discarded gradient reads
         // release that clone.

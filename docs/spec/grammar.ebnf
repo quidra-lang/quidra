@@ -206,6 +206,10 @@ slice_start      = expression, [ "<" | ">" ] ;   (* a marker touches the colon *
 slice_end        = [ "<" | ">" ], expression ;   (* a marker touches the colon *)
 member_suffix    = ".", identifier, [ type_arguments ],
                    [ "(", [ arguments ], ")" ] ;
+(* Integer radix string members b2..b36 and B2..B36 use ordinary identifiers
+   and member access, without a call: 255.b16 and (-255).B16. Their integer
+   receiver and canonical base restrictions are semantic checks, not keywords.
+   Postfix access precedes unary minus: -255.b16 would negate a string. *)
 primary          = integer_literal | real_literal | imaginary_literal | string |
                    "true" | "false" | "void" | "none" | "inf" |
                    tuple_expr | array | array_generation | identifier | "(", expression, ")" ;

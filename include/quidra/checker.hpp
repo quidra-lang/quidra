@@ -2,6 +2,7 @@
 #include "quidra/traversal_plan.hpp"
 #include "quidra/ast.hpp"
 #include "quidra/types.hpp"
+#include "quidra/integer_radix.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -350,6 +351,8 @@ struct CheckedProgram {
     // Numeric value-context conversions (arguments and tensor extents)
     // preserve each expression's original static type.
     std::unordered_map<const Expr*, Type> implicit_numeric_argument_conversions{};
+    // Integer .b2 through .b36 / .B2 through .B36 produce fresh strings.
+    std::unordered_map<const Expr*, IntegerRadixMember> integer_radix_members{};
 };
 
 // What a compilation produces: an executable (quidra build, run, a direct
@@ -509,6 +512,7 @@ private:
     std::unordered_set<std::string> user_source_files_;
     std::map<std::string, std::string> package_directories_;
     std::unordered_map<const Expr*, std::string> error_members_;
+    std::unordered_map<const Expr*, IntegerRadixMember> integer_radix_members_;
     // Sets current_error_code_prefix_ for code of `source_file`.
     void enter_error_code_scope(const std::string& source_file);
     Type check_error_constructor(const Expr& expression, const CallExpr& node);

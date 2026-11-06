@@ -60,11 +60,11 @@ nat at := len(values)
 print("before" + NL)
 print(values[at])
 QUI
-row array-negative 101 4 14 "index -1 out of bounds for length 3" <<'QUI'
+row array-negative 101 4 14 "index -4 out of bounds for length 3" <<'QUI'
 int[] values := [1, 2, 3]
 int at := int(len(values))
 print("before" + NL)
-print(values[at - 4])
+print(values[at - 7])
 QUI
 row array-write 101 4 8 "index 3 out of bounds for length 3" <<'QUI'
 int[] values := [1, 2, 3]

@@ -505,6 +505,14 @@ ValueId ExpressionLowering::lower_name(const Expr& e, const NameExpr& n) {
 }
 
 ValueId ExpressionLowering::lower_member(const Expr& e, const MemberExpr& n) {
+    if (const auto member = checked_.integer_radix_members.find(&e);
+        member != checked_.integer_radix_members.end()) {
+        const auto receiver = lower(*n.base), out = builder_.fresh();
+        builder_.emit(ToString{out, receiver, type_of(checked_, *n.base),
+                               member->second.radix, member->second.uppercase});
+        lifetime_.release_temporary(*n.base, receiver);
+        return out;
+    }
     if (checked_.tensor_grad_accesses.contains(&e)) return autograd_.lower_tensor_grad(e, n);
     if (const auto member = checked_.error_members.find(&e); member != checked_.error_members.end())
         return errors_.lower_member(e, n, member->second, checked_.raw_types.at(&e));

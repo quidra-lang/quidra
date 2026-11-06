@@ -299,6 +299,16 @@ number := 123
 text := number.string()
 ```
 
+All ten integer types (`int`, `nat`, `int8`/`int16`/`int32`/`int64`, and
+`nat8`/`nat16`/`nat32`/`nat64`) also expose radix string members `.b2` through
+`.b36` and `.B2` through `.B36`, without parentheses. Lowercase `b` selects
+digits `a`–`z`; uppercase `B` selects `A`–`Z`. For example, `255.b16` is
+`"ff"`, `255.B16` is `"FF"`, and `(-255).b16` is `"-ff"`. These preserve
+the exact integer value, add no prefix or padding, and return `string`.
+Postfix access binds before unary minus, so parenthesize a negative receiver.
+The existing `number.string(base = 16, uppercase = true)` and
+`"{number:base=16,upper}"` forms remain available.
+
 ### Arrays and bin
 
 ```quidra

@@ -1686,12 +1686,11 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_extension_visibility
       PROPERTIES TIMEOUT ${QUIDRA_PROGRAM_SUITE_TIMEOUT}
     )
-    # The stdlib integration suite now exercises many more native programs than
-    # the other CLI suites. Under ASan/UBSan it exceeded the shared 720-second
-    # timeout despite progressing through the integration assertions. Preserve
-    # every test and a finite hang guard while allowing instrumented runs time.
+    # The CLI and stdlib integration suites can exceed the shared 720-second
+    # budget under ASan/UBSan while progressing through their assertions.
+    # Keep a finite guard for their cumulative native compilation work.
     if(CMAKE_CXX_FLAGS MATCHES "sanitize")
-      set_tests_properties(quidra_stdlib PROPERTIES TIMEOUT 1200)
+      set_tests_properties(quidra_cli quidra_stdlib PROPERTIES TIMEOUT 1200)
     endif()
     # Builds a few hundred small programs, a few of them in parallel.
     math(EXPR QUIDRA_RUN_CACHE_TEST_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 6")

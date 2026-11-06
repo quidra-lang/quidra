@@ -84,9 +84,11 @@ private:
     StmtPtr statement();
     void reject_const_reference(bool is_const, bool reference) const;
     StmtPtr binding_stmt();
+    bool at_bare_pattern_declaration() const;
     TokenKind pattern_assignment() const;
-    Pattern parse_pattern(bool match_case = false, bool infer_bindings = false);
-    StmtPtr destructuring_stmt();
+    Pattern parse_pattern(bool match_case = false, bool infer_bindings = false,
+                          bool parenthesized = true);
+    StmtPtr destructuring_stmt(bool bare_declaration = false);
     StmtPtr return_stmt();
     StmtPtr loop_control_stmt();
     StmtPtr if_stmt();

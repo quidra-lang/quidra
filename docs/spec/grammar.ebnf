@@ -387,8 +387,10 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
 tuple_type = "(", type, ",", type, { ",", type }, ")" ;
 tuple_expr = "(", expression, ",", expression, { ",", expression }, ")" ;
 
-destructuring = [ "local" ], new_pattern, ":=", [ "&" ], expression, statement_end
+destructuring = [ "local" ], ( new_pattern | bare_new_pattern ), ":=",
+                ( "&", expression | expression, { ",", expression } ), statement_end
               | place_pattern, "=", expression, statement_end ;
+bare_new_pattern = identifier, ",", identifier, { ",", identifier } ;
 new_pattern = "(", new_element, ",", new_element, { ",", new_element }, ")" ;
 new_element = [ "const" ], [ type ], [ "&" ], identifier | "_" | new_pattern ;
 place_pattern = "(", place_element, ",", place_element, { ",", place_element }, ")" ;

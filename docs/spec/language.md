@@ -2077,6 +2077,8 @@ Tuple types themselves always hold values, never references.
 
 A declaration pattern names each element, e.g. `(count, score) := measure()`, and `_` discards a position. Nested patterns destructure nested tuples; a tuple type followed by a name binds that whole element. Existing-place patterns assign after the entire right side is evaluated: `(a, b) = (b, a)` swaps. Target indices and slice bounds are captured left to right before the right side; each write resolves the current target storage. A declaration pattern cannot mix new names and existing places.
 
+In a destructuring declaration, an outer pattern made of inferred value names and `_` can omit its parentheses, as in `count, score := measure()`. The outer parentheses around a comma-separated initializer can also be omitted, as in `n, steps, largest := start, 0, start`. The initializer is evaluated left to right before any of the new names enter scope. An element with an explicit type, `const`, or `&` requires a parenthesized pattern, as does a nested pattern.
+
 `(&a, &b) := &pair` declares inferred true references to initialized tuple storage. Every bound element has `&`; `_` needs none. Calls, literals and slices cannot provide reference storage. Array element references keep the array's existing pin and shape rules.
 
 Collection headers accept the same patterns: `for: (count, score) := pairs[i]`, `for (a, b) = pairs[]`, and `for (&count, &score) := &pairs[]`. Each iteration binds only the selected elements; reference patterns check that the element is initialized. An index is a new read-only `nat` binding with `for:`; plain `for` reuses an existing mutable `nat` binding.

@@ -14,6 +14,20 @@ println("{number}:{word}")
 println(pair)
 QUI
 [[ "$("$QUIDRA" "$TMP/inferred.qui")" == $'3:three\n(4, "four")' ]]
+cat > "$TMP/flat.qui" <<'QUI'
+int next_value(int &value)
+    value += 1
+    return value
+for start := [6][]
+    n, steps, largest := start, 0, start
+    println("{n}:{steps}:{largest}")
+seed := 0
+first, second := next_value(&seed), next_value(&seed)
+local kept, _ := (first, second)
+(head, tail) := kept, second
+println("{head}:{tail}:{seed}")
+QUI
+[[ "$("$QUIDRA" "$TMP/flat.qui")" == $'6:0:6\n1:2:2' ]]
 cat > "$TMP/values.qui" <<'QUI'
 (int, string) make()
     return (10, "a, b")
@@ -124,11 +138,13 @@ check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p[0])'
 check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p.string())'
 check_rejected TUPLE $'int a := 1\n(a, a) = (1, 2)'
 check_rejected TUPLE $'int a := 1\nint b := 2\n(a, b) += (1, 2)'
+check_rejected TUPLE 'first, second := 1, 2, 3'
+check_rejected UNKNOWN_NAME 'first, second := 1, first'
 check_rejected UNINITIALIZED $'(string, int) p\n(string &s, int &n) := &p'
 check_rejected MATCH_CASE $'(int, int) initial := (1, 2)\n(int, int) | (int, string) v := initial\nmatch v\n    (int a, _)\n        print(a)'
 check_rejected MATCH_CASE $'(int, string) | none v := (1, "x")\nmatch v\n    (int &a, string &b)\n        print(a)\n    none\n        print("none")'
 check_rejected DISCARD $'(int a, _) := (1, 2)\nprint(_)'
-for name in values loops match keys; do
+for name in flat values loops match keys; do
     cp "$TMP/$name.qui" "$TMP/$name.formatted.qui"
     "$QUIDRA" fmt "$TMP/$name.formatted.qui"
     [[ "$("$QUIDRA" "$TMP/$name.qui")" == "$("$QUIDRA" "$TMP/$name.formatted.qui")" ]]

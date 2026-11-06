@@ -2349,7 +2349,7 @@ static void mutation_markers_are_required() {
          "print(index.count())\n"
          "print(NL)\n");
     // R6: a `.` function is not an fn value.
-    bad_message("int64 .twice(int64 v)\n    return v * 2\n\nfn<int64>(int64) f := twice\n",
+    bad_message("int64 .twice(int64 v)\n    return v * 2\n\nfunc<int64(int64)> f := twice\n",
                 "FUNCTION_REFERENCE_SIGNATURE", "fn values cannot refer to '.' functions");
     // Hidden mutation in ordered initialization is inferred at creation calls.
     const std::string clock = "extern void .tick() = \"tick\"\n\nclass Clock()\n    int ticks := 0\n    .tick()\n\n";
@@ -3309,7 +3309,7 @@ static void c_export_declarations_are_checked() {
     good("export \"C\" int64 fact(int64 n)\n    if n <= 1\n        return 1\n    return n * fact(n - 1)\n");
     good("extern int32 c_abs(int32 value) = \"abs\"\n"
          "export \"C\" int32 magnitude(int32 value)\n    return c_abs(value)\n");
-    good(add2 + "int32 inside := add2(1, 2)\nfn<int32>(int32, int32) f := add2\nint32 through := f(3, 4)\n");
+    good(add2 + "int32 inside := add2(1, 2)\nfunc<int32(int32, int32)> f := add2\nint32 through := f(3, 4)\n");
     good("int export := 3\nexport = export + 1\nprint(export)\n");
     // Targets and the ABI string.
     bad_message("export \"C\" T same<T>(T value)\n    return value\n", "FFI_EXPORT",
@@ -4139,7 +4139,7 @@ accumulator.amount += next()
          }
      }
  }
- good("real32 f(real32 x)\n    return x\nfunc<real32>(real32) callable := f\nint16 source := 3\nreal32 result := callable(source)\n");
+ good("real32 f(real32 x)\n    return x\nfunc<real32(real32)> callable := f\nint16 source := 3\nreal32 result := callable(source)\n");
  good("class Box this(local real32 initial)\n    real32 value\n    this.value = initial\n    real32 add(real32 amount)\n        return value + amount\nint16 source := 3\nBox box := Box(source)\nreal32 result := box.add(source)\n");
  good("int16 amount := 2\nstring text := string.repeat(\"x\", amount)\n");
  good("T identity<T>(T x)\n    return x\nint result := identity(3)\nreal other := identity(2.0)\ncom imaginary := identity(2.0i)\n");

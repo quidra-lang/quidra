@@ -98,7 +98,7 @@ int[] v := [1, 2, 3]
 int[] w := [4]
 walk(&v, &w)
 plain()
-print("{v[0]} {len(w)}")
+print("{v[0]} {w.len()}")
 print(NL)
 """,
     # typed-constant-retyped: the uses of an imported real32 constant at

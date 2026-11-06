@@ -10157,6 +10157,17 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
 
         if (poisoned(left) || poisoned(right)) {
             type = simple(TypeKind::Invalid);
+        } else if (left.kind == TypeKind::String && node->op == "*") {
+            if (!is_integer_family_type(right)) {
+                error("TYPE_MISMATCH", "String repetition requires an integer count.",
+                      node->right->span);
+            }
+            if (const auto count = constant_eval::integer(*node->right);
+                count && *count < 0) {
+                error("ARGUMENT_MISMATCH", "String repetition count cannot be negative.",
+                      node->right->span);
+            }
+            type = left;
         } else if (left.kind == TypeKind::Tensor || right.kind == TypeKind::Tensor) {
             const bool left_tensor = left.kind == TypeKind::Tensor;
             const bool right_tensor = right.kind == TypeKind::Tensor;

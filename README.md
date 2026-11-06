@@ -349,11 +349,11 @@ example `nat8(bits)`, and the bit length must match the destination width.
 
 ### Strings
 
-Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `value` is exactly one Unicode code point and `n` is the repeat count.
+Strings are immutable values. Use `text * count` to repeat an entire string with a nonnegative integer count. The function `string.repeat(value, n)` repeats a single Unicode code point.
 
 ```quidra
 name := "Quidra"
-repeated := string.repeat("a", 6)
+repeated := "ab" * 3
 println("Hello, {name}")
 println("first{NL}second")
 ```

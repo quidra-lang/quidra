@@ -385,6 +385,37 @@ match string.from_utf8(partial)
 QUI
 [[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa\nhéllo\ninvalid\nnul\npartial' ]]
 
+cat > "$TMP/string-repeat-operator.qui" <<'QUI'
+int replace(string &value)
+    value = "changed"
+    return 2
+
+pattern := "é" + "字"
+repeated := pattern * replace(&pattern)
+println(repeated)
+println(len(repeated))
+println(pattern)
+if true
+    const int32 count := -1
+nat16 count := 2
+println(" " * (5 - 3) + "*" * count)
+println("[" + pattern * 0 + "]")
+println("[" + "" * 18446744073709551616 + "]")
+QUI
+[[ "$("$QUIDRA" "$TMP/string-repeat-operator.qui")" == $'é字é字\n4\nchanged\n  **\n[]\n[]' ]]
+
+printf '%s\n' 'println("ab" * -1)' > "$TMP/string-repeat-negative.qui"
+if "$QUIDRA" check "$TMP/string-repeat-negative.qui" > "$TMP/string-repeat-negative.out" 2>&1; then
+    exit 1
+fi
+grep -Fq 'String repetition count cannot be negative.' "$TMP/string-repeat-negative.out"
+
+printf '%s\n' 'println("ab" * 2.0)' > "$TMP/string-repeat-real.qui"
+if "$QUIDRA" check "$TMP/string-repeat-real.qui" > "$TMP/string-repeat-real.out" 2>&1; then
+    exit 1
+fi
+grep -Fq 'String repetition requires an integer count.' "$TMP/string-repeat-real.out"
+
 cat > "$TMP/bin-parse-error.qui" <<'QUI'
 string invalid_text := "012"
 bin | error parsed := bin.parse(invalid_text)

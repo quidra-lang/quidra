@@ -406,7 +406,9 @@ void TextEmitter::emit(const ir::StringAppendMove& n,const ir::Instruction& ins)
 
 void TextEmitter::emit(const ir::StringRepeat& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::String));
-    builder_.call(symbols_.value(n.out),runtime_abi::text::repeat,{{i64,symbols_.value(n.count)},{ptr,symbols_.value(n.fill)}});
+    const auto& callee = n.whole_text ? runtime_abi::text::repeat_text : runtime_abi::text::repeat;
+    builder_.call(symbols_.value(n.out), callee,
+                  {{i64, symbols_.value(n.count)}, {ptr, symbols_.value(n.fill)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 

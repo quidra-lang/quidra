@@ -286,6 +286,7 @@ extern "C" char* quidra_bin_try_utf8(void* raw);
 extern "C" void* quidra_bin_from_array(void* raw, int width, int stride);
 extern "C" void* quidra_bin_to_array(void* raw, int width, int stride);
 extern "C" char* quidra_string_repeat(long long count, const char* fill);
+extern "C" char* quidra_string_repeat_text(long long count, const char* text);
 extern "C" void* quidra_string_utf8(const char* text);
 extern "C" void* quidra_string_codepoints(const char* text);
 extern "C" char* quidra_string_join(

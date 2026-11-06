@@ -283,6 +283,7 @@ fail:
     declare(runtime_abi::text::can_append_move),
     declare(runtime_abi::text::append_move_many),
     declare(runtime_abi::text::repeat),
+    declare(runtime_abi::text::repeat_text),
     declare(runtime_abi::bin::alloc),
     declare(runtime_abi::bin::index),
     declare(runtime_abi::bin::set),

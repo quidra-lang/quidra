@@ -130,7 +130,7 @@ void check_arities() {
     check_arity<ir::StringBuildAppendMove>("StringBuildAppendMove", 5);
     check_arity<ir::StringCanAppendMove>("StringCanAppendMove", 2);
     check_arity<ir::StringAppendMove>("StringAppendMove", 3);
-    check_arity<ir::StringRepeat>("StringRepeat", 3);
+    check_arity<ir::StringRepeat>("StringRepeat", 4);
     check_arity<ir::BinAlloc>("BinAlloc", 3);
     check_arity<ir::BinLength>("BinLength", 2);
     check_arity<ir::BinGet>("BinGet", 5);

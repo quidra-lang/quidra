@@ -468,7 +468,12 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
             static_cast<std::uint32_t>(current->span.start.line),
             static_cast<std::uint32_t>(current->span.start.column)};
 
-        if(left_type.kind==TypeKind::Tensor || right_type.kind==TypeKind::Tensor){
+        if (left_type.kind == TypeKind::String && binary->op == "*") {
+            const auto count_type = Type::simple(TypeKind::Int);
+            right = convert_numeric_operand(right, right_type, count_type, site);
+            right_type = count_type;
+            builder_.emit(StringRepeat{out, right, left, true});
+        } else if(left_type.kind==TypeKind::Tensor || right_type.kind==TypeKind::Tensor){
             const auto left_element = left_type.kind == TypeKind::Tensor ? *left_type.first : left_type;
             const auto right_element = right_type.kind == TypeKind::Tensor ? *right_type.first : right_type;
             const auto element = numeric_common_type(left_element, right_element).value_or(left_element);

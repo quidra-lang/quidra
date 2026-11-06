@@ -61,7 +61,13 @@ struct StringBuild { ValueId out; std::vector<StringBuildPart> parts; ValueId se
 struct StringBuildAppendMove { ValueId out; ValueId added_length; ValueId text; std::vector<StringBuildPart> parts; ValueId separator; };
 struct StringCanAppendMove { ValueId out; ValueId text; };
 struct StringAppendMove { ValueId out; ValueId text; std::vector<ValueId> suffixes; };
-struct StringRepeat { ValueId out; ValueId count; ValueId fill; };
+struct StringRepeat {
+    ValueId out;
+    ValueId count;
+    ValueId fill;
+    // Whole-text repetition takes an exact int word rather than an int64 count.
+    bool whole_text{};
+};
 
 template <> struct InstructionTraits<StringIndex> : WithOperands<Domain::text, StringIndex> {};
 template <> struct InstructionTraits<StringIndexAsciiCompare> : WithOperands<Domain::text, StringIndexAsciiCompare> {};

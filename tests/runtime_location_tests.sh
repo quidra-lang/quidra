@@ -393,6 +393,19 @@ string text := string.repeat(fill, 3)
 QUI
 build uncoded-repeat || fail "uncoded-repeat: build failed"
 check_run uncoded-repeat 101 code= line=2 column=1 "message=string fill must contain exactly one Unicode code point"
+cat > "$TMP/negative-repeat-count.qui" <<'QUI'
+int count()
+    return -1
+
+string text := "ab" * count()
+QUI
+build negative-repeat-count || fail "negative-repeat-count: build failed"
+check_run negative-repeat-count 101 code= line=4 column=1 "message=string repetition count cannot be negative"
+cat > "$TMP/oversized-repeat.qui" <<'QUI'
+string text := "ab" * 18446744073709551616
+QUI
+build oversized-repeat || fail "oversized-repeat: build failed"
+check_run oversized-repeat 101 code= line=1 column=1 "message=allocation failed"
 cat > "$TMP/uncoded-bin-fill.qui" <<'QUI'
 int bit_of(string text)
     return int(len(text))

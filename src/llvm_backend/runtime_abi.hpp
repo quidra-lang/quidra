@@ -289,6 +289,8 @@ inline constexpr LlvmCallee append_move_many =
     llvm_callee<decltype(&quidra_string_append_move_many)>("quidra_string_append_move_many");
 inline constexpr LlvmCallee repeat =
     llvm_callee<decltype(&quidra_string_repeat)>("quidra_string_repeat");
+inline constexpr LlvmCallee repeat_text =
+    llvm_callee<decltype(&quidra_string_repeat_text)>("quidra_string_repeat_text");
 } // namespace text
 
 // Integer and float conversions, formatting, parsing and integer powers.

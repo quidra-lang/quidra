@@ -11584,6 +11584,29 @@ extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
     return result;
 }
 
+namespace {
+
+char* repeat_validated_text(std::string_view text, std::size_t codepoints,
+                            unsigned long long count) {
+    if (text.empty()) count = 0;
+    else if (count > (std::numeric_limits<std::size_t>::max() - 1) / text.size())
+        runtime_allocation_failure();
+    const auto copies = static_cast<std::size_t>(count);
+    const auto bytes = copies * text.size();
+    auto* result = static_cast<char*>(managed_allocate_string(bytes + 1));
+    if (text.size() == 1) {
+        std::memset(result, text.front(), copies);
+    } else {
+        for (std::size_t i = 0; i < copies; ++i)
+            std::memcpy(result + i * text.size(), text.data(), text.size());
+    }
+    result[bytes] = '\0';
+    mark_managed_string(result, bytes, copies * codepoints);
+    return result;
+}
+
+} // namespace
+
 extern "C" char* quidra_string_repeat(long long count, const char* fill) {
     if (count < 0) runtime_text_failure("string length cannot be negative");
     if (!fill) runtime_text_failure("null string fill");
@@ -11593,17 +11616,20 @@ extern "C" char* quidra_string_repeat(long long count, const char* fill) {
         validated_string_view(fill, fill_allocation, &fill_codepoints);
     if (fill_codepoints != 1)
         runtime_text_failure("string fill must contain exactly one Unicode code point");
-    const auto n = static_cast<std::size_t>(count);
-    if (count != static_cast<long long>(n) ||
-        (!unit.empty() && n > (std::numeric_limits<std::size_t>::max() - 1) / unit.size()))
+    return repeat_validated_text(unit, fill_codepoints, static_cast<unsigned long long>(count));
+}
+
+extern "C" char* quidra_string_repeat_text(long long count, const char* text) {
+    if (quidra_int_compare(count, 0) < 0)
+        runtime_text_failure("string repetition count cannot be negative");
+    if (!text) runtime_text_failure("null string");
+    ManagedAllocation* allocation = nullptr;
+    std::size_t codepoints = 0;
+    const auto unit = validated_string_view(text, allocation, &codepoints);
+    unsigned long long copies = 0;
+    if (!unit.empty() && !quidra_int_try_u64(count, 64, &copies))
         runtime_allocation_failure();
-    const auto bytes = n * unit.size();
-    auto* result = static_cast<char*>(managed_allocate_string(bytes + 1));
-    for (std::size_t i = 0; i < n; ++i)
-        if (!unit.empty()) std::memcpy(result + i * unit.size(), unit.data(), unit.size());
-    result[bytes] = '\0';
-    mark_managed_string(result, bytes, n);
-    return result;
+    return repeat_validated_text(unit, codepoints, copies);
 }
 
 extern "C" void* quidra_string_utf8(const char* text) {

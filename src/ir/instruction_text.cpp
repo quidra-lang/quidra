@@ -226,7 +226,9 @@ std::string instruction_text(const Instruction& i){ std::ostringstream out; std:
         else if constexpr(std::is_same_v<T,StringBuildAppendMove>){out<<"%"<<n.out<<", %"<<n.added_length<<" = string.build_append %"<<n.text;for(const auto& part:n.parts){out<<" %"<<part.value<<":"<<type_name(part.type);if(part.kind==StringBuildPartKind::QuotedString)out<<":quoted";}out<<" sep %"<<n.separator;}
         else if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
         else if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
-        else if constexpr(std::is_same_v<T,StringRepeat>)out<<"%"<<n.out<<" = string.repeat %"<<n.count<<", %"<<n.fill;
+        else if constexpr(std::is_same_v<T,StringRepeat>)
+            out << "%" << n.out << " = " << (n.whole_text ? "string.repeat_text" : "string.repeat")
+                << " %" << n.count << ", %" << n.fill;
         else static_assert(missing_instruction_text<T>, "instruction needs an explicit compact renderer");
     }
     else if constexpr(InstructionTraits<T>::domain == Domain::tensor){

@@ -544,7 +544,8 @@ if [[ "$sum_output" != "$sum_expected" ]]; then
     exit 1
 fi
 
-for removed_reduction in sum mean sum_last max_last min_last; do
+# Core sum/mean are covered by core_reductions.sh; legacy suffixes stay unavailable.
+for removed_reduction in sum_last max_last min_last; do
     cat > "$TMP/removed-reduction.qui" <<QUI
 tensor<real32> value := tensor.ones<real32>([1, 2])
 tensor<real32> invalid := value.${removed_reduction}()

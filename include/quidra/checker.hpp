@@ -591,12 +591,14 @@ private:
     // type is nat rather than nat | error.
     void note_extent_capture_operand(const Expr& expression);
     void settle_extent_conversion(const Expr& expression, Type& type);
-    Type check_expr(const Expr& expr, const Type* expected = nullptr);
+    Type check_expr(const Expr& expr, const Type* expected = nullptr, bool integer_truth = false);
+    Type check_truth_value(const Expr& expression);
     Type check_numeric_array_operand(const Expr& value, const Type* candidate);
     Type check_numeric_array_result(const Type& left, const Type& right,
                                    const std::string& op, const Expr& right_expression,
                                    SourceSpan span);
-    Type check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected);
+    Type check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected,
+                       bool integer_truth);
     // L14: a chain of comparisons in one direction (`0 <= i < n`, `a == b == c`).
     Type check_comparison_chain(const Expr& expression, const ComparisonChainExpr& node);
     Type check_address_target(const Expr& expr, bool allow_tensor_element = false);

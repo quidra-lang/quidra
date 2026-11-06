@@ -385,16 +385,22 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
 (* Tuple type and literal atoms: at least two elements, no trailing comma.
    A single element in parentheses is a grouped type or expression. *)
 tuple_type = "(", type, ",", type, { ",", type }, ")" ;
-tuple_expr = "(", expression, ",", expression, { ",", expression }, ")" ;
+tuple_expr = "(", tuple_values, ")" ;
+tuple_values = expression, ",", expression, { ",", expression } ;
 
 destructuring = [ "local" ], ( new_pattern | bare_new_pattern ), ":=",
-                ( "&", expression | expression, { ",", expression } ), statement_end
-              | place_pattern, "=", expression, statement_end ;
+                ( "&", expression | expression | tuple_values ), statement_end
+              | ( place_pattern | place_elements ), "=", ( expression | tuple_values ), statement_end ;
 bare_new_pattern = identifier, ",", identifier, { ",", identifier } ;
 new_pattern = "(", new_element, ",", new_element, { ",", new_element }, ")" ;
 new_element = [ "const" ], [ type ], [ "&" ], identifier | "_" | new_pattern ;
-place_pattern = "(", place_element, ",", place_element, { ",", place_element }, ")" ;
+place_pattern = "(", place_elements, ")" ;
+place_elements = place_element, ",", place_element, { ",", place_element } ;
 place_element = "_" | place_pattern | assignable ;
+
+(* Standalone destructuring statements may omit outer parentheses as specified
+   above. Parentheses group nested patterns and tuple values inside expressions.
+   Ungrouped commas do not continue a logical line. *)
 
 (* Collection for headers also accept a declaration, existing-place or reference
    tuple pattern. Reference patterns take &SOURCE[]. *)

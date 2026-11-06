@@ -893,32 +893,36 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
 
 ValueId ExpressionLowering::lower_unary(const Expr& e, const UnaryExpr& n) {
     if(n.op=="&") return lower_address(*n.operand, false);
+    const auto& raw = checked_.raw_types.at(&e);
     if(n.op=="-"){
         if(const auto* literal=std::get_if<IntegerExpr>(&n.operand->data);
-           literal && is_fixed_integer(type_of(checked_, e))){
+           literal && is_fixed_integer(raw)){
             auto out=builder_.fresh();
             builder_.emit(ConstantInt{
-                out,"-"+std::to_string(literal->value),type_of(checked_,e)});
+                out,"-"+std::to_string(literal->value),raw});
             return out;
         }
         // A negated bare integer literal is a constant of its own.
         if(const auto* literal=std::get_if<IntegerExpr>(&n.operand->data);
-           literal && type_of(checked_, e).kind==TypeKind::Int){
+           literal && raw.kind==TypeKind::Int){
             auto out=builder_.fresh();
             const auto digits=literal->spelling.empty()?std::to_string(literal->value):literal->spelling;
-            builder_.emit(ConstantExact{out,"-"+digits,type_of(checked_,e)});
+            builder_.emit(ConstantExact{out,"-"+digits,raw});
             return out;
         }
     }
-    auto v=lower(*n.operand), out=builder_.fresh();
+    const bool coerced_truth = n.op == "not" &&
+        checked_.implicit_numeric_argument_conversions.contains(n.operand.get());
+    auto v = coerced_truth ? lower_into(*n.operand, raw) : lower(*n.operand);
+    auto out = builder_.fresh();
     builder_.emit(Unary{
-        out,n.op,v,type_of(checked_,e),{static_cast<std::uint32_t>(e.span.start.line),
+        out,n.op,v,raw,{static_cast<std::uint32_t>(e.span.start.line),
         static_cast<std::uint32_t>(e.span.start.column)},
         facts_.integer_ranges.inline_proven(e)});
     // Tensor, bigint and bigreal negation return a new value and
     // leave the operand alone; release an owned temporary operand
     // as the binary operators do.
-    lifetime_.release_temporary(*n.operand,v);
+    if (!coerced_truth) lifetime_.release_temporary(*n.operand, v);
     return out;
 }
 
@@ -1007,7 +1011,9 @@ ValueId ExpressionLowering::lower_if_expression(const Expr& e, const IfExpr& n) 
         builder_.emit(Jump{done});
     };
     for(std::size_t i=0;i<n.conditions.size();++i){
-        auto condition=lower(*n.conditions[i]);
+        const auto& condition_expr = *n.conditions[i];
+        const auto condition = checked_.implicit_numeric_argument_conversions.contains(&condition_expr)
+            ? lower_into(condition_expr, Type::simple(TypeKind::Bool)) : lower(condition_expr);
         const auto yes=builder_.label("if.then");
         const auto next=builder_.label("if.next");
         builder_.emit(Branch{condition,yes,next});

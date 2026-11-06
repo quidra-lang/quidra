@@ -323,6 +323,11 @@ A parameter without `&` receives a value: the callee sees the argument as the ca
 
 Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion.
 
+A scalar integer may also be passed to a resolved `bool` value parameter.
+Zero passes `false`, and any other value passes `true`. The conversion applies
+to positional and named arguments. A `bool &` parameter requires `bool` storage.
+Use `n != 0` to initialize, assign, or return a `bool` from an integer.
+
 For example, if `int8 take(int8 value)` returns `value`, then `int x := 100` may be passed as `take(x)` with the same conversion as `take(int8(x))`. `real64 y := 3.0` may be passed to `take(y)`, but `3.5` fails integral-only conversion. A `real32` parameter may receive an integer argument with normal rounding; a complex parameter may receive a real or integer argument with imaginary part zero. A complex argument never implicitly converts to a real/integer parameter; select `.real`, `.imag`, or an explicit package operation. Resolving generic type arguments remains a separate step from conversion to the resolved formal type.
 
 Required parameters precede default parameters. A numeric default supplies its ordinary default type when no annotation is given: `limit := 100` gives an `int` parameter; `int32 limit := 100` provides a narrower context.
@@ -537,7 +542,7 @@ T1 combine<T1: floating, T2: integer>(T1 left, T2 right)
 
 A concrete member normally instantiates that generic type pattern. A narrow exception permits a different concrete signature only when known primitive argument types and supported built-in constraints prove that every generic member excludes that signature. For example, an `int` argument cannot match a `floating` type parameter. A mismatch involving a structural or nominal type, shape, reference/const form, value, or unknown type is not a primitive-disjoint proof. The exception does not change the family's argument count, parameter names, default positions, mutation marker, visibility, or ordinary shape checks. It concerns which declarations form a valid specialization family; value arguments still follow the ordinary checked numeric call-conversion rule, and return-type-only overloading remains forbidden. Within each container domain, generic members still share one type-variable pattern, and a concrete signature that is not proved excluded from every generic member remains an error.
 
-Candidate selection first considers exact concrete matches and matches obtained by generic inference. An exact concrete match is preferred to generic members. Only when neither an exact concrete nor an inferred generic candidate matches are concrete candidates requiring numeric value-argument conversion considered, with the ordinary ambiguity checks. Numeric convertibility does not change generic constraints or the declaration-family disjointness proof. Between generic matches, a uniquely narrower supported constraint wins, such as `floating` over `numeric`. Domains such as `ordered` and `equatable` that overlap without a unique specificity relation are rejected as ambiguous; the compiler never chooses an arbitrary member. Changing the type-variable relationship between generic members, such as pairing `(T, T)` in one declaration with `(T, U)` in another, is an ordinary overload rather than specialization and is rejected.
+Candidate selection first considers exact concrete matches and matches obtained by generic inference. An exact concrete match is preferred to generic members. Only when neither an exact concrete nor an inferred generic candidate matches are concrete candidates requiring numeric value-argument conversion considered, with the ordinary ambiguity checks. Only if those stages find no match does selection consider integer-to-`bool` argument conversion. Implicit convertibility does not change generic constraints or the declaration-family disjointness proof. Between generic matches, a uniquely narrower supported constraint wins, such as `floating` over `numeric`. Domains such as `ordered` and `equatable` that overlap without a unique specificity relation are rejected as ambiguous; the compiler never chooses an arbitrary member. Changing the type-variable relationship between generic members, such as pairing `(T, T)` in one declaration with `(T, U)` in another, is an ordinary overload rather than specialization and is rejected.
 
 ## Named enums and variants
 
@@ -869,7 +874,12 @@ On a `const` value, a `.` call is an error only when it may change that value or
 
 ## Conditions and iteration
 
-Conditions are `bool`. Boolean composition uses the keywords `and`, `or`, and `not`; they do not implicitly coerce numeric or other values to `bool`. `if` supports an optional `else`; `while` repeats while its condition is true.
+The conditions of `if`, `elif`, `while`, and array generation filters accept
+`bool` or a scalar `nat` or `int` of any width. Zero becomes `false` and every
+nonzero integer becomes `true`, including negative values. The same rule applies
+to operands of `and`, `or`, and `not`. These operators return `bool`, and `and`
+and `or` short-circuit. An `if` statement can have an `else` block. A `while`
+loop repeats while its condition is true.
 
 Comparisons chain: `a OP1 b OP2 c` means `a OP1 b and b OP2 c`, so `0 <= i < len(values)` tests both bounds. Each operand is evaluated at most once, left to right, and the chain stops at the first link that is false, as `and` does: in `f() < g() < h()`, `h()` runs only when `f() < g()` holds, and `g()` runs once. A chain keeps one direction: its operators are all from `<` and `<=`, all from `>` and `>=`, or all `==` (`a == b == c` tests that all three are equal, also for `bool` operands). `a < b > c` mixes directions and is the compile error `CHAINED_COMPARISON`; so is any chain with `!=`, and a relational comparison written next to `==` or `!=` without parentheses: to compare the result of a comparison, write `(a < b) == c`. Every link follows the rules of a single comparison (operands of one type, numbers for `<`, `<=`, `>` and `>=`, equatable values for `==`), and the result is `bool`. Tensor comparisons give masks, which a chain cannot join; combine them explicitly.
 
@@ -1454,7 +1464,7 @@ sorted. Operational failures return typed errors. Bare `file` as a type,
 
 ### test
 
-`test.check(condition)` requires `bool`. `test.equal(actual, expected)` requires identical static types and follows the same equality availability and class definite-initialization requirements as ordinary `==`.
+`test.check(condition)` takes a `bool` value argument, including an integer converted under the ordinary call rule. `test.equal(actual, expected)` requires identical static types and follows the same equality availability and class definite-initialization requirements as ordinary `==`.
 
 A failed assertion exits with status 1. This is a test failure, not a runtime-safety violation, so it does not use the runtime-safety status 101.
 
@@ -1902,7 +1912,7 @@ The left `&state` identifies the writable parameter and the right `&state` forms
 
 ## Explicit numeric conversion
 
-Outside numeric operators and numeric value call arguments, already-typed numeric values are never converted implicitly. The generic numeric cast syntax is `T(value)`, where `T` is the destination scalar numeric type:
+Use `T(value)` to explicitly convert between numeric types, with `T` as the destination scalar numeric type:
 
 - for a scalar, it converts that scalar;
 - for a numeric array of any nesting, it preserves every fixed/dynamic array dimension and recursively converts numeric leaves;
@@ -2070,6 +2080,10 @@ A destructuring pattern either declares every bound name or assigns existing
 places. It can nest, and `_` discards a value without declaring a name:
 `(count, _) := measure()` or `((a, b), c) := nested()`, inferring each element type.
 `(a, b) = (b, a)` evaluates both input values before writing either place.
+A standalone existing-place `=` assignment can omit the outer parentheses
+around its target pattern, its right-hand list of values, or both. For example,
+`a, b = b, a % b` uses the same evaluation order as `(a, b) = (b, a % b)`.
+Parentheses group any nested tuple or pattern.
 All target index operands are captured once, left to right, before the source;
 the writes then resolve each target's current storage in pattern order.
 `(&a, &b) := &pair` binds the elements of initialized writable storage and infers their exact target types.

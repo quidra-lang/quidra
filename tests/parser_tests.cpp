@@ -444,6 +444,76 @@ static void local_declarations() {
     reject("const local int count = 1\n");
 }
 
+static void bare_tuple_assignments() {
+    const auto program = parse(
+        "a, b = b, a % b\n"
+        "(a, b) = b, a % b\n"
+        "a, b = (b, a % b)\n"
+        "a, _ = try pair()\n"
+        "same, b = &x == &y, b\n"
+    );
+    for (std::size_t i = 0; i < 3; ++i) {
+        const auto& assignment = std::get<AssignStmt>(program.statements.at(i)->data);
+        require(assignment.pattern && assignment.pattern->elements.size() == 2,
+                "tuple assignment parses two existing destinations");
+        const auto& destinations = assignment.pattern->elements;
+        require(destinations[0].kind == Pattern::Kind::Place &&
+                std::get<NameExpr>(destinations[0].place->data).name == "a" &&
+                destinations[1].kind == Pattern::Kind::Place &&
+                std::get<NameExpr>(destinations[1].place->data).name == "b",
+                "tuple assignment keeps destination order");
+        const auto& values = std::get<TupleExpr>(assignment.value->data).elements;
+        require(values.size() == 2 && std::get<NameExpr>(values[0]->data).name == "b" &&
+                std::get<BinaryExpr>(values[1]->data).op == "%",
+                "bare right-hand commas delimit complete expressions");
+    }
+    const auto& from_call = std::get<AssignStmt>(program.statements.at(3)->data);
+    require(from_call.pattern && from_call.pattern->elements.at(1).kind == Pattern::Kind::Discard &&
+            std::holds_alternative<TryExpr>(from_call.value->data),
+            "a bare pattern can discard a component of a single tuple-producing expression");
+    const auto& with_address = std::get<AssignStmt>(program.statements.at(4)->data);
+    const auto& equality = std::get<BinaryExpr>(std::get<TupleExpr>(with_address.value->data).elements.at(0)->data);
+    require(equality.op == "==" && std::get<UnaryExpr>(equality.left->data).op == "&",
+            "a bare tuple can start with an expression that compares addresses");
+
+    const auto nested = parse(
+        "grid[row(0, 1), col], (value, _) = pick<int, int>(left = 1,\n"
+        "    right = 2), (try next(), 3)\n"
+        "get<int, int>().field = 1\n"
+        "for (a, b) = pairs[]\n"
+        "    a = b\n"
+    );
+    const auto& assignment = std::get<AssignStmt>(nested.statements.at(0)->data);
+    require(assignment.pattern.has_value(), "indexed destinations use a tuple pattern");
+    const auto& destinations = assignment.pattern->elements;
+    require(destinations.size() == 2 && std::get<IndexExpr>(destinations[0].place->data).items.size() == 2 &&
+            destinations[1].kind == Pattern::Kind::Tuple &&
+            destinations[1].elements.at(1).kind == Pattern::Kind::Discard,
+            "a bare pattern keeps indexed and nested destinations intact");
+    const auto& values = std::get<TupleExpr>(assignment.value->data).elements;
+    require(values.size() == 2 && std::get<CallExpr>(values[0]->data).args.size() == 2 &&
+            std::holds_alternative<TryExpr>(std::get<TupleExpr>(values[1]->data).elements.at(0)->data),
+            "nested commas and a call's continued line belong to their own expressions");
+    require(!std::get<AssignStmt>(nested.statements.at(1)->data).pattern,
+            "generic type argument commas do not start a pattern");
+    require(std::get<ForStmt>(nested.statements.at(2)->data).pattern.has_value(),
+            "collection headers still accept a parenthesized pattern");
+
+    const auto declarations = parse("a, b := 1, 2\n(c, d) := a, b\n");
+    for (const auto& statement : declarations.statements) {
+        const auto& binding = std::get<BindingStmt>(statement->data);
+        require(binding.pattern && binding.pattern->elements.size() == 2 &&
+                std::holds_alternative<TupleExpr>(binding.value->data),
+                "bare value lists also work in tuple declarations");
+    }
+    reject("a, b += b, a\n");
+    reject("pair = a, b\n");
+    reject("a, b = 1,\n2\n");
+    reject("a, b, = 1, 2\n");
+    reject("for a, b = pairs[]\n    a = b\n");
+    reject("(int, int) pair()\n    return 1, 2\n");
+}
+
 static void bounded_range_precedence() {
     const auto binding_value = [](const Program& program) -> const Expr& {
         return *std::get<BindingStmt>(program.statements.at(0)->data).value;
@@ -1165,6 +1235,8 @@ int main() {
     reject_code("for int x = values[]\n    print(x)\n", "FOR_HEADER");
 
     local_declarations();
+
+    bare_tuple_assignments();
 
     slice_markers();
 

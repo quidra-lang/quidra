@@ -176,7 +176,7 @@ std::optional<ValueId> AggregateLowering::try_array_method(
             if(const auto* literal=std::get_if<BoolExpr>(&flag.data))
                 descending_constant=literal->value;
             else
-                descending=lowerer_.lower(flag);
+                descending=lowerer_.lower_argument(flag);
         }
         auto out=builder_.fresh();
         builder_.emit(ArraySorted{

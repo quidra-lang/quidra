@@ -265,7 +265,7 @@ ValueId FileLowering::lower_file_read_bin(const Expr& e, const CallExpr& n) {
 
 ValueId FileLowering::lower_file_list(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    ValueId recursive=n.args.size()==2?lowerer_.lower(*n.args[1].value):builder_.const_bool(false);
+    ValueId recursive=n.args.size()==2?lowerer_.lower_argument(*n.args[1].value):builder_.const_bool(false);
     builder_.emit(FileList{out,path,recursive,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;

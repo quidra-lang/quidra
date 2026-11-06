@@ -17,12 +17,20 @@ bool array_shape_conversion(const Type& from, const Type& to) {
     return from.kind == TypeKind::Array && to.kind == TypeKind::Array && from != to;
 }
 
-// A by-value argument has the same conversion contract as a spelled numeric
-// cast, with its error consumed at the argument site before entering the callee.
+// Integer truth tests compare against zero. Other implicit conversions have
+// the contract of a numeric cast, with any conversion error consumed here.
 ValueId ConversionLowering::convert_numeric_argument(
     ValueId value, const Type& source, const Type& target, SourceSpan span) {
     const SourcePosition site{static_cast<std::uint32_t>(span.start.line),
                               static_cast<std::uint32_t>(span.start.column)};
+    if (target.kind == TypeKind::Bool) {
+        const auto zero = builder_.fresh();
+        if (is_bare_integer(source)) builder_.emit(ConstantExact{zero, "0", source});
+        else builder_.emit(ConstantInt{zero, "0", source});
+        const auto result = builder_.fresh();
+        builder_.emit(Binary{result, "!=", value, zero, source, target});
+        return result;
+    }
     auto out = builder_.fresh();
     if (source.kind == TypeKind::Tensor) {
         auto cast_target = source;

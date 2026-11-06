@@ -60,7 +60,7 @@ FullArrays stable_loop_full_arrays(
 void ControlFlowLowering::lower_if(const IfStmt& n) {
     const auto outer=scope_.snapshot_local_names();
     for (const auto& binding : n.condition_bindings) lowerer_.lower_statement(*binding);
-    auto cond=lowerer_.lower(*n.condition);
+    auto cond=lowerer_.lower_argument(*n.condition);
     const auto then_name=builder_.label("if.then"), else_name=builder_.label("if.else"), end_name=builder_.label("if.end");
     builder_.emit(Branch{cond,then_name,else_name});
     const auto before=scope_.snapshot_local_names();
@@ -106,7 +106,7 @@ void ControlFlowLowering::lower_while(const WhileStmt& n) {
     auto& cb=builder_.add_block(cond_name);
     builder_.enter(cb);
     for (const auto& binding : n.condition_bindings) lowerer_.lower_statement(*binding);
-    auto c=lowerer_.lower(*n.condition);
+    auto c=lowerer_.lower_argument(*n.condition);
     const auto header_scope=scope_.snapshot_local_names();
     const auto condition_full=facts_.array_initialization.full_arrays();
     builder_.emit(Branch{c,body_name,end_name});

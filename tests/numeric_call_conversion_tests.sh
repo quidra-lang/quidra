@@ -328,3 +328,83 @@ cli args
     int8 value = argument(default = int64(128))
 print(args.value)
 QUI
+
+cat > "$TMP/integer_truth.qui" <<'QUI'
+bool enabled(bool value)
+    return value
+int effect(int &calls)
+    calls += 1
+    return 1
+int | error read_value(int value)
+    return value
+bool | error try_enabled(int value)
+    return if (try (if value then read_value(value) else read_value(0))) then true else false
+bool extension_flag(extend bool value)
+    return value
+class Switch(bool on)
+    bool state(bool value)
+        return value
+
+int count := -3
+while count
+    count += 1
+nat64 wide := 18446744073709551615
+nat huge := 184467440737095516160000
+int8 negative := -128
+int calls := 0
+println(count)
+println(0 and effect(&calls))
+println(negative or effect(&calls))
+println(calls)
+println(not count)
+println(if wide then "wide" else "zero")
+println([for value := [0, -1, 2][] if value then value] == [-1, 2])
+println(enabled(0))
+println(enabled(value = negative))
+println(enabled(huge))
+println(enabled(read_value(0)))
+println(try_enabled(-1))
+println(Switch(wide).on)
+box := Switch(0)
+println(box.state(0))
+func<bool>(bool) callback := enabled
+println(callback(-1))
+println(wide.extension_flag())
+println([1, 2].sorted(descending = wide) == [2, 1])
+QUI
+"$QUIDRA" run "$TMP/integer_truth.qui" > "$TMP/integer_truth.actual"
+diff -u <(printf '%s\n' 0 false true 0 true wide true false true true false true true false true true true) "$TMP/integer_truth.actual"
+
+cat > "$TMP/integer_truth_specialization.qui" <<'QUI'
+string pick<T: floating>(T value)
+    return "floating"
+string pick(int32 value)
+    return "numeric"
+string pick(bool value)
+    return "boolean"
+string fallback<T: floating>(T value)
+    return "floating"
+string fallback(bool value)
+    return "boolean"
+
+int64 wider := 42
+println(pick(wider))
+println(pick(true))
+println(pick(real32(1.0)))
+println(fallback(wider))
+QUI
+"$QUIDRA" run "$TMP/integer_truth_specialization.qui" > "$TMP/integer_truth_specialization.actual"
+diff -u <(printf '%s\n' numeric boolean floating boolean) "$TMP/integer_truth_specialization.actual"
+
+cat > "$TMP/truth_constants.qui" <<'QUI'
+const real32 fraction := 0.5
+QUI
+cat > "$TMP/real_truth_rejected.qui" <<'QUI'
+import settings = "./truth_constants.qui"
+println(not settings.fraction)
+QUI
+if "$QUIDRA" check "$TMP/real_truth_rejected.qui" > "$TMP/real_truth.out" 2> "$TMP/real_truth.err"; then
+    printf 'A typed real constant was accepted as a truth value\n' >&2
+    exit 1
+fi
+grep -q 'TYPE_MISMATCH' "$TMP/real_truth.err"

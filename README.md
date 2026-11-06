@@ -494,7 +494,7 @@ println(first<int>([4, 5]))
 
 Generic class type arguments are explicit in type positions. Class generation, generic function and method calls may infer them when every generic parameter is uniquely determined by typed call arguments; otherwise write them explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
 
-Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, and narrower statically ordered constraints win over broader ones. Concrete candidates requiring numeric value-argument conversion are considered only if no exact concrete or inferred generic candidate matches. An overlap with no unique most-specific member is a compile error.
+Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, and narrower statically ordered constraints win over broader ones. Concrete candidates requiring numeric value-argument conversion are considered only if no exact concrete or inferred generic candidate matches. Integer-to-`bool` argument conversion is a final fallback. An overlap with no unique most-specific member is a compile error.
 
 ### Control flow
 
@@ -516,9 +516,10 @@ while condition
     work()
 ```
 
-Blocks use four-space indentation. Conditions are `bool`; numeric truthiness is
-not implicit. Range boundaries, direction and inclusion are written in the
-header. `for: i < end` declares a loop-local range variable and abbreviates
+Blocks use four-space indentation. Conditions and the operands of `and`, `or`,
+and `not` accept `bool` and scalar integer types. An integer is true exactly
+when it is nonzero. The same conversion applies to a `bool` value parameter.
+Range boundaries, direction and inclusion are written in the header. `for: i < end` declares a loop-local range variable and abbreviates
 `for: 0 <= i < end`; the descending form `for: start > i` ends at inclusive zero.
 The type is inferred from typed bounds, or defaults to `int` for integer literals.
 Write `for: int32 i < end` to supply a type explicitly. Plain `for i < end`

@@ -383,7 +383,7 @@ ValueId OperatorLowering::lower_short_circuit(const BinaryExpr& n) {
     const auto bool_type=Type::simple(TypeKind::Bool);
     const auto result_name=builder_.hidden(n.op=="and"?"and.result":"or.result");
     scope_.local_type(result_name)=bool_type;
-    auto left=lowerer_.lower(*n.left);
+    auto left=lowerer_.lower_argument(*n.left);
     const auto rhs=builder_.label(n.op=="and"?"and.rhs":"or.rhs");
     const auto merge=builder_.label(n.op=="and"?"and.end":"or.end");
     auto shortcut=builder_.const_bool(n.op=="or");
@@ -393,7 +393,7 @@ ValueId OperatorLowering::lower_short_circuit(const BinaryExpr& n) {
                     :Instruction{Branch{left,merge,rhs}});
     auto& rb=builder_.add_block(rhs);
     builder_.enter(rb);
-    auto right=lowerer_.lower(*n.right);
+    auto right=lowerer_.lower_argument(*n.right);
     builder_.emit(StoreLocal{result_name,right,bool_type,true});
     builder_.emit(Jump{merge});
     auto& mb=builder_.add_block(merge);

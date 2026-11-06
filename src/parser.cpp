@@ -298,6 +298,20 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     return true;
 }
 
+std::optional<std::size_t> type_argument_call_open(const std::vector<Token>& tokens,
+                                                  std::size_t start, std::size_t limit) {
+    if (start >= tokens.size() || tokens[start].kind != TokenKind::Less) return std::nullopt;
+    std::size_t i = start + 1;
+    if (!scan_type_lookahead(tokens, i, 1, limit, true)) return std::nullopt;
+    while (i < tokens.size() && tokens[i].kind == TokenKind::Comma) {
+        ++i;
+        if (!scan_type_lookahead(tokens, i, 1, limit, true)) return std::nullopt;
+    }
+    if (i + 1 < tokens.size() && tokens[i].kind == TokenKind::Greater &&
+        tokens[i + 1].kind == TokenKind::LParen) return i + 1;
+    return std::nullopt;
+}
+
 void relocate_expr(Expr& expression, const SourcePos& base);
 
 void relocate_type(TypeName& type, const SourcePos& base) {
@@ -485,17 +499,7 @@ bool Parser::looks_like_declaration(bool function) const {
 }
 
 bool Parser::looks_like_type_argument_call() const {
-    if (!at(TokenKind::Less)) return false;
-
-    std::size_t i = current_ + 1;
-    if (!scan_type_lookahead(tokens_, i, 1, max_parse_depth,true)) return false;
-    while (i < tokens_.size() && tokens_[i].kind == TokenKind::Comma) {
-        ++i;
-        if (!scan_type_lookahead(tokens_, i, 1, max_parse_depth,true)) return false;
-    }
-    return i + 1 < tokens_.size() &&
-           tokens_[i].kind == TokenKind::Greater &&
-           tokens_[i + 1].kind == TokenKind::LParen;
+    return type_argument_call_open(tokens_, current_, max_parse_depth).has_value();
 }
 
 bool Parser::looks_like_cli_decl() const {
@@ -1395,15 +1399,16 @@ StmtPtr Parser::statement() {
         const bool bare_declaration = at_bare_pattern_declaration();
         if (!bare_declaration && pattern_assignment() == TokenKind::Eof)
             error(prefix, "local requires a declaration.");
-        auto result = destructuring_stmt(bare_declaration);
+        auto result = destructuring_stmt(bare_declaration ? TokenKind::DeclareAssign : TokenKind::Eof);
         auto* binding = std::get_if<BindingStmt>(&result->data);
         if (!binding) error(prefix, "local requires a declaration, not an assignment.");
         binding->is_local = true;
         result->span.start = prefix.span.start;
         return result;
     }
-    if (at_bare_pattern_declaration()) return destructuring_stmt(true);
+    if (at_bare_pattern_declaration()) return destructuring_stmt(TokenKind::DeclareAssign);
     if (pattern_assignment() != TokenKind::Eof) return destructuring_stmt();
+    if (bare_pattern_assignment()) return destructuring_stmt(TokenKind::Assign);
     if (at(TokenKind::Ampersand) &&
         ((peek(1).kind == TokenKind::Identifier &&
           peek(2).kind == TokenKind::Assign && peek(3).kind == TokenKind::Ampersand) ||
@@ -1454,12 +1459,68 @@ TokenKind Parser::pattern_assignment() const {
     return TokenKind::Eof;
 }
 
+bool Parser::bare_pattern_assignment() const {
+    // Only a comma before a plain '=' on this logical line starts a bare
+    // pattern. Inspect generic type arguments only for candidates: otherwise
+    // '<' may be part of a comparison or shift in an unrelated expression.
+    bool possible_generic_comma = false;
+    const auto scan = [&](bool skip_type_arguments) {
+        bool comma = false;
+        for (std::size_t i = current_; i < tokens_.size();) {
+            switch (tokens_[i].kind) {
+            case TokenKind::Assign: return comma;
+            case TokenKind::DeclareAssign:
+            case TokenKind::PlusAssign:
+            case TokenKind::MinusAssign:
+            case TokenKind::StarAssign:
+            case TokenKind::SlashAssign:
+            case TokenKind::PercentAssign:
+            case TokenKind::Newline:
+            case TokenKind::Eof:
+            case TokenKind::Indent:
+            case TokenKind::Dedent:
+            case TokenKind::RParen:
+            case TokenKind::RBracket:
+            case TokenKind::RBrace:
+                return false;
+            case TokenKind::LParen:
+                if (!skip_balanced(tokens_, i, TokenKind::LParen, TokenKind::RParen)) return false;
+                continue;
+            case TokenKind::LBracket:
+                if (!skip_balanced(tokens_, i, TokenKind::LBracket, TokenKind::RBracket)) return false;
+                continue;
+            case TokenKind::LBrace:
+                if (!skip_balanced(tokens_, i, TokenKind::LBrace, TokenKind::RBrace)) return false;
+                continue;
+            case TokenKind::Less:
+                if (!comma && !skip_type_arguments) possible_generic_comma = true;
+                if (!comma && skip_type_arguments) {
+                    if (const auto open = type_argument_call_open(tokens_, i, max_parse_depth)) {
+                        i = *open;
+                        continue;
+                    }
+                }
+                break;
+            case TokenKind::Comma:
+                comma = true;
+                break;
+            default:
+                break;
+            }
+            ++i;
+        }
+        return false;
+    };
+    return scan(false) && (!possible_generic_comma || scan(true));
+}
+
 Pattern Parser::parse_pattern(bool match_case, bool infer_bindings, bool parenthesized) {
     Pattern result;
     result.span.start = parenthesized
         ? consume(TokenKind::LParen, "Expected tuple pattern.").span.start
         : peek().span.start;
-    const auto pattern_end = parenthesized ? TokenKind::RParen : TokenKind::DeclareAssign;
+    const auto pattern_end = parenthesized ? TokenKind::RParen
+        : (infer_bindings ? TokenKind::DeclareAssign : TokenKind::Assign);
     for(;;) {
         if(at(pattern_end)) throw CompileError(Diagnostic{"TUPLE","Trailing comma is not allowed in a tuple.",peek().span});
         Pattern item;item.span.start=peek().span.start;
@@ -1505,31 +1566,26 @@ Pattern Parser::parse_pattern(bool match_case, bool infer_bindings, bool parenth
     return result;
 }
 
-StmtPtr Parser::destructuring_stmt(bool bare_declaration) {
-    const bool declaration = bare_declaration || pattern_assignment() == TokenKind::DeclareAssign;
-    auto pattern = parse_pattern(false, declaration, !bare_declaration);
+StmtPtr Parser::destructuring_stmt(TokenKind bare_operator) {
+    const bool parenthesized = bare_operator == TokenKind::Eof;
+    const auto operation = parenthesized ? pattern_assignment() : bare_operator;
+    const bool declaration = operation == TokenKind::DeclareAssign;
+    auto pattern = parse_pattern(false, declaration, parenthesized);
     const auto start = pattern.span.start;
     if (!match(declaration ? TokenKind::DeclareAssign : TokenKind::Assign))
         throw CompileError(Diagnostic{"TUPLE", "Use ':=' for a pattern declaration or '=' for assignment.", peek().span});
-    const bool reference = match(TokenKind::Ampersand);
+    // An assignment's first bare element can itself start with an address
+    // expression, as in `same, b = &x == &y, b`.
+    const bool reference = declaration ? match(TokenKind::Ampersand) : at(TokenKind::Ampersand);
     auto value = expression();
-    if (declaration && !reference && match(TokenKind::Comma)) {
-        const auto tuple_start = value->span.start;
-        TupleExpr tuple;
-        tuple.elements.push_back(std::move(value));
-        do {
-            tuple.elements.push_back(expression());
-        } while (match(TokenKind::Comma));
-        value = std::make_unique<Expr>();
-        value->span = {tuple_start, tuple.elements.back()->span.end};
-        value->data = std::move(tuple);
-    }
+    const bool bare_values = !(declaration && reference) && match(TokenKind::Comma);
+    if (bare_values) value = tuple_after_comma(std::move(value), TokenKind::Newline);
     const auto end = value->span.end;
     bool declares=false,places=false;visit_pattern(pattern,[&](const Pattern& p){declares|=p.kind==Pattern::Kind::Declare;places|=p.kind==Pattern::Kind::Place;});
     if(declares && places) throw CompileError(Diagnostic{"TUPLE","A pattern cannot mix declarations and existing places.",pattern.span});
     if (declaration != declares)
         throw CompileError(Diagnostic{"TUPLE", "Use ':=' for a pattern declaration or '=' for assignment.", pattern.span});
-    if(reference && !declares) throw CompileError(Diagnostic{"TUPLE","A reference pattern declares references only.",pattern.span});
+    if(reference && !declares && !bare_values) throw CompileError(Diagnostic{"TUPLE","A reference pattern declares references only.",pattern.span});
     auto out=std::make_unique<Stmt>();out->span={start,end};
     if(declares) {BindingStmt binding;binding.declared_type.name="auto";binding.value=std::move(value);binding.reference=reference;binding.reference_initializer=reference;binding.pattern=std::move(pattern);out->data=std::move(binding);}
     else {AssignStmt assignment;assignment.target=std::make_unique<Expr>();assignment.target->data=TupleExpr{};assignment.value=std::move(value);assignment.pattern=std::move(pattern);out->data=std::move(assignment);}
@@ -2073,6 +2129,21 @@ ExprPtr Parser::expression() {
     ParseDepthGuard depth(expression_depth_, max_parse_depth, peek(), "Expression");
     if (at(TokenKind::KwIf)) return if_expression();
     return or_expr();
+}
+
+ExprPtr Parser::tuple_after_comma(ExprPtr first, TokenKind end) {
+    const auto start = first->span.start;
+    TupleExpr tuple;
+    tuple.elements.push_back(std::move(first));
+    do {
+        if (at(end) || (end == TokenKind::Newline && (at(TokenKind::Eof) || at(TokenKind::Dedent))))
+            throw CompileError(Diagnostic{"TUPLE", "Trailing comma is not allowed in a tuple.", peek().span});
+        tuple.elements.push_back(expression());
+    } while (match(TokenKind::Comma));
+    auto result = std::make_unique<Expr>();
+    result->span = {start, tuple.elements.back()->span.end};
+    result->data = std::move(tuple);
+    return result;
 }
 
 // An IF_EXPRESSION error that does not stop the parse: the if-expression is
@@ -2953,14 +3024,7 @@ ExprPtr Parser::primary() {
     FlagScope marker_stop(slice_start_marker_stop_, false); const auto start=previous().span.start;
         if(at(TokenKind::RParen)) throw CompileError(Diagnostic{"TUPLE","A tuple has at least two elements.",peek().span});
         auto e=expression();
-        if(match(TokenKind::Comma)) {
-            std::vector<ExprPtr> elements;elements.push_back(std::move(e));
-            do {
-                if(at(TokenKind::RParen)) throw CompileError(Diagnostic{"TUPLE","Trailing comma is not allowed in a tuple.",peek().span});
-                elements.push_back(expression());
-            } while(match(TokenKind::Comma));
-            e=std::make_unique<Expr>();e->data=TupleExpr{std::move(elements)};
-        }
+        if (match(TokenKind::Comma)) e = tuple_after_comma(std::move(e), TokenKind::RParen);
         const auto end=consume(TokenKind::RParen,"Expected ')' after expression.").span.end;
         e->span=SourceSpan{start,end};return e;
     }

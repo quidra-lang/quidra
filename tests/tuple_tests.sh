@@ -53,6 +53,16 @@ print(ok and z == com32(1.0 + 2.0i) and count == 3)
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/values.qui")" == $'10 a, b\n2 1\n2 1 a, b\n(9, "changed")\n(2, "a, b")\nfalse\ntrue' ]]
+cat > "$TMP/bare.qui" <<'QUI'
+int gcd(int a, int b)
+    while b
+        a,b=b,a%b
+    return a
+for (a, b) := [(48, 180)][]
+    divisor := gcd(a, b)
+    println("gcd={divisor} lcm={a / divisor * b}")
+QUI
+[[ "$("$QUIDRA" "$TMP/bare.qui")" == 'gcd=12 lcm=720' ]]
 cat > "$TMP/loops.qui" <<'QUI'
 (int, string)[] pairs := [(1, "one"), (2, "two")]
 for: (int n, string s) := pairs[i]
@@ -144,8 +154,9 @@ check_rejected UNINITIALIZED $'(string, int) p\n(string &s, int &n) := &p'
 check_rejected MATCH_CASE $'(int, int) initial := (1, 2)\n(int, int) | (int, string) v := initial\nmatch v\n    (int a, _)\n        print(a)'
 check_rejected MATCH_CASE $'(int, string) | none v := (1, "x")\nmatch v\n    (int &a, string &b)\n        print(a)\n    none\n        print("none")'
 check_rejected DISCARD $'(int a, _) := (1, 2)\nprint(_)'
-for name in flat values loops match keys; do
+for name in flat values loops match keys bare; do
     cp "$TMP/$name.qui" "$TMP/$name.formatted.qui"
     "$QUIDRA" fmt "$TMP/$name.formatted.qui"
     [[ "$("$QUIDRA" "$TMP/$name.qui")" == "$("$QUIDRA" "$TMP/$name.formatted.qui")" ]]
 done
+grep -Fxq '        a, b = b, a % b' "$TMP/bare.formatted.qui"

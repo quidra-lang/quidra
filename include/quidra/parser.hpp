@@ -86,9 +86,10 @@ private:
     StmtPtr binding_stmt();
     bool at_bare_pattern_declaration() const;
     TokenKind pattern_assignment() const;
+    bool bare_pattern_assignment() const;
     Pattern parse_pattern(bool match_case = false, bool infer_bindings = false,
                           bool parenthesized = true);
-    StmtPtr destructuring_stmt(bool bare_declaration = false);
+    StmtPtr destructuring_stmt(TokenKind bare_operator = TokenKind::Eof);
     StmtPtr return_stmt();
     StmtPtr loop_control_stmt();
     StmtPtr if_stmt();
@@ -102,6 +103,7 @@ private:
 
     std::vector<CallArg> call_arguments(bool address_values = false);
     ExprPtr expression();
+    ExprPtr tuple_after_comma(ExprPtr first, TokenKind end);
     ExprPtr if_expression();
     ExprPtr if_expression_part();
     void report_if_expression(const Token& token, std::string message);

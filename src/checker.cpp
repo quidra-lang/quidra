@@ -6195,11 +6195,13 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("UNKNOWN_MEMBER", "sorted() requires orderable array elements; supply sorted(by=...) for other element types.", expression.span);
                             valid_arguments = false;
                         }
-                        if (descending) {
+                        if (descending && !by) {
+                            valid_arguments &= !poisoned(check_truth_value(*descending->value));
+                        } else if (descending) {
                             const auto flag = check_expr(*descending->value);
                             if (flag.kind == TypeKind::Bool) {
                                 // A scalar bool controls all the keys (or the natural sort).
-                            } else if (by && flag.kind == TypeKind::Tuple &&
+                            } else if (flag.kind == TypeKind::Tuple &&
                                        flag.parameters.size() == key_count) {
                                 for (const auto& part : flag.parameters) {
                                     if (part.kind != TypeKind::Bool) {
@@ -6208,9 +6210,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                     }
                                 }
                             } else if (!poisoned(flag)) {
-                                error("TYPE_MISMATCH", by
-                                      ? "descending must be bool or a bool tuple matching by keys."
-                                      : "descending must be bool.", descending->span);
+                                error("TYPE_MISMATCH",
+                                      "descending must be bool or a bool tuple matching by keys.",
+                                      descending->span);
                                 valid_arguments = false;
                             } else {
                                 valid_arguments = false;
@@ -6449,11 +6451,13 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
     const auto* node = &node_value;
     const auto& name = node->callee;
     auto builtin_arg = [&](std::size_t i, const std::string& label,
-                           const Type* required = nullptr) {
+                           const Type* required = nullptr, bool integer_truth = true) {
         const auto& argument = node->args[i];
         if (argument.writable || (argument.name && *argument.name != label)) {
             error("ARGUMENT_MISMATCH", "Invalid builtin argument.", argument.span);
         }
+        if (!integer_truth && required && required->kind == TypeKind::Bool)
+            return check_expr(*argument.value, required);
         return check_value_argument(*argument.value, required);
     };
             call_resolutions_[&expression] =
@@ -6979,12 +6983,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         expected_value = builtin_arg(1, "expected");
                         actual = poisoned(expected_value)
                             ? simple(TypeKind::Invalid)
-                            : builtin_arg(0, "actual", &expected_value);
+                            : builtin_arg(0, "actual", &expected_value, false);
                     } else {
                         actual = builtin_arg(0, "actual");
                         expected_value = poisoned(actual)
                             ? simple(TypeKind::Invalid)
-                            : builtin_arg(1, "expected", &actual);
+                            : builtin_arg(1, "expected", &actual, false);
                     }
                     if (poisoned(actual) || poisoned(expected_value)) {
                         type = simple(TypeKind::Invalid);
@@ -8557,6 +8561,8 @@ Type Checker::check_class_construction(const Expr& expression, const CallExpr& n
 // effects to apply once the call is accepted. Shared by function calls and
 // constructor calls, whose signatures carry no receiver parameter.
 Type Checker::check_value_argument(const Expr& expression, const Type* expected) {
+    if (expected && expected->kind == TypeKind::Bool) return check_truth_value(expression);
+
     const auto numeric_destination = [](const auto& self, const Type& candidate) -> bool {
         if (is_numeric(candidate)) return true;
         if (candidate.kind == TypeKind::Tensor)
@@ -9100,10 +9106,11 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     return valid ? simple(TypeKind::Bool) : simple(TypeKind::Invalid);
 }
 
-Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected) {
-    const auto bool_type = simple(TypeKind::Bool);
+Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected,
+                            bool integer_truth) {
     const bool contextual = expected != nullptr;
     const bool infer_tuple_context = contextual && tuple_context_incomplete(*expected);
+    const bool infer_try_integer = integer_truth && contextual && expected->kind == TypeKind::Union;
     std::optional<Type> inferred_context;
 
     const auto save = [&]() {
@@ -9230,7 +9237,7 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
 
     const auto check_condition = [&](const Expr& condition) {
         try {
-            (void)check_expr(condition, &bool_type);
+            (void)check_truth_value(condition);
         } catch (const CompileError& failure) {
             const auto& diagnostic = failure.diagnostic();
             const auto raw = raw_types_.find(&condition);
@@ -9238,7 +9245,7 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
                 diagnostic.span.start.offset == condition.span.start.offset &&
                 diagnostic.span.end.offset == condition.span.end.offset &&
                 raw != raw_types_.end() && raw->second.kind != TypeKind::Bool) {
-                error("TYPE_MISMATCH", "An if-expression condition must be bool.", condition.span);
+                error("TYPE_MISMATCH", "An if-expression condition must be bool or an integer.", condition.span);
             }
             throw;
         }
@@ -9256,13 +9263,16 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         // Without a contextual type a numeric literal branch takes the type
         // of the typed branches, so it is checked after them; it has no
         // effect on the flow. A nested if-expression is always typed here.
-        if (!contextual && !is_if_expression(value) &&
-            numeric_literal_family(value) != NumericLiteralCategory::None) {
+        const auto family = numeric_literal_family(value);
+        if (!is_if_expression(value) &&
+            ((!contextual && family != NumericLiteralCategory::None) ||
+             (infer_try_integer && integer_category(family)))) {
             literal_branches.push_back(&value);
             return false;
         }
         const auto* branch_context = inferred_context ? &*inferred_context : expected;
-        const auto type = contextual ? check_expr(value, branch_context) : check_expr(value);
+        const auto type = check_expr(value, branch_context,
+                                     integer_truth && branch_context == expected);
         const bool terminates = expr_has_no_normal_return(value);
         if (poisoned(type)) {
             poisoned_branch = true;
@@ -9270,6 +9280,11 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         }
         if (terminates || type.kind == TypeKind::Never) return true;
         if (infer_tuple_context && !inferred_context) inferred_context = type;
+        if (infer_try_integer && !inferred_context) {
+            const auto success = error_free_operand_type(type).value_or(type);
+            if (is_integer_family_type(success))
+                inferred_context = Type::union_of({success, simple(TypeKind::Error)});
+        }
         if (!contextual) {
             if (!branch_type) {
                 branch_type = type;
@@ -9317,6 +9332,8 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
     }
 
     if (poisoned_branch) return simple(TypeKind::Invalid);
+    if (infer_try_integer && !inferred_context && !literal_branches.empty())
+        inferred_context = Type::union_of({simple(TypeKind::Int), simple(TypeKind::Error)});
     Type type = simple(TypeKind::Never);
     if (contextual) {
         type = inferred_context ? *inferred_context : *expected;
@@ -9326,6 +9343,18 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         type = check_expr(*literal_branches.front());
     }
     for (const auto* value : literal_branches) (void)check_expr(*value, &type);
+    if (infer_try_integer && inferred_context) {
+        // Branches checked before the first integer can contribute error,
+        // but any success payload must match the inferred integer type.
+        const auto check_branch_type = [&](const Expr& value) {
+            const auto& raw = raw_types_.at(&value);
+            if (!assignable(raw, type))
+                error("TYPE_MISMATCH", "Expected " + type_name(type) +
+                      " but received " + type_name(raw) + ".", value.span);
+        };
+        for (const auto& value : node.values) check_branch_type(*value);
+        check_branch_type(*node.otherwise);
+    }
     if (type.kind == TypeKind::Void) {
         error("TYPE_MISMATCH", "An if-expression gives a value; its branches cannot be void.",
               expression.span);
@@ -9549,7 +9578,18 @@ Type Checker::check_numeric_array_result(
     return valid ? result_type(left, right) : simple(TypeKind::Invalid);
 }
 
-Type Checker::check_expr(const Expr& expression, const Type* expected) {
+Type Checker::check_truth_value(const Expr& expression) {
+    const auto boolean = simple(TypeKind::Bool);
+    return check_expr(expression, &boolean, true);
+}
+
+Type Checker::check_expr(const Expr& expression, const Type* expected, bool integer_truth) {
+    const Type* const truth_context = integer_truth ? expected : nullptr;
+    const Type* const bool_context = expected && expected->kind == TypeKind::Bool ? expected : nullptr;
+    // A truth test supplies no numeric literal type. Evaluate the integer
+    // expression normally before checking whether its result is nonzero.
+    if (truth_context && !std::holds_alternative<IfExpr>(expression.data) &&
+        integer_category(numeric_literal_family(expression))) expected = nullptr;
     const auto consume_operand = [&](const Expr& value, const Type& source) {
         const auto success = consume_error_operand(value, source,
             fail_fast_expressions_, expr_types_);
@@ -9884,6 +9924,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         if (node->op == "&") {
             (void)check_address_target(*node->operand, false);
             type = simple(TypeKind::Address);
+        } else if (node->op == "not") {
+            type = check_truth_value(*node->operand);
+            if (type.kind == TypeKind::Never)
+                error("TYPE_MISMATCH", "not requires bool or an integer.", expression.span);
         } else {
         std::optional<Type> literal_expected;
         const Type* operand_expected = nullptr;
@@ -9944,11 +9988,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 check_expr(*node->operand, operand_expected));
         }
         if (!poisoned(type)) {
-            if (node->op == "not") {
-                if (type.kind != TypeKind::Bool) {
-                    error("TYPE_MISMATCH", "not requires bool.", expression.span);
-                }
-            } else if (node->op == "NOT") {
+            if (node->op == "NOT") {
                 if (!is_fixed_integer(type)) {
                     error("TYPE_MISMATCH", "NOT requires a fixed-width integer.", expression.span);
                 }
@@ -9975,6 +10015,13 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
         }
+    } else if (const auto* logical = std::get_if<BinaryExpr>(&expression.data);
+               logical && operator_policy::is_short_circuit(logical->op)) {
+        const auto left = check_truth_value(*logical->left);
+        const auto right = check_truth_value(*logical->right);
+        if (left.kind == TypeKind::Never || right.kind == TypeKind::Never)
+            error("TYPE_MISMATCH", "Logical operands must be bool or an integer.", expression.span);
+        type = simple(poisoned(left) || poisoned(right) ? TypeKind::Invalid : TypeKind::Bool);
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
         const auto left_family = numeric_literal_family(*node->left);
         const auto right_family = numeric_literal_family(*node->right);
@@ -10310,12 +10357,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     error("TYPE_MISMATCH", "Operands must have identical types.", expression.span);
                 }
             }
-            if (node->op == "and" || node->op == "or") {
-                if (left.kind != TypeKind::Bool) {
-                    error("TYPE_MISMATCH", "Logical operands must be bool.", expression.span);
-                }
-                type = left;
-            } else if (operator_policy::is_fixed_width_bitwise_binary(node->op)) {
+            if (operator_policy::is_fixed_width_bitwise_binary(node->op)) {
                 if (!is_fixed_integer(left)) {
                     error("TYPE_MISMATCH",
                           "Bitwise operations require nat8..nat64 or int8..int64.",
@@ -10454,7 +10496,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         ScopedErrorConsumption propagation(error_terminating_expr_,&expression);
         if (expected) {
             const auto operand_expected = Type::union_of({*expected, error_type});
-            source = check_expr(*node->value, &operand_expected);
+            source = check_expr(*node->value, &operand_expected, integer_truth);
         } else {
             source = check_expr(*node->value);
         }
@@ -10492,7 +10534,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         check_writable_arguments(node->args);
         type = check_call_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<IfExpr>(&expression.data)) {
-        type = check_if_expr(expression, *node, expected);
+        type = check_if_expr(expression, *node, expected, integer_truth);
     } else if (const auto* node = std::get_if<ComparisonChainExpr>(&expression.data)) {
         type = check_comparison_chain(expression, *node);
     }
@@ -10507,6 +10549,24 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         for (const auto& [path, dependencies] : copies)
             if (dependencies.empty()) class_expr_initialized_paths_[&expression].insert(path);
     }
+    if (truth_context) {
+        const auto success = error_free_operand_type(type).value_or(type);
+        if (is_integer_family_type(success)) {
+            if (truth_context->kind == TypeKind::Bool) {
+                expr_types_[&expression] = consume_operand(expression, type);
+                implicit_numeric_argument_conversions_[&expression] = *truth_context;
+                return *truth_context;
+            }
+            // A try operand keeps its error channel. Convert the integer
+            // success value only after try has propagated any error.
+            expr_types_[&expression] = type;
+            return type;
+        }
+        expected = truth_context;
+    }
+    // An inlined constant is evaluated in its declared type. Its result
+    // still has to satisfy a surrounding bool destination.
+    if (bool_context) expected = bool_context;
     std::optional<Type> completed_context;
     if (expected && tuple_context_incomplete(*expected)) {
         completed_context = complete_tuple_context(*expected, type);
@@ -11896,8 +11956,7 @@ bool Checker::condition_initializes_reference(
 
 void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         for (const auto& binding : node.condition_bindings) check_stmt(*binding);
-        auto bool_type = simple(TypeKind::Bool);
-        check_expr(*node.condition, &bool_type);
+        check_truth_value(*node.condition);
         auto variables = variables_;
         auto references = reference_roots_;
         auto reference_paths = reference_paths_;
@@ -12174,8 +12233,7 @@ void Checker::check_parallel_stmt(const Stmt&, const ParallelStmt& node) {
 
 void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         for (const auto& binding : node.condition_bindings) check_stmt(*binding);
-        auto bool_type = simple(TypeKind::Bool);
-        check_expr(*node.condition, &bool_type);
+        check_truth_value(*node.condition);
         auto variables = variables_;
         auto references = reference_roots_;
         auto reference_paths = reference_paths_;
@@ -12381,7 +12439,7 @@ Type Checker::check_array_comprehension(const Expr& expression,
     ScopedCounter copy_loop(loop_depth_);
     discard_loop_copy_initializations();
     try {
-        if (node.condition) { const auto boolean = simple(TypeKind::Bool); check_expr(*node.condition, &boolean); }
+        if (node.condition) check_truth_value(*node.condition);
         element = check_expr(*node.value, context ? context->first.get() : nullptr);
         if (!context) {
             // An inferred generated value follows inferred binding consumption.

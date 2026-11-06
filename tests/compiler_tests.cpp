@@ -1979,8 +1979,16 @@ static void if_expressions_are_typed_like_initializers() {
     good(ready + "x := if ready then 1 else 2\n");
     bad_message(ready + "int64 a := 1\nreal64 b := 2.0\nx := if ready then a else b\n",
                 "TYPE_MISMATCH", "different types: 'int64' and 'real64'");
-    bad_message("int k := 1\nint x := if k then 1 else 2\n", "TYPE_MISMATCH",
-                "An if-expression condition must be bool.");
+    good("int k := 1\nint x := if k then 1 else 2\n");
+    bad_message("string k := \"x\"\nint x := if k then 1 else 2\n", "TYPE_MISMATCH",
+                "An if-expression condition must be bool");
+    bad_code("bool flag := 1\n", "TYPE_MISMATCH");
+    bad_code("test.equal(true, 2)\n", "TYPE_MISMATCH");
+    bad_code("test.equal(2, true)\n", "TYPE_MISMATCH");
+    bad_code("println(not process.exit(7))\n", "TYPE_MISMATCH");
+    bad_code("println(true and process.exit(7))\n", "TYPE_MISMATCH");
+    bad_code("bool flag()\n    return 1\n", "TYPE_MISMATCH");
+    bad_code("bool flag(bool value)\n    return value\nprint(flag(1.0))\n", "TYPE_MISMATCH");
     // An if-expression as the condition of an if-expression, parenthesized.
     good(ready + "int x := if (if ready then false else true) then 1 else 2\nprint(x)\nprint(NL)\n");
     // Strings, arrays, classes, tensors and unions as branches.
@@ -2459,8 +2467,8 @@ static void sorted_takes_a_descending_flag() {
                 "Unknown sorted argument 'order'.");
     bad_message(values + "d := a.sorted(descending = true, descending = false)\n",
                 "ARGUMENT_MISMATCH", "Duplicate sorted(descending=...).");
-    bad_message(values + "int64 one := 1\nd := a.sorted(descending = one)\n", "TYPE_MISMATCH",
-                "descending must be bool.");
+    good(values + "int64 one := 1\nd := a.sorted(descending = one)\n");
+    bad_code(values + "d := a.sorted(descending = 1.0)\n", "TYPE_MISMATCH");
     // Ascending (no argument or a constant false) is today's instruction;
     // a constant true calls the descending entry, a flag branches.
     ir_contains(values + "d := a.sorted(descending = false)\nprint(d[0])\n", "= array.sorted %");

@@ -309,7 +309,10 @@ A use materializes into the type its context expects, as a real literal does: in
 
 ## Conversion
 
-Outside numeric operators and numeric value call arguments, already-typed values never change concrete type implicitly.
+Assignments and returns between numeric types require explicit conversion.
+Scalar integers have a separate [truth test](language.md#conditions-and-iteration)
+in conditions, logical operands, and `bool` value arguments. The test is exact
+at every integer width.
 
 ```quidra
 int32 small := 3

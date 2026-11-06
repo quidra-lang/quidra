@@ -102,7 +102,7 @@ std::optional<ValueId> AutogradLowering::try_tensor_autograd_method(
         auto track=builder_.const_bool(false);
         for(const auto& argument:n.args){
             if(!argument.writable){
-                track=lowerer_.lower(*argument.value);
+                track=lowerer_.lower_argument(*argument.value);
                 continue;
             }
             auto target=lowerer_.lower(*argument.value);

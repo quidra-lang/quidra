@@ -57,7 +57,7 @@ ValueId SystemLowering::lower_environment_has(const CallExpr& n) {
 }
 
 ValueId SystemLowering::lower_time_now(const CallExpr& n) {
-    auto sync=n.args.empty()?builder_.const_bool(false):lowerer_.lower(*n.args[0].value);
+    auto sync=n.args.empty()?builder_.const_bool(false):lowerer_.lower_argument(*n.args[0].value);
     auto out=builder_.fresh();
     builder_.emit(TimeNow{out,sync});
     return out;
@@ -65,7 +65,7 @@ ValueId SystemLowering::lower_time_now(const CallExpr& n) {
 
 ValueId SystemLowering::lower_time_since(const CallExpr& n) {
     auto start=lowerer_.lower(*n.args[0].value);
-    auto sync=n.args.size()==2?lowerer_.lower(*n.args[1].value):builder_.const_bool(false);
+    auto sync=n.args.size()==2?lowerer_.lower_argument(*n.args[1].value):builder_.const_bool(false);
     auto out=builder_.fresh();
     builder_.emit(TimeSince{out,start,sync});
     lifetime_.release_temporary(*n.args[0].value,start);

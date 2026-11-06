@@ -370,8 +370,8 @@ std::optional<TypeName> scalar_constant_numeric_type(const Expr& expression) {
         const auto* receiver = std::get_if<NameExpr>(&call->receiver->data);
         if (receiver && receiver->name == "real" && call->method == "atom") return named("real");
     }
-    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data))
-        return scalar_constant_numeric_type(*unary->operand);
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
+        unary && unary->op != "not") return scalar_constant_numeric_type(*unary->operand);
     if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
         if (binary->op != "+" && binary->op != "-" && binary->op != "*" &&
             binary->op != "/" && binary->op != "%" && binary->op != "^" &&
@@ -4988,6 +4988,7 @@ private:
         }
 
         if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
+            if (operator_policy::is_short_circuit(binary->op)) return simple_type("bool");
             const bool relational = is_relational_operator(binary->op);
             const bool equality = binary->op == "==" || binary->op == "!=";
             if (!relational && !equality && binary->op != "+" && binary->op != "-" &&
@@ -5690,12 +5691,16 @@ private:
         return true;
     }
 
+    enum class ArgumentConversions { exact, numeric, integer_truth };
+
     std::optional<std::vector<TypeName>> infer_generic_arguments(
         const FunctionDecl& templ,
         const std::vector<CallArg>& args,
-        const std::string& current_class) const {
+        const std::string& current_class,
+        ArgumentConversions conversions = ArgumentConversions::integer_truth) const {
         return infer_type_arguments(
-            templ.type_parameters, templ.type_parameters, templ.parameters, args, current_class,&templ.return_type);
+            templ.type_parameters, templ.type_parameters, templ.parameters, args,
+            current_class, &templ.return_type, conversions);
     }
 
     // Solves `solved` (the type parameters the call's arguments may bind)
@@ -5707,7 +5712,8 @@ private:
         const std::vector<std::string>& wanted,
         const std::vector<Parameter>& callee_parameters,
         const std::vector<CallArg>& args,
-        const std::string& current_class,const TypeName* result_pattern=nullptr) const {
+        const std::string& current_class, const TypeName* result_pattern = nullptr,
+        ArgumentConversions conversions = ArgumentConversions::integer_truth) const {
         const std::unordered_set<std::string> parameters{solved.begin(), solved.end()};
         Substitution inferred;
         std::vector<bool> filled(callee_parameters.size(), false);
@@ -5750,7 +5756,7 @@ private:
             if (infer_generic_pattern(parameter.type, *actual, parameters, inferred)) return true;
             // Fixed portions do not infer T; convert them after choosing the instance.
             return !parameter.writable && !contains_parameter(parameter.type, parameters) &&
-                   concrete_argument_type_match(parameter.type, *actual, true);
+                   concrete_argument_type_match(parameter.type, *actual, true, conversions);
         };
         // Typed values choose generic arguments before literals receive context.
         for (const auto& [argument, index] : bindings)
@@ -5886,18 +5892,23 @@ private:
 
     bool concrete_argument_type_match(
         const TypeName& expected, const TypeName& actual, bool allow_error_unwrap,
-        bool allow_numeric_conversion = true) const {
-        Substitution ignored;
-        if (infer_generic_pattern(expected, actual, {}, ignored)) return true;
-        if (allow_numeric_conversion && numeric_argument_type_match(expected, actual)) return true;
-        // Ordinary value arguments may fail fast on an error alternative when
-        // their concrete destination accepts the success type. References and
-        // inferred generic arguments keep their original declared type.
-        if (allow_error_unwrap) {
-            if (const auto residual = non_error_type(actual))
-                return infer_generic_pattern(expected, *residual, {}, ignored) ||
-                    (allow_numeric_conversion && numeric_argument_type_match(expected, *residual));
-        }
+        ArgumentConversions conversions = ArgumentConversions::numeric) const {
+        const auto matches = [&](const TypeName& source) {
+            Substitution ignored;
+            if (infer_generic_pattern(expected, source, {}, ignored)) return true;
+            if (conversions != ArgumentConversions::exact &&
+                numeric_argument_type_match(expected, source)) return true;
+            if (conversions != ArgumentConversions::integer_truth ||
+                expected.name != "bool" || !expected.dimensions.empty() ||
+                !source.dimensions.empty() || !source.arguments.empty()) return false;
+            const auto* numeric = numeric_type_name(source.name);
+            return numeric && is_integer_family_type(Type::simple(numeric->kind));
+        };
+        if (matches(actual)) return true;
+        // Concrete value parameters can consume a fallible result. References
+        // and the types used to infer generic parameters keep their own type.
+        if (allow_error_unwrap)
+            if (const auto residual = non_error_type(actual)) return matches(*residual);
         return false;
     }
 
@@ -5907,15 +5918,14 @@ private:
         const std::string& current_class,
         const Substitution* explicit_arguments = nullptr,
         bool allow_contextual_error_unwrap = false,
-        bool allow_numeric_conversions = true) const {
+        ArgumentConversions conversions = ArgumentConversions::numeric) const {
         const auto targets = bind_family_arguments(function, args);
         if (!targets) return false;
         const auto contextual_match = [&](const auto& self, const Expr& value,
-                                          const TypeName& expected, bool allow_error_unwrap, bool allow_numeric_conversion) -> bool {
-            if (const auto actual = infer_call_argument_type(value, expected, current_class)) {
-                return concrete_argument_type_match(expected, *actual, allow_error_unwrap,
-                    allow_numeric_conversion);
-            }
+                                          const TypeName& expected, bool allow_error_unwrap,
+                                          ArgumentConversions mode) -> bool {
+            if (const auto actual = infer_call_argument_type(value, expected, current_class))
+                return concrete_argument_type_match(expected, *actual, allow_error_unwrap, mode);
             if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
                 if (expected.dimensions.empty()) return false;
                 if (expected.dimensions.front() >= 0 &&
@@ -5926,27 +5936,29 @@ private:
                 if (!element.dimension_expressions.empty())
                     element.dimension_expressions.erase(element.dimension_expressions.begin());
                 element.array_depth = element.dimensions.size();
+                const auto element_mode = mode == ArgumentConversions::integer_truth
+                    ? ArgumentConversions::numeric : mode;
                 return std::all_of(array->elements.begin(), array->elements.end(),
-                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap, allow_numeric_conversion); });
+                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap, element_mode); });
             }
             if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
-                return self(self, *conditional->otherwise, expected, allow_error_unwrap, allow_numeric_conversion) &&
+                return self(self, *conditional->otherwise, expected, allow_error_unwrap, mode) &&
                     std::all_of(conditional->values.begin(), conditional->values.end(),
-                        [&](const auto& item) { return self(self, *item, expected, allow_error_unwrap, allow_numeric_conversion); });
+                        [&](const auto& item) { return self(self, *item, expected, allow_error_unwrap, mode); });
             }
             if (const auto* unary = std::get_if<UnaryExpr>(&value.data)) {
                 return (unary->op == "-" || unary->op == "+") &&
-                    self(self, *unary->operand, expected, allow_error_unwrap, allow_numeric_conversion);
+                    self(self, *unary->operand, expected, allow_error_unwrap, mode);
             }
             if (const auto* binary = std::get_if<BinaryExpr>(&value.data)) {
                 return expected.dimensions.empty() &&
                     (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
                      binary->op == "/" || binary->op == "%" || binary->op == "^") &&
-                    self(self, *binary->left, expected, allow_error_unwrap, allow_numeric_conversion) &&
-                    self(self, *binary->right, expected, allow_error_unwrap, allow_numeric_conversion);
+                    self(self, *binary->left, expected, allow_error_unwrap, mode) &&
+                    self(self, *binary->right, expected, allow_error_unwrap, mode);
             }
             if (const auto* literal = std::get_if<LiteralConstantExpr>(&value.data))
-                return self(self, *literal->value, expected, allow_error_unwrap, allow_numeric_conversion);
+                return self(self, *literal->value, expected, allow_error_unwrap, mode);
             return (std::holds_alternative<IntegerExpr>(value.data) ||
                     std::holds_alternative<RealLiteralExpr>(value.data)) &&
                 expected.dimensions.empty() && expected.arguments.empty() &&
@@ -5958,11 +5970,10 @@ private:
             std::optional<TypeName> substituted;
             const auto& expected = explicit_arguments
                 ? substituted.emplace(substitute_raw(pattern, *explicit_arguments)) : pattern;
+            const bool writable = function.parameters[(*targets)[i]].writable;
             if (!contextual_match(contextual_match, *args[i].value, expected,
-                                  allow_contextual_error_unwrap &&
-                                  !function.parameters[(*targets)[i]].writable,
-                                  allow_numeric_conversions &&
-                                  !function.parameters[(*targets)[i]].writable)) return false;
+                                  allow_contextual_error_unwrap && !writable,
+                                  writable ? ArgumentConversions::exact : conversions)) return false;
         }
         return true;
     }
@@ -5970,9 +5981,10 @@ private:
     std::optional<std::vector<TypeName>> generic_family_match(
         const FunctionDecl& function,
         const std::vector<CallArg>& args,
-        const std::string& current_class) const {
+        const std::string& current_class,
+        ArgumentConversions conversions = ArgumentConversions::numeric) const {
         if (!bind_family_arguments(function, args)) return std::nullopt;
-        const auto inferred = infer_generic_arguments(function, args, current_class);
+        const auto inferred = infer_generic_arguments(function, args, current_class, conversions);
         if (!inferred || !generic_arguments_satisfy(function, *inferred)) {
             return std::nullopt;
         }
@@ -6037,7 +6049,7 @@ private:
 
         for (const auto* function : family->second) {
             if (function->type_parameters.empty()) {
-                if (concrete_family_match(*function, args, current_class, nullptr, false, false)) {
+                if (concrete_family_match(*function, args, current_class, nullptr, false, ArgumentConversions::exact)) {
                     concrete_matches.push_back(function);
                 }
             } else if (const auto inferred =
@@ -6047,18 +6059,18 @@ private:
             }
         }
 
-        if (concrete_matches.empty() && generic_matches.empty()) {
-            for (const auto* function : family->second)
-                if (function->type_parameters.empty() &&
-                    concrete_family_match(*function, args, current_class, nullptr, true, false))
-                    concrete_matches.push_back(function);
-        }
-
-        if (concrete_matches.empty() && generic_matches.empty()) {
-            for (const auto* function : family->second)
-                if (function->type_parameters.empty() &&
-                    concrete_family_match(*function, args, current_class, nullptr, true))
-                    concrete_matches.push_back(function);
+        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric,
+                                       ArgumentConversions::integer_truth}) {
+            if (!concrete_matches.empty() || !generic_matches.empty()) break;
+            for (const auto* function : family->second) {
+                if (function->type_parameters.empty()) {
+                    if (concrete_family_match(*function, args, current_class, nullptr, true, conversions))
+                        concrete_matches.push_back(function);
+                } else if (conversions == ArgumentConversions::integer_truth) {
+                    if (const auto inferred = generic_family_match(*function, args, current_class, conversions))
+                        generic_matches.push_back(GenericMatch{function, *inferred});
+                }
+            }
         }
 
         if (concrete_matches.size() > 1) {
@@ -6646,6 +6658,7 @@ private:
                 std::string source_file;
                 bool writable{};
                 bool call_matches{};
+                bool truth_call_matches{};
                 bool preferred_call{};
                 bool receiver_collision{};
             };
@@ -6667,10 +6680,12 @@ private:
                 bool matches = false;
                 bool mutable_receiver = false;
                 bool call_matches = false;
+                bool truth_call_matches = false;
                 bool preferred_call = false;
                 bool exact_contextual_match = false;
                 bool exact_contextual_collision = false;
                 bool fallback_contextual_collision = false;
+                bool truth_contextual_collision = false;
                 for (const auto* declaration : family) {
                     if (declaration->parameters.empty() ||
                         !declaration->parameters.front().is_extension ||
@@ -6678,6 +6693,7 @@ private:
                          declaration->module_namespace != current_module_namespace_))
                         continue;
                     const auto& param = declaration->parameters.front();
+                    bool receiver_needs_truth = false;
                     if (receiver_type && !contains_parameter(*receiver_type, deferred)) {
                         Substitution inferred;
                         bool receiver_matches = infer_generic_pattern(
@@ -6692,63 +6708,73 @@ private:
                             }
                         }
                         if (!receiver_matches && !param.writable) {
-                            if (declaration->type_parameters.empty()) {
-                                receiver_matches = concrete_argument_type_match(
-                                    param.type, *receiver_type, true);
-                            } else if (!extension_type_arguments.empty() &&
-                                       generic_arguments_satisfy(*declaration, extension_type_arguments)) {
+                            const TypeName* formal = &param.type;
+                            std::optional<TypeName> substituted;
+                            if (!extension_type_arguments.empty() &&
+                                generic_arguments_satisfy(*declaration, extension_type_arguments)) {
                                 Substitution explicit_arguments;
                                 for (std::size_t i = 0; i < extension_type_arguments.size(); ++i)
                                     explicit_arguments.emplace(declaration->type_parameters[i],
                                                                clone_type(extension_type_arguments[i]));
-                                receiver_matches = concrete_argument_type_match(
-                                    substitute_raw(param.type, explicit_arguments), *receiver_type, true);
+                                formal = &substituted.emplace(substitute_raw(param.type, explicit_arguments));
                             }
+                            if (declaration->type_parameters.empty() || substituted)
+                                receiver_matches = concrete_argument_type_match(*formal, *receiver_type, true);
+                            receiver_needs_truth = !receiver_matches && formal->name == "bool" &&
+                                concrete_argument_type_match(*formal, *receiver_type, true,
+                                                             ArgumentConversions::integer_truth);
                         }
-                        if (!receiver_matches) continue;
+                        if (!receiver_matches &&
+                            (!receiver_needs_truth || receiver_has_method(*receiver_type, node->method)))
+                            continue;
                     }
                     arguments.front().writable = param.writable;
-                    bool declaration_matches = false;
-                    Substitution candidate_arguments;
-                    if (extension_type_arguments.empty()) {
-                        if (declaration->type_parameters.empty()) {
-                            declaration_matches = concrete_family_match(
-                                *declaration, arguments, current_class, nullptr, true);
-                        } else if (const auto inferred = generic_family_match(
-                                       *declaration, arguments, current_class)) {
-                            declaration_matches = true;
+                    const auto matches_call = [&](ArgumentConversions conversions,
+                                                  Substitution& candidate_arguments) {
+                        if (extension_type_arguments.empty()) {
+                            if (declaration->type_parameters.empty())
+                                return concrete_family_match(*declaration, arguments, current_class,
+                                                             nullptr, true, conversions);
+                            const auto inferred = generic_family_match(*declaration, arguments, current_class,
+                                                                       conversions);
+                            if (!inferred) return false;
                             for (std::size_t i = 0; i < inferred->size(); ++i)
                                 candidate_arguments.emplace(declaration->type_parameters[i],
                                                             clone_type((*inferred)[i]));
+                        } else {
+                            if (!generic_arguments_satisfy(*declaration, extension_type_arguments))
+                                return false;
+                            for (std::size_t i = 0; i < extension_type_arguments.size(); ++i)
+                                candidate_arguments.emplace(declaration->type_parameters[i],
+                                                            clone_type(extension_type_arguments[i]));
                         }
-                    } else if (generic_arguments_satisfy(*declaration, extension_type_arguments)) {
-                        for (std::size_t i = 0; i < extension_type_arguments.size(); ++i)
-                            candidate_arguments.emplace(declaration->type_parameters[i],
-                                                        clone_type(extension_type_arguments[i]));
-                        declaration_matches = concrete_family_match(
-                            *declaration, arguments, current_class, &candidate_arguments, true);
-                    }
-                    // Inference may leave contextual literal arguments untyped.
-                    // Check those against the solved parameter types before
-                    // counting a generic family as applicable to this call.
-                    if (declaration_matches && !declaration->type_parameters.empty())
-                        declaration_matches = concrete_family_match(
-                            *declaration, arguments, current_class, &candidate_arguments,
-                            !extension_type_arguments.empty());
+                        // Check contextual arguments after solving the generic types.
+                        return concrete_family_match(*declaration, arguments, current_class,
+                                                     &candidate_arguments, !extension_type_arguments.empty(),
+                                                     conversions);
+                    };
+                    Substitution candidate_arguments;
+                    const bool declaration_matches = matches_call(ArgumentConversions::numeric, candidate_arguments);
+                    if (!declaration_matches) candidate_arguments.clear();
+                    const bool truth_matches = !declaration_matches &&
+                        matches_call(ArgumentConversions::integer_truth, candidate_arguments);
                     preferred_call |= declaration_matches &&
                         ((!declaration->type_parameters.empty() && extension_type_arguments.empty()) ||
-                         concrete_family_match(*declaration, arguments, current_class,
-                                               &candidate_arguments, false, false));
+                         concrete_family_match(*declaration, arguments, current_class, &candidate_arguments,
+                                               false, ArgumentConversions::exact));
                     // An unknown type is not a wildcard. Literal receivers
                     // can still match through the ordinary family's concrete
                     // contextual argument rules above.
-                    if (!receiver_type && !declaration_matches) continue;
-                    if (!receiver_type || (declaration_matches && non_error_type(*receiver_type))) {
+                    if ((!receiver_type || receiver_needs_truth) &&
+                        !declaration_matches && !truth_matches) continue;
+                    if (!receiver_type || ((declaration_matches || truth_matches) && non_error_type(*receiver_type))) {
                         const auto contextual_receiver =
                             materialize_type(param.type, candidate_arguments, deferred);
                         const bool collision = receiver_has_method(contextual_receiver, node->method);
-                        if (concrete_family_match(
-                                *declaration, arguments, current_class, &candidate_arguments)) {
+                        if (truth_matches) {
+                            truth_contextual_collision |= collision;
+                        } else if (concrete_family_match(
+                                       *declaration, arguments, current_class, &candidate_arguments)) {
                             exact_contextual_match = true;
                             exact_contextual_collision |= collision;
                         } else {
@@ -6758,21 +6784,27 @@ private:
                     matches = true;
                     mutable_receiver |= param.writable;
                     call_matches |= declaration_matches;
+                    truth_call_matches |= truth_matches;
                 }
                 if (!matches) continue;
                 // Inferred dispatch keeps an exact generic union match ahead
                 // of a concrete member that only matches after error removal.
                 // Such an unused member cannot introduce a native collision.
                 const bool receiver_collision = exact_contextual_match
-                    ? exact_contextual_collision : fallback_contextual_collision;
-                extensions.push_back({name, family.front()->source_file,
-                                      mutable_receiver, call_matches, preferred_call, receiver_collision});
+                    ? exact_contextual_collision
+                    : call_matches ? fallback_contextual_collision : truth_contextual_collision;
+                extensions.push_back({name, family.front()->source_file, mutable_receiver,
+                                      call_matches, truth_call_matches, preferred_call, receiver_collision});
             }
             if (!extensions.empty()) {
                 if (std::any_of(extensions.begin(), extensions.end(),
                                 [](const auto& candidate) { return candidate.call_matches; })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return !candidate.call_matches; });
+                } else if (std::any_of(extensions.begin(), extensions.end(),
+                                      [](const auto& candidate) { return candidate.truth_call_matches; })) {
+                    std::erase_if(extensions,
+                                  [](const auto& candidate) { return !candidate.truth_call_matches; });
                 }
                 if (std::any_of(extensions.begin(), extensions.end(),
                                 [](const auto& candidate) { return candidate.preferred_call; })) {
@@ -7657,7 +7689,7 @@ private:
         for (auto& member : family) {
             if (member.signature.type_parameters.empty()) {
                 if (concrete_family_match(
-                        member.signature, args, current_class, nullptr, false, false)) {
+                        member.signature, args, current_class, nullptr, false, ArgumentConversions::exact)) {
                     concrete_matches.push_back(&member);
                 }
             } else if (const auto inferred =
@@ -7668,18 +7700,18 @@ private:
             }
         }
 
-        if (concrete_matches.empty() && generic_matches.empty()) {
-            for (auto& member : family)
-                if (member.signature.type_parameters.empty() &&
-                    concrete_family_match(member.signature, args, current_class, nullptr, true, false))
-                    concrete_matches.push_back(&member);
-        }
-
-        if (concrete_matches.empty() && generic_matches.empty()) {
-            for (auto& member : family)
-                if (member.signature.type_parameters.empty() &&
-                    concrete_family_match(member.signature, args, current_class, nullptr, true))
-                    concrete_matches.push_back(&member);
+        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric,
+                                       ArgumentConversions::integer_truth}) {
+            if (!concrete_matches.empty() || !generic_matches.empty()) break;
+            for (auto& member : family) {
+                if (member.signature.type_parameters.empty()) {
+                    if (concrete_family_match(member.signature, args, current_class, nullptr, true, conversions))
+                        concrete_matches.push_back(&member);
+                } else if (conversions == ArgumentConversions::integer_truth) {
+                    if (const auto inferred = generic_family_match(member.signature, args, current_class, conversions))
+                        generic_matches.push_back(GenericMethodMatch{&member, *inferred});
+                }
+            }
         }
 
         if (concrete_matches.size() > 1) {

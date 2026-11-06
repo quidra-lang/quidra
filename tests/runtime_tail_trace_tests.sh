@@ -119,7 +119,7 @@ print(count(n))
 indirect_source = '''int32 sink(int32 denominator)
     return 10 / denominator
 
-int32 apply(func<int32>(int32) operation, int32 denominator)
+int32 apply(func<int32(int32)> operation, int32 denominator)
     return operation(denominator)
 
 int32 zero := int32("0")

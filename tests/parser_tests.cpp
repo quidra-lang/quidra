@@ -592,7 +592,35 @@ static void for_declaration_markers() {
             "index and element reuse are independent in every zip binding");
 }
 
+static void function_types() {
+    const auto program = parse(
+        "func<int(int[])> reduce\n"
+        "func<int()> next\n"
+        "func<func<int()>(func<bool(int, int)>)>[] factories\n"
+        "map<string, func<int(int[])>> reducers\n"
+        "result := copy<func<int(int[])>>(reduce)\n"
+    );
+    const auto& reduce = std::get<BindingStmt>(program.statements[0]->data).declared_type;
+    require(reduce.name == "func" && reduce.arguments.at(0).name == "int" &&
+            reduce.function_parameters.size() == 1 &&
+            reduce.function_parameters.front().array_depth == 1,
+            "function type contains the result and array parameter");
+    const auto& next = std::get<BindingStmt>(program.statements[1]->data).declared_type;
+    require(next.name == "func" && next.function_parameters.empty(), "empty function parameter list");
+    const auto& factories = std::get<BindingStmt>(program.statements[2]->data).declared_type;
+    require(factories.array_depth == 1 && factories.arguments.at(0).name == "func" &&
+            factories.function_parameters.at(0).function_parameters.size() == 2,
+            "array of higher-order function types");
+    const auto& reducers = std::get<BindingStmt>(program.statements[3]->data).declared_type;
+    require(reducers.arguments.at(1).name == "func", "function type nested in map type");
+    const auto& result = std::get<BindingStmt>(program.statements[4]->data);
+    const auto& call = std::get<CallExpr>(result.value->data);
+    require(call.type_arguments.at(0).name == "func", "function type in generic call lookahead");
+    reject("int invoke(func<int> callback)\n    return 0\n");
+}
+
 int main() {
+    function_types();
     for_declaration_markers();
     bounded_range_precedence();
     {

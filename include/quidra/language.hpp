@@ -569,7 +569,7 @@ inline std::string builtin_types_json() {
         first = false;
         out += "\"" + std::string(type.name) + "\"";
     }
-    out += ",\"func<R>(A, B)\",\"T[]\",\"T[n]\",\"T | U\",\"class Name\"]";
+    out += ",\"func<R(A, B)>\",\"T[]\",\"T[n]\",\"T | U\",\"class Name\"]";
     return out;
 }
 

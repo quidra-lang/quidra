@@ -3599,15 +3599,15 @@ std::string canonical_type(const TypeName& type,
             if (i) out += ",";
             out += canonical_type(type.arguments[i], shapes);
         }
-        out += ">";
-    }
-    if (type.name == "func") {
-        out += "(";
-        for (std::size_t i = 0; i < type.function_parameters.size(); ++i) {
-            if (i) out += ",";
-            out += canonical_type(type.function_parameters[i], shapes);
+        if (type.name == "func") {
+            out += "(";
+            for (std::size_t i = 0; i < type.function_parameters.size(); ++i) {
+                if (i) out += ",";
+                out += canonical_type(type.function_parameters[i], shapes);
+            }
+            out += ")";
         }
-        out += ")";
+        out += ">";
     }
     if (type.brace_shape && !(type.tensor_shape_ellipsis && type.shape_axes.empty())) {
         out += brace_shape_key(type.shape_axes, shapes, type.tensor_shape_ellipsis);

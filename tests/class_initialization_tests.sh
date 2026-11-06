@@ -56,9 +56,9 @@ QUI
 cat > "$TMP/function-member.qui" <<'QUI'
 int increment(int input)
     return input + 1
-class Callback(func<int>(int) operation)
+class Callback(func<int(int)> operation)
     int run(int input)
-        func<int>(int) target := operation
+        func<int(int)> target := operation
         return target(input)
 Callback callback := Callback(increment)
 print("{callback.run(6)}{NL}")
@@ -169,7 +169,7 @@ PY
 reject UNINITIALIZED $'class Partial()\n    int value := 3\nPartial partial\nprint(partial.value)'
 reject CONSTRUCTOR_SIGNATURE $'class Empty\n    int value'
 reject PROTOTYPE_MISMATCH $'class Entry(int[] values);\nclass Entry(int[2] values)'
-reject PROTOTYPE_MISMATCH $'class Entry(func<int>(int) operation);\nclass Entry(func<int>(real64) operation)'
+reject PROTOTYPE_MISMATCH $'class Entry(func<int(int)> operation);\nclass Entry(func<int(real64)> operation)'
 reject DUPLICATE_NAME $'class Point(int x)\n    int x := 1'
 reject SHADOWING $'class Point(int x)\n    local int x := 1'
 reject SHADOWING $'class Point point(int x)\n    int read(int point)\n        return x'
@@ -184,8 +184,8 @@ reject UNINITIALIZED $'class Early self(local int &input)\n    int &value := &in
 reject WRITE_CAPABILITY $'class Fixed self(int value)\n    void .bind(Fixed &replacement)\n        &self = &replacement'
 reject UNINITIALIZED $'class Point point(int x)\n    local Point leaked := point'
 reject UNINITIALIZED $'class Point point(int x)\n    local Point leaked := copy()\n    Point copy()\n        return point'
-reject NOT_CALLABLE $'class Callback(func<int>(int) operation)\n    int value := operation(1)'
-reject NOT_CALLABLE $'class Callback callback(func<int>(int) operation)\n    int run(int input)\n        return callback.operation(input)'
+reject NOT_CALLABLE $'class Callback(func<int(int)> operation)\n    int value := operation(1)'
+reject NOT_CALLABLE $'class Callback callback(func<int(int)> operation)\n    int run(int input)\n        return callback.operation(input)'
 
 python3 - "$QUIDRA" "$TMP" <<'PYLSP'
 import json,pathlib,subprocess,sys
@@ -2847,7 +2847,7 @@ int forward(State &input)
     complete := State()
     complete.value = 1
     values := [complete]
-    func<State>() factory := partial
+    func<State()> factory := partial
     for i := [0, 1][]
         values[0] = values[0]
         copy = factory()

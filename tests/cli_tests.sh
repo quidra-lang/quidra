@@ -1142,7 +1142,7 @@ int64 twice(int64 value)
     return value * 2
 
 extern int64 c_increment(int64 value) = "foreign_test_increment"
-extern int64 c_apply(func<int64>(int64) callback, int64 value) = "foreign_test_apply"
+extern int64 c_apply(func<int64(int64)> callback, int64 value) = "foreign_test_apply"
 
 print(c_increment(41))
 print(NL)
@@ -3741,7 +3741,7 @@ cases = {
     "index": (member.format("int first := this[0]"), "UNKNOWN_NAME"),
     "method": (member.format("this.reset()"), "UNKNOWN_NAME"),
     "generic-method": (member.format("int one := this.pick<int>(1)"), "GENERIC_RECEIVER"),
-    "fn-field": ("int twice(int value)\n    return value * 2\nclass Box()\n    func<int>(int) callback := twice\n    int use()\n        return this.callback(1)\n", "UNKNOWN_NAME"),
+    "fn-field": ("int twice(int value)\n    return value * 2\nclass Box()\n    func<int(int)> callback := twice\n    int use()\n        return this.callback(1)\n", "UNKNOWN_NAME"),
     "unknown-field": (member.replace("class Box()", "class Box this()").format("this.sise = 1"), "UNKNOWN_MEMBER"),
     "top-level": ("class Box()\n    int size\nprint(this.size)\n", "UNKNOWN_NAME"),
     "function": ("int f()\n    return this.size\n", "UNKNOWN_NAME"),
@@ -4643,7 +4643,7 @@ int helper()
     return 7
 
 int use()
-    func<int>() f := helper
+    func<int()> f := helper
     return f()
 
 class Box this()
@@ -5407,10 +5407,10 @@ cat > "$TMP/function-values.qui" <<'QUI'
 int twice(int value)
     return value * 2
 
-int apply(func<int>(int) operation, int value)
+int apply(func<int(int)> operation, int value)
     return operation(value)
 
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 print(operation(4))
 print(NL)
 print(apply(twice, 5))
@@ -6435,7 +6435,7 @@ Point complete(int initial)
     return value
 Point unrelated_partial()
     return Point(1, false)
-int invoke(func<Point>(int) action)
+int invoke(func<Point(int)> action)
     Point value := action(7)
     return value.x
 println(invoke(complete))
@@ -6457,7 +6457,7 @@ Point complete(int initial)
     return value
 Point unrelated_partial()
     return Point(1, false)
-int invoke(func<Point>(int) action)
+int invoke(func<Point(int)> action)
     Point value := action(7)
     return value.y
 println(invoke(complete))
@@ -6474,7 +6474,7 @@ cat > "$TMP/03-generic-callback.qui" <<'QUI'
 class Decision<T>(T state, bool extracted)
 Decision<int> complete(int initial)
     return Decision<int>(initial, true)
-int invoke<T>(func<Decision<T>>(T) action, T value)
+int invoke<T>(func<Decision<T>(T)> action, T value)
     Decision<T> decision := action(value)
     return if decision.extracted then 1 else 0
 println(invoke(complete, 7))
@@ -6485,7 +6485,7 @@ QUI
 
 cat > "$TMP/04-imported-callback.qui" <<'QUI'
 import source = "./imported.qui"
-int invoke(func<source.Decision>(int) action)
+int invoke(func<source.Decision(int)> action)
     source.Decision decision := action(7)
     return if decision.extracted then decision.state else 0
 println(invoke(source.complete))
@@ -6496,7 +6496,7 @@ QUI
 
 cat > "$TMP/05-class-cannot-convert.qui" <<'QUI'
 class Callable(int state)
-func<int>(int) action := Callable(1)
+func<int(int)> action := Callable(1)
 println(action(2))
 QUI
 
@@ -6512,7 +6512,7 @@ class Callable()
     int invoke(int value)
         return value
     int execute()
-        func<int>(int) action := invoke
+        func<int(int)> action := invoke
         return action(2)
 Callable value := Callable()
 println(value.execute())
@@ -6533,9 +6533,9 @@ class Point this(local int initial)
 Point recurse(int count)
     if count == 0
         return Point(1)
-    func<Point>(int) action := recurse
+    func<Point(int)> action := recurse
     return action(count - 1)
-int invoke(func<Point>(int) action)
+int invoke(func<Point(int)> action)
     Point value := action(2)
     return value.y
 println(invoke(recurse))
@@ -6556,9 +6556,9 @@ class Point this(local int initial)
 Point recurse(int count)
     if count == 0
         return Point(1)
-    func<Point>(int) action := recurse
+    func<Point(int)> action := recurse
     return action(count - 1)
-int invoke(func<Point>(int) action)
+int invoke(func<Point(int)> action)
     Point value := action(2)
     return 1
 println(invoke(recurse))
@@ -6571,7 +6571,7 @@ cat > "$TMP/10-full-callback.qui" <<'QUI'
 class Result(int state, bool extracted)
 Result complete(int value)
     return Result(value, true)
-int invoke(func<Result>(int) callback)
+int invoke(func<Result(int)> callback)
     Result decision := callback(7)
     return decision.state
 println(invoke(complete))
@@ -6587,7 +6587,7 @@ class Point this(local int initial)
     this.x = initial
 Point partial(int value)
     return Point(value)
-int invoke(func<Point>(int) callback)
+int invoke(func<Point(int)> callback)
     Point copied := callback(7)
     return 1
 println(invoke(partial))
@@ -6603,7 +6603,7 @@ class Point this(local int initial)
     this.x = initial
 Point partial(int value)
     return Point(value)
-int invoke(func<Point>(int) callback)
+int invoke(func<Point(int)> callback)
     Point copied := callback(7)
     return copied.y
 println(invoke(partial))
@@ -6618,7 +6618,7 @@ grep -q 'UNINITIALIZED' "$TMP/12-partial-missing.qui.json"
 
 cat > "$TMP/13-no-candidate-unused.qui" <<'QUI'
 class Result(int state)
-int invoke(func<Result>(int) action)
+int invoke(func<Result(int)> action)
     Result value := action(7)
     return 1
 println(1)
@@ -6629,7 +6629,7 @@ QUI
 
 cat > "$TMP/14-no-candidate-missing.qui" <<'QUI'
 class Result(int state)
-int invoke(func<Result>(int) action)
+int invoke(func<Result(int)> action)
     Result value := action(7)
     return value.state
 println(1)
@@ -6644,7 +6644,7 @@ grep -q 'UNINITIALIZED' "$TMP/14-no-candidate-missing.qui.json"
 
 cat > "$TMP/15-constructor-cannot-convert.qui" <<'QUI'
 class Point(int x, int y)
-func<Point>(int, int) action := Point
+func<Point(int, int)> action := Point
 Point value := action(1, 2)
 println(value.x)
 QUI

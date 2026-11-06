@@ -244,7 +244,8 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
         if (!qualified && (root_name == "func" || root_name == "fn")) {
             ++index;
             if (!scan_type_lookahead(tokens, index, depth + 1, limit,call_scan)) return false;
-            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
+            const bool legacy = index < tokens.size() && tokens[index].kind == TokenKind::Greater;
+            if (legacy) ++index;
             if (index >= tokens.size() || tokens[index++].kind != TokenKind::LParen) return false;
             if (index < tokens.size() && tokens[index].kind != TokenKind::RParen) {
                 if (!scan_type_lookahead(tokens, index, depth + 1, limit,call_scan)) return false;
@@ -254,6 +255,7 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                 }
             }
             if (index >= tokens.size() || tokens[index++].kind != TokenKind::RParen) return false;
+            if (!legacy && (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater)) return false;
         } else if (!qualified && root_name == "tensor") {
             ++index;
             if (!scan_type_lookahead(tokens, index, depth + 1, limit,call_scan)) return false;
@@ -758,11 +760,12 @@ TypeName Parser::type_name() {
 
     if (!grouped && t.name == "fn") t.name = "func";
     if (!grouped && t.name == "func") {
-        consume(TokenKind::Less, "func requires '<Result>' before its parameter list.");
+        consume(TokenKind::Less, "Expected '<' before the func signature.");
         if (at(TokenKind::Greater)) error(peek(), "func requires a result type.");
         t.arguments.push_back(type_name());
         reject_reference_type(peek());
-        consume(TokenKind::Greater, "Expected '>' after func result type.");
+        // The historical syntax closed the angle before the parameter list.
+        const bool legacy = match(TokenKind::Greater);
         consume(TokenKind::LParen, "Expected '(' after func result type.");
         if (!at(TokenKind::RParen)) {
             do {
@@ -770,7 +773,9 @@ TypeName Parser::type_name() {
                 reject_reference_type(peek());
             } while (match(TokenKind::Comma));
         }
-        t.span.end = consume(TokenKind::RParen, "Expected ')' after func parameter types.").span.end;
+        consume(TokenKind::RParen, "Expected ')' after func parameter types.");
+        if (!legacy) consume(TokenKind::Greater, "Expected '>' after func signature.");
+        t.span.end = previous().span.end;
     } else if (!grouped && at(TokenKind::Less)) {
         if (t.name == "tensor") {
             consume(TokenKind::Less, "Expected '<' before tensor element type.");

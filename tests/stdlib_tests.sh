@@ -2070,7 +2070,7 @@ cat > "$TMP/task-bounded-workers.qui" <<'QUI'
 void noop()
     int value := 1
 
-func<void>()[] operations := array(4096, fill = noop)
+func<void()>[] operations := array(4096, fill = noop)
 parallel
     for operation := operations[]
         operation()
@@ -2084,7 +2084,7 @@ void slow()
     time.Duration pause := time.seconds(0.05)
     time.sleep(pause)
 
-func<void>()[] operations := array(128, fill = slow)
+func<void()>[] operations := array(128, fill = slow)
 parallel
     for operation := operations[]
         operation()
@@ -2099,7 +2099,7 @@ int slow_value()
     time.sleep(pause)
     return 7
 
-func<int>()[] operations := array(128, fill = slow_value)
+func<int()>[] operations := array(128, fill = slow_value)
 int[] values := array(operations.len(), fill = 0)
 parallel
     for: operation := operations[index]

@@ -1212,7 +1212,7 @@ A match case may declare shape variables for its body and use every axis form: `
 
 For example, `tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)` takes shapes `[2, 3]` and `[3, 5]` to `[2, 5]`. Different known K extents are a compile-time `TENSOR_SHAPE` error; unknown extents are checked at entry before the body. `tensor<real32>{L := N + M, C} concat_rows(tensor<real32>{nat N, nat C} a, tensor<real32>{nat M, C} b)` computes its result extent from both parameter bindings. A signature may refer to a variable declared later in its text. Class generation and methods use the same shape rules. A method may refer to a member by its bare name or through the explicitly declared instance name; header shapes cannot read members before initialization.
 
-An `extern` caller binds and checks shaped arguments before the foreign call. Every shaped mutable tensor borrow is checked again afterwards, even when the pre-call constraints were proven. A read-only tensor value is not checked again. A shaped `func<R>(P...)` type is also one scope unit; its shape variables are bound afresh on each call. A function value must match that unit up to renaming, including the identities of captured values. A square-only function does not match a type with two independent axes, and a function whose axis refers to its ordinary parameter has no matching `func` type.
+An `extern` caller binds and checks shaped arguments before the foreign call. Every shaped mutable tensor borrow is checked again afterwards, even when the pre-call constraints were proven. A read-only tensor value is not checked again. A shaped `func<R(P...)>` type is also one scope unit; its shape variables are bound afresh on each call. A function value must match that unit up to renaming, including the identities of captured values. A square-only function does not match a type with two independent axes, and a function whose axis refers to its ordinary parameter has no matching `func` type.
 
 A proven direct call may enter the internal checked body. Other direct calls, calls through function values, REPL execution and exports use the checking entry. Both paths capture shape expressions once.
 
@@ -1681,26 +1681,26 @@ operate on tensors or use GPU/native acceleration.
 
 ## Function values and union payload initialization
 
-Quidra has explicit capture-free typed function values. The type form is `func<R>(P...)`, with the result type before the parameter list:
+Quidra has explicit capture-free typed function values. In `func<R(P...)>`, the angle brackets enclose the result type `R` and the parenthesized parameter types. Write `func<R()>` for a function with no parameters.
 
-`func` is the canonical spelling. Legacy `fn` function-type syntax is accepted and normalized to the same type; tools display `func`.
+The compiler accepts the previous `func<R>(P...)` spelling and the legacy `fn` alias for source compatibility. Type displays use `func<R(P...)>`.
 
 ```quidra
 int twice(int value)
     return value * 2
 
-int apply(func<int>(int) operation, int value)
+int apply(func<int(int)> operation, int value)
     return operation(value)
 
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 println(apply(operation, 21))
 ```
 
 A function declaration becomes a value when its context supplies a complete
-`func<...>(...)` signature. At a generic call with a declared `func` parameter,
+`func<R(P...)>` signature. At a generic call with a declared `func` parameter,
 the signature of a named non-generic function can also determine the call's
 type arguments. For example, `apply(twice, 21)` can pass the function directly
-when `apply` takes a `func<R>(T)`. A standalone `operation := twice`
+when `apply` takes a `func<R(T)>`. A standalone `operation := twice`
 still has no function-value context. Conversion requires an exact result and
 parameter match and represents only by-value parameters. Extern C declarations
 and bound methods are excluded. Function-value calls use positional by-value

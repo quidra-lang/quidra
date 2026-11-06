@@ -64,7 +64,7 @@ MANIFEST
 cat > "$TMP/packages/loc_pkg/main.qui" <<'QUI'
 import internal = "./internal.qui"
 
-extern int64 c_apply(func<int64>(int64) callback, int64 value) = "location_test_apply"
+extern int64 c_apply(func<int64(int64)> callback, int64 value) = "location_test_apply"
 
 int pick(int[] values, int i)
     int found := values[i]
@@ -73,11 +73,11 @@ int pick(int[] values, int i)
 int via_internal(int[] values, int i)
     return internal.pick(values, i)
 
-int apply_then_fail(func<int>(int) f, int[] values)
+int apply_then_fail(func<int(int)> f, int[] values)
     int v := f(1)
     return values[v + 10]
 
-int apply_native_then_fail(func<int64>(int64) f, int[] values)
+int apply_native_then_fail(func<int64(int64)> f, int[] values)
     int v := int(c_apply(f, 1))
     return values[v + 10]
 QUI
@@ -179,7 +179,7 @@ expect_failure package-in-callee INDEX_BOUNDS 4 5 101 --link "$TMP/apply.o"
 cat > "$TMP/extern-callback-then-package.qui" <<'QUI'
 import loc = loc_pkg
 
-extern int64 c_apply(func<int64>(int64) callback, int64 value) = "location_test_apply_user"
+extern int64 c_apply(func<int64(int64)> callback, int64 value) = "location_test_apply_user"
 
 int64 twice(int64 x)
     int64 y := x * 2

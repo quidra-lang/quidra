@@ -127,7 +127,7 @@ int & f()
     return 1
 QUI
 expect_failure result PARSE_ERROR "A function cannot return a reference; return a value, or keep the reference in a field."
-for declaration in 'Box<int&> value' 'int&[] values' '(int&|real64) value' 'func<int&>(int) operation' 'func<int>(int&) operation'; do
+for declaration in 'Box<int&> value' 'int&[] values' '(int&|real64) value' 'func<int&(int)> operation' 'func<int(int&)> operation'; do
     printf '%s\n' "$declaration" > "$TMP/nested.qui"
     expect_failure nested PARSE_ERROR "'&' is not part of a type: references are local variables and class fields, 'T &name'."
 done

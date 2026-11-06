@@ -203,7 +203,7 @@ print("before" + NL)
 print(ping(0))
 QUI
 row recursion-fn-value 101 4 12 "maximum recursion depth exceeded (limit 4096)" code=CALL_DEPTH_LIMIT <<'QUI'
-int again(func<int>(int) f, int n)
+int again(func<int(int)> f, int n)
     if n < 0
         return 0
     return f(n + 1) + 1

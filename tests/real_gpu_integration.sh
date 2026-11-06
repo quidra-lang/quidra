@@ -889,15 +889,15 @@ real64 run3()
 real64 run4()
     return run(real32(4))
 
-func<real64>()[] operations := [run1, run2, run3, run4]
+func<real64()>[] operations := [run1, run2, run3, run4]
 real64 parallel_result_1_0
 real64 parallel_result_1_1
 real64 parallel_result_1_2
 real64 parallel_result_1_3
-func<real64>() parallel_operation_1_0 := operations[0]
-func<real64>() parallel_operation_1_1 := operations[1]
-func<real64>() parallel_operation_1_2 := operations[2]
-func<real64>() parallel_operation_1_3 := operations[3]
+func<real64()> parallel_operation_1_0 := operations[0]
+func<real64()> parallel_operation_1_1 := operations[1]
+func<real64()> parallel_operation_1_2 := operations[2]
+func<real64()> parallel_operation_1_3 := operations[3]
 parallel
     parallel_result_1_0 = parallel_operation_1_0()
     parallel_result_1_1 = parallel_operation_1_1()
@@ -2266,11 +2266,11 @@ real64 checked_loop()
         a = a + int32(1)
     return real64(a[0].item())
 
-func<real64>()[] operations := [package_loop, checked_loop]
+func<real64()>[] operations := [package_loop, checked_loop]
 real64 parallel_result_4_0
 real64 parallel_result_4_1
-func<real64>() parallel_operation_4_0 := operations[0]
-func<real64>() parallel_operation_4_1 := operations[1]
+func<real64()> parallel_operation_4_0 := operations[0]
+func<real64()> parallel_operation_4_1 := operations[1]
 parallel
     parallel_result_4_0 = parallel_operation_4_0()
     parallel_result_4_1 = parallel_operation_4_1()
@@ -2312,11 +2312,11 @@ real64 syncer()
         total = total + 1.0
     return total
 
-func<real64>()[] operations := [reader, syncer]
+func<real64()>[] operations := [reader, syncer]
 real64 parallel_result_5_0
 real64 parallel_result_5_1
-func<real64>() parallel_operation_5_0 := operations[0]
-func<real64>() parallel_operation_5_1 := operations[1]
+func<real64()> parallel_operation_5_0 := operations[0]
+func<real64()> parallel_operation_5_1 := operations[1]
 parallel
     parallel_result_5_0 = parallel_operation_5_0()
     parallel_result_5_1 = parallel_operation_5_1()
@@ -2734,11 +2734,11 @@ real64 leaker()
     return real64(package.leak(x, int32(0)))
 real64 idle()
     return 2.0
-func<real64>()[] operations := [leaker, idle]
+func<real64()>[] operations := [leaker, idle]
 real64 parallel_result_6_0
 real64 parallel_result_6_1
-func<real64>() parallel_operation_6_0 := operations[0]
-func<real64>() parallel_operation_6_1 := operations[1]
+func<real64()> parallel_operation_6_0 := operations[0]
+func<real64()> parallel_operation_6_1 := operations[1]
 parallel
     parallel_result_6_0 = parallel_operation_6_0()
     parallel_result_6_1 = parallel_operation_6_1()
@@ -2961,14 +2961,14 @@ cli args
 real64 worker()
     tensor<real32> v := tensor.ones<real32>([64], gpu = $GPU_INDEX) * 2.0
     return real64(v[0].item())
-func<real64>()[] operations := [worker, worker]
-func<real64>()[][] sets := [operations]
+func<real64()>[] operations := [worker, worker]
+func<real64()>[][] sets := [operations]
 tensor<real32> x := tensor.ones<real32>([64], gpu = $GPU_INDEX)
 parallel_result_8_operations := sets[int(package.leak(x, int32(args.kind)))]
 real64 parallel_result_8_0
 real64 parallel_result_8_1
-func<real64>() parallel_operation_8_0 := parallel_result_8_operations[0]
-func<real64>() parallel_operation_8_1 := parallel_result_8_operations[1]
+func<real64()> parallel_operation_8_0 := parallel_result_8_operations[0]
+func<real64()> parallel_operation_8_1 := parallel_result_8_operations[1]
 parallel
     parallel_result_8_0 = parallel_operation_8_0()
     parallel_result_8_1 = parallel_operation_8_1()
@@ -3062,17 +3062,17 @@ real64 core_loop()
 
 tensor<real32> warm := package.inplace(tensor.ones<real32>([64], gpu = $GPU_INDEX), int32(0))
 tensor<real32> warm2 := package.scale(tensor.ones<real32>([64], gpu = $GPU_INDEX), real32(1), int32(4))
-func<real64>()[] operations := [inplace_loop, scale_loop, inplace_loop, scale_loop, core_loop]
+func<real64()>[] operations := [inplace_loop, scale_loop, inplace_loop, scale_loop, core_loop]
 real64 parallel_result_9_0
 real64 parallel_result_9_1
 real64 parallel_result_9_2
 real64 parallel_result_9_3
 real64 parallel_result_9_4
-func<real64>() parallel_operation_9_0 := operations[0]
-func<real64>() parallel_operation_9_1 := operations[1]
-func<real64>() parallel_operation_9_2 := operations[2]
-func<real64>() parallel_operation_9_3 := operations[3]
-func<real64>() parallel_operation_9_4 := operations[4]
+func<real64()> parallel_operation_9_0 := operations[0]
+func<real64()> parallel_operation_9_1 := operations[1]
+func<real64()> parallel_operation_9_2 := operations[2]
+func<real64()> parallel_operation_9_3 := operations[3]
+func<real64()> parallel_operation_9_4 := operations[4]
 parallel
     parallel_result_9_0 = parallel_operation_9_0()
     parallel_result_9_1 = parallel_operation_9_1()

@@ -4666,7 +4666,7 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
             if (!expected || expected->kind != TypeKind::Function || !expected->first) {
                 error("FUNCTION_REFERENCE_CONTEXT",
                       "Function '" + node->name +
-                      "' becomes a value only in an explicit func<...>(...) type context.",
+                      "' becomes a value only in an explicit func<R(P...)> type context.",
                       expression.span);
             }
             const auto& function = functions_.at(*function_name);
@@ -13987,12 +13987,12 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         if (type.kind == TypeKind::Tensor) return "tensor";
         if (is_foreign_tensor_array(type)) return "tensor_array_borrow";
         if (type.kind == TypeKind::Function) {
-            std::string key = "func<" + self(*type.first, self) + ">(";
+            std::string key = "func<" + self(*type.first, self) + "(";
             for (std::size_t i = 0; i < type.parameters.size(); ++i) {
                 if (i) key += ",";
                 key += self(type.parameters[i], self);
             }
-            return key + ")";
+            return key + ")>";
         }
         return std::to_string(static_cast<int>(type.kind));
     };

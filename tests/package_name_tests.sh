@@ -15,7 +15,7 @@ void announce()
     print("function-value")
     print(NL)
 
-void invoke(func<void>() operation)
+void invoke(func<void()> operation)
     operation()
 
 int flush()

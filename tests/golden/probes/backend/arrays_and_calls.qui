@@ -16,7 +16,7 @@ int grid_write(int index)
 int add(int left, int right)
     return left + right
 
-int apply(func<int>(int, int) operation, int left, int right)
+int apply(func<int(int, int)> operation, int left, int right)
     return operation(left, right)
 
 print(apply(add, fixed_write(1, 5), grid_write(1)))

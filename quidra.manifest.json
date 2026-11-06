@@ -49,7 +49,7 @@
     "bin",
     "void",
     "error",
-    "func<R>(P...)",
+    "func<R(P...)>",
     "T[]",
     "T[n]",
     "T | U",
@@ -200,7 +200,7 @@
   "repl_model": "accumulated accepted source; declaration-only submissions are validated without execution; executable submissions compile accumulated root source from an in-memory file-aware overlay and execute through LLVM ORC JIT without per-submission native linking, reconstructing runtime state with replay barriers for external/nondeterministic effects",
   "repl_expression_display": "typed IR display operation; void and never are not displayed; previously emitted stdout is baseline-filtered on later submissions",
   "repl_state_persistence": "bindings, declarations, functions, classes, generics, and file-aware imports are reconstructed from accepted source on each successful submission rather than stored in a persistent JIT heap",
-  "function_value_model": "function declarations remain callable names and convert to capture-free first-class values only under an explicit func<R>(P...) context with an exact by-value signature; no closure environment, hidden allocation, bound receiver, implicit identity, or extern-function conversion is introduced",
+  "function_value_model": "function declarations remain callable names and convert to capture-free first-class values only under an explicit func<R(P...)> context with an exact by-value signature; no closure environment, hidden allocation, bound receiver, implicit identity, or extern-function conversion is introduced",
   "static_index_model": "constant indices into arrays with statically known length are bounds-checked at compile time",
   "array_initialization_optimization_model": "typed IR preserves conservative complete-initialization proofs for local arrays so LLVM can elide only redundant element checks; writable reference escape or uncertain control flow drops the proof, whereas immutable const T values grant no write authority; bounds proofs remain independent",
   "supported_platforms": [

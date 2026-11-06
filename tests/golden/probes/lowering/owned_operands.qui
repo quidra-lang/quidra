@@ -39,11 +39,11 @@ int twice(int value)
 void show(int value)
     print("{value}{NL}")
 
-func<int>(int) operation := twice
-func<int>(int)& held := &operation
+func<int(int)> operation := twice
+func<int(int)>& held := &operation
 print(held(4))
 print(NL)
-func<void>(int) shower := show
+func<void(int)> shower := show
 shower(5)
 
 bin bits := bin.fill(6, 1)

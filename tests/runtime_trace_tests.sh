@@ -667,7 +667,7 @@ program indirect-hop <<'QUI'
 int | error parse_value(string text)
     return try int(text)
 
-int | error apply(func<int | error>(string) op, string text)
+int | error apply(func<int | error(string)> op, string text)
     int value := try op(text)
     return value
 

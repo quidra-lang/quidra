@@ -25,7 +25,7 @@ nat shared(tensor<real32>{..., nat W} a, tensor<real32>{W, ...} b)
     return W
 
 print("{last(suffix)} {last(echo(suffix))} {shared(suffix, tensor.zeros<real32>([4, 1]))}{NL}")
-func<nat>(tensor<real32>{..., nat Dimension}) tail := last
+func<nat(tensor<real32>{..., nat Dimension})> tail := last
 print(tail(suffix))
 print(NL)
 

@@ -49,7 +49,7 @@ print(NL)
 NumericBox box := NumericBox(wider)
 print(box.value == 7 and box.narrowed(wider) == 7)
 print(NL)
-func<int8>(int8) callback := take_byte
+func<int8(int8)> callback := take_byte
 print(callback(wider) == 7)
 print(NL)
 int32 accumulator := -2
@@ -367,7 +367,7 @@ println(try_enabled(-1))
 println(Switch(wide).on)
 box := Switch(0)
 println(box.state(0))
-func<bool>(bool) callback := enabled
+func<bool(bool)> callback := enabled
 println(callback(-1))
 println(wide.extension_flag())
 println([1, 2].sorted(descending = wide) == [2, 1])

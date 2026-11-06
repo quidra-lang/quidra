@@ -935,11 +935,11 @@ static void imported_names_resolve_in_module_scope() {
               "    return 7\n"
               "\n"
               "int use()\n"
-              "    func<int>() f := helper\n"
+              "    func<int()> f := helper\n"
               "    return f()\n"
               "\n"
               "int use_generic<T>(T value)\n"
-              "    func<int>() f := helper\n"
+              "    func<int()> f := helper\n"
               "    return f()\n"
               "\n"
               "class Box this()\n"
@@ -2113,7 +2113,7 @@ static void private_declarations_stay_in_their_module() {
     // An importer cannot name them.
     expect(modules_diagnostic(head + "print(lib.helper())\n", files),
            "PRIVATE_DECLARATION: 'helper' is private to module 'lib'.");
-    expect(modules_diagnostic(head + "func<int>() f := lib.helper\n", files),
+    expect(modules_diagnostic(head + "func<int()> f := lib.helper\n", files),
            "PRIVATE_DECLARATION: 'helper' is private to module 'lib'.");
     expect(modules_diagnostic(head + "lib.Shape s\n", files),
            "PRIVATE_DECLARATION: 'Shape' is private to module 'lib'.");
@@ -3073,15 +3073,15 @@ static void package_code_reports_at_the_user_statement() {
         write("packages/loc_pkg/main.qui",
               "import internal = \"./internal.qui\"\n"
               "\n"
-              "extern int64 c_apply(func<int64>(int64) callback, int64 value) = \"loc_apply\"\n"
+              "extern int64 c_apply(func<int64(int64)> callback, int64 value) = \"loc_apply\"\n"
               "\n"
               "int pick(int[] values, int i)\n"
               "    return values[i]\n"
               "\n"
-              "int apply(func<int>(int) f, int x)\n"
+              "int apply(func<int(int)> f, int x)\n"
               "    return f(x)\n"
               "\n"
-              "int64 apply_native(func<int64>(int64) f, int64 x)\n"
+              "int64 apply_native(func<int64(int64)> f, int64 x)\n"
               "    return c_apply(f, x)\n"
               "\n"
               "int deep(int[] values)\n"
@@ -3094,7 +3094,7 @@ static void package_code_reports_at_the_user_statement() {
               "import loc = loc_pkg\n"
               "import lib = \"./lib.qui\"\n"
               "\n"
-              "extern int64 c_twice(func<int64>(int64) callback, int64 value) = \"user_apply\"\n"
+              "extern int64 c_twice(func<int64(int64)> callback, int64 value) = \"user_apply\"\n"
               "\n"
               "int64 scale(int64 x)\n"
               "    return x * 3\n"
@@ -3341,7 +3341,7 @@ static void c_export_declarations_are_checked() {
     bad_message("export \"C\" int32 bare(nat a)\n    return 1\n", "FFI_TYPE", "write nat64");
     const std::vector<std::string> rejected = {
         "nat", "real", "bool", "string", "bin", "int32[]", "int32[4]", "tensor<real32>",
-        "Box", "Color", "int32 | error", "int32 | none", "func<int32>(int32)"};
+        "Box", "Color", "int32 | error", "int32 | none", "func<int32(int32)>"};
     const std::string declarations =
         "class Box()\n"
         "    int32 value\n"
@@ -3828,12 +3828,12 @@ same_width(tensor.ones<real32>([2]), tensor.ones<real32>([3]))
 )", "SHADOWING");
     good(R"(tensor<real32>{N, M} matmul2(tensor<real32>{nat N, nat K} a, tensor<real32>{K, nat M} b)
     return tensor.zeros<real32>([N, M])
-func<tensor<real32>{I, J}>(tensor<real32>{nat I, nat K}, tensor<real32>{K, nat J}) operation := matmul2
+func<tensor<real32>{I, J}(tensor<real32>{nat I, nat K}, tensor<real32>{K, nat J})> operation := matmul2
 result := operation(tensor.ones<real32>([2, 3]), tensor.ones<real32>([3, 5]))
 )");
     bad_code(R"(tensor<real32>{N, N} square(tensor<real32>{nat N, N} value)
     return value
-func<tensor<real32>{A, B}>(tensor<real32>{nat A, nat B}) operation := square
+func<tensor<real32>{A, B}(tensor<real32>{nat A, nat B})> operation := square
 )", "FUNCTION_REFERENCE_SIGNATURE");
 }
 
@@ -3857,7 +3857,7 @@ static void function_values_consume_managed_parameters() {
             "void read(" + type + " value)\n    return\n"
             "void direct(" + type + " value)\n    return\n"
             "void reference(" + type + " &value)\n    return\n"
-            "func<void>(" + type + ") operation := read\n" +
+            "func<void(" + type + ")> operation := read\n" +
             type + " source := " + test.value + "\n"
             "operation(source)\nread(source)\ndirect(source)\nreference(&source)\n";
         capture_source("function_value_ownership", source);
@@ -3919,7 +3919,7 @@ static void shape_entries_preserve_call_paths() {
     return value
 tensor<real32> relay(tensor<real32> value)
     return square(value)
-func<tensor<real32>{A, A}>(tensor<real32>{nat A, A}) operation := square
+func<tensor<real32>{A, A}(tensor<real32>{nat A, A})> operation := square
 direct := square(tensor.ones<real32>([2, 2]))
 indirect := operation(tensor.ones<real32>([2, 2]))
 )";
@@ -4995,7 +4995,7 @@ print(NL)
     if n < 2
         return n
     return fib(n - 1) + fib(n - 2)
-func<int>(int) callback := fib
+func<int(int)> callback := fib
 print(callback(10))
 print(NL)
 )", "@n_fib.depth");
@@ -5096,15 +5096,15 @@ class NestedState()
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
  good("extern int32 mutable_bytes(bin &data) = \"mutable_bytes\"\n");
- good("extern int64 c_apply(func<int64>(int64) callback, int64 value) = \"c_apply\"\n");
- llvm_contains("extern int64 c_apply(func<int64>(int64) callback, int64 value) = \"c_apply\"\n", "declare i64 @c_apply(ptr, i64)");
+ good("extern int64 c_apply(func<int64(int64)> callback, int64 value) = \"c_apply\"\n");
+ llvm_contains("extern int64 c_apply(func<int64(int64)> callback, int64 value) = \"c_apply\"\n", "declare i64 @c_apply(ptr, i64)");
  llvm_contains(R"(int64 twice(int64 value)
     return value * 2
-extern int64 c_apply(func<int64>(int64) callback, int64 value) = "c_apply"
+extern int64 c_apply(func<int64(int64)> callback, int64 value) = "c_apply"
 int result := int(c_apply(twice, 21))
 )", "call i64 @c_apply(ptr");
- bad_code("extern int64 unsafe_callback(func<int8>(int8) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
- bad_code("extern int64 unsafe_callback(func<string>(int64) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
+ bad_code("extern int64 unsafe_callback(func<int8(int8)> callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
+ bad_code("extern int64 unsafe_callback(func<string(int64)> callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
  bad_code("extern int32 mutable_text(string &text) = \"mutable_text\"\n", "FFI_REFERENCE");
  good("extern int32 const_value(const string text) = \"const_value\"\n");
  bad_code("extern int32 c_puts(const string text) = \"puts\"\n", "FFI_SYMBOL_CONFLICT");
@@ -5127,15 +5127,16 @@ int32 second_result := generic_tensor_bridge(&b)
 
  good("int identity(int value)\n    return value\n"
       "fn<int>(int) legacy := identity\n"
-      "func<int>(int) current := legacy\n"
+      "func<int>(int) previous := legacy\n"
+      "func<int(int)> current := previous\n"
       "int result := current(3)\n");
  good(R"(int twice(int value)
     return value * 2
 
-int apply(func<int>(int) operation, int value)
+int apply(func<int(int)> operation, int value)
     return operation(value)
 
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 int a := operation(3)
 int b := apply(operation, 4)
 print(a)
@@ -5145,23 +5146,23 @@ print(NL)
 )");
  ir_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 int result := operation(3)
 )", "fn.ref twice");
  ir_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 int result := operation(3)
 )", "call.indirect");
  llvm_contains(R"(int twice(int value)
     return value * 2
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 int result := operation(3)
 )", "select i1 true, ptr @n_twice, ptr null");
- ir_contains(R"(R apply<T, R>(T value, func<R>(T) operation)
+ ir_contains(R"(R apply<T, R>(T value, func<R(T)> operation)
     return operation(value)
 
-R apply_to<T, R>(extend T value, func<R>(T) operation)
+R apply_to<T, R>(extend T value, func<R(T)> operation)
     return operation(value)
 
 class Entry<T>(T value)
@@ -5182,7 +5183,7 @@ println(lib.run())
 )", R"(private int callback_key(int value)
     return value
 
-R invoke<T, R>(T value, func<R>(T) operation)
+R invoke<T, R>(T value, func<R(T)> operation)
     return operation(value)
 
 int run()
@@ -5193,15 +5194,15 @@ int run()
  }
  bad_code(R"(int twice(int value)
     return value * 2
-func<real64>(int) operation := twice
+func<real64(int)> operation := twice
 )", "FUNCTION_REFERENCE_SIGNATURE");
  bad_code(R"(int mutate(int &value)
     value = value + 1
     return value
-func<int>(int) operation := mutate
+func<int(int)> operation := mutate
 )", "FUNCTION_REFERENCE_SIGNATURE");
  bad_code(R"(extern int32 foreign(int32 value) = "foreign"
-func<int32>(int32) operation := foreign
+func<int32(int32)> operation := foreign
 )", "FUNCTION_REFERENCE_EXTERN");
  bad_code(R"(int twice(int value)
     return value * 2
@@ -5209,8 +5210,8 @@ operation := twice
 )", "FUNCTION_REFERENCE_CONTEXT");
  bad_code(R"(int twice(int value)
     return value * 2
-func<int>(int) left := twice
-func<int>(int) right := twice
+func<int(int)> left := twice
+func<int(int)> right := twice
 bool same := left == right
 )", "TYPE_MISMATCH");
  bad_code(R"(void first()
@@ -5343,14 +5344,14 @@ cell.value = ref
 )");
  bad_code(R"(ref.Cell<int> removed
 )", "UNKNOWN_GENERIC");
- bad_code(R"(func<int>(int) operation
+ bad_code(R"(func<int(int)> operation
 int result := operation(1)
 )", "UNINITIALIZED");
  good(R"(int twice(int value)
     return value * 2
-int apply_ref(const func<int>(int) operation, int value)
+int apply_ref(const func<int(int)> operation, int value)
     return operation(value)
-func<int>(int) operation := twice
+func<int(int)> operation := twice
 int result := apply_ref(operation, 4)
 print(result)
 print(NL)
@@ -7741,7 +7742,7 @@ print(box.value)
 print(NL)
 )");
  bad_code(R"(class CallbackHolder()
-    func<void>() callback
+    func<void()> callback
 class Box<T: equatable>()
     T value
 Box<CallbackHolder> box
@@ -7911,7 +7912,7 @@ int later()
 )", "SOURCE_ORDER");
  good(R"(int identity(int value)
     return value
-int invoke(func<int>(int) callback)
+int invoke(func<int(int)> callback)
     return callback(3)
 int callback(int value)
     return value
@@ -9295,7 +9296,7 @@ int[] result := choose(values, [])
 // generic-empty-array-callback.qui
  good(R"(int[] transfer(int[] values)
     return values
-T[] choose<T>(T[] empty, T[] values, func<T[]>(T[]) operation)
+T[] choose<T>(T[] empty, T[] values, func<T[](T[])> operation)
     return operation(values)
 int[] values := [1]
 int[] result := choose([], values, transfer)
@@ -9677,7 +9678,7 @@ println(copied.y)
 Point partial(int initial)
     return Point(initial)
 class Container()
-    Point get(func<Point>(int) action)
+    Point get(func<Point(int)> action)
         return action(0)
 Container container := Container()
 Point copied := container.get(partial)

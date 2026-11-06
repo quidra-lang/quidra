@@ -9547,7 +9547,7 @@ sha256 = "71efff80746ffe291a87d3e0244a73bb201b3258d3da3b3c84ef3afb88f13453"
 [[entry]]
 name = "docs/language-63.qui"
 status = "ok"
-sha256 = "7e06fc15a244e57ba8daa5a3431b1231c6a79bfeb67898f131843c5946ec4aac"
+sha256 = "674e5f7b0ca279e842c4ed27ae737a2214ccea3cc62c9f0e33c4823a7bee3b4b"
 
 [[entry]]
 name = "docs/language-64.qui"
@@ -10172,7 +10172,7 @@ sha256 = "96b3b999633670ba1b5d3303a3b502f5bc7ff817169f20d9159ca770e5fffba9"
 [[entry]]
 name = "heredoc/class_initialization_tests/function-member.qui"
 status = "ok"
-sha256 = "f3f0d616a89325b35f899edfc1ee352829b55562097674b72e727d6ba189bed5"
+sha256 = "a21b7164a5d9b5f4c7b918e799b1facdf4d6766fe2a07aca755dfa33e3c31bcf"
 
 [[entry]]
 name = "heredoc/class_initialization_tests/local.qui"
@@ -10282,7 +10282,7 @@ sha256 = "50e08a26321b700ff63cb50b7d47277c79ff8370a73a37967be1019a52945c9b"
 [[entry]]
 name = "heredoc/cli_tests/ffi-linked.qui"
 status = "ok"
-sha256 = "13b37d66af9f10c9784467fd27a6821a0bcf06d183284cd1745ea21367094763"
+sha256 = "64b510f77ba05bf0d8f4e9cb7ca5226e47a32adabc9087a5d32da33683a680fd"
 
 [[entry]]
 name = "heredoc/cli_tests/ffi-mutable-string-rejected.qui"
@@ -10997,7 +10997,7 @@ sha256 = "00a097d1aa218f65d2ee567599ab52e2aa376da0c19266801b52308985fe2f6e"
 [[entry]]
 name = "heredoc/cli_tests~2/function-values.qui"
 status = "ok"
-sha256 = "eb311ea157679bd748ab151174ed349479cb2bc5a71ba1c649fd3653c87f68c7"
+sha256 = "7786a942af1738859d30774a5e02bde596cfef09ce94dbdff7533dba804cdb0d"
 
 [[entry]]
 name = "heredoc/cli_tests~2/imported-local-scope/lib.qui"
@@ -11022,7 +11022,7 @@ sha256 = "0bc8d320084939a060e9223a247dae8fbf186b82acfa8dfa0e0b1cc46aa0fe42"
 [[entry]]
 name = "heredoc/cli_tests~2/imported-name-resolution/lib.qui"
 status = "ok"
-sha256 = "c3a844bd022c1149376269b894c0f6a901b6d5045edd83b869c05f59a5dc9686"
+sha256 = "3dea362e34937ea3703368b5972d62db180b65d2e82f4a4351e5630206381300"
 
 [[entry]]
 name = "heredoc/cli_tests~2/imported-name-resolution/main.qui"
@@ -12082,7 +12082,7 @@ sha256 = "657a96f146fe31d15deda62b1ce4abf40bccdeb9d066ce53344e5c5f0c954800"
 [[entry]]
 name = "heredoc/numeric_call_conversion_tests/calls.qui"
 status = "ok"
-sha256 = "f068c67b232e319edd28eed516afae68f7adcbfb00b350e5e0b705f85f066680"
+sha256 = "02bfb43699ea3741cfacbdcd542cf66d0de83478a657c43c24a00a36824be95d"
 
 [[entry]]
 name = "heredoc/numeric_conversion_tests/constraints.qui"
@@ -12112,7 +12112,7 @@ sha256 = "305640b072299b7f15206e7606d47e1dc0721157e03f6293ec5ba8067f7db2bd"
 [[entry]]
 name = "heredoc/package_name_tests/source/main.qui"
 status = "error:DUPLICATE_NAME"
-sha256 = "15265f37ab111074b84ddf688ab50e778cb9dbdee2bcb4fe9c5cb74ff1229dec"
+sha256 = "e9ebae88d3c0941bd26d9bdbdd9a9698f87f35e35286a24ee6a44f7f483709cf"
 
 [[entry]]
 name = "heredoc/package_name_tests/use-io.qui"
@@ -12472,7 +12472,7 @@ sha256 = "6fa559cf460212287043ddca7768ee501b92c1fe934effc2762a4152689ad684"
 [[entry]]
 name = "heredoc/runtime_location_tests/extern-callback-then-package.qui"
 status = "ok"
-sha256 = "5a7462210fb87d55cc1bdf7c1330e63c381e45fadb5b0427f99e1a9907665020"
+sha256 = "7b18a9c4a46eba846bda8f66ce3acb3f4dbb8ec9ac121a59f1174109518a6460"
 
 [[entry]]
 name = "heredoc/runtime_location_tests/files/lib/util.qui"
@@ -12522,7 +12522,7 @@ sha256 = "a353c1856636766bfff7f2c3d7d64cf15b77e2670c1b450df2d47cd8eb781ddf"
 [[entry]]
 name = "heredoc/runtime_location_tests/packages/loc_pkg/main.qui"
 status = "ok"
-sha256 = "0f6f85df90a92e370ae88c246df0a163edf60006e91b7fa37e7b83823d4a86ec"
+sha256 = "22f4b9c0e8e4b810505bde0966989a47db3a2c629f67254dba559e5dc87f6dec"
 
 [[entry]]
 name = "heredoc/runtime_location_tests/snippet.qui"
@@ -12602,7 +12602,7 @@ sha256 = "bf3990fda720a2b6063ab25b97e0b35f5be055af227abd6dbb4c400a68f527e1"
 [[entry]]
 name = "heredoc/shape_ellipsis_tests/shapes.qui"
 status = "ok"
-sha256 = "5b147b8c724f471a4a45fef7f02effba8d0489b7e6c3d51b9604af778e14f638"
+sha256 = "db5e5eb7651620b513b53be52b4aa2e1c5a9d6214e981930d9de7c3caf8353d7"
 
 [[entry]]
 name = "heredoc/shape_variable_tests/loop.qui"
@@ -13172,7 +13172,7 @@ sha256 = "086a4ff2f424acb3eac09b28510dc7ad3489cbf25a5eff433f0ee987c087191e"
 [[entry]]
 name = "heredoc/stdlib_tests/task-bounded-workers.qui"
 status = "ok"
-sha256 = "3f9513f5139d55dd58473c4f49a5ccacc17b60c3e4aa17a5e7db253401226ba3"
+sha256 = "d6a35e1eb970a6f3d98ae412f57179060ba2a218e7c5bccc8be16e89c12d5659"
 
 [[entry]]
 name = "heredoc/stdlib_tests/task-result-order.qui"
@@ -13182,7 +13182,7 @@ sha256 = "c18b4a84e34bdfc516d8f344eca30f0093265fb5cb3f0727b7650fb88760b1bf"
 [[entry]]
 name = "heredoc/stdlib_tests/task-result-worker-lifetime.qui"
 status = "ok"
-sha256 = "064d4435dc85ba5c602b3ed43b966fe1125d5ed9bc2ad983b1608d7930cb3ec6"
+sha256 = "158d88a056d3ceb5473cc522778419e017ecd0aa82c391f2d28dce29d775751c"
 
 [[entry]]
 name = "heredoc/stdlib_tests/task-results.qui"
@@ -13192,7 +13192,7 @@ sha256 = "1283bfa03986999312ce0c55d096f6ac7c3c0b3944b8349f6e3df79a4bdb2528"
 [[entry]]
 name = "heredoc/stdlib_tests/task-worker-lifetime.qui"
 status = "ok"
-sha256 = "4fd602b9422b3c07e9609391b8c08bf2c0b21b342a97476fd661b970e0dbc67e"
+sha256 = "f66f0a9ba4a60a859ee22a69577c48e2156b2612cf23e2898d6ef09ebe775690"
 
 [[entry]]
 name = "heredoc/stdlib_tests/tensor-cast-preserved-error.qui"
@@ -14367,7 +14367,7 @@ sha256 = "ad841dd1d1f2efef7bb09fccf809dbe6dd529d0f094a30c604d1c028f92bdc2b"
 [[entry]]
 name = "probes/backend/arrays_and_calls.qui"
 status = "ok"
-sha256 = "d9ff610072ed9843670138023f5c0b80f04c2f9a8fe955e630e123b51ce4ac53"
+sha256 = "3f3c8fbd47abc9a872e543b13dff4a46c3246ede1ed399806c72ffa039d4829c"
 
 [[entry]]
 name = "probes/backend/cli_values.qui"
@@ -14582,7 +14582,7 @@ sha256 = "1ca940b422ba4e2a200ad6b559aaa46dd778b9e54faa07b6ad0df2e404c6faf7"
 [[entry]]
 name = "probes/lowering/owned_operands.qui"
 status = "ok"
-sha256 = "0c366e8011a85671a9da8a09d2eb1d26d4f4c0d65368d0973da9e96b2e79f1c2"
+sha256 = "7f6d249279e747f245f45d573c5e9c2ea5a7efc7396f0113455b0ad81205a965"
 
 [[entry]]
 name = "probes/lowering/owned_temporaries.qui"

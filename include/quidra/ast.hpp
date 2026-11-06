@@ -42,7 +42,7 @@ struct ShapeAxis {
 struct TypeName {
     std::string name;
     std::vector<TypeName> arguments;
-    // func<Result>(Args...) keeps parameter types separate from generic arguments.
+    // A func stores its result in arguments and its parameter types here.
     std::vector<TypeName> function_parameters;
     std::size_t array_depth{};
     std::vector<long long> dimensions;

@@ -178,12 +178,12 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Class: return type.class_name;
         case TypeKind::Address: return "address";
         case TypeKind::Function: {
-            std::string result = "func<" + type_name(*type.first) + ">(";
+            std::string result = "func<" + type_name(*type.first) + "(";
             for (std::size_t i = 0; i < type.parameters.size(); ++i) {
                 if (i) result += ", ";
                 result += type_name(type.parameters[i]);
             }
-            result += ")";
+            result += ")>";
             return result;
         }
         case TypeKind::Tensor: {

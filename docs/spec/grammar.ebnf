@@ -70,7 +70,7 @@ parameter        = [ "local" ], (
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ expression ], "]" } ;
 type_atom        = tuple_type | "(", type, ")" | function_type | tensor_type | qualified_identifier, [ type_arguments ] ;
-function_type    = "func", "<", type, ">", "(", [ type, { ",", type } ], ")" ;
+function_type    = "func", "<", type, "(", [ type, { ",", type } ], ")", ">" ;
 tensor_type      = "tensor", "<", type, ">", [ brace_shape ] ;
 brace_shape      = "{", brace_axis, { ",", brace_axis }, "}" ;
 brace_axis       = "..." | "nat", identifier
@@ -314,7 +314,7 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
      determine every class type parameter; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;
-   - `func<R>(P...)` is a capture-free function-value type. Converting a declared
+   - `func<R(P...)>` is a capture-free function-value type. Converting a declared
      function to it requires a complete function-value context and an exact
      by-value signature. A generic call with a declared func parameter can infer
      type arguments from a named non-generic callback. Extern functions,

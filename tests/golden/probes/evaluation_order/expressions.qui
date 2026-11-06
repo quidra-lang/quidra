@@ -49,7 +49,7 @@ bool both := p(1) == 1 and p(2) == 2
 print("| {both}")
 print(NL)
 int[] values := [p(10), p(11), p(12)]
-print("| {len(values)}")
+print("| {values.len()}")
 print(NL)
 string joined := "{p(13)}-{p(14)}"
 print("| {joined}")

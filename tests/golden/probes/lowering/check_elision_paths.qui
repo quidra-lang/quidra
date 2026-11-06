@@ -17,7 +17,7 @@ int[] cells_of(int width)
 
 int last_length(int[] items)
     int size := 0
-    size = int(len(items))
+    size = int(items.len())
     return size
 
 int[3] fixed_numbers()
@@ -30,7 +30,7 @@ int first_sorted()
 
 int first_positive(int[] items)
     int index := 0
-    while index < int(len(items))
+    while index < int(items.len())
         if items[index] > 0
             return items[index]
         index = index + 1
@@ -38,4 +38,4 @@ int first_positive(int[] items)
     return 0
 
 int[] numbers := [4, 5]
-print("{sum_rows(numbers, 2)} {len(cells_of(3))} {last_length(numbers)} {first_sorted()} {first_positive(numbers)}{NL}")
+print("{sum_rows(numbers, 2)} {cells_of(3).len()} {last_length(numbers)} {first_sorted()} {first_positive(numbers)}{NL}")

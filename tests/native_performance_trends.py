@@ -26,7 +26,7 @@ print(values[0])
     "string_concat": """string text := ""
 for: 0 <= nat index < 200000
     text += "x"
-print(len(text))
+print(text.len())
 """,
     "stream_file": """void | error write_sample()
     file.write output := try file.write("trend-output.txt")
@@ -59,7 +59,7 @@ for: 0 <= nat index < 50000 step 2
 print(values.size())
 """,
     "file_read_binary": """bin bytes := file.read_bin("parse-input.txt")
-print(len(bytes) / 8)
+print(bytes.len() / 8)
 """,
     "file_split_decoded": """string text := string.from_utf8(file.read_bin("parse-input.txt"))
 string[] rows := text.split(NL)
@@ -80,8 +80,8 @@ int lines := 0
 int checksum := 0
 while .reader(string &line)
     string[] fields := line.split(" ")
-    int parsed_index := int.parse(fields[0])
-    int value := int.parse(fields[1])
+    int parsed_index := int(fields[0])
+    int value := int(fields[1])
     if parsed_index != lines
         process.exit(3)
     lines += 1
@@ -95,8 +95,8 @@ int checksum := 0
 for line := rows[]
     if line != ""
         string[] fields := line.split(" ")
-        int parsed_index := int.parse(fields[0])
-        int value := int.parse(fields[1])
+        int parsed_index := int(fields[0])
+        int value := int(fields[1])
         if parsed_index != lines
             process.exit(3)
         lines += 1

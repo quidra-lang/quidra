@@ -43,8 +43,8 @@ def main():
                 output(f"{name}.{member}", radix_text(value, base, uppercase))
         lines.append(f"{kind} zero_{kind} := 0")
         output(f"zero_{kind}.B16", "0")
-        output(f"{name}.b16 == {name}.string(base = 16)", "true")
-        output(f"{name}.B36 == {name}.string(base = 36, uppercase = true)", "true")
+        output(f'{name}.b16 == "{{{name}:base=16}}"', "true")
+        output(f'{name}.B36 == "{{{name}:base=36,upper}}"', "true")
         lines += [f"string reference_{kind}({kind} &value)", "    return value.b16"]
         output(f"reference_{kind}(&{name})", radix_text(value, 16))
         lines += [f"string parameter_{kind}({kind} value)", "    return value.B36"]
@@ -70,7 +70,7 @@ def main():
     output("identity(copied)", "ff")
     output('"{255.b16} {(-255).B16}"', "ff -FF")
     output("255.b16[0]", "f")
-    output("len(255.b16)", "2")
+    output("255.b16.len()", "2")
 
     lines += [
         "class Fields()", "    int b16 := 7", '    string B16 := "field"',

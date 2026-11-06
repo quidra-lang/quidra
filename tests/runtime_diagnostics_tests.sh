@@ -56,80 +56,80 @@ row() {
 # at the indexing expression; a tensor access names the axis.
 row array-past-end 101 4 14 "index 3 out of bounds for length 3" caret=14 <<'QUI'
 int[] values := [1, 2, 3]
-nat at := len(values)
+nat at := values.len()
 print("before" + NL)
 print(values[at])
 QUI
 row array-negative 101 4 14 "index -4 out of bounds for length 3" <<'QUI'
 int[] values := [1, 2, 3]
-int at := int(len(values))
+int at := int(values.len())
 print("before" + NL)
 print(values[at - 7])
 QUI
 row array-write 101 4 8 "index 3 out of bounds for length 3" <<'QUI'
 int[] values := [1, 2, 3]
-nat at := len(values)
+nat at := values.len()
 print("before" + NL)
 values[at] = 9
 QUI
 row fixed-array 101 4 13 "index 5 out of bounds for length 4" <<'QUI'
 int[4] slots := [1, 2, 3, 4]
-nat at := len(slots) + 1
+nat at := slots.len() + 1
 print("before" + NL)
 print(slots[at])
 QUI
 row string-ascii 101 4 12 "index 6 out of bounds for length 6" <<'QUI'
 string word := "quidra"
-nat at := len(word)
+nat at := word.len()
 print("before" + NL)
 print(word[at])
 QUI
 row string-non-ascii 101 4 12 "index 3 out of bounds for length 3" <<'QUI'
 string word := "日本語"
-nat at := len(word)
+nat at := word.len()
 print("before" + NL)
 print(word[at])
 QUI
 row string-negative 101 4 12 "index -1 out of bounds for length 6" <<'QUI'
 string word := "quidra"
-int at := int(len(word))
+int at := int(word.len())
 print("before" + NL)
 print(word[at - 7])
 QUI
 row string-compare 101 4 9 "index 6 out of bounds for length 6" <<'QUI'
 string word := "quidra"
-nat at := len(word)
+nat at := word.len()
 print("before" + NL)
 if word[at] == "q"
     print("q")
 QUI
 row bin-get 101 4 12 "index 10 out of bounds for length 8" <<'QUI'
 bin data := bin.fill(8, 0)
-nat at := len(data) + 2
+nat at := data.len() + 2
 print("before" + NL)
 print(data[at])
 QUI
 row bin-set 101 4 6 "index 10 out of bounds for length 8" <<'QUI'
 bin data := bin.fill(8, 0)
-nat at := len(data) + 2
+nat at := data.len() + 2
 print("before" + NL)
 data[at] = bin.fill(1, 1)
 QUI
 row bin-slice 101 4 7 "slice 2:<10 out of bounds for length 8" <<'QUI'
 bin data := bin.fill(8, 0)
-nat at := len(data) + 2
+nat at := data.len() + 2
 print("before" + NL)
 print(data[2:<at])
 QUI
 row text-slice-past-end 101 4 7 "slice 1:<9 out of bounds for length 6" <<'QUI'
 string word := "quidra"
-nat stop := len(word) + 3
+nat stop := word.len() + 3
 print("before" + NL)
 print(word[1:<int(stop)])
 QUI
 row text-slice-reversed 101 4 7 "slice 7:<2 out of bounds for length 6" <<'QUI'
 string word := "quidra"
-int at := int(len(word))
+int at := int(word.len())
 print("before" + NL)
 print(word[at + 1:<at - 4])
 QUI

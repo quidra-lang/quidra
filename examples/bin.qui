@@ -1,4 +1,4 @@
 data := bin.fill(8, 0)
 data[1] = bin.fill(1, 1)
-println(len(data))
-println(data)
+println(data.len())
+println(string(data))

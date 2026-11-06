@@ -34,12 +34,12 @@ previous value and initialization state unchanged. Range variables cannot be
 assigned or passed by writable reference while their loop is active.
 
 Omit the type when the bounds determine it. `for: i < 10` uses `int`,
-`for: i < len(values)` uses `nat`, and an `int32` bound supplies `int32`.
+`for: i < values.len()` uses `nat`, and an `int32` bound supplies `int32`.
 Typed bounds and a non-`int` typed step must agree on one ordered numeric type;
 untyped numeric literal expressions use that context. With only literal bounds
 and steps, the ordinary `int` or exact `real` default applies. An integer step
 of type `int` can remain signed for a natural range. Explicit contracts remain
-available as `for: int32 i < 10` or `for: 0 <= nat i < len(values)`.
+available as `for: int32 i < 10` or `for: 0 <= nat i < values.len()`.
 A typed declaration without the colon is invalid; plain `for` reuses a binding.
 
 The four ascending combinations of `<` and `<=`, and the four descending

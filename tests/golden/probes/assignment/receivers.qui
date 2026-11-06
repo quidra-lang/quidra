@@ -15,10 +15,10 @@ class Bag this()
 Bag g := Bag()
 g.items = [5, 0, 0]
 .g.bump_first()
-print("method: {g.items[0]} {len(g.items)}")
+print("method: {g.items[0]} {g.items.len()}")
 print(NL)
 Bag h := Bag()
 h.items = [5, 0, 0]
 h.items[0] += .h.grow_items()
-print("receiver call: {h.items[0]} {len(h.items)}")
+print("receiver call: {h.items[0]} {h.items.len()}")
 print(NL)

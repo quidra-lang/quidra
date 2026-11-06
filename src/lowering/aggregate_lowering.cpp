@@ -1,5 +1,5 @@
 // Aggregate lowering: the methods of arrays (sorted in either order, join,
-// append, concat) and the builtins array(count, fill) and len(). A
+// append, concat, len) and the builtin array(count, fill). A
 // fixed-length receiver is first converted to a dynamic array; append,
 // concat and a fill that is not zero write the elements in counted loops.
 
@@ -296,13 +296,13 @@ ValueId AggregateLowering::lower_array_allocation(const Expr& e, const CallExpr&
     return out;
 }
 
-ValueId AggregateLowering::lower_len(const Expr& e, const CallExpr& n) {
-    auto value=lowerer_.lower_argument(*n.args[0].value),out=builder_.fresh();
-    const auto kind=lowerer_.argument_type(*n.args[0].value).kind;
+ValueId AggregateLowering::lower_len(const Expr& e, const Expr& receiver) {
+    auto value=lowerer_.lower_argument(receiver),out=builder_.fresh();
+    const auto kind=lowerer_.argument_type(receiver).kind;
     if(kind==TypeKind::Bin)builder_.emit(BinLength{out,value});
     else if(kind==TypeKind::String)builder_.emit(StringLength{out,value});
     else builder_.emit(ArrayLength{out,value});
-    lowerer_.release_argument(*n.args[0].value,value);
+    lowerer_.release_argument(receiver,value);
     // A length is within [0, 2^62): its word is inline.
     return lowerer_.bare_from_int64(out,type_of(checked_,e),true);
 }

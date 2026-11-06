@@ -7,13 +7,13 @@ int grow(int[] &values)
 
 int[] a := [5, 0, 0]
 a[0] = a[0] + grow(&a)
-print("plain: {a[0]} {len(a)}")
+print("plain: {a[0]} {a.len()}")
 print(NL)
 int[] b := [5, 0, 0]
 b[0] += grow(&b)
-print("compound: {b[0]} {len(b)}")
+print("compound: {b[0]} {b.len()}")
 print(NL)
 int[] c := [5, 3, 2]
 c[2] *= grow(&c) + 1
-print("product: {c[2]} {c[3]} {len(c)}")
+print("product: {c[2]} {c[3]} {c.len()}")
 print(NL)

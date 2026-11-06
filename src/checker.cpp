@@ -2678,10 +2678,6 @@ bool operand_storage_pure(const Expr& value, const auto& calls,
             for (const auto& argument : direct ? direct->type_arguments : method->type_arguments)
                 if (!type(argument)) return false;
             if (method && !expression(*method->receiver)) return false;
-            if (method && method->method == "parse")
-                if (const auto* name = binding_name(*method->receiver))
-                    if (const auto scalar = builtin_scalar_type(name->name);
-                        scalar && (is_numeric(*scalar) || scalar->kind == TypeKind::Bin)) return true;
             if (direct && direct->callee == "error") return true;
             std::string target;
             bool constructor = false;
@@ -4881,7 +4877,7 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
         if (reference_base && reference_base->second.find("[]") == std::string::npos) {
             base = check_address_target(*node->base);
             // A radix conversion consumes the scalar value, so it needs the
-            // same initialization/read effects as .string(base=...). Class
+            // same initialization/read effects as a value conversion. Class
             // fields still use the address-only path for partial objects.
             if (radix_member && base.kind != TypeKind::Class)
                 base = check_expr(*node->base);
@@ -5399,34 +5395,6 @@ Type Checker::check_method_call_expr(const Expr& expression,
             type = poisoned(value) || poisoned(count)
                 ? simple(TypeKind::Invalid)
                 : simple(TypeKind::String);
-        } else if (type_receiver &&
-            (is_numeric(*type_receiver) || type_receiver->kind == TypeKind::Bin) &&
-            node->method == "parse") {
-            if (!node->type_arguments.empty()) {
-                error("ARGUMENT_MISMATCH", "parse does not take type arguments.", expression.span);
-            }
-            if (node->args.size() != 1 || node->args[0].writable ||
-                (node->args[0].name && *node->args[0].name != "text")) {
-                error("ARGUMENT_MISMATCH", "Type.parse requires one string argument.", expression.span);
-            }
-            auto string_type = simple(TypeKind::String);
-            auto argument = check_value_argument(*node->args[0].value, &string_type);
-            expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
-            if (poisoned(argument)) {
-                type = simple(TypeKind::Invalid);
-            } else if (type_receiver->kind == TypeKind::Bin) {
-                if (const auto* literal = std::get_if<StringExpr>(&node->args[0].value->data)) {
-                    for (const char ch : literal->value) {
-                        if (ch != '0' && ch != '1') {
-                            error("BIN_PARSE", "bin.parse accepts only '0' and '1'.",
-                                  node->args[0].span);
-                        }
-                    }
-                }
-                type = Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
-            } else {
-                type = Type::union_of({*type_receiver, simple(TypeKind::Error)});
-            }
         } else {
             Type receiver;
             const std::string* internal = nullptr;
@@ -5444,9 +5412,26 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     : check_expr(*node->receiver);
             }
 
+            const auto has_length = [](const Type& candidate) {
+                return candidate.kind == TypeKind::Array || candidate.kind == TypeKind::String ||
+                       candidate.kind == TypeKind::Bin;
+            };
+            if (node->method == "len" && receiver.kind == TypeKind::Union) {
+                if (const auto success = error_free_operand_type(receiver); success && has_length(*success))
+                    receiver = consume_error_operand(*node->receiver, receiver,
+                        fail_fast_expressions_, expr_types_);
+            }
+
             if(receiver.kind==TypeKind::Tuple)error("TUPLE","Tuples have no members; destructure the tuple instead.",expression.span);
             if (poisoned(receiver)) {
                 type = receiver;
+            } else if (node->method == "len" && has_length(receiver)) {
+                if (!node->type_arguments.empty() || !node->args.empty()) {
+                    error("ARGUMENT_MISMATCH", "len() takes no arguments.", expression.span);
+                }
+                type = simple(TypeKind::Nat);
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::Builtin, {}, BuiltinCallable::Len, type};
             } else if (receiver.kind == TypeKind::Class &&
                        receiver.class_name == standard_class::autograd_target) {
                 if (node->method == "has_grad") {
@@ -6064,9 +6049,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 if (receiver.kind == TypeKind::String) {
                     const auto string_type = simple(TypeKind::String);
                     const auto int_type = simple(TypeKind::Int);
-                    if (node->method == "string") {
-                        require_count(0, "string.string() takes no arguments."); type = string_type;
-                    } else if (node->method == "contains") {
+                    if (node->method == "contains") {
                         require_count(1, "string.contains requires needle.");
                         auto a=check_plain_argument(0,"needle",string_type);
                         type=poisoned(a)?simple(TypeKind::Invalid):simple(TypeKind::Bool);
@@ -6230,63 +6213,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type=valid_arguments?Type::array(*receiver.first):simple(TypeKind::Invalid);
                     }
                 } else {
-                    if (node->method != "string" || !printable(receiver)) {
-                        error("UNKNOWN_MEMBER","Type '" + type_name(receiver) + "' has no method '" + node->method + "'.",expression.span);
-                    }
-                    if (node->args.empty()) {
-                        type = simple(TypeKind::String);
-                    } else {
-                        if (!is_bare_integer(receiver) && !is_fixed_integer(receiver)) {
-                            error("ARGUMENT_MISMATCH",
-                                  "Only integer values may specify string(base=..., uppercase=...).",
-                                  expression.span);
-                        }
-                        if (node->args.size() > 2) {
-                            error("ARGUMENT_MISMATCH",
-                                  "Integer string conversion accepts base and uppercase.",
-                                  expression.span);
-                        }
-                        bool base_seen = false;
-                        bool uppercase_seen = false;
-                        for (const auto& argument : node->args) {
-                            if (argument.writable || !argument.name) {
-                                error("ARGUMENT_MISMATCH",
-                                      "Integer string formatting arguments must be named.",
-                                      argument.span);
-                            } else if (*argument.name == "base") {
-                                if (base_seen) error("ARGUMENT_MISMATCH", "Duplicate base argument.", argument.span);
-                                base_seen = true;
-                                const auto int_type = simple(TypeKind::Int);
-                                check_value_argument(*argument.value, &int_type);
-                                const auto* integer = std::get_if<IntegerExpr>(&argument.value->data);
-                                if (!integer || !integer->fits_u64 ||
-                                    integer->value < 2 || integer->value > 36) {
-                                    error("ARGUMENT_MISMATCH",
-                                          "base must be an integer literal between 2 and 36.",
-                                          argument.span);
-                                }
-                            } else if (*argument.name == "uppercase") {
-                                if (uppercase_seen) error("ARGUMENT_MISMATCH", "Duplicate uppercase argument.", argument.span);
-                                uppercase_seen = true;
-                                const auto bool_type = simple(TypeKind::Bool);
-                                check_value_argument(*argument.value, &bool_type);
-                                if (!std::holds_alternative<BoolExpr>(argument.value->data)) {
-                                    error("ARGUMENT_MISMATCH",
-                                          "uppercase must be a bool literal.",
-                                          argument.span);
-                                }
-                            } else {
-                                error("ARGUMENT_MISMATCH",
-                                      "Unknown integer string formatting argument.",
-                                      argument.span);
-                            }
-                        }
-                        if (!base_seen)
-                            error("ARGUMENT_MISMATCH",
-                                  "Specify base before uppercase in integer string formatting.",
-                                  expression.span);
-                        type = simple(TypeKind::String);
-                    }
+                    error("UNKNOWN_MEMBER", "Type '" + type_name(receiver) +
+                          "' has no method '" + node->method + "'.", expression.span);
                 }
                 }
             } else {
@@ -6654,23 +6582,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     break;
                 }
-                case BuiltinCallable::Len: {
-                    if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "len requires one string, array, or bin argument.", expression.span);
-                    }
-                    auto argument = builtin_arg(0, "value");
-                    if (poisoned(argument)) {
-                        type = argument;
-                    } else {
-                        if (argument.kind != TypeKind::String &&
-                            argument.kind != TypeKind::Array &&
-                            argument.kind != TypeKind::Bin) {
-                            error("TYPE_MISMATCH", "len requires a string, array, or bin.", expression.span);
-                        }
-                        type = simple(TypeKind::Nat);
-                    }
-                    break;
-                }
+                case BuiltinCallable::Len:
+                    throw std::logic_error("Length is a receiver method.");
                 case BuiltinCallable::ExactAtom: {
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH",
@@ -7866,7 +7779,19 @@ Type Checker::check_call_expr(const Expr& expression,
             }
         }
 
-        if (const auto variable = variables_.find(name); variable != variables_.end()) {
+        if (name == "string") {
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH", "string(value) requires one positional value.", expression.span);
+            }
+            const auto source = check_expr(*node->args[0].value);
+            if (source.kind == TypeKind::Tuple || !printable(source)) {
+                error("TYPE_MISMATCH", "string(value) cannot convert " + type_name(source) + ".",
+                      node->args[0].span);
+            }
+            type = poisoned(source) ? source : simple(TypeKind::String);
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::NumericCast, name, std::nullopt, type};
+        } else if (const auto variable = variables_.find(name); variable != variables_.end()) {
             const auto& callable = variable->second;
             if (callable.kind != TypeKind::Function || !callable.first) {
                 error("NOT_CALLABLE", "Binding '" + name + "' is not callable.", expression.span);
@@ -8141,11 +8066,14 @@ Type Checker::check_call_expr(const Expr& expression,
             } else {
                 auto result = cast_result(source);
                 if (!result) {
-                    if (const auto success = error_free_operand_type(source)) {
+                    const auto success = error_free_operand_type(source);
+                    const auto& input = success ? *success : source;
+                    if (input.kind == TypeKind::String)
+                        result = Type::union_of({*target, simple(TypeKind::Error)});
+                    else if (success)
                         result = cast_result(*success);
-                        if (result)
-                            source = consume_operand(*node->args[0].value, source);
-                    }
+                    if (result && success)
+                        source = consume_operand(*node->args[0].value, source);
                 }
                 if (!result) {
                     Type leaf = source;
@@ -8193,7 +8121,8 @@ Type Checker::check_call_expr(const Expr& expression,
             }
             auto source = check_expr(*node->args[0].value);
             const auto supported = [](const Type& input) {
-                if (is_fixed_integer(input) || input.kind == TypeKind::Bool) return true;
+                if (is_fixed_integer(input) || input.kind == TypeKind::Bool ||
+                    input.kind == TypeKind::String) return true;
                 return input.kind == TypeKind::Array && input.first &&
                     (is_fixed_integer(*input.first) || input.first->kind == TypeKind::Bool);
             };
@@ -8240,16 +8169,22 @@ Type Checker::check_call_expr(const Expr& expression,
             const bool valid = supported(source);
             if (!poisoned(source) && !valid) {
                 error("TYPE_MISMATCH",
-                      "bin(value) accepts an integer, bool, or a flat integer/bool array.",
+                      "bin(value) accepts text, a fixed-width integer, bool, or a flat integer/bool array.",
                       node->args[0].span);
             }
-            type = poisoned(source) ? simple(TypeKind::Invalid) : simple(TypeKind::Bin);
-            call_resolutions_[&expression] =
-                CallResolution{CallKind::Constructor, "bin.cast", std::nullopt, type};
-        } else if (name == "string") {
-            error("ARGUMENT_MISMATCH",
-                  "string is not a constructor; use string.repeat(value, n) for repetition.",
-                  expression.span);
+            if (source.kind == TypeKind::String) {
+                if (const auto* literal = std::get_if<StringExpr>(&node->args[0].value->data);
+                    literal && literal->value.find_first_not_of("01") != std::string::npos) {
+                    error("BIN_PARSE", "bin(text) accepts only '0' and '1'.", node->args[0].span);
+                }
+                type = Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::NumericCast, name, std::nullopt, type};
+            } else {
+                type = poisoned(source) ? simple(TypeKind::Invalid) : simple(TypeKind::Bin);
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::Constructor, "bin.cast", std::nullopt, type};
+            }
         } else if (name.size() > 2 && name.ends_with("[]")) {
             const auto element_name = name.substr(0, name.size() - 2);
             const auto element = builtin_scalar_type(element_name);
@@ -8623,9 +8558,6 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
                 if (const auto* field = find_field(base->class_name, member->name)) return field->type;
             }
         } else if (const auto* call = std::get_if<MethodCallExpr>(&value.data)) {
-            if (const auto* name = binding_name(*call->receiver); name && call->method == "parse")
-                if (const auto parsed = builtin_scalar_type(name->name); parsed && is_numeric(*parsed))
-                    return Type::union_of({*parsed, simple(TypeKind::Error)});
             const auto receiver = self(self, *call->receiver);
             if (receiver && receiver->kind == TypeKind::Class) {
                 if (const auto* method = find_method(receiver->class_name, call->method))

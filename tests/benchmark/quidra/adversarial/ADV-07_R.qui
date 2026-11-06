@@ -9,8 +9,8 @@ string read_input_line()
             return line
         error problem
             process.exit(2)
-real64 a := real64.parse(read_input_line())
-real64 b := real64.parse(read_input_line())
+real64 a := real64(read_input_line())
+real64 b := real64(read_input_line())
 real64 h := a / b
 real64 mean := (1.0 + h + 3.0) / 3.0
 real64 diff := h - h

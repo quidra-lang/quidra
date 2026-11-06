@@ -52,7 +52,7 @@ program propagation <<'QUI'
 int | error parse_port(string text)
     if text == ""
         return error("port is empty", code = "CONFIG_PORT")
-    return try int.parse(text)
+    return try int(text)
 
 int | error read_port(string path)
     string text := try string.from_utf8(try file.read_bin(path))
@@ -88,7 +88,7 @@ TXT
 # function, indented under its caused-by line.
 program wrap-chain <<'QUI'
 int | error read_number(string text)
-    return try int.parse(text)
+    return try int(text)
 
 int | error read_port(string text)
     match read_number(text)
@@ -150,7 +150,7 @@ string | error load_dataset(string path)
 
 int | error train(string path)
     string data := try load_dataset(path)
-    return int(len(data))
+    return int(data.len())
 
 int steps := train("data.csv")
 print(steps)
@@ -328,7 +328,7 @@ program trap-one-deep <<'QUI'
 int64 scale(int64 x)
     return x * 1000000000000
 
-int64 big := int64.parse("10000000")
+int64 big := int64("10000000")
 print(scale(big))
 print(NL)
 QUI
@@ -433,7 +433,7 @@ string read_config(string path)
 
 int config_length(string path)
     string text := read_config(path)
-    return int(len(text))
+    return int(text.len())
 
 int n := config_length("settings.toml")
 print(n)
@@ -458,7 +458,7 @@ string read_config(string path)
 
 int config_length(string path)
     string text := read_config(path)
-    return int(len(text))
+    return int(text.len())
 
 int n := config_length("settings.toml")
 print(n)
@@ -542,7 +542,7 @@ string[] fields(string line, string separator)
 
 string separator := ""
 string[] parts := fields("a,b", separator)
-print(len(parts))
+print(parts.len())
 print(NL)
 QUI
 expect uncoded <<'TXT'
@@ -558,7 +558,7 @@ TXT
 # --- A test assertion (status 1): no message, then the path.
 program assertion <<'QUI'
 bool all_positive(int[] values)
-    test.check(len(values) > 3)
+    test.check(values.len() > 3)
     return true
 
 bool ok := all_positive([1, 2])
@@ -566,7 +566,7 @@ QUI
 expect assertion 1 <<'TXT'
 Quidra test assertion failed at main.qui:2:5
 
-2 |     test.check(len(values) > 3)
+2 |     test.check(values.len() > 3)
   |     ^
   |
   | propagated through all_positive() at main.qui:5:12
@@ -579,7 +579,7 @@ int pick(int[] values, nat i)
 
 void fails()
     int[] values := [1, 2, 3]
-    print(pick(values, len(values)))
+    print(pick(values, values.len()))
 
 void waits()
     int unused := 0
@@ -618,7 +618,7 @@ int choose(int[] values, bool first, int a, int b)
     return r + 1
 
 int[] values := [1, 2, 3]
-int one := int.parse("1")
+int one := int("1")
 print(choose(values, one == 1, 7, 8))
 print(NL)
 QUI
@@ -665,7 +665,7 @@ fi
 # actually called.
 program indirect-hop <<'QUI'
 int | error parse_value(string text)
-    return try int.parse(text)
+    return try int(text)
 
 int | error apply(func<int | error>(string) op, string text)
     int value := try op(text)
@@ -676,7 +676,7 @@ QUI
 expect indirect-hop <<'TXT'
 Quidra runtime error[NUMERIC_PARSE] at main.qui:2:16
 
-2 |     return try int.parse(text)
+2 |     return try int(text)
   |                ^
   | cannot parse numeric input as int
   |

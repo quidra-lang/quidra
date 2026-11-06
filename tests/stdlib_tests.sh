@@ -306,12 +306,12 @@ QUI
 
 cat > "$TMP/bin-string.qui" <<'QUI'
 bin allocated := bin.fill(5, 1)
-print(len(allocated))
+print(allocated.len())
 print(NL)
 print(allocated)
 print(NL)
 
-bin | error parsed_result := bin.parse("01010000")
+bin | error parsed_result := bin("01010000")
 match parsed_result
     bin parsed
         print(parsed[0])
@@ -330,7 +330,7 @@ int8 restored := int8(packed)
 print(restored)
 print(NL)
 
-bin | error flag_result := bin.parse("1")
+bin | error flag_result := bin("1")
 match flag_result
     bin bit
         bool flag := bool(bit)
@@ -393,7 +393,7 @@ int replace(string &value)
 pattern := "é" + "字"
 repeated := pattern * replace(&pattern)
 println(repeated)
-println(len(repeated))
+println(repeated.len())
 println(pattern)
 if true
     const int32 count := -1
@@ -418,7 +418,7 @@ grep -Fq 'String repetition requires an integer count.' "$TMP/string-repeat-real
 
 cat > "$TMP/bin-parse-error.qui" <<'QUI'
 string invalid_text := "012"
-bin | error parsed := bin.parse(invalid_text)
+bin | error parsed := bin(invalid_text)
 match parsed
     bin value
         print("unexpected")
@@ -438,7 +438,7 @@ cat > "$TMP/file-bin.qui" <<QUI
 bin | error raw := file.read_bin("$TMP/source.bin")
 match raw
     bin value
-        print(len(value))
+        print(value.len())
         print(NL)
         nat8[] values := nat8[](value)
         print(values[0])
@@ -486,7 +486,7 @@ cat > "$TMP/file-list.qui" <<QUI
 string[] | error listed := file.list("$TMP/new-directory")
 match listed
     string[] entries
-        print(len(entries))
+        print(entries.len())
         print(NL)
         print(entries[0].ends_with("/a.txt"))
         print(NL)
@@ -502,7 +502,7 @@ cat > "$TMP/file-list-missing.qui" <<QUI
 string[] | error listed := file.list("$TMP/no-such-directory")
 match listed
     string[] entries
-        print(len(entries))
+        print(entries.len())
         print(NL)
     error problem
         print(problem)
@@ -1129,9 +1129,9 @@ for: 0 <= nat i < 10000
     values = values.append(int(i))
 int[] copied := values
 values = values.append(10000)
-print(len(values))
+print(values.len())
 print(NL)
-print(len(copied))
+print(copied.len())
 print(NL)
 print(values[10000])
 print(NL)
@@ -1174,7 +1174,7 @@ for value := remaining_values[]
     print(NL)
 .values.set("i", 5)
 string[] reinserted_keys := values.keys()
-print(reinserted_keys[len(reinserted_keys) - 1])
+print(reinserted_keys[reinserted_keys.len() - 1])
 print(NL)
 map<string, int> copied_values := values
 print(.copied_values.remove("q"))
@@ -1236,7 +1236,7 @@ for value := remaining[]
     print(NL)
 .values.add("i")
 string[] reinserted := values.values()
-print(reinserted[len(reinserted) - 1])
+print(reinserted[reinserted.len() - 1])
 print(NL)
 distinct<string> copied := values
 print(.copied.remove("q"))
@@ -1435,19 +1435,19 @@ int[] keys := values.keys()
 int[] distinct_values := unique.values()
 print(keys[0])
 print(NL)
-print(keys[len(keys) - 1])
+print(keys[keys.len() - 1])
 print(NL)
 print(distinct_values[0])
 print(NL)
-print(distinct_values[len(distinct_values) - 1])
+print(distinct_values[distinct_values.len() - 1])
 print(NL)
 .values.set(100, 7)
 .unique.add(100)
 int[] reinserted_keys := values.keys()
 int[] reinserted_values := unique.values()
-print(reinserted_keys[len(reinserted_keys) - 1])
+print(reinserted_keys[reinserted_keys.len() - 1])
 print(NL)
-print(reinserted_values[len(reinserted_values) - 1])
+print(reinserted_values[reinserted_values.len() - 1])
 print(NL)
 QUI
 removal_stress_output="$("$QUIDRA" "$TMP/hash-collection-removal-stress.qui")"
@@ -1579,7 +1579,7 @@ uninitialized_array_output="$("$QUIDRA" "$TMP/uninitialized-array.qui")"
 cat > "$TMP/uninitialized-array-read.qui" <<'QUI'
 int[] values := array(2)
 values[0] = 1
-int last := int(len(values)) - 1
+int last := int(values.len()) - 1
 print(values[last])
 print(NL)
 QUI
@@ -2100,11 +2100,11 @@ int slow_value()
     return 7
 
 func<int>()[] operations := array(128, fill = slow_value)
-int[] values := array(len(operations), fill = 0)
+int[] values := array(operations.len(), fill = 0)
 parallel
     for: operation := operations[index]
         values[index] = operation()
-print(len(values))
+print(values.len())
 print(NL)
 print(values[127])
 print(NL)
@@ -2197,7 +2197,7 @@ Outer model := Outer()
 model.inner = inner
 model.direct = direct
 Marker[] markers := reflect.collect<Marker>(model)
-print(len(markers))
+print(markers.len())
 print(NL)
 print(markers[0].value)
 print(NL)
@@ -2221,7 +2221,7 @@ second.value = 17
 Model model := Model()
 model.markers = [first, second]
 Marker[] markers := reflect.collect<Marker>(model)
-print(len(markers))
+print(markers.len())
 print(NL)
 print(markers[0].value)
 print(NL)
@@ -2257,7 +2257,7 @@ Model model := Model()
 model.blocks = blocks
 
 Marker[] markers := reflect.collect<Marker>(model)
-print(len(markers))
+print(markers.len())
 print(NL)
 print(markers[0].value)
 print(NL)
@@ -2298,7 +2298,7 @@ model.direct = direct
 string[] paths := reflect.paths<Marker>(model)
 print(reflect.type_name(model))
 print(NL)
-print(len(paths))
+print(paths.len())
 print(NL)
 print(paths[0])
 print(NL)
@@ -2327,7 +2327,7 @@ class Model()
 
 void print_markers<M>(M &model)
     Marker[] markers := reflect.collect<Marker>(model)
-    print(len(markers))
+    print(markers.len())
     print(NL)
     print(markers[0].value)
     print(NL)
@@ -2531,7 +2531,7 @@ match fits
     error problem
         print(problem)
         print(NL)
-int | error parsed := int.parse("-00340282366920938463463374607431768211456")
+int | error parsed := int("-00340282366920938463463374607431768211456")
 match parsed
     int value
         print(value)
@@ -2539,7 +2539,7 @@ match parsed
     error problem
         print(problem)
         print(NL)
-int | error bad := int.parse("12x")
+int | error bad := int("12x")
 match bad
     int value
         print(value)
@@ -2550,7 +2550,7 @@ match bad
 print("{huge}|{bottom}")
 print(NL)
 string text := "{above}"
-print(len(text))
+print(text.len())
 print(NL)
 QUI
 bigint_words_expected="$(printf '4611686018427387903 4611686018427387904 -4611686018427387904 -4611686018427387905\ntrue\ntrue\n4611686018427387904\n-4611686018427387904\n9223372036854775806\n21267647932558653957237540927630737409\n4611686018427387904\ntrue\n-3 -1 -3 1\n904\n1267650600228229401496703205376\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\nfalse\n123456789012345678901234567888\n13835058055282163712 13835058055282163711\n123456789012345678901234567891\n4611686018427387903\n-2147483648\n255\n4.611686018427388e+18\n1.2345679e+29\n12345678901234567890123456789.0\nnarrow failed\n4611686018427387904\n-340282366920938463463374607431768211456\nparse failed\n123456789012345678901234567890|-4611686018427387904\n19')"
@@ -2904,7 +2904,7 @@ match successful
     http.Response ok_response
         print(ok_response.status)
         print(NL)
-        print(len(ok_response.body))
+        print(ok_response.body.len())
         print(NL)
         print(ok_response.body[0])
         print(NL)
@@ -2935,7 +2935,7 @@ match missing
     http.Response missing_response
         print(missing_response.status)
         print(NL)
-        print(len(missing_response.body))
+        print(missing_response.body.len())
         print(NL)
     error problem
         print(problem)
@@ -3187,7 +3187,7 @@ int n := 2
 int m := 2
 int[nat(n * m)] values
 values[3] = 7
-print(len(values))
+print(values.len())
 print(NL)
 print(values[3])
 print(NL)
@@ -3359,7 +3359,7 @@ grep -q 'bin length does not match destination type width' "$TMP/bin-bool-length
 cat > "$TMP/bin-array-length-fail.qui" <<'QUI'
 bin value := bin.fill(3, 0)
 nat8[] decoded := nat8[](value)
-print(len(decoded))
+print(decoded.len())
 print(NL)
 QUI
 set +e

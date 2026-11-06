@@ -60,7 +60,7 @@ void go()
     string[] buffer := []
     for: 0 <= nat i < 3
         state = (state * 48271) % 2147483647
-        string[] fields := [i.string(), " ", state.string(), NL]
+        string[] fields := [string(i), " ", string(state), NL]
         string line := fields.join("")
         buffer = buffer.append(line)
     string joined := buffer.join("|")
@@ -187,7 +187,7 @@ cat > "$TMP/frame-scratch-loop.qui" <<'QUI'
 tensor<real32> values := tensor.ones<real32>([2])
 int i := 0
 while i < 20
-    int | error parsed := int.parse("42")
+    int | error parsed := int("42")
     tensor<real32> shifted := values + 1.0
     tensor<real32> first := shifted[0:<1]
     values[0] = 2.0

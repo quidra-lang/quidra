@@ -245,11 +245,11 @@ cases={
  'transitive-value-forwarding':(complete+reader+forward+'int outer(Box &input)\n    return forward(&input)\nbox := Box()\nprintln(outer(&box))\n',None),
  'write-before-value-forwarding':(partial+reader+'int forward(Box &input)\n    input.value = 7\n    return read_value(input)\n'+call,None),
  'nested-value-forwarding':('class Inner()\n    value := 7\nclass Outer()\n    child := Inner()\nint read_value(const Inner input)\n    return input.value\nint forward(Outer &input)\n    return read_value(input.child)\nbox := Outer()\nprintln(forward(&box))\n',None),
- 'array-forwarding':(complete+'Box[] collect(Box &input)\n    return [input]\nbox := Box()\nprintln(len(collect(&box)))\n',None),
+ 'array-forwarding':(complete+'Box[] collect(Box &input)\n    return [input]\nbox := Box()\nprintln(collect(&box).len())\n',None),
  'equality-forwarding':(complete+'bool same(Box &left, const Box right)\n    return left == right\nbox := Box()\nprintln(same(&box, box))\n',None),
  'partial-value-forwarding':(partial+reader+forward+call,'UNINITIALIZED'),
  'partial-direct-value':(partial+reader+'box := Box()\nprintln(read_value(box))\n','UNINITIALIZED_ARGUMENT'),
- 'partial-array-forwarding':(partial+'Box[] collect(Box &input)\n    return [input]\nbox := Box()\nprintln(len(collect(&box)))\n','UNINITIALIZED'),
+ 'partial-array-forwarding':(partial+'Box[] collect(Box &input)\n    return [input]\nbox := Box()\nprintln(collect(&box).len())\n','UNINITIALIZED'),
  'partial-equality-forwarding':(partial+'bool same(Box &left, const Box right)\n    return left == right\nbox := Box()\nother := Box()\nother.value = 7\nprintln(same(&box, other))\n','UNINITIALIZED'),
  'partial-overwrite':(partial+reader+'int forward(Box &input)\n    input = Box()\n    return read_value(input)\nbox := Box()\nbox.value = 7\nprintln(forward(&box))\n','UNINITIALIZED_ARGUMENT'),
  'prior-read-partial-overwrite':(partial+reader+'int forward(Box &input)\n    old := input.value\n    input = Box()\n    return read_value(input) + old\nbox := Box()\nbox.value = 7\nprintln(forward(&box))\n','UNINITIALIZED_ARGUMENT'),
@@ -722,7 +722,7 @@ println(result.value)
 int | error attempt(Box &input, string text)
     copy := input
     input = Box()
-    int n := try int.parse(text)
+    int n := try int(text)
     input = copy
     return n
 box := Box()
@@ -755,7 +755,7 @@ println(box.value)
 '''),
 ('constructor_try_receiver_success_only', True, '''class Trial(local string text) | error
     int value
-    value = try int.parse(text)
+    value = try int(text)
 Trial result := Trial("7")
 println(result.value)
 '''),
@@ -986,7 +986,7 @@ int forward(Box &input)
     old := copy.value
     second := identity(copy)
     int[] generated := [for i := [0, 1][] then read_clear(&second)]
-    return old + int(len(generated))
+    return old + int(generated.len())
 input := Box()
 input.value = 7
 println(forward(&input))
@@ -1004,7 +1004,7 @@ int forward(Box &input)
     old := copy.value
     second := identity(copy)
     int[] generated := [for i := [0, 1][] if read_clear(&second) then i]
-    return old + int(len(generated))
+    return old + int(generated.len())
 input := Box()
 input.value = 7
 println(forward(&input))
@@ -1061,7 +1061,7 @@ int forward(Box &input)
     old := copy.value
     second := identity(copy)
     int[] generated := [for i := source(&second)[] then i]
-    return old + int(len(generated))
+    return old + int(generated.len())
 input := Box()
 input.value = 7
 println(forward(&input))
@@ -1736,7 +1736,7 @@ int | error forward(Box &input, bool flag, string text)
         input = Box()
         input = saved
         return 0
-    n := try int.parse(text)
+    n := try int(text)
     return consume(input) + n
 box := Box()
 box.value = 7
@@ -1746,7 +1746,7 @@ int | error result := forward(&box, false, "0")
     int value
 void | error attempt(Box &input, string text)
     input = Box()
-    try int.parse(text)
+    try int(text)
     input.value = 7
     return void
 box := Box()
@@ -1905,7 +1905,7 @@ println(owner.state.value)
 ('15_copy_after_try_positive', True, '''class Box()
     int value
 int | error forward(Box &input, string text)
-    n := try int.parse(text)
+    n := try int(text)
     copy := input
     return copy.value + n
 box := Box()
@@ -1918,7 +1918,7 @@ int | error preserve(Box &input, string text)
     copy := input
     input = Box()
     input = copy
-    return try int.parse(text)
+    return try int(text)
 box := Box()
 box.value = 7
 int | error result := preserve(&box, "bad")
@@ -1927,7 +1927,7 @@ println(box.value)
 ('17_identity_after_try_positive', True, '''class Box()
     int value
 int | error preserve(Box &input, string text)
-    n := try int.parse(text)
+    n := try int(text)
     copy := input
     input = Box()
     input = copy
@@ -1957,7 +1957,7 @@ println(box.value)
 class Trial(local Box &input, local string text) | error
     local Box copy := input
     input = Box()
-    local int n := try int.parse(text)
+    local int n := try int(text)
     input = copy
 box := Box()
 box.value = 7
@@ -1970,7 +1970,7 @@ class Trial(local Box &input, local string text) | error
     local Box copy := input
     input = Box()
     input = copy
-    local int n := try int.parse(text)
+    local int n := try int(text)
 box := Box()
 box.value = 7
 Trial | error result := Trial(&box, "bad")
@@ -1982,7 +1982,7 @@ class Owner()
     state := Box()
     void | error .attempt(string text)
         state = Box()
-        try int.parse(text)
+        try int(text)
         state.value = 7
         return void
 owner := Owner()
@@ -1991,7 +1991,7 @@ void | error result := .owner.attempt("bad")
 println(owner.state.value)
 '''),
 ('22_scalar_reference_try_failure_negative', False, '''void | error attempt(int &output, string text)
-    try int.parse(text)
+    try int(text)
     output = 7
     return void
 int value
@@ -2009,7 +2009,7 @@ println(box.value)
 '''),
 ('24_constructor_try_receiver_success_positive', True, '''class Trial(local string text) | error
     int value
-    value = try int.parse(text)
+    value = try int(text)
 Trial result := Trial("7")
 println(result.value)
 '''),
@@ -2061,12 +2061,12 @@ int | error preserve(Box &input, string text)
     copy := input
     input = Box()
     input = copy
-    return try int.parse(text)
+    return try int(text)
 class Trial(local Box &input, local string text) | error
     local Box copy := input
     input = Box()
     input = copy
-    local int number := try int.parse(text)
+    local int number := try int(text)
 box := Box()
 box.value = 7
 int | error result := preserve(&box, "bad")
@@ -2237,7 +2237,7 @@ println(box.value)
     int[] values := [0]
     int value
 nat | error index(string text)
-    parsed := try int.parse(text)
+    parsed := try int(text)
     return nat(parsed)
 void | error attempt(Box &input, string text)
     input = Box()
@@ -2316,7 +2316,7 @@ println(forward(&box))
     int position
 int | error number(Parser &input, string text)
     input.position += 1
-    return int.parse(text)
+    return int(text)
 void | error parse(Parser &input, string text)
     input.position = 0
     try number(&input, text)
@@ -2332,7 +2332,7 @@ println(outer(&parser, "bad"))
     int position
 int | error number(Parser &input, string text)
     input = Parser()
-    return int.parse(text)
+    return int(text)
 void | error parse(Parser &input, string text)
     input.position = 0
     try number(&input, text)
@@ -2369,7 +2369,7 @@ println(box.value)
     int[] values := [0]
     int position
 nat | error index(string text)
-    parsed := try int.parse(text)
+    parsed := try int(text)
     return nat(parsed)
 void | error fill(Parser &input, string text)
     input.position = 7
@@ -3339,7 +3339,7 @@ class Owner()
     state := Box()
     void | error .attempt(string text)
         state = Box()
-        try int.parse(text)
+        try int(text)
         state.value = 7
         return void
 owner := Owner()
@@ -3771,7 +3771,7 @@ class Owner()
     Item[] items := [Item(1)]
     int .read()
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             item := items[index]
             item.value += 1
             items[index] = item
@@ -3800,7 +3800,7 @@ class Owner()
     Item[] items := [Item(full_child())]
     int .read()
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             items[index] = Item(Child())
         return p.values[0]
 owner := Owner()
@@ -3831,7 +3831,7 @@ class Owner()
     Item[] items := [Item(full_child())]
     int .read()
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             &slot := &items[index]
             slot.child = Child()
         return p.values[0]
@@ -3865,7 +3865,7 @@ class Owner()
     Item[] items := [Item(full_child())]
     int .read(Child &other)
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             clear(&other)
             item := items[index]
             items[index] = item
@@ -3901,7 +3901,7 @@ class Owner()
     Item[] items := [Item(full_child())]
     int .read(Child &other)
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             item := items[index]
             items[index] = item
             clear(&other)
@@ -3936,7 +3936,7 @@ class Owner()
     int .read()
         &old := &items[0].child
         old = Child()
-        for: index < int(len(items))
+        for: index < int(items.len())
             items[index] = Item(full_child())
         return old.value
 owner := Owner()
@@ -3988,7 +3988,7 @@ class Owner this(local Item[] &input)
     &items = &input
     int .read()
         p := data.params
-        for: index < int(len(items))
+        for: index < int(items.len())
             item := items[index]
             items[index] = item
         return p.values[0]

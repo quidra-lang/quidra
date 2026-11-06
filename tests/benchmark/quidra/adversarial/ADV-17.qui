@@ -2,7 +2,7 @@ print("ADV-START")
 print(NL)
 flush()
 string | none text := none
-int length := len(text)
+int length := text.len()
 print("OBS=LEN:{length}")
 print(NL)
 flush()

@@ -20,4 +20,12 @@ inline Type type_of(const CheckedProgram& checked, const Expr& e) {
     return checked.expr_types.at(&e);
 }
 
+// A user-defined len() has no builtin resolution and does not provide length facts.
+inline const Expr* length_receiver(const CheckedProgram& checked, const Expr& expression) {
+    const auto call = checked.call_resolutions.find(&expression);
+    if (call == checked.call_resolutions.end() || call->second.builtin != BuiltinCallable::Len)
+        return nullptr;
+    return std::get<MethodCallExpr>(expression.data).receiver.get();
+}
+
 } // namespace quidra::lowering

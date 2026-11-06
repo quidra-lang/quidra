@@ -465,7 +465,7 @@ export "C" int32 host_work(int32 x)
 
 export "C" void fail_now()
     int[4] slots := [1, 2, 3, 4]
-    nat at := len(slots) + 1
+    nat at := slots.len() + 1
     print(slots[at])
 QUI
 cat > "$TMP/atexit_host.c" <<'C'

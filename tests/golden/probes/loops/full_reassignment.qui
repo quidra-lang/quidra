@@ -7,14 +7,14 @@ int[] values := [1, 2, 3]
 for v := values[]
     print("{v} ")
     values = [7, 8]
-print("| {len(values)}")
+print("| {values.len()}")
 print(NL)
 Holder h := Holder()
 h.items = [1, 2, 3]
 for v := h.items[]
     print("{v} ")
     h.items = [9]
-print("| {len(h.items)}")
+print("| {h.items.len()}")
 print(NL)
 Holder g := Holder()
 g.items = [1, 2, 3]
@@ -23,11 +23,11 @@ for v := g.items[]
     Holder fresh := Holder()
     fresh.items = [5, 5, 5, 5]
     g = fresh
-print("| {len(g.items)}")
+print("| {g.items.len()}")
 print(NL)
 int[][] rows := [[1, 2, 3], [4]]
 for v := rows[0][]
     print("{v} ")
     rows[0] = [0]
-print("| {len(rows[0])}")
+print("| {rows[0].len()}")
 print(NL)

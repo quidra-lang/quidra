@@ -497,7 +497,7 @@ static void imported_locals_use_module_scope() {
               "    int total := 0\n"
               "    for: 0 <= nat input_width < 3\n"
               "        total = total + int(input_width)\n"
-              "    match int.parse(\"7\")\n"
+              "    match int(\"7\")\n"
               "        int parsed\n"
               "            total = total + parsed\n"
               "        error problem\n"
@@ -1677,7 +1677,7 @@ static void standard_library_classes_are_marked_by_origin() {
          "print(entry.__value)\n"
          "print(NL)\n");
     // A standard collection's internals stay hidden.
-    bad_code("map<int, int> values := map<int, int>()\nprint(len(values.__keys))\n",
+    bad_code("map<int, int> values := map<int, int>()\nprint(values.__keys.len())\n",
              "UNKNOWN_MEMBER");
     // Every kind of declaration rejects the compiler's names.
     bad_message("int __quidra_value := 1\n", "SHADOWING", reserved);
@@ -1825,7 +1825,7 @@ static void brace_shapes_and_shape_variables() {
     bad_message("int{3} y = 1\n", "PARSE_ERROR", "Braces appear only in tensor shapes.");
     // Braced type arguments inside interpolations stay one expression.
     good("nat count<T>(T[] values)\n"
-         "    return len(values)\n"
+         "    return values.len()\n"
          "tensor<real32>[] xs := [tensor.zeros<real32>([2, 3])]\n"
          "print(\"{count<tensor<real32>{2, 3}>(xs)}{NL}\")\n"
          "print(\"{count<tensor<real32>{2}>(xs):3.}{NL}\")\n");
@@ -1883,7 +1883,7 @@ static void brace_shapes_and_shape_variables() {
     good("batch := 3\ntensor<real32>{batch * 2, 224} contextual := tensor.zeros()\n");
     good("tensor<real32>{(1 - 3) + 4} x := tensor.zeros()\n");
     good("int n := 3\ntensor<real32>{nat(n), 2} x := tensor.zeros<real32>([3, 2])\n");
-    good("int[] v := [1, 2]\ntensor<real32>{len(v)} x := tensor.zeros<real32>([2])\n");
+    good("int[] v := [1, 2]\ntensor<real32>{v.len()} x := tensor.zeros<real32>([2])\n");
     good("bool wide := true\ntensor<real32>{if wide then 4 else 2} x := tensor.zeros<real32>([4])\n");
     bad_message("tensor<real32>{int N} x = tensor.zeros<real32>([2])\n", "SHAPE_VARIABLE",
                 "A shape variable is nat: write 'nat N'.");
@@ -1956,7 +1956,7 @@ static void brace_shapes_and_shape_variables() {
 
     // Array extents are whole expressions; nat(e) captures e.
     good("int n := 3\nint[nat(n)] values\n");
-    good("int[] v := [1, 2]\nint[len(v)] copy\n");
+    good("int[] v := [1, 2]\nint[v.len()] copy\n");
     bad_message("int n := 3\nint[n] values\n", "TYPE_MISMATCH",
                 "An array extent is a nat value");
 }
@@ -1992,7 +1992,7 @@ static void if_expressions_are_typed_like_initializers() {
     // An if-expression as the condition of an if-expression, parenthesized.
     good(ready + "int x := if (if ready then false else true) then 1 else 2\nprint(x)\nprint(NL)\n");
     // Strings, arrays, classes, tensors and unions as branches.
-    good(ready + "int[] a := [1, 2]\nint[] b := [3]\nint[] c := if ready then a else b\nprint(len(c))\nprint(NL)\n");
+    good(ready + "int[] a := [1, 2]\nint[] b := [3]\nint[] c := if ready then a else b\nprint(c.len())\nprint(NL)\n");
     good("class P this(local int value)\n"
          "    int v\n"
          "\n"
@@ -2303,7 +2303,7 @@ static void mutation_markers_are_required() {
                 "MUTATION_MARKER", "declare it as '.touch'");
     // Methods of built-in types that change existing state.
     good("map<string, int> counts\n.counts.set(\"a\", 1)\nprint(counts.has(\"a\"))\nprint(NL)\n"
-         "print(len(counts.keys()))\nprint(NL)\n");
+         "print(counts.keys().len())\nprint(NL)\n");
     bad_message("map<string, int> counts\ncounts.set(\"a\", 1)\n", "MUTATION_MARKER",
                 "write '.counts.set(\"a\", 1)'");
     bad_message("distinct<int> seen\nseen.add(1)\n", "MUTATION_MARKER", "write '.seen.add(1)'");
@@ -2342,7 +2342,7 @@ static void mutation_markers_are_required() {
          "        return this.entries.has(key)\n"
          "\n"
          "    nat count()\n"
-         "        return len(this.entries.keys())\n"
+         "        return this.entries.keys().len()\n"
          "\n"
          "Index index := Index()\n"
          "print(index.has(\"a\"))\n"
@@ -2459,7 +2459,7 @@ static void const_references_are_rejected() {
 static void sorted_takes_a_descending_flag() {
     const std::string values = "int64[] a := [3, 1, 2]\n";
     good(values + "int64[] d := a.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
-    good(values + "bool flag := len(a) > 2\nint64[] d := a.sorted(descending = flag)\nprint(d[0])\nprint(NL)\n");
+    good(values + "bool flag := a.len() > 2\nint64[] d := a.sorted(descending = flag)\nprint(d[0])\nprint(NL)\n");
     good("int64[3] f := [3, 1, 2]\nint64[] d := f.sorted(descending = true)\nprint(d[0])\nprint(NL)\n");
     bad_message(values + "d := a.sorted(true)\n", "ARGUMENT_MISMATCH",
                 "sorted accepts only named 'by' and 'descending' arguments.");
@@ -2477,7 +2477,7 @@ static void sorted_takes_a_descending_flag() {
                 " descending %");
     llvm_contains(values + "d := a.sorted(descending = true)\nprint(d[0])\n",
                   "call ptr @quidra_array_sorted_desc(");
-    llvm_contains(values + "bool flag := len(a) > 2\nd := a.sorted(descending = flag)\nprint(d[0])\n",
+    llvm_contains(values + "bool flag := a.len() > 2\nd := a.sorted(descending = flag)\nprint(d[0])\n",
                   "array.sorted.descending");
 }
 
@@ -2542,7 +2542,7 @@ static void comparison_chains_keep_one_direction() {
 // compile error, a read that some paths initialize is checked at run time,
 // and a read that every path initializes has no check.
 static void initialization_is_checked_by_path() {
-    const std::string ready = "bool ready := len(\"ab\") > 1\n";
+    const std::string ready = "bool ready := \"ab\".len() > 1\n";
     // Every path: no flag, no check.
     good("int x\nif true\n    x = 1\nelse\n    x = 2\nprint(x)\nprint(NL)\n");
     ir_function_not_contains("int both(bool c)\n    int x\n    if c\n        x = 1\n    else\n        x = 2\n"
@@ -2623,7 +2623,7 @@ for: nat value := values[index]
                 "UNINITIALIZED", "may be uninitialized");
     // A read early in a loop body that a later untracked write could reach
     // on the next iteration.
-    bad_message(partial + ready + "int value\nwhile ready\n    if len(\"abc\") > 2\n        print(value)\n"
+    bad_message(partial + ready + "int value\nwhile ready\n    if \"abc\".len() > 2\n        print(value)\n"
                 "    partial(&value, true)\n", "UNINITIALIZED", "may be uninitialized");
     // A callee that reads the whole binding checks it at the call.
     ir_function_contains("void show(int &value)\n    print(value)\n\nvoid caller(bool c)\n    int x\n"
@@ -2637,7 +2637,7 @@ static void array_element_reads_need_an_initializing_path() {
                 "'a[1]' is read before it is initialized on every path.");
     bad_message("int[] b := array(4)\nprint(b[0])\n", "UNINITIALIZED",
                 "'b[0]' is read before it is initialized on every path.");
-    bad_message("int[3] a\nint i := int(len(a) - 1)\nprint(a[i])\n", "UNINITIALIZED",
+    bad_message("int[3] a\nint i := int(a.len() - 1)\nprint(a[i])\n", "UNINITIALIZED",
                 "'a[i]' is read before it is initialized on every path.");
     bad_message("int[2] a\nint[2] b := [1, 2]\na[0] = 1\nprint(a == b)\n", "UNINITIALIZED",
                 "'a[1]' is read before it is initialized on every path.");
@@ -2645,11 +2645,11 @@ static void array_element_reads_need_an_initializing_path() {
     good("int[3] a\na[0] = 5\nprint(a[0])\nprint(NL)\n");
     // A store under a branch, through a reference, at another index or in a
     // loop leaves the element to the run-time check.
-    good("int[3] a\nif len(a) > 1\n    a[1] = 5\nprint(a[1])\nprint(NL)\n");
+    good("int[3] a\nif a.len() > 1\n    a[1] = 5\nprint(a[1])\nprint(NL)\n");
     good("void fill(int[3] &values)\n    values[2] = 1\n\nint[3] a\nfill(&a)\nprint(a[2])\nprint(NL)\n");
-    good("int[3] a\nint i := int(len(a) - 1)\na[i] = 1\nprint(a[0])\nprint(NL)\n");
-    good("int[] b := array(3)\nfor: 0 <= nat i < len(b)\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
-    good("int[] b := array(len(\"ab\"))\nb[0] = 1\nprint(b[1])\nprint(NL)\n");
+    good("int[3] a\nint i := int(a.len() - 1)\na[i] = 1\nprint(a[0])\nprint(NL)\n");
+    good("int[] b := array(3)\nfor: 0 <= nat i < b.len()\n    b[i] = int(i)\nprint(b[2])\nprint(NL)\n");
+    good("int[] b := array(\"ab\".len())\nb[0] = 1\nprint(b[1])\nprint(NL)\n");
     good("int[3] a\nint &slot := &a[1]\nslot = 4\nprint(a[1])\nprint(NL)\n");
     // Whole assignment initializes every element; tensors stay run-time.
     good("int[3] a\na = [1, 2, 3]\nprint(a[2])\nprint(NL)\n");
@@ -2683,7 +2683,7 @@ print(box.value)
                               "\n";
     ir_function_contains(point + "int pick(bool c)\n    Point p := Point()\n    if c\n        p.x = 1\n    return p.x\n",
                          "pick", "init.check %");
-    ir_contains(point + "bool c := len(\"ab\") > 1\nPoint p := Point()\nif c\n    p.x = 1\nprint(p.x)\n", "field 'p.x'");
+    ir_contains(point + "bool c := \"ab\".len() > 1\nPoint p := Point()\nif c\n    p.x = 1\nprint(p.x)\n", "field 'p.x'");
     ir_function_not_contains(point + "int both(bool c)\n    Point p := Point()\n    if c\n        p.x = 1\n    else\n"
                              "        p.x = 2\n    return p.x\n", "both", "init.check");
     bad_message(point + "Point p := Point()\nprint(p.x)\n", "UNINITIALIZED",
@@ -2702,7 +2702,7 @@ print(box.value)
                 "int read(bool open, bool c)\n    Aliased p := Aliased(open)\n    if c\n        p.x = 2\n    return p.x\n",
                 "UNINITIALIZED", "may be uninitialized");
     // A value from elsewhere keeps today's rule: its bits are not known.
-    bad_message(point + "Point make()\n    Point p := Point()\n    p.x = 1\n    return p\n\nbool c := len(\"ab\") > 1\n"
+    bad_message(point + "Point make()\n    Point p := Point()\n    p.x = 1\n    return p\n\nbool c := \"ab\".len() > 1\n"
                 "Point q := make()\nPoint r\nif c\n    r = q\nprint(r.y)\nprint(q.y)\nPoint s := Point()\nif c\n    s.y = 1\n"
                 "Point t := s\nprint(t.x)\n", "UNINITIALIZED", "may be uninitialized");
     // A field written through a reference or by a callee is not tracked.
@@ -2745,7 +2745,7 @@ print(box.value)
                 "UNINITIALIZED", "is read before the constructor initializes it");
     bad_code(gate + "    local int value := 1\n", "SHADOWING");
     // Equality and display skip the mask; copies keep it.
-    good(point + "bool c := len(\"ab\") > 1\nPoint p := Point()\np.x = 1\nPoint q := Point()\nif c\n    q.x = 1\nprint(q.x)\n"
+    good(point + "bool c := \"ab\".len() > 1\nPoint p := Point()\np.x = 1\nPoint q := Point()\nif c\n    q.x = 1\nprint(q.x)\n"
          "Point r := Point()\nr.x = 1\nprint(\"{p == r}\")\nprint(NL)\n");
     // Core gap G-d: an element of an initialized array of class values is a
     // whole value inside a method too.
@@ -2990,7 +2990,7 @@ class Box this()
     int count := 0
 
     void .note(const int[] values)
-        this.count = int(len(values))
+        this.count = int(values.len())
 
     void .reset(const int[] values)
         this.items = values
@@ -3624,7 +3624,7 @@ static void index_failures_report_the_index_operand() {
         return false;
     };
     const auto bin = quidra::compile("bin b := bin.fill(8, 0)\n"
-                                     "nat at := len(b) + 2\n"
+                                     "nat at := b.len() + 2\n"
                                      "print(b[at])\n"
                                      "b[ at ] = bin.fill(1, 1)\n"
                                      "print(b[1:<at])\n").llvm;
@@ -3634,13 +3634,13 @@ static void index_failures_report_the_index_operand() {
     require(bin.find("declare ptr @quidra_bin_index(ptr, i64, i64, i64)") != std::string::npos,
             "the bin entries take a position", bin);
     const auto text = quidra::compile("string word := \"quidra\"\n"
-                                      "nat at := len(word)\n"
+                                      "nat at := word.len()\n"
                                       "print(word[1:<int(at) + 3])\n"
                                       "print(word[at])\n").llvm;
     require(line_with(text, "@quidra_string_slice(ptr ", ", i64 3, i64 7)"), "string slice", text);
     require(line_with(text, "@quidra_string_index(ptr ", ", i64 4, i64 12)"), "string index", text);
     const auto array = quidra::compile("int[] values := [1, 2, 3]\n"
-                                       "nat at := len(values)\n"
+                                       "nat at := values.len()\n"
                                        "print(values[ at ])\n").llvm;
     require(line_with(array, "@quidra_array_slot(", ", i64 3, i64 15)"), "array element", array);
     bad_message("int[2] xs := [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS",
@@ -3725,8 +3725,8 @@ static void native_tail_records_are_scoped() {
         "    return count(value - 1)\n"
         "int64 stable(int64 value)\n    if value == 0\n        return 1\n"
         "    return stable(value - 1)\n"
-        "print(stable(int64.parse(\"7\")))\n"
-        "print(count(int64.parse(\"5\")))\n";
+        "print(stable(int64(\"7\")))\n"
+        "print(count(int64(\"5\")))\n";
     const auto native = quidra::compile(source);
     bool self = false;
     bool unique = false;
@@ -4250,7 +4250,7 @@ println(array_result == [int64(1), 2])
     // Array slices: a T[] of copies, T[n] included; constant operands over a
     // fixed array are checked against its length.
     good("int[] values := [1, 2, 3]\nint[] part := values[0<:2]\nint[] whole := values[:]\n"
-         "int[] back := values[len(values)>:0]\nint8 a := 0\nint[] small := values[a:<int8(2)]\n");
+         "int[] back := values[values.len()>:0]\nint8 a := 0\nint[] small := values[a:<int8(2)]\n");
     good("int[3] fixed := [1, 2, 3]\nint[] part := fixed[1:]\nint[] rest := fixed[3:]\n"
          "int[] reversed := fixed[3>:0]\nint[] empty := fixed[3>:3]\n");
     bad_message("int[3] fixed := [1, 2, 3]\nint[] part := fixed[1:3]\n",
@@ -4265,7 +4265,7 @@ println(array_result == [int64(1), 2])
     bad_message("int[] values := [1, 2, 3]\nint[] part := values[0:1, 1:2]\n",
                 "INDEX_ARITY", "Arrays and strings take one index or one slice.");
     good("string text := \"abc\"\nstring a := text[1:]\nstring b := text[::-1]\n"
-         "string c := text[len(text)>:0]\nstring d := text[0:<1]\nstring e := \"abc\"[3:]\n");
+         "string c := text[text.len()>:0]\nstring d := text[0:<1]\nstring e := \"abc\"[3:]\n");
     bad_message("string part := \"abc\"[1:5]\n", "INDEX_BOUNDS",
                 "Slice 1:5 out of bounds for length 3.");
     bad_message("string part := \"a\xc3\xa9\"[0:2]\n", "INDEX_BOUNDS",
@@ -4273,7 +4273,7 @@ println(array_result == [int64(1), 2])
     bad_message("int[] values := [1, 2, 3]\nint part := values[0:1]\n",
                 "TYPE_MISMATCH", "");
     // Slice assignment (L6).
-    good("int[] values := [1, 2, 3, 4]\nvalues[1:2] = [7, 8]\nvalues[len(values)>:0] = values[:]\n"
+    good("int[] values := [1, 2, 3, 4]\nvalues[1:2] = [7, 8]\nvalues[values.len()>:0] = values[:]\n"
          "int[4] fixed := [0, 0, 0, 0]\nfixed[0:<4:2] = [1, 2]\n");
     bad_message("int[] values := [1, 2, 3, 4]\nint[2] two := [5, 6]\nvalues[0:2] = two\n",
                 "SLICE_ASSIGNMENT", "Slice assignment needs 3 values, got 2.");
@@ -4290,7 +4290,7 @@ println(array_result == [int64(1), 2])
     good("bin data := bin.fill(8, 0)\nbin head := data[0:<4]\nbin same := data[0:4]\nbin tail := data[:<8]\n");
     good("tensor<real32> t := tensor.zeros<real32>([4, 3])\npart := t[0:<2, 1:<3]\n"
          "stepped := t[0:<4:2]\n");
-    good("bin data := bin.fill(8, 0)\nbin a := data[1<:4]\nbin b := data[len(data)>:0]\n"
+    good("bin data := bin.fill(8, 0)\nbin a := data[1<:4]\nbin b := data[data.len()>:0]\n"
          "bin c := data[5:>1]\nbin d := data[1:3]\n");
     good("tensor<real32> t := tensor.zeros<real32>([4])\na := t[0<:3]\nb := t[0:3]\n"
          "c := t[1<:<3:2]\n");
@@ -4477,26 +4477,26 @@ walk_array(values)
 )", "@n_walk_array(", "@llvm.sadd.with.overflow.i64");
 
  // Empty-string checks do not need a Unicode code-point count. Quidra text
- // has a NUL-terminated, no-embedded-NUL representation, so len(text) == 0
+ // has a NUL-terminated, no-embedded-NUL representation, so text.len() == 0
  // lowers to one byte load while all non-empty length queries keep full
  // code-point semantics.
  ir_contains(R"(bool is_empty(string text)
-    return len(text) == 0
+    return text.len() == 0
 )", "string.empty");
  ir_contains(R"(bool is_nonempty(string text)
-    return 0 != len(text)
+    return 0 != text.len()
 )", "string.nonempty");
  llvm_function_not_contains(R"(bool is_empty(string text)
-    return len(text) == 0
+    return text.len() == 0
 )", "@n_is_empty(", "@quidra_string_length");
  llvm_function_not_contains(R"(bool is_nonempty(string text)
-    return 0 != len(text)
+    return 0 != text.len()
 )", "@n_is_nonempty(", "@quidra_string_length");
 
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
  ir_contains(R"(for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", NL]
+    string[] fields := [string(i), " ", NL]
     string line := fields.join("")
     print(line)
     print(NL)
@@ -4504,68 +4504,68 @@ walk_array(values)
  llvm_contains(R"(string content := ""
 int written := 0
 for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", i.string(), NL]
+    string[] fields := [string(i), " ", string(i), NL]
     string line := fields.join("")
     content = content + line
-    written += int(len(line))
+    written += int(line.len())
 print(written)
 print(NL)
 )", "@quidra_string_build_append_move");
  ir_contains(R"(string content := ""
 int written := 0
 for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", i.string(), NL]
+    string[] fields := [string(i), " ", string(i), NL]
     string line := fields.join("")
     content = content + line
-    written += int(len(line))
+    written += int(line.len())
 print(written)
 print(NL)
 )", "string.build_append");
  llvm_contains(R"(string content := ""
 int written := 0
 for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", i.string(), NL]
+    string[] fields := [string(i), " ", string(i), NL]
     string line := fields.join("")
     content = content + line
-    written += int(len(line))
+    written += int(line.len())
 print(written)
 print(NL)
 )", "call ptr @quidra_string_build_append_move_unique_direct");
  llvm_contains(R"(string content := ""
 int written := 0
 for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", i.string(), NL]
+    string[] fields := [string(i), " ", string(i), NL]
     string line := fields.join("")
     content = content + line
-    written += int(len(line))
+    written += int(line.len())
 print(written)
 print(NL)
 )", "store i8 4");
  llvm_not_contains(R"(string content := ""
 int written := 0
 for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", i.string(), NL]
+    string[] fields := [string(i), " ", string(i), NL]
     string line := fields.join("")
     content = content + line
-    written += int(len(line))
+    written += int(line.len())
 print(written)
 print(NL)
 )", "call i64 @quidra_string_build_append_last_length");
  llvm_contains(R"(for: 0 <= nat i < 2
-    string[] fields := [i.string(), " ", NL]
+    string[] fields := [string(i), " ", NL]
     string line := fields.join("")
     print(line)
     print(NL)
 )", "@quidra_string_build");
  ir_contains(R"(string text := "a b"
-for: 0 <= nat i < len(text)
+for: 0 <= nat i < text.len()
     if text[i] == " "
         print(i)
         print(NL)
 )", "string.index_ascii_compare");
  ir_contains(R"(string text := "a b a"
 int64 spaces := 0
-for: 0 <= nat i < len(text)
+for: 0 <= nat i < text.len()
     if text[i] == " "
         spaces += 1
 print(spaces)
@@ -4573,7 +4573,7 @@ print(NL)
 )", "string.ascii_count_prefix");
  llvm_contains(R"(string text := "a b a"
 int64 spaces := 0
-for: 0 <= nat i < len(text)
+for: 0 <= nat i < text.len()
     if text[i] == " "
         spaces += 1
 print(spaces)
@@ -4589,7 +4589,7 @@ match string.from_utf8(bin(data))
         print(problem)
         print(NL)
 )", "string.from_utf8_array_direct");
- ir_contains(R"(match int64.parse("42")
+ ir_contains(R"(match int64("42")
     int64 value
         print(value)
         print(NL)
@@ -4599,7 +4599,7 @@ match string.from_utf8(bin(data))
 )", "parse.direct");
  // A direct parse still emits a constant error record. Its type detail must
  // keep its backing string alive until the message and details are interned.
- llvm_contains(R"(match int64.parse("42")
+ llvm_contains(R"(match int64("42")
     int64 value
         print(value)
         print(NL)
@@ -4609,7 +4609,7 @@ match string.from_utf8(bin(data))
 )", "cannot parse numeric input as int64");
  // A bound error is read, so the match goes through the parse whose error
  // block knows why it failed.
- ir_contains(R"(match int64.parse("42")
+ ir_contains(R"(match int64("42")
     int64 value
         print(value)
         print(NL)
@@ -4618,7 +4618,7 @@ match string.from_utf8(bin(data))
         print(NL)
 )", "= parse %1 : int64 -> error | int64");
  ir_contains(R"(int64 parse_decimal(string text)
-    match int64.parse(text)
+    match int64(text)
         int64 value
             return value
         error problem
@@ -4633,7 +4633,7 @@ for: 0 <= nat i < 1
     print(NL)
 )", "string.parse_two_signed");
  llvm_contains(R"(int64 parse_decimal(string text)
-    match int64.parse(text)
+    match int64(text)
         int64 value
             return value
         error problem
@@ -4650,21 +4650,21 @@ for: 0 <= nat i < 1
  ir_contains(R"(string line := "12 34"
 for: 0 <= nat i < 1
     string[] fields := line.split(" ")
-    int64 left := int64.parse(fields[0])
-    int64 right := int64.parse(fields[1])
+    int64 left := int64(fields[0])
+    int64 right := int64(fields[1])
     print(left + right)
     print(NL)
 )", "string.parse_two_signed");
  llvm_contains(R"(string line := "12 34"
 for: 0 <= nat i < 1
     string[] fields := line.split(" ")
-    int64 left := int64.parse(fields[0])
-    int64 right := int64.parse(fields[1])
+    int64 left := int64(fields[0])
+    int64 right := int64(fields[1])
     print(left + right)
     print(NL)
 )", "call i1 @__quidra_string_parse_two_signed_fast");
  llvm_not_contains(R"(int64 parse_decimal(string text)
-    match int64.parse(text)
+    match int64(text)
         int64 value
             return value
         error problem
@@ -4841,7 +4841,7 @@ nat b := twice(nat(4))
  // Proven dynamic-array loop bounds remove runtime slot checks only when the
  // array length relation is statically preserved.
  llvm_not_contains(R"(int[] data := array(8, fill = 0)
-int size := int(len(data))
+int size := int(data.len())
 int total := 0
 for: 0 <= int i < size
     total += data[i]
@@ -4853,13 +4853,13 @@ print(total)
 print(NL)
 )", "call ptr @quidra_array_slot(ptr");
  llvm_contains(R"(int[] data := array(8, fill = 0)
-int size := int(len(data))
+int size := int(data.len())
 size = 4
 print(data[size])
 print(NL)
 )", "call ptr @quidra_array_slot(ptr");
  llvm_contains(R"(int[] data := array(8, fill = 0)
-int size := int(len(data))
+int size := int(data.len())
 for: 0 <= int i < size
     data = array(0, fill = 0)
     print(data[i])
@@ -4911,7 +4911,7 @@ after()
  llvm_contains(R"(int identity(int value)
     return value
 int[] data := array(8, fill = 0)
-int size := int(len(data))
+int size := int(data.len())
 for: 0 <= int index < size
     int value
     parallel
@@ -4924,7 +4924,7 @@ int value
 parallel
     value = identity(1)
 int[] data := array(8, fill = 0)
-int size := int(len(data))
+int size := int(data.len())
 for: 0 <= int index < size
     print(data[index])
 )", "call ptr @quidra_array_slot(ptr");
@@ -6023,10 +6023,10 @@ real64 exact_float := 1.0
 real32 exact_small_float := 1.5
 int8 casted := int8(100)
 int exact_from_float := 3
-string small_text := small.string()
-string flag_text := true.string()
-int | error parsed := int.parse("123")
-real32 | error parsed_float := real32.parse("1.5")
+string small_text := string(small)
+string flag_text := string(true)
+int | error parsed := int("123")
+real32 | error parsed_float := real32("1.5")
 bin allocated := bin.fill(8, 0)
 string repeated := string.repeat("a", 3)
 bin data := bin.fill(16, 0)
@@ -6144,7 +6144,7 @@ match rounded
 )", "@quidra.int.try_float64");
 
  ir_contains(R"(bin | error parse_bits()
-    return bin.parse("01")
+    return bin("01")
 bin | error parsed := parse_bits()
 match parsed
     bin bits
@@ -6155,7 +6155,7 @@ match parsed
         print(NL)
 )", "release %");
  ir_contains(R"(bool | error parse_flag()
-    bin bits := try bin.parse("1")
+    bin bits := try bin("1")
     return bool(bits)
 bool | error parsed := parse_flag()
 match parsed
@@ -6168,7 +6168,7 @@ match parsed
 )", "release %");
  ir_contains(R"(bin | error update_bits()
     bin bits := bin.fill(1, 0)
-    bin one := try bin.parse("1")
+    bin one := try bin("1")
     bits[0] = one
     return bits
 bin | error parsed := update_bits()
@@ -6181,7 +6181,7 @@ match parsed
         print(NL)
 )", "release %");
  ir_contains(R"(bin | error parse_bits()
-    return bin.parse("01")
+    return bin("01")
 bin | error parsed := parse_bits()
 match parsed
     bin bits
@@ -6193,16 +6193,16 @@ match parsed
         print(NL)
 )", "bin.get");
 
- good(R"(bin | error literal := bin.parse("0101")
+ good(R"(bin | error literal := bin("0101")
 string text := "0101"
-bin | error dynamic := bin.parse(text)
+bin | error dynamic := bin(text)
 )");
- good("bin direct := bin.parse(\"0101\")\n");
+ good("bin direct := bin(\"0101\")\n");
  good(R"(string text := "0101"
-bin direct := bin.parse(text)
+bin direct := bin(text)
 )");
- bad_code("invalid := bin.parse(\"0102\")\n", "BIN_PARSE");
- llvm_not_contains(R"(bin | error parsed := bin.parse("0101")
+ bad_code("invalid := bin(\"0102\")\n", "BIN_PARSE");
+ llvm_not_contains(R"(bin | error parsed := bin("0101")
 match parsed
     bin bits
         print(bits)
@@ -6212,7 +6212,7 @@ match parsed
         print(NL)
 )", "bin.parse.fail");
  llvm_contains(R"(string text := "0101"
-bin | error parsed := bin.parse(text)
+bin | error parsed := bin(text)
 match parsed
     bin bits
         print(bits)
@@ -6923,7 +6923,7 @@ f := square
     return total
 
 int[] values := array(8, fill = 1)
-print(sum_values(values, int(len(values))))
+print(sum_values(values, int(values.len())))
 print(NL)
 )", "call i1 @quidra_array_initialization_complete");
  llvm_contains(R"(int sum_values(const int[] values, int n)
@@ -6933,7 +6933,7 @@ print(NL)
     return total
 
 int[] values := array(8, fill = 1)
-print(sum_values(values, int(len(values))))
+print(sum_values(values, int(values.len())))
 print(NL)
 )", "call ptr @quidra_array_slot_proven");
  llvm_contains(R"(int sum_values(const int[] values, int n)
@@ -6943,7 +6943,7 @@ print(NL)
     return total
 
 int[] values := array(8, fill = 1)
-print(sum_values(values, int(len(values))))
+print(sum_values(values, int(values.len())))
 print(NL)
 )", "phi ptr [ %array.bounds.proven.slot.");
  bad_code("int | none x := 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
@@ -7529,7 +7529,7 @@ int | error converted := int(value)
  // A parse site's two records, indexed by the reason; a file error made by
  // the runtime with the operation's code and FILE_OPEN's mode (APPEND).
  llvm_contains(R"(string text := "12"
-int64 | error parsed := int64.parse(text)
+int64 | error parsed := int64(text)
 )", "= getelementptr inbounds [72 x i8], ptr @.quidra.err.");
  llvm_contains(R"(file.append | error handle := file.append("log.txt")
 )", "@quidra_error_file(i32 3, i32 2, ptr ");
@@ -7864,14 +7864,14 @@ tensor<int64> powered := base ^ -1
           "        return 1\n", "SHADOWING");
  
  bad_code("int scan := 1\n", "SHADOWING");
- bad_code("int len := 1\n", "SHADOWING");
+ good("nat len(string text)\n    return text.len()\nprint(len(\"ab\"))\n");
  bad_code("void use(int print)\n    return\n", "SHADOWING");
  // Lexical bindings declared before future globals remain usable. The
  // same spelling cannot be introduced after the global becomes visible.
  good(R"(void emit(string text)
     println(text)
 string text(int value)
-    return value.string()
+    return string(value)
 emit("ok")
 )");
  good(R"(class Member(bool active)
@@ -7890,7 +7890,7 @@ int amount()
 test.equal(read_local(), 7)
 )");
  bad_code(R"(string text(int value)
-    return value.string()
+    return string(value)
 void emit(string text)
     println(text)
 )", "SHADOWING");
@@ -8212,7 +8212,7 @@ values[0] = partial
  // opaque to Core; packages own the mathematical meaning.
  good(R"(real input := real(2)
 real result := real.unary("test-provider", 7, input)
-print(result.string())
+print(string(result))
 print(NL)
 )");
  llvm_contains(R"(real input := real(2)
@@ -9259,7 +9259,7 @@ int value := limit()
  good(R"(enum Level
     Intro
     Advanced
-nat parsed_count(count := nat.parse("4"))
+nat parsed_count(count := nat("4"))
     return count
 string uppercase(label := "hi".upper_ascii())
     return label
@@ -9375,7 +9375,7 @@ result := choose(other, values)
 // generic-union.qui
  bad_code(R"(T minimum<T>(T left, T right)
     return left
-int result := minimum(int.parse("1"), int(2))
+int result := minimum(int("1"), int(2))
 )", "GENERIC_INFERENCE");
 
 // literal-family.qui
@@ -9394,7 +9394,7 @@ real64 result := choose(2.0)
 
 // constructor-comprehension.qui
  good(R"(class Observation(real64[] values)
-Observation observation := Observation([for value := ["1"][] then real64.parse(value)])
+Observation observation := Observation([for value := ["1"][] then real64(value)])
 )");
 
 // constructor-nested-empty.qui
@@ -9403,7 +9403,7 @@ Target value := Target([for label := ["x"][] then []])
 )");
 
 // binder-error-success-context.qui
- good(R"((real64 | error)[] preserved := [real64.parse("1")]
+ good(R"((real64 | error)[] preserved := [real64("1")]
 class Observation(real64[] values)
 Observation value := Observation([for entry := preserved[] then entry])
 )");
@@ -9440,7 +9440,7 @@ Observation value := Observation([for entry := source[] then entry])
 )");
 
 // explicit-error-elements.qui
- good(R"((real64 | error)[] preserved := [real64.parse("x")]
+ good(R"((real64 | error)[] preserved := [real64("x")]
 class Preserved((real64 | error)[] values)
 Preserved value := Preserved([for entry := preserved[] then entry])
 match value.values[0]
@@ -9451,13 +9451,13 @@ match value.values[0]
 )");
 
 // explicit-error-concat.qui
- good(R"((nat | error)[] preserved := [nat.parse("1")]
+ good(R"((nat | error)[] preserved := [nat("1")]
 int ancestor := 1
 (nat | error)[] result := [nat(ancestor)].concat(preserved)
 )");
 
 // named-error-array-bin-reject.qui
- bad_code(R"((nat8 | error)[] preserved := [nat8.parse("65")]
+ bad_code(R"((nat8 | error)[] preserved := [nat8("65")]
 bin result := bin(preserved)
 )", "TYPE_MISMATCH");
 

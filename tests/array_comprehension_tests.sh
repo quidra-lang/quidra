@@ -11,7 +11,7 @@ string int_array_text(int[] items)
     for int item := items[]
         if not first
             text += ", "
-        text += item.string()
+        text += string(item)
         first = false
     return text + "]"
 string string_array_text(string[] items)
@@ -161,7 +161,7 @@ com32[] complex_copy := [for entry := complex_values[] then entry]
 print(complex_copy == complex_values)
 real64[] empty := []
 empty_copy := [for entry := empty[] then entry]
-print(len(empty_copy))
+print(empty_copy.len())
 class Observation(real64[] values)
 Observation value := Observation([for entry := [real64(1)][] then entry])
 print(value.values[0] == 1.0)
@@ -179,7 +179,7 @@ weighted := [for count := counts[] then real64(count)] * scale
 real64[] expected := [2.0, 6.0]
 println(weighted == expected)
 println(weighted_values(counts, scale) == expected)
-(real64 | error)[] preserved := [for text := ["bad"][] then real64.parse(text)]
+(real64 | error)[] preserved := [for text := ["bad"][] then real64(text)]
 match preserved[0]
     real64 value
         println("unexpected")
@@ -212,7 +212,7 @@ grep -Fq 'UNINITIALIZED' "$TMP/uninitialized.err"
 cat > "$TMP/inferred-value-error-order.qui" <<'QUI'
 int8 | error convert(string text)
     println(text)
-    return int8.parse(text)
+    return int8(text)
 result := [for text := ["1", "bad", "2"][] then convert(text)]
 println("unexpected")
 QUI
@@ -244,7 +244,7 @@ real64[] scale := [1.0]
 result := generated * scale
 QUI
 cat > "$TMP/explicit-error-arithmetic-negative.qui" <<'QUI'
-(real64 | error)[] generated := [for text := ["1"][] then real64.parse(text)]
+(real64 | error)[] generated := [for text := ["1"][] then real64(text)]
 real64[] scale := [1.0]
 result := generated * scale
 QUI
@@ -273,7 +273,7 @@ holder := Holder()
 nat8[] required := holder.values
 nat8[] shifted := holder.values + nat8(1)
 bits := bin(holder.values)
-println(required[0] == 65 and shifted[0] == 66 and len(bits) == 8)
+println(required[0] == 65 and shifted[0] == 66 and bits.len() == 8)
 QUI
 "$QUIDRA" build "$TMP/class-field-dtype-control.qui" -o "$TMP/class-field-dtype-control"
 cat > "$TMP/class-field-dtype-control.expected" <<'OUT'

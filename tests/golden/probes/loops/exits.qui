@@ -11,14 +11,14 @@ int | error checked_sum(int[] &values)
     int total := 0
     for v := values[]
         values[0] = 0
-        total = total + (try int.parse("{v}"))
+        total = total + (try int("{v}"))
         if v == 3
-            int bad := try int.parse("x")
+            int bad := try int("x")
             total = total + bad
     return total
 
 int[] values := [1, 2, 3, 4]
-print("return: {first_over(&values, 2)} {len(values)}")
+print("return: {first_over(&values, 2)} {values.len()}")
 print(NL)
 int[] more := [1, 2, 3, 4]
 int count := 0
@@ -27,7 +27,7 @@ for v := more[]
     count = count + 1
     if v == 2
         break
-print("break: {count} {len(more)}")
+print("break: {count} {more.len()}")
 print(NL)
 int[] parsed := [1, 2, 3]
 int | error result := checked_sum(&parsed)
@@ -41,5 +41,5 @@ for: 0 <= nat round < 3
     int[] inner := [int(round), int(round)]
     for v := inner[]
         inner = inner.append(v)
-    print("{len(inner)} ")
+    print("{inner.len()} ")
 print(NL)

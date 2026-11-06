@@ -31,7 +31,7 @@ int .write_round(string name, int n, Lcg &generator)
         int v := .generator.next_int()
         string record := "{i} {v}{NL}"
         .writer(record)
-        nbytes += int(len(record))
+        nbytes += int(record.len())
     return nbytes
 
 // The whole workload body (methodology 06 section 4, MB-10).
@@ -52,8 +52,8 @@ Result workload()
         int idx := 0
         while .reader(string &text)
             string[] fields := text.split(" ")
-            int a := int.parse(fields[0])
-            int v := int.parse(fields[1])
+            int a := int(fields[0])
+            int v := int(fields[1])
             if a != idx
                 process.exit(3)
             idx += 1

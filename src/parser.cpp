@@ -158,7 +158,7 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                 }
                 if (kind == TokenKind::Identifier) {
                     ++index;
-                    // A member chain and calls (`nat(n)`, `len(v)`,
+                    // A member chain and calls (`nat(n)`, `v.len()`,
                     // `v.size()`): an array extent is a whole expression.
                     while (index < tokens.size()) {
                         if (tokens[index].kind == TokenKind::Dot && index + 1 < tokens.size() &&
@@ -793,7 +793,7 @@ TypeName Parser::type_name() {
         long long length = -1;
         std::shared_ptr<Expr> dimension;
         if (!at(TokenKind::RBracket)) {
-            // A whole expression (`int[nat(n)]`, `int[len(v)]`): the
+            // A whole expression (`int[nat(n)]`, `int[v.len()]`): the
             // brackets delimit it.
             auto parsed = expression();
             length = -2;

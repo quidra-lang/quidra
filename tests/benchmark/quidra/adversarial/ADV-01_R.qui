@@ -9,7 +9,7 @@ string read_input_line()
             return line
         error problem
             process.exit(2)
-int a := int.parse(read_input_line())
+int a := int(read_input_line())
 int32 v := int32(a)
 print("OBS=V:{v}")
 print(NL)

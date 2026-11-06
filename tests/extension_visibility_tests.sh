@@ -65,7 +65,7 @@ runs contextual-literal-receivers $'1\n1\n2\n2' <<'QUI'
 T first<T>(extend T[] value)
     return value[0]
 int size(extend int[] value)
-    return int(len(value))
+    return int(value.len())
 print(first<int>([1, 2]))
 print(NL)
 print([1, 2].first<int>())
@@ -78,9 +78,9 @@ QUI
 
 runs array-expression-receivers $'2\n2\n3\n3\n2\n2\n3\n3\n3\n3' <<'QUI'
 int size(extend int[] value)
-    return int(len(value))
+    return int(value.len())
 int count(extend bool[] value)
-    return int(len(value))
+    return int(value.len())
 int[] values := [1, 2, 3]
 print(size(values[:1]))
 print(NL)
@@ -109,7 +109,7 @@ runs contextual-expression-receivers $'6\n6\n2\n2\n2\n2\n2\n2' <<'QUI'
 int twice(extend int value)
     return value * 2
 int count(extend bool[] value)
-    return int(len(value))
+    return int(value.len())
 int[] values := [1, 2]
 int[2] fixed := [0, 0]
 print("{twice(1 + 2)}{NL}")
@@ -129,7 +129,7 @@ int[3] values := [1, 2, 3]
 int[3] whole := values.identity()
 int[] picked := values[[0, 1]].identity()
 int[] sliced := values[:1].identity()
-print("{len(whole)} {len(picked)} {len(sliced)}{NL}")
+print("{whole.len()} {picked.len()} {sliced.len()}{NL}")
 QUI
 
 runs fixed-nested-generic-arrays true <<'QUI'
@@ -203,18 +203,34 @@ string string<T>(extend T value)
     return "generic"
 string string(extend int value)
     return "integer"
+nat len<T>(extend T value)
+    return 7
+nat len(extend string value)
+    return 8
 QUI
-runs inferred-union-avoids-unused-native-collision 'generic generic generic generic' <<'QUI'
+runs inferred-string-extension-preserves-union 'generic generic generic generic' <<'QUI'
 import provider = "./generic-string.qui"
 int | error value := 3
 int | error fail()
     return error("kept")
 print("{provider.string(value)} {value.string()} {provider.string(fail())} {fail().string()}{NL}")
 QUI
-rejects explicit-fallible-native-collision EXTENSION_COLLISION <<'QUI'
+runs explicit-fallible-string-extension generic <<'QUI'
 import provider = "./generic-string.qui"
 int | error value := 3
 print(value.string<int>())
+QUI
+runs inferred-union-avoids-unused-native-collision '7 7' <<'QUI'
+import provider = "./generic-string.qui"
+string | error value := "abc"
+string | error fail()
+    return error("kept")
+print("{value.len()} {fail().len()}")
+QUI
+rejects explicit-fallible-native-collision EXTENSION_COLLISION <<'QUI'
+import provider = "./generic-string.qui"
+string | error value := "abc"
+print(value.len<string>())
 QUI
 rejects inferred-fallible-free-stays-union GENERIC_CONSTRAINT <<'QUI'
 int | error fall()
@@ -339,7 +355,7 @@ QUI
 cat > "$TMP/class-string.qui" <<'QUI'
 class Box box(int value)
 string string(extend Box value)
-    return value.value.string()
+    return string(value.value)
 QUI
 accepts class-string-extension <<'QUI'
 import provider = "./class-string.qui"
@@ -348,7 +364,7 @@ print(value.string())
 QUI
 cat > "$TMP/array-string.qui" <<'QUI'
 string string(extend int[] value)
-    return len(value).string()
+    return string(value.len())
 QUI
 accepts array-string-extension <<'QUI'
 import provider = "./array-string.qui"
@@ -398,7 +414,7 @@ int generic_plus<T>(extend int value, T other)
 QUI
 cat > "$TMP/string-argument.qui" <<'QUI'
 int plus(extend int value, string other)
-    return value + int(len(other))
+    return value + int(other.len())
 int generic_plus<T>(extend int value, T[] other)
     return value
 QUI
@@ -469,11 +485,11 @@ cat > "$TMP/scalar-string.qui" <<'QUI'
 string string(extend int value)
     return "extension"
 QUI
-rejects literal-string-intrinsic-collision EXTENSION_COLLISION <<'QUI'
+runs literal-string-extension 'extension 3' <<'QUI'
 import provider = "./scalar-string.qui"
-print(3.string())
+print("{3.string()} {string(3)}")
 QUI
-rejects expression-string-intrinsic-collision EXTENSION_COLLISION <<'QUI'
+runs expression-string-extension extension <<'QUI'
 import provider = "./scalar-string.qui"
 print((1 + 2).string())
 QUI

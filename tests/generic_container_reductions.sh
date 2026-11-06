@@ -35,9 +35,9 @@ T identity<T: floating>(T value)
 print("{identity<real32>(2.0)}{NL}")
 
 nat count_items<T: floating>(const tensor<T> values)
-    return len(values.shape())
+    return values.shape().len()
 nat count_items<T: floating>(const T[] values)
-    return len(values)
+    return values.len()
 
 nat[] none_values := []
 print("{count_items<real32>([])} {count_items<real32>([for nat x := none_values[] then 1.0])}{NL}")

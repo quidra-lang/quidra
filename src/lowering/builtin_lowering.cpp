@@ -25,7 +25,7 @@ ValueId BuiltinLowering::lower_builtin_call(
         case BuiltinCallable::TensorZeros:
         case BuiltinCallable::TensorOnes: return tensors_.lower_tensor_create(e, n, resolution);
         case BuiltinCallable::Array: return aggregates_.lower_array_allocation(e, n);
-        case BuiltinCallable::Len: return aggregates_.lower_len(e, n);
+        case BuiltinCallable::Len: throw std::logic_error("Length is a receiver method.");
         case BuiltinCallable::ExactAtom: return operators_.lower_exact_atom(e, n);
         case BuiltinCallable::ExactUnary: return operators_.lower_exact_unary(e, n);
         case BuiltinCallable::ExactOp: return operators_.lower_exact_op(e, n);

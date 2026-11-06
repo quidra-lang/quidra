@@ -145,13 +145,12 @@ struct BuiltinCallableInfo {
 // monotonic name-resolution rule, adding an entry here reserves a previously
 // usable source name and is therefore a compatibility-breaking language change.
 // Prefer namespaced standard-library functions or value methods for new APIs.
-inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 6> builtin_callables{{
     {"print", BuiltinCallable::Print},
     {"println", BuiltinCallable::PrintLine},
     {"flush", BuiltinCallable::Flush},
     {"scan", BuiltinCallable::Scan},
     {"array", BuiltinCallable::Array},
-    {"len", BuiltinCallable::Len},
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 

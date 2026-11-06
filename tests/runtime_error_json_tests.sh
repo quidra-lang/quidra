@@ -73,7 +73,7 @@ assert report["provenance"]["source_revision"] == location["source_revision"]
 # A slice trap and a tensor index trap: their arguments by the holes' names.
 cat > "$TMP/slice.qui" <<'QUI'
 string word := "quidra"
-nat stop := len(word) + 3
+nat stop := word.len() + 3
 print(word[1:<int(stop)])
 QUI
 json_row slice 101 '
@@ -112,7 +112,7 @@ assert report["path"][-1]["line"] == 4 and report["path"][-1]["count"] == 1
 
 # A coded failure without details (generated code's own message).
 cat > "$TMP/overflow.qui" <<'QUI'
-int64 big := int64.parse("9223372036854775807")
+int64 big := int64("9223372036854775807")
 int64 sum := big + 1
 QUI
 json_row overflow 101 '

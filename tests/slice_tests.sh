@@ -436,7 +436,7 @@ int[] ramp(nat n)
 void show(int[] xs)
     print("[")
     nat i := 0
-    while i < len(xs)
+    while i < xs.len()
         if i > 0
             print(" ")
         print(xs[i])
@@ -465,7 +465,7 @@ for n, (sf, ef, stepped, rows) in enumerate(cases(range(0, 6), [1, -1, 2, -2, 3,
     text = start + {"asc": "<", "desc": ">"}.get(sf, "") + ":" + {"asc": "<", "desc": ">"}.get(ef, "") + end
     if stepped:
         text += f":{name}k[{name}i]"
-    program.append(f"nat {name}i := 0\nwhile {name}i < len({name}len)\n"
+    program.append(f"nat {name}i := 0\nwhile {name}i < {name}len.len()\n"
                    f"    int[] values := ramp({name}len[{name}i])\n"
                    f"    show(values[{text}])\n"
                    f"    string word := letters({name}len[{name}i])\n"
@@ -512,7 +512,7 @@ OTHER_HELPERS = '''bin bits(nat n)
     while i < n
         text = text + all[i]
         i = i + 1
-    return bin.parse(text)
+    return bin(text)
 
 tensor<real32> tensor_ramp(nat n)
     tensor<real32> result := tensor.zeros<real32>([n])
@@ -560,11 +560,11 @@ for collection in ("bin", "tensor"):
             text += f":{name}k[{name}i]"
         if collection == "bin":
             body = (f"    bin values := bits({name}len[{name}i])\n"
-                    f"    print(\"<\" + values[{text}].string() + \">\" + NL)\n")
+                    f"    print(\"<\" + string(values[{text}]) + \">\" + NL)\n")
         else:
             body = (f"    tensor<real32> values := tensor_ramp({name}len[{name}i])\n"
                     f"    show_tensor(values[{text}])\n")
-        other_program.append(f"nat {name}i := 0\nwhile {name}i < len({name}len)\n" + body +
+        other_program.append(f"nat {name}i := 0\nwhile {name}i < {name}len.len()\n" + body +
                              f"    {name}i = {name}i + 1\n")
         for row in valid:
             if collection == "bin":
@@ -612,7 +612,7 @@ int[] ramp(nat n)
 void show(int[] xs)
     print("[")
     nat i := 0
-    while i < len(xs)
+    while i < xs.len()
         if i > 0
             print(" ")
         print(xs[i])
@@ -622,7 +622,7 @@ void show(int[] xs)
 
 int[] a := ramp(11)
 int[] six := ramp(6)
-nat N := len(six)
+nat N := six.len()
 show(six[0:<N])
 show(six[0:<N:2])
 show(six[N>:0])
@@ -633,10 +633,10 @@ show(six[0<:5])
 show(a[0<:6:2])
 show(a[1<:6:2])
 int[] empty := []
-show(empty[len(empty)>:0])
+show(empty[empty.len()>:0])
 int[] one := [7]
-show(one[len(one)>:0])
-show(a[len(a)>:0])
+show(one[one.len()>:0])
+show(a[a.len()>:0])
 int[] five := ramp(5)
 show(five[::-2])
 show(five[5>::-2])
@@ -654,7 +654,7 @@ expect strings "$(printf '%s\n' '<é😀>' '<b😀éa>' '<b😀éa>' '<>' '<😀
 string word := "aé😀b"
 print("<" + word[1:2] + ">" + NL)
 print("<" + word[::-1] + ">" + NL)
-print("<" + word[len(word)>:0] + ">" + NL)
+print("<" + word[word.len()>:0] + ">" + NL)
 print("<" + word[4:<3] + ">" + NL)
 print("<" + word[0<:3:2] + ">" + NL)
 print("<" + word[1:] + ">" + NL)
@@ -691,25 +691,25 @@ QUI
 
 # --- Bins: every form but a step; start:<end past its end is empty ---------
 expect bins "$(printf '%s\n' '<110>' '<11>' '<10>' '<10110>' '<101>' '<>' '<01>' '<>')" <<'QUI'
-data := bin.parse("01101")
-print("<" + data[1:3].string() + ">" + NL)
-print("<" + data[1:<3].string() + ">" + NL)
-print("<" + data[1<:3].string() + ">" + NL)
-print("<" + data[len(data)>:0].string() + ">" + NL)
-print("<" + data[4:>1].string() + ">" + NL)
+data := bin("01101")
+print("<" + string(data[1:3]) + ">" + NL)
+print("<" + string(data[1:<3]) + ">" + NL)
+print("<" + string(data[1<:3]) + ">" + NL)
+print("<" + string(data[data.len()>:0]) + ">" + NL)
+print("<" + string(data[4:>1]) + ">" + NL)
 int at := 3
-print("<" + data[at:<1].string() + ">" + NL)
-print("<" + data[:<2].string() + ">" + NL)
-print("<" + data[5:].string() + ">" + NL)
+print("<" + string(data[at:<1]) + ">" + NL)
+print("<" + string(data[:<2]) + ">" + NL)
+print("<" + string(data[5:]) + ">" + NL)
 QUI
 fails bin_inclusive INDEX_BOUNDS "slice 2:9 out of bounds for length 5" <<'QUI'
-data := bin.parse("01101")
+data := bin("01101")
 int at := 9
 print("before" + NL)
 bin part := data[2:at]
 QUI
 fails bin_exclusive INDEX_BOUNDS "slice 6:<1 out of bounds for length 5" <<'QUI'
-data := bin.parse("01101")
+data := bin("01101")
 int at := 6
 print("before" + NL)
 bin part := data[at:<1]
@@ -796,7 +796,7 @@ int[3] fixed := [10, 20, 30]
 int[] tail := fixed[2:]
 print(tail[0])
 print(NL)
-int[] reversed := fixed[len(fixed)>:0]
+int[] reversed := fixed[fixed.len()>:0]
 print(reversed[0])
 print(" ")
 print(reversed[1])
@@ -858,7 +858,7 @@ QUI
 # --- Run-time failures --------------------------------------------------------
 fails past_end INDEX_BOUNDS "slice 1:9 out of bounds for length 6" <<'QUI'
 int[] values := [1, 2, 3, 4, 5, 6]
-int stop := int(len(values)) + 3
+int stop := int(values.len()) + 3
 print("before" + NL)
 int[] part := values[1:stop]
 QUI
@@ -882,7 +882,7 @@ int[] part := values[at<:at]
 QUI
 fails strided_anchor INDEX_BOUNDS "slice 7>:0:-2 out of bounds for length 6" <<'QUI'
 int[] values := [1, 2, 3, 4, 5, 6]
-int at := int(len(values)) + 1
+int at := int(values.len()) + 1
 print("before" + NL)
 int[] part := values[at>:0:-2]
 QUI
@@ -908,7 +908,7 @@ expect runtime_step "$(printf '%s\n' '[2 1 0]' '[0 1 2]')" <<'QUI'
 void show(int[] xs)
     print("[")
     nat i := 0
-    while i < len(xs)
+    while i < xs.len()
         if i > 0
             print(" ")
         print(xs[i])
@@ -960,7 +960,7 @@ int[] ramp(nat n)
 void show(int[] xs)
     print("[")
     nat i := 0
-    while i < len(xs)
+    while i < xs.len()
         if i > 0
             print(" ")
         print(xs[i])
@@ -975,7 +975,7 @@ int[] b := ramp(6)
 b[1:<6:2] = [7, 8, 9]
 show(b)
 int[] c := ramp(6)
-c[len(c)>:0] = ramp(6)
+c[c.len()>:0] = ramp(6)
 show(c)
 int[] d := ramp(6)
 d[1:<4] = d[0:<3]
@@ -1041,7 +1041,7 @@ int[] e := values[0<:<n:2]
 int[] f := values[n>:> -1]
 int[] g := values[0 <:5]
 int[] h := values[0<: 5]
-print(len(a) + len(b) + len(c) + len(d) + len(e) + len(f) + len(g) + len(h))
+print(a.len() + b.len() + c.len() + d.len() + e.len() + f.len() + g.len() + h.len())
 print(NL)
 QUI
 cp "$TMP/format.qui" "$TMP/format.original"
@@ -1066,7 +1066,7 @@ cmp -s "$TMP/format.expected" "$TMP/format.qui" || { fail "patch changed slice m
 # --- The REPL ---------------------------------------------------------------
 cat > "$TMP/repl.txt" <<'QUI'
 int[] values := [1, 2, 3, 4]
-values[len(values)>:0][0] * 10 + values[0<:2][1]
+values[values.len()>:0][0] * 10 + values[0<:2][1]
 :exit
 QUI
 "$QUIDRA" repl < "$TMP/repl.txt" > "$TMP/repl.out" 2> "$TMP/repl.err" || fail "repl status"
@@ -1086,8 +1086,8 @@ print(picked[1])
 print(NL)
 string text := "aé中🙂z"
 print(text[first:last:stride] + NL)
-bits := bin.parse("01101")
-print(bits[first:last].string() + NL)
+bits := bin("01101")
+print(string(bits[first:last]) + NL)
 tensor<real32> t := tensor.zeros<real32>([5])
 print(t[first:last:stride].shape()[0])
 print(NL)
@@ -1119,7 +1119,7 @@ print(values[2])
 print(" ")
 print(values[3])
 print(NL)
-print(len(values))
+print(values.len())
 print(NL)
 QUI
 

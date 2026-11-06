@@ -49,10 +49,10 @@ shower(5)
 bin bits := bin.fill(6, 1)
 bin head := bits[:<2]
 bin tail := bits[3:]
-print("{len(head)} {len(tail)}{NL}")
+print("{head.len()} {tail.len()}{NL}")
 
 error problem := error("bad")
-print(problem.string())
+print(string(problem))
 print(NL)
 string repeated := string.repeat("ab", 2)
 print(repeated)

@@ -110,7 +110,7 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('empty-marked-range', '''
         int[] a := 3:<0
         int[] b := 0:>3
-        print(len(a) == 0 and len(b) == 0)
+        print(a.len() == 0 and b.len() == 0)
     ''')
     case('uninitialized-arithmetic', '''
         int[1] a
@@ -149,17 +149,17 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     case('inferred-numeric-string-comprehension', '''
         import stats = "./stats.qui"
         number := 17
-        text := number.string()
+        text := string(number)
         digits := [for digit := text.codepoints()[] then digit - 48]
-        print(digits.total() == 8 and number.string().codepoints().total() == 104)
+        print(digits.total() == 8 and string(number).codepoints().total() == 104)
     ''')
     case('primitive-string-return-types', '''
         int width(extend string value)
-            return int(len(value))
+            return int(value.len())
         ready := true
         bits := bin.fill(2, 1)
         error problem := error("sample")
-        print(ready.string().width() == 4 and bits.string().width() == 2 and problem.string().width() > 0)
+        print(string(ready).width() == 4 and string(bits).width() == 2 and string(problem).width() > 0)
     ''')
     case('contextual-extension-arguments', '''
         int first(extend int[] value)
@@ -275,7 +275,7 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
     ''')
     case('generic-whole-array', '''
         nat count<T>(extend T values)
-            return len(values)
+            return values.len()
         int[] a := [1, 2]
         print(a.count() == 2)
     ''')

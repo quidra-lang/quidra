@@ -13,10 +13,10 @@ int element_count(int[] shape, string operation)
     int[] extents := int(shape)
     match dim
         nat axis
-            if axis >= len(extents)
+            if axis >= extents.len()
                 error("tensor." + operation + " dimension is outside the tensor rank", code = "MATH_SHAPE")
             int axis_index := int(axis)
-            int rank := int(len(extents))
+            int rank := int(extents.len())
             int[] output := array(nat(rank - 1), fill = 0)
             for: 0 <= int index < rank - 1
                 if index < axis_index
@@ -72,9 +72,9 @@ tensor<T> sum_rows<T: numeric>(tensor<T> packed, int width, int rows)
         right := current.gather(right_indices, [rows, pairs])
         current = left + right
         length = pairs
-    if len(tails) > 0
+    if tails.len() > 0
         remaining := tails[0]
-        for: 1 <= int index < int(len(tails))
+        for: 1 <= int index < int(tails.len())
             remaining = tails[index] + remaining
         current = current + remaining
     return current

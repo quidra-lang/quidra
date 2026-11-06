@@ -39,7 +39,7 @@ print("{c ^ 0.5} {c - 3.0} {c != 2.0}")
 print(NL)
 print("{a:.4} {b:3} {h:03.1}")
 print(NL)
-print(a.string())
+print(string(a))
 print(NL)
 real16 tiny := 5.96e-8
 real16 largest := 65504.0
@@ -124,8 +124,8 @@ QUI
 cat > "$TMP/parse.qui" <<'QUI'
 string[] texts := ["0.1", "65504", "65520", "1e-9", "3.0e38", "-2.5"]
 for text := texts[]
-    real16 | error h := real16.parse(text)
-    real16b | error b := real16b.parse(text)
+    real16 | error h := real16(text)
+    real16b | error b := real16b(text)
     match h
         real16 value
             print(value)

@@ -44,10 +44,10 @@ print(word[3:0] + NL)
 start = 3
 finish = 0
 print(word[start:finish] + NL)
-bits := bin.parse("01101")
-print(bits[4:0].string() + NL)
+bits := bin("01101")
+print(string(bits[4:0]) + NL)
 start = 4
-print(bits[start:finish].string() + NL)
+print(string(bits[start:finish]) + NL)
 tensor<real32> t := tensor.zeros<real32>([5])
 print(t[4:<1:1].shape()[0])
 print(NL)
@@ -85,7 +85,7 @@ int start := 4
 int finish := 0
 print("before" + NL)
 int[] selected := a[$slice]
-print(len(selected))
+print(selected.len())
 QUI
     status=0
     "$QUIDRA" "$TMP/fixed.qui" > "$TMP/out" 2> "$TMP/err" || status=$?

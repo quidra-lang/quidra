@@ -30,7 +30,7 @@ Box p := Box()
 p.n = 5
 p.items = [5, 0, 0]
 p.items[0] += grow(&p.items)
-print("nested: {p.items[0]} {len(p.items)}")
+print("nested: {p.items[0]} {p.items.len()}")
 print(NL)
 Box q := Box()
 q.n = 5

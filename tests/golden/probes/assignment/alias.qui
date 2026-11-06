@@ -11,9 +11,9 @@ void bump(int[] &a, int[] &b)
 int[] v := [5, 0, 0]
 int[] &r := &v
 r[0] += grow(&v)
-print("reference local: {v[0]} {len(v)}")
+print("reference local: {v[0]} {v.len()}")
 print(NL)
 int[] w := [5, 0, 0]
 bump(&w, &w)
-print("reference parameters: {w[0]} {len(w)}")
+print("reference parameters: {w[0]} {w.len()}")
 print(NL)

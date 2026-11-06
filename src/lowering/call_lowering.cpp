@@ -276,14 +276,13 @@ void CallLowering::finish_shaped_call(
     }
 }
 
-// The methods of a type name come first (int.parse, bin.fill,
-// string.from_utf8, string.repeat), then the methods of the receiver's type,
-// the implicit .string() and last a user method, in this order. Each try_
+// Resolve builtin length, type methods (bin.fill, string.from_utf8,
+// string.repeat), and primitive receiver methods before user methods. Each try_
 // function returns nullopt when the call is not one of its methods; one that
 // lowered the receiver before finding no method of that name leaves the
 // receiver lowered, and the chain goes on.
 ValueId CallLowering::lower_method_call(const Expr& e, const MethodCallExpr& n) {
-    if (const auto out = conversions_.try_parse_method(e, n)) return *out;
+    if (const auto* receiver = length_receiver(checked_, e)) return aggregates_.lower_len(e, *receiver);
     if (const auto out = bin_.try_bin_type_method(n)) return *out;
     if (const auto out = text_.try_string_type_method(e, n)) return *out;
     const auto receiver_type=type_of(checked_,*n.receiver);
@@ -291,9 +290,7 @@ ValueId CallLowering::lower_method_call(const Expr& e, const MethodCallExpr& n) 
     if (const auto out = files_.try_file_handle_method(e, n, receiver_type)) return *out;
     if (const auto out = text_.try_string_method(e, n, receiver_type)) return *out;
     if (const auto out = tensors_.try_tensor_method(e, n, receiver_type)) return *out;
-    if (const auto out = conversions_.try_error_method(n, receiver_type)) return *out;
     if (const auto out = aggregates_.try_array_method(e, n, receiver_type)) return *out;
-    if (const auto out = text_.try_implicit_string_method(e, n)) return *out;
     return lower_user_method_call(e, n);
 }
 

@@ -59,16 +59,16 @@
   },
   "authoring_choices": {
     "primary_string_to_integer_facility": {
-      "construct": "int.parse(text), used directly as `int value = int.parse(text)`; the `error` alternative is removed by the language's documented fail-fast insertion at the consumption site (rule A3: the shortest direct-use form)",
-      "citation": {"document": "docs/spec/language.md", "version": "evaluated snapshot", "clause": "Error propagation and match - 'When a value whose unnamed union contains error is consumed where the expected type ... excludes error, Quidra inserts fail-fast handling at that consumption site'; Strings and arithmetic - 'Numeric types expose Type.parse(text) -> T | error'"}
+      "construct": "int(text), used directly as `int value := int(text)`; the `error` alternative is removed by the language's documented fail-fast insertion at the consumption site (rule A3: the shortest direct-use form)",
+      "citation": {"document": "docs/spec/language.md", "version": "evaluated snapshot", "clause": "Error propagation and match - 'When a value whose unnamed union contains error is consumed where the expected type ... excludes error, Quidra inserts fail-fast handling at that consumption site'; Strings and arithmetic - `T(text) -> T | error` parses text into the destination numeric type"}
     },
     "strongest_immutable_binding_form": {
       "construct": "const int value = 10",
       "citation": {"document": "docs/spec/language.md", "version": "evaluated snapshot", "clause": "Addresses, references, and const authority - '`const T` is an immutable value binding'"}
     },
     "string_length_member": {
-      "construct": "len(text) - a built-in function, not a member; it is Quidra's only direct length read and is recorded as such",
-      "citation": {"document": "docs/spec/language.md", "version": "evaluated snapshot", "clause": "Text and dynamic array operations - '`len(text)` counts Unicode code points'"}
+      "construct": "text.len() - the built-in string length member",
+      "citation": {"document": "docs/spec/language.md", "version": "evaluated snapshot", "clause": "Text and dynamic array operations - '`text.len()` counts Unicode code points rather than UTF-8 bytes and returns a `nat`'"}
     },
     "index_type_construction": {
       "construct": "signed index (int): read -1 directly through the opacity barrier",

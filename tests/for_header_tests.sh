@@ -188,7 +188,7 @@ int[] order := []
 for: bound(&order, 0) <= int x < bound(&order, 3) step bound(&order, 1)
     print(x)
     print(NL)
-print(len(order))
+print(order.len())
 print(NL)
 QUI
 expect stable_bounds $'0\n1\n2\n9' <<'QUI'
@@ -215,7 +215,7 @@ for previous = values[]
     print(NL)
 print(previous)
 print(NL)
-for: value := values[len(values)>:0][index]
+for: value := values[values.len()>:0][index]
     print(index)
     print(NL)
     print(value - 1)
@@ -280,8 +280,8 @@ for int[] &row := &matrix[]
             print(NL)
 QUI
 expect bit_places $'true\ntrue\ntrue' <<'QUI'
-bin | error parsed_bits := bin.parse("101")
-bin | error parsed_one := bin.parse("1")
+bin | error parsed_bits := bin("101")
+bin | error parsed_one := bin("1")
 match parsed_bits
     bin bits
         match parsed_one
@@ -391,7 +391,7 @@ for: int value := values[index]
     index += 1
 QUI
 rejects bit_address WRITE_CAPABILITY <<'QUI'
-bin | error parsed := bin.parse("1")
+bin | error parsed := bin("1")
 match parsed
     bin values
         for bin &value := &values[]

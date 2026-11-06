@@ -38,7 +38,7 @@ void dump(string label, tensor<real32> value)
     tensor<real32> host := value.cpu()
     nat[] shape := host.shape()
     print("{label} [")
-    for: 0 <= nat axis < len(shape)
+    for: 0 <= nat axis < shape.len()
         if axis > 0
             print(",")
         print("{shape[axis]}")

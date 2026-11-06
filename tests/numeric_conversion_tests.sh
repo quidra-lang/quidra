@@ -4,6 +4,35 @@ QUIDRA="$1"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 export QUIDRA_CACHE_DIR="$TMP/cache"
+cat > "$TMP/text_casts.qui" <<'QUI'
+string input := "27"
+int | error parsed := int(input)
+match parsed
+    int value
+        println(string(value))
+    error problem
+        println(string(problem))
+bits := bin("0010")
+println(string(bits))
+println(string(real("1/3")))
+string original := "héllo"
+copy := string(original)
+original = "changed"
+println(copy)
+string invalid := "102"
+match bin(invalid)
+    bin value
+        println("unexpected")
+    error problem
+        println(problem.code)
+match int8("128")
+    int8 value
+        println("unexpected")
+    error problem
+        println(problem.code)
+QUI
+[[ "$("$QUIDRA" run "$TMP/text_casts.qui")" == "$(printf '27\n0010\n1/3\nhéllo\nBIN_PARSE\nNUMERIC_PARSE')" ]]
+
 python3 - "$TMP" <<'PYGEN'
 from pathlib import Path
 import sys

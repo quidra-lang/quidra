@@ -124,9 +124,9 @@ QUI
 cat > "$TMP/union-string.qui" <<'QUI'
 int | none present := 7
 int | none missing := none
-print(present.string())
+print(string(present))
 print(NL)
-print(missing.string())
+print(string(missing))
 print(NL)
 QUI
 [[ "$("$QUIDRA" "$TMP/union-string.qui")" == $'7\nnone' ]]
@@ -145,7 +145,7 @@ assert any(d['code']==sys.argv[2] for d in json.load(open(sys.argv[1]))['diagnos
 PYJSON
 }
 check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p[0])'
-check_rejected TUPLE $'(int, int) p := (1, 2)\nprint(p.string())'
+check_rejected TYPE_MISMATCH $'(int, int) p := (1, 2)\nprint(string(p))'
 check_rejected TUPLE $'int a := 1\n(a, a) = (1, 2)'
 check_rejected TUPLE $'int a := 1\nint b := 2\n(a, b) += (1, 2)'
 check_rejected TUPLE 'first, second := 1, 2, 3'

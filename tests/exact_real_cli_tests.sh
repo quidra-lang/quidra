@@ -244,7 +244,7 @@ QUI
 
 # --- Exact text: decimals when finite, fractions otherwise, and symbolic
 # values in canonical text with the providers' symbols; print, "{r}" and
-# .string() agree.
+# string(value) agree.
 ok text-forms "0.5 1/3 -1/3 4.0 -0.75 1000000000000000000000.0
 σ π/2 3π 2σ 1+σ -π σπ/2 1/2+π flip(σ) first(σ, π) σ^2 ω^2/3
 real.atom(\"exactprobe_v1\", 1)
@@ -263,9 +263,9 @@ print(v1)
 print(NL)
 real value := s * p / real(2)
 string printed := "{value}"
-print(if printed == value.string() then "same" else "different")
+print(if printed == string(value) then "same" else "different")
 print(" ")
-print(if "{third}" == third.string() then "same" else "different")
+print(if "{third}" == string(third) then "same" else "different")
 print(NL)
 QUI
 # Interpolation formats give certified, correctly rounded digits, ties to
@@ -300,9 +300,9 @@ reason digits-unproven ZERO_UNDECIDED
 # real.parse reads what real prints for rationals, and no symbolic text.
 ok parse-fractions "1/3 -0.5 0.5 error error" <<'QUI'
 string describe(string text)
-    match real.parse(text)
+    match real(text)
         real value
-            return value.string()
+            return string(value)
         error problem
             return "error"
 print(describe("1/3"))
@@ -409,7 +409,7 @@ rejects contextual-type LITERAL_CONSTANT <<'QUI'
 const literal real32 c := 1.5
 QUI
 rejects contextual-initializer LITERAL_CONSTANT <<'QUI'
-const literal real c := real(len("ab"))
+const literal real c := real("ab".len())
 QUI
 rejects atom-typed-real TYPE_MISMATCH <<'QUI'
 import exactprobe

@@ -747,7 +747,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int64 __last_version := -1
 
     int64 __hash(K key)
-        int[] __encoded := key.string().codepoints()
+        int[] __encoded := key.codepoints()
         int64 __result := 0
         for __unit := __encoded[]
             int64 __unit64 := int64(__unit)
@@ -755,7 +755,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __result
 
     int64 __slot_of(K key, int64 hash)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := hash AND __mask
         int64 __scanned := 0
@@ -778,7 +778,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return -1
 
     int64 __find(K key, int64 hash)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := hash AND __mask
         int64 __scanned := 0
@@ -793,7 +793,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return -1
 
     void __place(int64 index)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := __hashes[index] AND __mask
         while __slots[__slot] >= 0
@@ -802,7 +802,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __rehash(int64 capacity)
         __slots = array(nat(capacity), fill = -1)
-        for: 0 <= nat __index < len(__keys)
+        for: 0 <= nat __index < __keys.len()
             if __active[__index]
                 __place(int64(__index))
         __tombstones = 0
@@ -814,7 +814,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int64[] __new_hashes := array(nat(__size), fill = 0)
         bool[] __new_active := array(nat(__size), fill = false)
         int64 __write := 0
-        for: 0 <= nat __index < len(__keys)
+        for: 0 <= nat __index < __keys.len()
             if __active[__index]
                 __new_keys[__write] = __keys[__index]
                 __new_values[__write] = __values[__index]
@@ -825,7 +825,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __values = __new_values
         __hashes = __new_hashes
         __active = __new_active
-        __rehash(int64(len(__slots)))
+        __rehash(int64(__slots.len()))
         __version += 1
         __last_version = -1
         return void
@@ -850,7 +850,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
                 return void
 
         bool __reuse_missing := false
-        if __last_version == __version and __last_index < 0 and len(__last_key) == 1
+        if __last_version == __version and __last_index < 0 and __last_key.len() == 1
             if __last_key[0] == key
                 __reuse_missing = true
                 __hash_value = __last_hash
@@ -873,14 +873,14 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             __last_version = __version
             return void
 
-        int64 __new_index := int64(len(__keys))
+        int64 __new_index := int64(__keys.len())
         __keys = __keys.append(key)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
         __active = __active.append(true)
         __size += 1
 
-        int64 __slot_count := int64(len(__slots))
+        int64 __slot_count := int64(__slots.len())
         if __size > __slot_count - __slot_count / 4
             __rehash(__slot_count * 2)
         else
@@ -912,8 +912,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __tombstones += 1
         __version += 1
         __last_version = -1
-        int64 __key_count := int64(len(__keys))
-        int64 __slot_count := int64(len(__slots))
+        int64 __key_count := int64(__keys.len())
+        int64 __slot_count := int64(__slots.len())
         if __key_count > 64 and __size * 2 <= __key_count
             __compact()
         elif __tombstones > __slot_count / 4
@@ -924,24 +924,24 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return nat(__size)
 
     K[] keys()
-        int64 __count := int64(len(__keys))
+        int64 __count := int64(__keys.len())
         if __size == __count
             return __keys
         K[] __result := array(nat(__size))
         int64 __write := 0
-        for: 0 <= nat __index < len(__keys)
+        for: 0 <= nat __index < __keys.len()
             if __active[__index]
                 __result[__write] = __keys[__index]
                 __write += 1
         return __result
 
     V[] values()
-        int64 __count := int64(len(__values))
+        int64 __count := int64(__values.len())
         if __size == __count
             return __values
         V[] __result := array(nat(__size))
         int64 __write := 0
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index]
                 __result[__write] = __values[__index]
                 __write += 1
@@ -1041,7 +1041,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int64 __empty_slot := -1
 
     int64 __hash(T value)
-        int[] __encoded := value.string().codepoints()
+        int[] __encoded := value.codepoints()
         int64 __result := 0
         for __unit := __encoded[]
             int64 __unit64 := int64(__unit)
@@ -1049,7 +1049,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __result
 
     int64 __slot_of(T value, int64 hash)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := hash AND __mask
         int64 __scanned := 0
@@ -1078,7 +1078,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __slots[__slot]
 
     void __place(int64 index)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := __hashes[index] AND __mask
         while __slots[__slot] >= 0
@@ -1087,7 +1087,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __rehash(int64 capacity)
         __slots = array(nat(capacity), fill = -1)
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index]
                 __place(int64(__index))
         __tombstones = 0
@@ -1098,7 +1098,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int64[] __new_hashes := array(nat(__size), fill = 0)
         bool[] __new_active := array(nat(__size), fill = false)
         int64 __write := 0
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index]
                 __new_values[__write] = __values[__index]
                 __new_hashes[__write] = __hashes[__index]
@@ -1107,12 +1107,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __values = __new_values
         __hashes = __new_hashes
         __active = __new_active
-        __rehash(int64(len(__slots)))
+        __rehash(int64(__slots.len()))
         return void
 
     bool has(T value)
         int64 __hash_value := __hash(value)
-        int64 __capacity := int64(len(__slots))
+        int64 __capacity := int64(__slots.len())
         int64 __mask := __capacity - 1
         int64 __slot := __hash_value AND __mask
         int64 __scanned := 0
@@ -1131,14 +1131,14 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         if __find(value, __hash_value) >= 0
             return void
 
-        int64 __new_index := int64(len(__values))
+        int64 __new_index := int64(__values.len())
         int64 __insert_slot := __empty_slot
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
         __active = __active.append(true)
         __size += 1
 
-        int64 __slot_count := int64(len(__slots))
+        int64 __slot_count := int64(__slots.len())
         if __size > __slot_count - __slot_count / 4
             __rehash(__slot_count * 2)
         else
@@ -1158,8 +1158,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __slots[__slot] = -2
         __size -= 1
         __tombstones += 1
-        int64 __value_count := int64(len(__values))
-        int64 __slot_count := int64(len(__slots))
+        int64 __value_count := int64(__values.len())
+        int64 __slot_count := int64(__slots.len())
         if __value_count > 64 and __size * 2 <= __value_count
             __compact()
         elif __tombstones > __slot_count / 4
@@ -1170,12 +1170,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return nat(__size)
 
     T[] values()
-        int64 __count := int64(len(__values))
+        int64 __count := int64(__values.len())
         if __size == __count
             return __values
         T[] __result := array(nat(__size))
         int64 __write := 0
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index]
                 __result[__write] = __values[__index]
                 __write += 1
@@ -1183,34 +1183,34 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     distinct<T> union(const distinct<T> other)
         distinct<T> result
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index]
                 .result.add(__values[__index])
-        for: 0 <= nat __other_index < len(other.__values)
+        for: 0 <= nat __other_index < other.__values.len()
             if other.__active[__other_index]
                 .result.add(other.__values[__other_index])
         return result
 
     distinct<T> intersection(const distinct<T> other)
         distinct<T> result
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index] and other.has(__values[__index])
                 .result.add(__values[__index])
         return result
 
     distinct<T> difference(const distinct<T> other)
         distinct<T> result
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index] and not other.has(__values[__index])
                 .result.add(__values[__index])
         return result
 
     distinct<T> symmetric_difference(const distinct<T> other)
         distinct<T> result
-        for: 0 <= nat __index < len(__values)
+        for: 0 <= nat __index < __values.len()
             if __active[__index] and not other.has(__values[__index])
                 .result.add(__values[__index])
-        for: 0 <= nat __other_index < len(other.__values)
+        for: 0 <= nat __other_index < other.__values.len()
             if other.__active[__other_index] and not has(other.__values[__other_index])
                 .result.add(other.__values[__other_index])
         return result
@@ -1575,7 +1575,8 @@ void rename_expr(
             node->callee = standard_class::map;
         } else if (node->callee == "distinct" && !node->type_arguments.empty()) {
             node->callee = standard_class::distinct;
-        } else if ((local_classes.contains(node->callee) || local_functions.contains(node->callee)) &&
+        } else if (node->callee != "string" &&
+                   (local_classes.contains(node->callee) || local_functions.contains(node->callee)) &&
                    (!current_class_methods || !current_class_methods->contains(node->callee))) {
             node->callee = qualify(ns, node->callee);
         }
@@ -4683,7 +4684,7 @@ private:
             return std::find(names.begin(), names.end(), method) != names.end();
         };
         if (!receiver.dimensions.empty()) {
-            if (named({"indices", "append", "concat"})) return true;
+            if (named({"len", "indices", "append", "concat"})) return true;
             if (receiver.dimensions.size() != 1) return false;
             if (method == "join") return receiver.name == "string";
             return method == "sorted";
@@ -4697,7 +4698,7 @@ private:
                    receiver.arguments.front().name == "bool";
         }
         if (receiver.name == "string")
-            return named({"string", "contains", "starts_with", "ends_with", "find",
+            return named({"len", "contains", "starts_with", "ends_with", "find",
                           "trim", "split", "lower_ascii", "upper_ascii", "utf8", "codepoints"});
         if (receiver.name == standard_class::autograd_target)
             return named({"has_grad", "clear_grad", "gradient"});
@@ -4708,10 +4709,7 @@ private:
             return method == "operator";
         if (receiver.name == standard_class::file_write || receiver.name == standard_class::file_append)
             return method == "operator" || method == "line";
-        if (method == "string" &&
-            (numeric_type_name(receiver.name) || receiver.name == "bool" ||
-             receiver.name == "bin" || receiver.name == "error"))
-            return true;
+        if (receiver.name == "bin") return method == "len";
         auto class_name = receiver.name;
         if (const auto instance = class_instance_types_.find(class_name);
             instance != class_instance_types_.end()) class_name = instance->second.name;
@@ -4944,6 +4942,12 @@ private:
             result.name = std::move(name);
             result.span = expression.span;
             return std::optional<TypeName>{std::move(result)};
+        };
+        const auto fallible = [&](const std::string& success) {
+            auto result = *simple_type("union");
+            result.arguments.push_back(*simple_type(success));
+            result.arguments.push_back(*simple_type("error"));
+            return result;
         };
         if (expression.contextual_default_type &&
             expression.contextual_default_type->name != "auto") {
@@ -5291,6 +5295,18 @@ private:
                 result.span = expression.span;
                 return result;
             }
+            if (call->callee == "string") return simple_type("string");
+            if (call->callee == "bin") {
+                if (call->args.size() == 1) {
+                    auto source = infer_expression_type(*call->args.front().value, current_class);
+                    if (source) {
+                        if (auto success = non_error_type(*source)) source = std::move(success);
+                        if (source->name == "string" && source->dimensions.empty())
+                            return fallible("bin");
+                    }
+                }
+                return simple_type("bin");
+            }
             if (const auto* numeric = numeric_type_name(call->callee)) {
                 // Numeric casts preserve container structure and static shape;
                 // only the numeric leaf representation changes. Checking the
@@ -5299,6 +5315,8 @@ private:
                     auto source = infer_expression_type(*call->args.front().value, current_class);
                     if (source) {
                         if (auto success = non_error_type(*source)) source = std::move(success);
+                        if (source->name == "string" && source->dimensions.empty())
+                            return fallible(std::string(numeric->spelling));
                         if (source->name == "tensor" && source->arguments.size() == 1 &&
                             source->dimensions.empty()) {
                             source->arguments.front() = *simple_type(std::string(numeric->spelling));
@@ -5314,7 +5332,6 @@ private:
                 }
                 return simple_type(std::string(numeric->spelling));
             }
-            if (call->callee == "len") return simple_type("nat");
             if (class_index_.contains(call->callee) || concrete_classes_.contains(call->callee)) {
                 TypeName result;
                 result.name = call->callee;
@@ -5449,18 +5466,8 @@ private:
         if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
             if (auto variant = infer_enum_variant(*call->receiver, call->method, true))
                 return variant;
-            const auto fallible = [&](const std::string& success) {
-                auto result = *simple_type("union");
-                result.arguments.push_back(*simple_type(success));
-                result.arguments.push_back(*simple_type("error"));
-                return result;
-            };
             if (const auto* name = std::get_if<NameExpr>(&call->receiver->data);
                 name && !name->this_qualifier && !name->self_reference) {
-                if (call->method == "parse" &&
-                    (numeric_type_name(name->name) || name->name == "bin")) {
-                    return fallible(name->name);
-                }
                 if (name->name == "string" && call->method == "repeat")
                     return simple_type("string");
                 if (name->name == "string" && call->method == "from_utf8")
@@ -5470,6 +5477,12 @@ private:
             }
             const auto receiver = infer_expression_type(*call->receiver, current_class);
             if (!receiver) return std::nullopt;
+            if (call->method == "len") {
+                const auto success = non_error_type(*receiver);
+                const auto& value = success ? *success : *receiver;
+                if (!value.dimensions.empty() || value.name == "string" || value.name == "bin")
+                    return simple_type("nat");
+            }
             if (!receiver->dimensions.empty()) {
                 if (call->method == "indices") {
                     auto result = *simple_type("nat");
@@ -5489,12 +5502,8 @@ private:
                     receiver->dimensions.size() == 1) return simple_type("string");
                 return std::nullopt;
             }
-            if (call->method == "string" &&
-                (numeric_type_name(receiver->name) || receiver->name == "bool" ||
-                 receiver->name == "bin" || receiver->name == "error"))
-                return simple_type("string");
             if (receiver->name == "string") {
-                if (call->method == "string" || call->method == "trim" ||
+                if (call->method == "trim" ||
                     call->method == "lower_ascii" || call->method == "upper_ascii")
                     return simple_type("string");
                 if (call->method == "contains" || call->method == "starts_with" ||
@@ -6568,6 +6577,15 @@ private:
             copy.constructor = node->constructor;
             copy.mutation_marker = node->mutation_marker;
             copy.args = clone_args(node->args, substitution, deferred, current_class);
+
+            // The bare type call stays a conversion even inside a module
+            // that exports a method or extension named string.
+            if (copy.callee == "string") {
+                if (!type_arguments.empty())
+                    frontend_error("GENERIC_TARGET", "Target 'string' is not generic.", source.span);
+                out->data = std::move(copy);
+                return out;
+            }
 
             // A class value with an 'operator' method is invoked through the
             // ordinary method-call path. Keep direct function calls and

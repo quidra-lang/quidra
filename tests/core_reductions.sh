@@ -128,10 +128,10 @@ QUI
 
 rejects REDUCTION_DDOF <<'QUI'
 data := tensor.ones<real64>([2, 3])
-println(len(data.std(dim = 1, ddof = 3).shape()))
+println(data.std(dim = 1, ddof = 3).shape().len())
 QUI
 
 rejects MATH_SHAPE <<'QUI'
 data := tensor.ones<real32>([2, 3])
-println(len(data.min(dim = 2).shape()))
+println(data.min(dim = 2).shape().len())
 QUI

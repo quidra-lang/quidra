@@ -2,7 +2,7 @@
 const examples=[
 ["Hello",`name := "Quidra"\nprint("Hello, {name}")\n`],
 ["Value and storage",`int value := 41\nint &alias := &value\nalias = alias + 1\nprint(value)\n`],
-["Arrays",`int[] values := [1, 2, 3]\nextended := values.append(4)\nprint(values[0])\nprint(len(extended))\n`],
+["Arrays",`int[] values := [1, 2, 3]\nextended := values.append(4)\nprint(values[0])\nprint(extended.len())\n`],
 ["Tensor shape",`tensor<real32>{2, 3} values := tensor.ones<real32>([2, 3])\nprint(values[0, 0].item())\n`]
 ];
 const $=s=>document.querySelector(s), source=$("#source"),out=$("#out"),status=$("#status"),time=$("#time"),run=$("#run"),format=$("#format"),select=$("#examples"),tabs=[...document.querySelectorAll("nav button")];

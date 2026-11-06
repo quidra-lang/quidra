@@ -28,4 +28,4 @@ int[] v := [1, 2, 3, 4]
 int found := first_at_least(&v, &v, 3)
 print("{found}: {v[0]} {v[1]} {v[2]} {v[3]}" + NL)
 v = v.append(5)
-print("{len(v)}" + NL)
+print("{v.len()}" + NL)

@@ -198,7 +198,7 @@ int count(int x)
     return n
 
 int[] xs := array(nat(count(3)))
-print(len(xs))
+print(xs.len())
 QUI
 expect_failure allocation-after-call INTEGER_OVERFLOW 5 1 101
 
@@ -408,7 +408,7 @@ build oversized-repeat || fail "oversized-repeat: build failed"
 check_run oversized-repeat 101 code= line=1 column=1 "message=allocation failed"
 cat > "$TMP/uncoded-bin-fill.qui" <<'QUI'
 int bit_of(string text)
-    return int(len(text))
+    return int(text.len())
 
 bin data := bin.fill(8, bit_of("ab"))
 QUI

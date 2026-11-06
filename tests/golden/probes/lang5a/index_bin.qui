@@ -1,8 +1,8 @@
 // A bin bit written past its end.
 bin data := bin.fill(8, 0)
-nat at := len(data) + 2
+nat at := data.len() + 2
 data[1] = bin.fill(1, 1)
-print("length {len(data)} {data}")
+print("length {data.len()} {data}")
 print(NL)
 data[at] = bin.fill(1, 1)
 print("unreachable")

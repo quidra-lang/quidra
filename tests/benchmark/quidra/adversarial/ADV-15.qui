@@ -7,7 +7,7 @@ for v := values[]
     iterations = iterations + 1
     if v == 2
         values = values.append(99)
-print("OBS=ITERS:{iterations}|LEN:{len(values)}")
+print("OBS=ITERS:{iterations}|LEN:{values.len()}")
 print(NL)
 flush()
 print("ADV-END")

@@ -28,7 +28,7 @@ void plain(int[] values, int[] &same)
 
 void replace(const int[] values, int[] &same)
     same = [4]
-    print("replaced: {values[0]} {len(values)} {len(same)}")
+    print("replaced: {values[0]} {values.len()} {same.len()}")
     print(NL)
 
 void move(const Point point, Point &same)
@@ -44,10 +44,10 @@ void row(const int[] first, int[][] &rows)
 int grow(int[] &values)
     for: 0 <= nat i < 100
         values = values.append(int(i))
-    return int(len(values))
+    return int(values.len())
 
 void later(const int[] values, int count)
-    print("later: {values[0]} {len(values)} {count}")
+    print("later: {values[0]} {values.len()} {count}")
     print(NL)
 
 void tensors(const tensor<real32> values, tensor<real32> &same)

@@ -7,9 +7,9 @@ int replace(string[] &values)
 
 string[] s := ["a", "b"]
 s[0] += "{replace(&s)}"
-print("{s[0]} {s[1]} {s[2]} {len(s)}")
+print("{s[0]} {s[1]} {s[2]} {s.len()}")
 print(NL)
 string[] t := ["x", "y"]
 t[1] += "{replace(&t)}!"
-print("{t[0]} {t[1]} {len(t)}")
+print("{t[0]} {t[1]} {t.len()}")
 print(NL)

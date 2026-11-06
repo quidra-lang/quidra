@@ -192,7 +192,7 @@ grep -q '4:.*error\[REAL_RANGE\] Constant real64 expression produces NaN:' "$TMP
 cat > "$TMP/parse.qui" <<'QUI'
 string[] texts := ["nan", "inf", "-inf", "1.0e999", "-1.0e999", "1.5"]
 for text := texts[]
-    real64 | error value := real64.parse(text)
+    real64 | error value := real64(text)
     match value
         real64 parsed
             print(parsed)

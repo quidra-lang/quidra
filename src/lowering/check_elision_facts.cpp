@@ -286,12 +286,10 @@ std::optional<std::uint64_t> IntegerRangeFacts::magnitude_bound(
         if (unary->op != "-" || !unary->operand) return std::nullopt;
         return magnitude_bound(*unary->operand);
     }
+    if (length_receiver(checked_, expression)) return inline_limit;
     if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
         const auto resolution = checked_.call_resolutions.find(&expression);
         if (resolution == checked_.call_resolutions.end()) return std::nullopt;
-        if (resolution->second.kind == CallKind::Builtin &&
-            resolution->second.builtin == BuiltinCallable::Len)
-            return inline_limit;  // the declared result range of len
         if (resolution->second.kind == CallKind::NumericCast &&
             call->args.size() == 1 && call->args.front().value)
             return magnitude_bound(*call->args.front().value);
@@ -708,7 +706,7 @@ std::optional<ValueId> ArrayBoundsProof::reference_guard(
 }
 
 const Expr& ArrayBoundsProof::without_exact_length_cast(const Expr& expression) const {
-    // int(len(a)): converting a nat length to another integer kind keeps
+    // int(a.len()): converting a nat length to another integer kind keeps
     // its value, so the length relation holds through it.
     const auto* cast = std::get_if<CallExpr>(&expression.data);
     if (!cast || cast->args.size() != 1 || !cast->args.front().value) return expression;
@@ -724,19 +722,11 @@ const Expr& ArrayBoundsProof::without_exact_length_cast(const Expr& expression) 
 std::optional<std::string> ArrayBoundsProof::direct_array_length_source(
     const Expr& source) const {
     const Expr& expression = without_exact_length_cast(source);
-    const auto* call = std::get_if<CallExpr>(&expression.data);
-    if (!call || call->callee != "len" || call->args.size() != 1 ||
-        !call->args.front().value)
+    const auto* receiver = length_receiver(checked_, expression);
+    if (!receiver || type_of(checked_, *receiver).kind != TypeKind::Array)
         return std::nullopt;
-    const auto resolution = checked_.call_resolutions.find(&expression);
-    if (resolution == checked_.call_resolutions.end() ||
-        resolution->second.kind != CallKind::Builtin ||
-        resolution->second.builtin != BuiltinCallable::Len)
-        return std::nullopt;
-    const auto* name =
-        std::get_if<NameExpr>(&call->args.front().value->data);
-    if (!name || type_of(checked_, *call->args.front().value).kind != TypeKind::Array)
-        return std::nullopt;
+    const auto* name = std::get_if<NameExpr>(&receiver->data);
+    if (!name) return std::nullopt;
     return source_key(*name);
 }
 
@@ -979,16 +969,9 @@ std::optional<std::string> ArrayInitializationProof::full_array_written_by_for(c
         return std::nullopt;
     }
 
-    const auto* len_call = std::get_if<CallExpr>(&limit->data);
-    const auto len_resolution = checked_.call_resolutions.find(limit);
-    if (!len_call || len_call->args.size() != 1 ||
-        len_call->args[0].name || len_call->args[0].writable ||
-        len_resolution == checked_.call_resolutions.end() ||
-        len_resolution->second.kind != CallKind::Builtin ||
-        len_resolution->second.builtin != BuiltinCallable::Len) {
-        return std::nullopt;
-    }
-    const auto* len_name = std::get_if<NameExpr>(&len_call->args[0].value->data);
+    const auto* receiver = length_receiver(checked_, *limit);
+    if (!receiver) return std::nullopt;
+    const auto* len_name = std::get_if<NameExpr>(&receiver->data);
     if (!len_name || source_key(*len_name) != source_key(*array_name)) return std::nullopt;
     return source_key(*array_name);
 }

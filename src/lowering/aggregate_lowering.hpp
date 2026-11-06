@@ -27,7 +27,7 @@ public:
     std::optional<ValueId> try_array_method(
         const Expr& e, const MethodCallExpr& n, const Type& receiver_type);
     ValueId lower_array_allocation(const Expr& e, const CallExpr& n);
-    ValueId lower_len(const Expr& e, const CallExpr& n);
+    ValueId lower_len(const Expr& e, const Expr& receiver);
 
 private:
     Lowerer& lowerer_;

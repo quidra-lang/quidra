@@ -47,7 +47,7 @@ Result workload()
         words = words.append(piece)
     string joined := words.join(" ")
     nat8[] text := nat8[](joined.utf8())
-    int n := int(len(text))
+    int n := int(text.len())
 
     int acc := 0
     int cnt_ab := 0

@@ -327,7 +327,7 @@ static void imaginary_literals() {
 // nowhere else.
 static void brace_shapes() {
     {
-        auto p = parse("tensor<real32>{nat B, 3, H := 2 * B, n, (n), nat(n), len(v), _} x\n");
+        auto p = parse("tensor<real32>{nat B, 3, H := 2 * B, n, (n), nat(n), v.len(), _} x\n");
         const auto& type = std::get<BindingStmt>(p.statements.at(0)->data).declared_type;
         require(type.brace_shape && type.shape_axes.size() == 8 &&
                     type.tensor_rank && *type.tensor_rank == 8,
@@ -1183,7 +1183,7 @@ int main() {
     {
         auto program = parse(
             "int[] source := [1, 2]\n"
-            "count := len(source)\n"
+            "count := source.len()\n"
             "int total\n"
             "total = 2\n"
             "(int number, word) := (total, \"two\")\n"

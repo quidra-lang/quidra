@@ -75,7 +75,7 @@ Result workload()
         mchk = 0
         int[] map_keys := m.keys()
         int[] map_values := m.values()
-        for: 0 <= nat i < len(map_keys)
+        for: 0 <= nat i < map_keys.len()
             mchk = (mchk + (map_keys[i] % 1000003) * map_values[i]) % 1000003
 
         for: 0 <= int i < n step 2

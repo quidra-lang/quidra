@@ -2,12 +2,12 @@
 // dispatched on their tag, values are wrapped into unions, numbers are
 // converted, arrays are converted element by element when their shape type
 // changes, and a fail-fast union is consumed (error: fail at the span;
-// value: continue with the payload). Also the conversions spelled as
-// methods: int.parse (and every numeric type's parse), bin.parse, and an
-// error's .string(); and numeric casts (int(x), float32(xs), bin(x), ...).
+// value: continue with the payload). Explicit casts also parse numeric and
+// bit text, and render values in their standard string form.
 
 #include "lowering/checked_types.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/tuple_text.hpp"
 #include <optional>
 #include <stdexcept>
 
@@ -272,47 +272,37 @@ ValueId ConversionLowering::convert(ValueId v,const Type& from,const Type& to,bo
     return v;
 }
 
-std::optional<ValueId> ConversionLowering::try_parse_method(
-    const Expr& e, const MethodCallExpr& n) {
-    const auto* receiver_name=std::get_if<NameExpr>(&n.receiver->data);
-    if(receiver_name && n.method=="parse"){
-        const auto target=builtin_scalar_type(receiver_name->name);
-        if(target && is_numeric(*target)){
-            auto text=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-            builder_.emit(ParseNumber{out,text,*target,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
-            lifetime_.release_temporary(*n.args[0].value,text);
-            return out;
-        }
-        if(target && target->kind==TypeKind::Bin){
-            auto text=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-            builder_.emit(ParseBin{
-                out,text,checked_.raw_types.at(&e),
-                std::holds_alternative<StringExpr>(n.args[0].value->data),
-                {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
-            lifetime_.release_temporary(*n.args[0].value,text);
-            return out;
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<ValueId> ConversionLowering::try_error_method(
-    const MethodCallExpr& n, const Type& receiver_type) {
-    if(receiver_type.kind==TypeKind::Error && n.method=="string"){
-        auto value=lowerer_.lower(*n.receiver);
-        return lowerer_.error_message(value,lifetime_.expression_owns_result(*n.receiver));
-    }
-    return std::nullopt;
-}
-
 ValueId ConversionLowering::lower_numeric_cast(
     const Expr& e, const CallExpr& n, const CallResolution& resolution) {
-    if(const auto target=builtin_scalar_type(resolution.target);target&&is_fixed_real(*target))
-        if(const auto scaled=lowerer_.try_scaled_expression(e,&*target)) return *scaled;
-    auto value=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    const auto source=type_of(checked_,*n.args[0].value);
-    const auto scalar_target=builtin_scalar_type(resolution.target);
-    const auto result_type=checked_.raw_types.at(&e);
+    const auto& argument = *n.args.front().value;
+    const auto source = type_of(checked_, argument);
+    const auto scalar_target = builtin_scalar_type(resolution.target);
+    const auto result_type = checked_.raw_types.at(&e);
+    const SourcePosition site{static_cast<std::uint32_t>(e.span.start.line),
+                              static_cast<std::uint32_t>(e.span.start.column)};
+    if (resolution.target == "string") {
+        const auto value = lowerer_.lower(argument);
+        if (source.kind == TypeKind::Error)
+            return lowerer_.error_message(value, lifetime_.expression_owns_result(argument));
+        const auto out = value_text(builder_, value, source);
+        lifetime_.release_temporary(argument, value);
+        return out;
+    }
+    if (source.kind == TypeKind::String) {
+        const auto text = lowerer_.lower(argument);
+        const auto out = builder_.fresh();
+        if (scalar_target->kind == TypeKind::Bin) {
+            builder_.emit(ParseBin{out, text, result_type,
+                std::holds_alternative<StringExpr>(argument.data), site});
+        } else {
+            builder_.emit(ParseNumber{out, text, *scalar_target, result_type, site});
+        }
+        lifetime_.release_temporary(argument, text);
+        return out;
+    }
+    if (scalar_target && is_fixed_real(*scalar_target))
+        if (const auto scaled = lowerer_.try_scaled_expression(e, &*scalar_target)) return *scaled;
+    auto value = lowerer_.lower(argument), out = builder_.fresh();
     auto success_type=result_type;
     if(result_type.kind==TypeKind::Union && result_type.union_name.empty() &&
        case_index(result_type,Type::simple(TypeKind::Error))>=0){

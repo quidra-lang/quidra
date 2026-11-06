@@ -1,6 +1,6 @@
 // A string indexed past its last character.
 string word := "quidra"
-nat at := len(word)
+nat at := word.len()
 print("first {word[0]}")
 print(NL)
 print("{word[at]}")

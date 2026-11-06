@@ -217,12 +217,11 @@ private:
         return found != checked_.call_resolutions.end() && found->second.kind == CallKind::NumericCast;
     }
     // A call that can print, read or run user code: every call but numeric
-    // casts and the pure built-ins len and range.
+    // casts and pure length queries.
     bool effectful_call(const Expr& expression) const {
-        if (std::holds_alternative<MethodCallExpr>(expression.data)) return true;
-        if (!std::holds_alternative<CallExpr>(expression.data) || numeric_cast(expression)) return false;
-        const auto kind = builtin(expression);
-        return !kind || (*kind != BuiltinCallable::Len);
+        if (std::holds_alternative<MethodCallExpr>(expression.data))
+            return builtin(expression) != BuiltinCallable::Len;
+        return std::holds_alternative<CallExpr>(expression.data) && !numeric_cast(expression);
     }
     // A call whose callee is user or package code (not a built-in or a cast).
     bool user_call(const Expr& expression) const {

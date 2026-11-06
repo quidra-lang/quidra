@@ -33,4 +33,4 @@ test "$("$QUIDRA" run "$ROOT/examples/bin.qui")" = $'8\n01000000'
 test "$("$QUIDRA" run "$ROOT/examples/modules/main.qui")" = "42"
 test "$("$QUIDRA" "$ROOT/examples/cli.qui" image.jpg --count 2 --verbose)" = $'image.jpg\n2\ntrue'
 
-test "$("$QUIDRA" run "$ROOT/examples/radix.qui")" = $'bin=11111111\noct=377\nhex=FF\nsigned=-FF\nlarge=10000000000000000\nliteral=ff\nnegative-literal=-ff\nmethod-hex=FF\ninterp-bin=11111111\ninterp-hex=FF\ninterp-large=10000000000000000'
+test "$("$QUIDRA" run "$ROOT/examples/radix.qui")" = $'bin=11111111\noct=377\nhex=FF\nsigned=-FF\nlarge=10000000000000000\nliteral=ff\nnegative-literal=-ff\ndecimal=255\ninterp-bin=11111111\ninterp-hex=FF\ninterp-large=10000000000000000'

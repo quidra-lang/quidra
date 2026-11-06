@@ -14,10 +14,11 @@ cat > "$TMP/results.qui" <<'QUI'
 string text := "héllo"
 int64[] values := [3, 1, 2]
 bin bits := bin.fill(5, 1)
-nat a := len(text)
-nat b := len(values)
-nat c := len(bits)
-print("{a} {b} {c}")
+nat a := text.len()
+nat b := values.len()
+nat c := bits.len()
+nat d_trim := "  é  ".trim().len()
+print("{a} {b} {c} {d_trim}")
 print(NL)
 map<string, int64> table := map<string, int64>()
 .table.set("x", 1)
@@ -48,24 +49,24 @@ nat[] shape := grid.shape()
 print("{shape[0]} {shape[1]}")
 print(NL)
 QUI
-results_expected="$(printf '5 3 5\n1 2\n2\n3\n2 3')"
+results_expected="$(printf '5 3 5 1\n1 2\n2\n3\n2 3')"
 [[ "$("$QUIDRA" run "$TMP/results.qui")" == "$results_expected" ]]
 
-# len(a) - 1 is a checked nat subtraction: on an empty array it stops, while
-# the signed form int(len(a)) - 1 is -1.
+# a.len() - 1 is a checked nat subtraction: on an empty array it stops, while
+# the signed form int(a.len()) - 1 is -1.
 cat > "$TMP/signed.qui" <<'QUI'
 int64[] empty := []
-print(int(len(empty)) - 1)
+print(int(empty.len()) - 1)
 print(NL)
 int64[] values := [7, 8, 9]
-print(len(values) - 1)
+print(values.len() - 1)
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/signed.qui")" == "$(printf -- '-1\n2')" ]]
 
 cat > "$TMP/underflow.qui" <<'QUI'
 int64[] empty := []
-print(len(empty) - 1)
+print(empty.len() - 1)
 QUI
 set +e
 "$QUIDRA" run "$TMP/underflow.qui" >"$TMP/underflow.out" 2>"$TMP/underflow.err"
@@ -89,7 +90,7 @@ string text := "abc"
 print(text[small])
 print(NL)
 int64 total := 0
-for: 0 <= nat i < len(values)
+for: 0 <= nat i < values.len()
     total = total + values[i]
 print(total)
 print(NL)
@@ -97,17 +98,17 @@ QUI
 [[ "$("$QUIDRA" run "$TMP/indices.qui")" == "$(printf '20 30 40 10\nb\n100')" ]]
 
 # Assignment from nat to int still requires an explicit destination cast.
-printf 'int64[] values := [1, 2]\nint count := len(values)\n' > "$TMP/to-int.qui"
+printf 'int64[] values := [1, 2]\nint count := values.len()\n' > "$TMP/to-int.qui"
 set +e
 "$QUIDRA" check "$TMP/to-int.qui" >"$TMP/to-int.out" 2>&1
 to_int_rc=$?
 set -e
 [[ "$to_int_rc" -ne 0 ]]
 grep -q 'TYPE_MISMATCH' "$TMP/to-int.out"
-grep -q "'len(values)' has type nat; convert explicitly: int(len(values))." "$TMP/to-int.out"
+grep -q "'values.len()' has type nat; convert explicitly: int(values.len())." "$TMP/to-int.out"
 
 # A by-value nat parameter converts a named integer exactly as nat(n).
-printf 'int n := 3\nint64[] values := array(n, fill = 0)\nprint(len(values))\n' > "$TMP/to-nat.qui"
+printf 'int n := 3\nint64[] values := array(n, fill = 0)\nprint(values.len())\n' > "$TMP/to-nat.qui"
 [[ "$("$QUIDRA" run "$TMP/to-nat.qui")" == '3' ]]
 
 printf 'int n := -1\nint64[] values := array(n, fill = 0)\n' > "$TMP/implicit-negative.qui"
@@ -122,7 +123,7 @@ grep -q 'value cannot be represented as nat' "$TMP/implicit-negative.err"
 cat > "$TMP/explicit.qui" <<'QUI'
 int n := 3
 int64[] values := array(nat(n), fill = 7)
-print(len(values))
+print(values.len())
 print(NL)
 int32[] dims := [2, 2]
 tensor<real32> grid := tensor.zeros<real32>(nat(dims))
@@ -135,7 +136,7 @@ QUI
 
 # nat(n) of a negative value at a success-only nat parameter stops with
 # status 101 (contextual fail-fast).
-printf 'int n := -1\nint64[] values := array(nat(n), fill = 0)\nprint(len(values))\n' > "$TMP/negative.qui"
+printf 'int n := -1\nint64[] values := array(nat(n), fill = 0)\nprint(values.len())\n' > "$TMP/negative.qui"
 set +e
 "$QUIDRA" run "$TMP/negative.qui" >"$TMP/negative.out" 2>"$TMP/negative.err"
 negative_rc=$?

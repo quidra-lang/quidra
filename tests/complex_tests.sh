@@ -38,7 +38,7 @@ print("{z} {w} {j} {h} {b} {negative}")
 print(NL)
 print("{z.real} {z.imag} {w.imag} {h.real}")
 print(NL)
-print(z.string())
+print(string(z))
 print(NL)
 print("{w:.2}")
 print(NL)
@@ -163,14 +163,14 @@ TXT
 cat > "$TMP/parse.qui" <<'QUI'
 string[] texts := ["1.5-0.25i", "-2.0+1.0e2i", "3.0", "1.0+i", "1.0e39+0.0i"]
 for text := texts[]
-    com32 | error value := com32.parse(text)
+    com32 | error value := com32(text)
     match value
         com32 parsed
             print(parsed)
         error problem
             print("error")
     print(NL)
-com | error exact := com.parse("0.25-0.5i")
+com | error exact := com("0.25-0.5i")
 match exact
     com parsed
         print(parsed.imag)

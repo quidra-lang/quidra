@@ -107,13 +107,6 @@ bool LifetimeLowering::raw_expression_owns_result(const Expr& expression) const 
     if (const auto* tried = std::get_if<TryExpr>(&expression.data)) {
         return expression_owns_result(*tried->value);
     }
-    if (const auto* method = std::get_if<MethodCallExpr>(&expression.data)) {
-        const auto receiver_kind = type_of(checked_, *method->receiver).kind;
-        if (receiver_kind == TypeKind::String && method->method == "string") {
-            return expression_owns_result(*method->receiver);
-        }
-        return true;
-    }
     if (std::holds_alternative<CallExpr>(expression.data)) {
         // A call owns its result; error(...) makes a new error.
         return true;

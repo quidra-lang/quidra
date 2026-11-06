@@ -49,7 +49,7 @@ def cases() -> list[Case]:
                     expected = "before"
                 else:
                     count, value = (1, 10) if dtype == "bool" else (2, 20)
-                    source += f"print(len(result) == {count} and result[0] == {value})\n"
+                    source += f"print(result.len() == {count} and result[0] == {value})\n"
                     if dtype != "bool":
                         source += "print(result[1] == 10)\n"
                     expected = "beforetrue" + ("" if dtype == "bool" else "true")

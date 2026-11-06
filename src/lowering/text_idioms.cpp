@@ -20,15 +20,18 @@ bool TextIdioms::string_build_element_supported(const Expr& expression) const {
     if (std::holds_alternative<StringExpr>(expression.data)) return true;
     if (const auto* name = local_name_expr(expression))
         return is_builtin_text_constant(name->name);
-    const auto* method = std::get_if<MethodCallExpr>(&expression.data);
-    if (!method || method->method != "string" || !method->args.empty() ||
-        checked_.method_calls.contains(&expression))
+    const auto* cast = std::get_if<CallExpr>(&expression.data);
+    const auto resolution = checked_.call_resolutions.find(&expression);
+    if (!cast || cast->callee != "string" || cast->args.size() != 1 ||
+        resolution == checked_.call_resolutions.end() ||
+        resolution->second.kind != CallKind::NumericCast)
         return false;
-    const auto source = type_of(checked_, *method->receiver);
+    const auto& argument = *cast->args.front().value;
+    const auto source = type_of(checked_, argument);
     // A bare integer part is a named value: the build releases no temporary.
     return is_fixed_integer(source) || source.kind == TypeKind::Bool ||
            (is_bare_integer(source) &&
-            std::holds_alternative<NameExpr>(method->receiver->data));
+            std::holds_alternative<NameExpr>(argument.data));
 }
 
 StringBuildPart TextIdioms::lower_string_build_element(const Expr& expression) {
@@ -52,9 +55,24 @@ StringBuildPart TextIdioms::lower_string_build_element(const Expr& expression) {
             lowerer_.lower(expression), Type::simple(TypeKind::String),
             single_byte_ascii};
     }
-    const auto& method = std::get<MethodCallExpr>(expression.data);
-    const auto source_type = type_of(checked_, *method.receiver);
-    return StringBuildPart{lowerer_.lower(*method.receiver), source_type};
+    const auto& cast = std::get<CallExpr>(expression.data);
+    const auto& argument = *cast.args.front().value;
+    return StringBuildPart{lowerer_.lower(argument), type_of(checked_, argument)};
+}
+
+// A numeric cast of text is lowered through the parser, unlike a cast
+// from another numeric type.
+static const CallExpr* numeric_parse_call(const CheckedProgram& checked, const Expr& expression) {
+    const auto* call = std::get_if<CallExpr>(&expression.data);
+    if (!call || call->args.size() != 1) return nullptr;
+    const auto resolution = checked.call_resolutions.find(&expression);
+    const auto target = builtin_scalar_type(call->callee);
+    if (resolution == checked.call_resolutions.end() ||
+        resolution->second.kind != CallKind::NumericCast ||
+        !target || !is_numeric(*target) ||
+        type_of(checked, *call->args.front().value).kind != TypeKind::String)
+        return nullptr;
+    return call;
 }
 
 bool TextIdioms::is_signed_parse_wrapper(const std::string& target) const {
@@ -80,18 +98,10 @@ bool TextIdioms::is_signed_parse_wrapper(const std::string& target) const {
         std::get_if<MatchStmt>(&function->body.front()->data);
     if (!match || !match->value || match->cases.size() != 2)
         return false;
-    const auto* parse =
-        std::get_if<MethodCallExpr>(&match->value->data);
-    if (!parse || parse->method != "parse" || parse->args.size() != 1 ||
-        !parse->args.front().value)
-        return false;
-    const auto* receiver =
-        local_name_expr(*parse->receiver);
-    const auto* argument =
-        local_name_expr(*parse->args.front().value);
-    if (!receiver || receiver->name != "int64" || !argument ||
-        argument->name != function->parameters.front().name)
-        return false;
+    const auto* parse = numeric_parse_call(checked_, *match->value);
+    if (!parse || parse->callee != "int64") return false;
+    const auto* argument = local_name_expr(*parse->args.front().value);
+    if (!argument || argument->name != function->parameters.front().name) return false;
 
     for (const auto& current : match->cases) {
         const auto type = checked_.case_types.find(&current);
@@ -137,29 +147,11 @@ bool TextIdioms::split_parse_call(
                    literal->value == expected_index;
         };
 
-    // Direct int64.parse(fields[N]) is the canonical source form. The typed
-    // int64 destination is a success-only context, so an invalid parse
-    // already has the same fail-fast semantics as the wrapper form below.
-    // The fused runtime helper falls back to the original path whenever it
-    // cannot prove the two canonical decimal fields.
-    if (const auto* parse =
-            std::get_if<MethodCallExpr>(&binding.value->data)) {
-        const auto* receiver =
-            local_name_expr(*parse->receiver);
-        if (receiver && receiver->name == "int64" &&
-            parse->method == "parse" &&
-            parse->type_arguments.empty() &&
-            parse->args.size() == 1 &&
-            !parse->args.front().writable &&
-            parse->args.front().value &&
-            matches_index(*parse->args.front().value)) {
-            const auto raw = checked_.raw_types.find(binding.value.get());
-            return raw != checked_.raw_types.end() &&
-                   raw->second.kind == TypeKind::Union &&
-                   case_index(raw->second, Type::simple(TypeKind::Int64)) >= 0 &&
-                   case_index(raw->second, Type::simple(TypeKind::Error)) >= 0;
-        }
-    }
+    // The typed int64 destination consumes failure in int64(fields[N]).
+    // The fused helper falls back to the original path if necessary.
+    if (const auto* parse = numeric_parse_call(checked_, *binding.value);
+        parse && parse->callee == "int64")
+        return matches_index(*parse->args.front().value);
 
     const auto* call = std::get_if<CallExpr>(&binding.value->data);
     if (!call || call->args.size() != 1 ||
@@ -344,7 +336,7 @@ bool TextIdioms::lower_string_build_append_quad(
     const auto* length_target =
         local_name_expr(*length_update->target);
     // The length is a nat: the counter adds it through the conversion to its
-    // own kind, int(len(line)) or int64(len(line)).
+    // own kind, int(line.len()) or int64(line.len()).
     const auto length_type = type_of(checked_, *length_update->target);
     const Expr* length_expression = length_update->value.get();
     if (const auto* cast = std::get_if<CallExpr>(&length_expression->data);
@@ -354,25 +346,14 @@ bool TextIdioms::lower_string_build_append_quad(
             cast_resolution->second.kind == CallKind::NumericCast)
             length_expression = cast->args.front().value.get();
     }
-    const auto* length_call =
-        std::get_if<CallExpr>(&length_expression->data);
+    const auto* receiver = length_receiver(checked_, *length_expression);
     if (!length_target ||
         checked_.field_accesses.contains(length_update->target.get()) ||
         scope_.is_source_reference(length_target->name) ||
         (length_type.kind != TypeKind::Int64 && length_type.kind != TypeKind::Int) ||
-        length_expression == length_update->value.get() ||
-        !length_call || length_call->callee != "len" ||
-        length_call->args.size() != 1 ||
-        !length_call->args.front().value)
+        length_expression == length_update->value.get() || !receiver)
         return false;
-    const auto length_resolution =
-        checked_.call_resolutions.find(length_expression);
-    if (length_resolution == checked_.call_resolutions.end() ||
-        length_resolution->second.kind != CallKind::Builtin ||
-        length_resolution->second.builtin != BuiltinCallable::Len)
-        return false;
-    const auto* measured =
-        local_name_expr(*length_call->args.front().value);
+    const auto* measured = local_name_expr(*receiver);
     if (!measured || measured->name != line_binding->name)
         return false;
 
@@ -925,12 +906,9 @@ bool TextIdioms::lower_utf8_array_match(const MatchStmt& match) {
 // storage, branch on success, and expose the same static error value only
 // on the failure branch.
 bool TextIdioms::lower_numeric_parse_match(const MatchStmt& match) {
-    const auto* call = std::get_if<MethodCallExpr>(&match.value->data);
-    if (!call || call->method != "parse" || call->args.size() != 1)
-        return false;
-    const auto* receiver = local_name_expr(*call->receiver);
-    if (!receiver) return false;
-    const auto target = builtin_scalar_type(receiver->name);
+    const auto* call = numeric_parse_call(checked_, *match.value);
+    if (!call) return false;
+    const auto target = builtin_scalar_type(call->callee);
     if (!target || !(is_fixed_integer(*target) ||
                      target->kind == TypeKind::Real32 ||
                      target->kind == TypeKind::Real64))

@@ -29,7 +29,7 @@ def cases() -> list[Case]:
         neg = '-∞' if ty == 'real' else '-inf'
         result.extend([
             Case(f'{ty}-literal', f'{ty} a := inf\n{ty} b := -inf\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
-            Case(f'{ty}-parse', f'{ty} a := {ty}.parse("inf")\n{ty} b := {ty}.parse("-inf")\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
+            Case(f'{ty}-parse', f'{ty} a := {ty}("inf")\n{ty} b := {ty}("-inf")\nprint("{{a}} {{b}}")\n', f'{pos} {neg}'),
             Case(f'{ty}-zero-divide', f'{ty} one := 1.0\n{ty} zero := 0.0\nprint("{{one / zero}} {{-one / zero}}")\n', f'{pos} {neg}'),
             Case(f'{ty}-extended-arithmetic', f'{ty} a := inf\n{ty} b := -inf\n{ty} one := 1.0\nprint("{{a + one}} {{b - one}} {{one / a}} {{a * -one}}")\n', f'{pos} {neg} 0.0 {neg}'),
             Case(f'{ty}-comparison', f'{ty} a := inf\n{ty} b := -inf\n{ty} one := 1.0\nprint("{{a == a}} {{a != b}} {{b < one}} {{one < a}} {{a > b}}")\n', 'true true true true true'),
@@ -83,7 +83,7 @@ def cases() -> list[Case]:
         Case('real64-real16-negative-zero',
              'real64 value := -0.0\n'
              'real16 rounded := real16(value)\n'
-             'print(rounded.string() == "-0.0")\n', 'true'),
+             'print(string(rounded) == "-0.0")\n', 'true'),
     ])
     # Native real16 comparisons must not pull __extendhfsf2 into Windows
     # executables; comparisons retain IEEE zero and infinity semantics.
@@ -109,7 +109,7 @@ def cases() -> list[Case]:
                 f'{target} x := {target}(a)\n{target} y := {target}(b)\nprint("{{x}} {{y}}")\n',
                 '∞ -∞' if target == 'real' else 'inf -inf'))
     result.extend([
-        Case('exact-unicode-roundtrip', 'real a := real.parse("∞")\nreal b := real.parse("-∞")\nprint("{a} {b}")\n', '∞ -∞'),
+        Case('exact-unicode-roundtrip', 'real a := real("∞")\nreal b := real("-∞")\nprint("{a} {b}")\n', '∞ -∞'),
         Case('exact-finite-does-not-overflow', 'real a := 1.0e308 * 10.0\nreal b := inf\nprint(a < b)\n', 'true'),
         Case('exact-infinity-powers', 'real a := inf\nreal b := -inf\nprint("{a ^ 2.0} {b ^ 3.0} {a ^ -2.0} {a ^ 0.0}")\n', '∞ -∞ 0.0 1.0'),
         Case('exact-infinite-exponents', 'real a := 2.0\nreal b := 0.5\nreal e := inf\nprint("{a ^ e} {b ^ e} {a ^ -e} {b ^ -e}")\n', '∞ 0.0 0.0 ∞'),

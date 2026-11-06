@@ -265,7 +265,7 @@ nat
 real
 ```
 
-`int` is an exact arbitrary-precision integer and `nat` an exact arbitrary-precision natural number: they never overflow, and a `nat` result below zero is an error. Lengths, counts, shapes, sizes and the index values APIs return are `nat` (`len`, `size()`, `.shape()`, `find`); indexing accepts every integer kind, and `int(len(values)) - 1` is the signed form of `len(values) - 1`, which fails on an empty array. Fixed-width signed integers have a defined two's-complement bit representation. `real64` is IEEE-754 binary64. `real32` is IEEE-754 binary32. `real16` is IEEE-754 binary16 and `real16b` bfloat16; each of their operations rounds the exact result once. `real` represents exact rational and symbolic real values rather than a configurable floating-point precision.
+`int` is an exact arbitrary-precision integer and `nat` an exact arbitrary-precision natural number: they never overflow, and a `nat` result below zero is an error. Lengths, counts, shapes, sizes and the index values APIs return are `nat` (`.len()`, `size()`, `.shape()`, `find`); indexing accepts every integer kind, and `int(values.len()) - 1` is the signed form of `values.len() - 1`, which fails on an empty array. Fixed-width signed integers have a defined two's-complement bit representation. `real64` is IEEE-754 binary64. `real32` is IEEE-754 binary32. `real16` is IEEE-754 binary16 and `real16b` bfloat16; each of their operations rounds the exact result once. `real` represents exact rational and symbolic real values rather than a configurable floating-point precision.
 
 Numeric literals use compatible context, otherwise default to `int`, exact `real`, or exact `com`; `nat` requires context. `a := 5 + 6` is `int`, `int32 b := 5 + 6` is `int32`, and `c := b + 1` stays `int32`. A numeric union context with multiple compatible alternatives remains ambiguous.
 
@@ -290,13 +290,16 @@ There is no `char` type:
 - one byte as a number is `nat8`,
 - raw binary sequences are `bin`.
 
-Numeric parsing and standard text conversion use methods:
+Use `T(text)` to parse a string as a numeric type `T`. The result is
+`T | error`; an explicit union keeps the error for handling. Use
+`string(value)` for the standard text of a number, `bool`, `bin`, `error`,
+or a printable union. An existing `string` keeps the same text.
 
 ```quidra
-value := int.parse("123")
+int | error value := int("123")
 
 number := 123
-text := number.string()
+text := string(number)
 ```
 
 All ten integer types (`int`, `nat`, `int8`/`int16`/`int32`/`int64`, and
@@ -306,8 +309,7 @@ digits `a`–`z`; uppercase `B` selects `A`–`Z`. For example, `255.b16` is
 `"ff"`, `255.B16` is `"FF"`, and `(-255).b16` is `"-ff"`. These preserve
 the exact integer value, add no prefix or padding, and return `string`.
 Postfix access binds before unary minus, so parenthesize a negative receiver.
-The existing `number.string(base = 16, uppercase = true)` and
-`"{number:base=16,upper}"` forms remain available.
+Use `"{number:base=16,upper}"` to choose the radix inside interpolation.
 
 ### Arrays and bin
 
@@ -330,7 +332,8 @@ ranked := names.sorted(by = scores, descending = true)
 Fixed array lengths are part of the type. Runtime-sized arrays may be created
 uninitialized with `array(n)` or fully initialized with
 `array(n, fill = value)`; initialization is tracked per element. Arrays have
-value semantics, including nested arrays. `append`, `concat`, and `sorted`
+value semantics, including nested arrays. `values.len()` counts the elements
+in the outer dimension. `append`, `concat`, and `sorted`
 return new array values rather than hiding mutation of another value.
 `sorted(descending = true)` returns a descending value.
 
@@ -338,7 +341,7 @@ Array indices count from zero at the start and from `-1` at the end.
 Fixed and runtime-sized arrays accept negative indices for reads and writes.
 
 Slices make inclusion and direction explicit: `values[1:<3]` excludes the end,
-`values[len(values)>:0]` reverses, and `values[::2]` selects every second
+`values[values.len()>:0]` reverses, and `values[::2]` selects every second
 element. A slice is an independent value. Array slice assignment writes the
 selected elements in order and requires an equally sized value with exactly
 the same element type; overlapping sources are safe. Strings use the same
@@ -350,11 +353,12 @@ code-point slice syntax and remain immutable.
 data := bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
 first := data[0]
-parsed := bin.parse("0101")
+bin | error parsed := bin("0101")
 ```
 
-`len(data)` is the number of bits, indexing returns one-bit `bin`, and slicing
-returns another `bin`. Binary-to-numeric interpretation is explicit, for
+`data.len()` is the number of bits, indexing returns one-bit `bin`, and slicing
+returns another `bin`. `bin(text)` parses written bits and `string(data)` gives
+the exact 0/1 sequence. Binary-to-numeric interpretation is explicit, for
 example `nat8(bits)`, and the bit length must match the destination width.
 
 ### Strings
@@ -372,7 +376,7 @@ Backslash is literal rather than an escape introducer. The eight two-letter uppe
 
 Immutable backing storage may be shared internally because that sharing cannot change observable value semantics. For the same reason, `text = text + piece` in a loop is linear overall rather than quadratic: when the target is the sole owner of its storage, the append reuses it with geometric growth instead of copying the accumulated prefix each time.
 
-Strings are immutable UTF-8 text. `len(text)` counts Unicode code points (a `nat`), `text[index]` returns a one-code-point string, slices such as `text[2:<5]` select code points, and text supports `contains`, `starts_with`, `ends_with`, `find`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`; `string.from_utf8(data)` explicitly validates byte-aligned binary data and returns `string | error`; `text.codepoints()` explicitly exposes Unicode scalar values; and `string[]` uses `join(separator)` for efficient assembly.
+Strings are immutable UTF-8 text. `text.len()` counts Unicode code points (a `nat`), `text[index]` returns a one-code-point string, slices such as `text[2:<5]` select code points, and text supports `contains`, `starts_with`, `ends_with`, `find`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`; `string.from_utf8(data)` explicitly validates byte-aligned binary data and returns `string | error`; `text.codepoints()` explicitly exposes Unicode scalar values; and `string[]` uses `join(separator)` for efficient assembly.
 
 ### Functions and calls
 
@@ -991,7 +995,7 @@ extern int64 c_abs(int64 value) = "llabs"
 println(c_abs(-42))
 ```
 
-Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `func` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `nat32`, `int64`, `nat64`, `real32`, `real64`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit borrows: `const string` and `const bin` parameters are read-only and take a value at the call, while `bin &` is an explicit mutable byte borrow passed as `&storage`. Tensor input uses the same explicit authority model: `const tensor<T>` is a read-only opaque tensor borrow and `tensor<T> &` is a mutable opaque tensor borrow. String/bin borrows lower to a `(data pointer, nat64 byte length)` pair; tensor borrows lower to one opaque handle defined by `quidra/native_extension.h`. Native code must not retain a borrowed pointer or tensor handle after the call. Mutation is permitted only through a mutable borrow and the corresponding native-extension API; tracked tensors deliberately reject raw mutable CPU access so native code cannot bypass autograd silently. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
+Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `func` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `nat32`, `int64`, `nat64`, `real32`, `real64`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit borrows: `const string` and `const bin` parameters are read-only and take a value at the call, while `bin &` is an explicit mutable byte borrow passed as `&storage`. Tensor input uses the same explicit authority model: `const tensor<T>` is a read-only opaque tensor borrow and `tensor<T> &` is a mutable opaque tensor borrow. String/bin borrows lower to a `(data pointer, nat64 byte length)` pair; tensor borrows lower to one opaque handle defined by `quidra/native_extension.h`. Native code must not retain a borrowed pointer or tensor handle after the call. Mutation is permitted only through a mutable borrow and the corresponding native-extension API; tracked tensors deliberately reject raw mutable CPU access so native code cannot bypass autograd silently. A borrowed `bin` must be byte-aligned (`value.len() % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
 
 The outbound direction is `export "C"`: a top-level function with fixed-width scalar parameters and result (`int8`..`int64`, `nat8`..`nat64`, `real32`, `real64`, or a `void` result) becomes callable from C under its own name. `quidra build lib.qui --lib -o libname.a --print-link-flags` builds a self-contained static archive for a C program and prints the system link flags it needs; a runtime failure inside an exported function is reported at its Quidra source and ends the process with status 101.
 

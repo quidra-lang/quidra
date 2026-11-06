@@ -9,11 +9,11 @@ string read_input_line()
             return line
         error problem
             process.exit(2)
-int n := int.parse(read_input_line())
+int n := int(read_input_line())
 int[] big := array(nat(n), fill = 0)
 big[0] = 1
 int first := big[0]
-print("OBS=ALLOC:{len(big)}|FIRST:{first}")
+print("OBS=ALLOC:{big.len()}|FIRST:{first}")
 print(NL)
 flush()
 print("ADV-END")

@@ -15,7 +15,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `ARRAY_COMPREHENSION` | A generation expression has a source other than a single array value. | Iterate an array using `[for T value := source[] then expression]`, with an optional `if` condition. |
 | `ARGUMENT_MISMATCH` | Call arguments violate arity, ordering, names, defaults, or constructor shape. | Match the declared parameters and named-argument rules. |
 | `ARRAY_SHAPE` | Fixed or inferred array shapes are incompatible. | Use the required dimensions or a compatible dynamic array. |
-| `BIN_PARSE` | A statically known `bin.parse` input contains characters other than `0` and `1`. | Use only `0` and `1` in the parsed bit text. |
+| `BIN_PARSE` | A statically known string passed to `bin(text)` contains characters other than `0` and `1`. | Use only `0` and `1` in the bit text. |
 | `CHAINED_COMPARISON` | A comparison chain mixes directions (`a < b > c`), chains `!=`, puts a relational comparison next to `==` or `!=` without parentheses, or compares tensors. | Keep one direction (`<`/`<=`, `>`/`>=`, or only `==`), write `(a < b) == c` to compare a result, and combine tensor masks explicitly. |
 | `CONSTRUCTOR_SIGNATURE` | A class header lacks its required argument list or has an invalid generation signature. | Write `class Type [instance](...) [\| error]`. |
 | `CONSTRUCTOR_RETURN` | An ordered class initialization returns a value other than an allowed error. | Use bare return, or declare the class header with `\| error` and return an error. |
@@ -159,7 +159,7 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 - a zero `range` step;
 - call depth exceeding the native safety limit before host stack exhaustion.
 
-An explicit `error("message")` is instead a typed value (see [Error values](#error-values)). Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. A range-checked numeric cast likewise exposes `converted-type | error` when a runtime value may not fit; array and tensor casts use the whole converted container as the success alternative and fail atomically if any leaf is out of range. An inferred declaration infers the success type and fails fast, an explicit union declaration preserves the failure alternative, a success-only destination also fails fast, `try` propagates it, and `match` can recover from an explicitly preserved result locally. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print` and `flush` return `error` for an output failure; an expression statement that discards such an error fails fast (a standalone expression in an interactive session displays the error value instead).
+An explicit `error("message")` is instead a typed value (see [Error values](#error-values)). A numeric type call `T(text)` returns `error` for invalid or out-of-range text. A range-checked numeric cast likewise exposes `converted-type | error` when a runtime value may not fit; array and tensor casts use the whole converted container as the success alternative and fail atomically if any leaf is out of range. An inferred declaration infers the success type and fails fast, an explicit union declaration preserves the failure alternative, a success-only destination also fails fast, `try` propagates it, and `match` can recover from an explicitly preserved result locally. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print` and `flush` return `error` for an output failure; an expression statement that discards such an error fails fast (a standalone expression in an interactive session displays the error value instead).
 
 Real values, scalar or tensor elements, may be infinite but never NaN. Indeterminate arithmetic stops at the operation before NaN can be printed or consumed. A real tensor operation on the CPU stops at its first failing element; on a GPU its check is deferred to the next synchronization point and reported there (`TENSOR`, or `GPU_ASYNC` at exit) with the operation's message and `(deferred GPU check from FILE:L:C)`.
 
@@ -276,7 +276,7 @@ optional cause; apart from these it keeps its origin, the place it was made. Its
 is a rendering of the code and the details, made once when the error is made:
 `cannot read "data.csv": permission denied` is the message of a `FILE_READ` error whose
 details are `path` = `data.csv` and `reason` = `PERMISSION_DENIED`. Printing an error,
-interpolating it (`"{e}"`) and `e.string()` give its message.
+interpolating it (`"{e}"`) and `string(e)` give its message.
 
 When an error reaches a fail-fast site (an inferred declaration, a success-only destination, or a
 statement that discards a `void | error` result), the program stops with the error's own
@@ -370,8 +370,8 @@ number. An absent detail is not part of the error (a `file.read` or `file.write`
 | `FILE_COPY` | `file.copy` | `path` (the source), `destination` (text), `reason` | `cannot copy "PATH" to "DESTINATION": REASON` |
 | `FILE_MOVE` | `file.move` | `path`, `destination`, `reason` | `cannot move "PATH" to "DESTINATION": REASON` |
 | `FILE_MKDIR` | `file.mkdir` | `path`, `reason` | `cannot create directory "PATH": REASON` |
-| `NUMERIC_PARSE` | `T.parse` for every numeric `T` | `type` (the parsed type), `reason` (`INVALID_TEXT`, `OUT_OF_RANGE`) | `cannot parse numeric input as TYPE`, `... as TYPE: value out of range` |
-| `BIN_PARSE` | `bin.parse` of a runtime text | none | `cannot parse bin input` |
+| `NUMERIC_PARSE` | `T(text)` with a string operand for any numeric `T` | `type` (the parsed type), `reason` (`INVALID_TEXT`, `OUT_OF_RANGE`) | `cannot parse numeric input as TYPE`, `... as TYPE: value out of range` |
+| `BIN_PARSE` | `bin(text)` with a runtime string operand | none | `cannot parse bin input` |
 | `UTF8_DECODE` | `string.from_utf8` | none | `invalid UTF-8 text` |
 | `INPUT_END` | `scan` at the end of input | none | `scan reached the end of input` |
 | `INPUT_READ` | `scan`'s line read | `reason` (`INVALID_UTF8`, `EMBEDDED_NUL`, `IO_FAILURE`) | `input failed: REASON` |

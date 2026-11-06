@@ -12,11 +12,11 @@ int[] values := [10, 20, 30]
 int[] signed_indices := [2, 0, 2]
 nat[] natural_indices := [0, 2]
 bool[] mask := [false, true, false]
-print(len(values[signed_indices]) == 3)
+print(values[signed_indices].len() == 3)
 print(NL)
-print(len(values[natural_indices]) == 2)
+print(values[natural_indices].len() == 2)
 print(NL)
-print(len(values[mask]) == 1)
+print(values[mask].len() == 1)
 print(NL)
 QUI
 

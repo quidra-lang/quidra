@@ -1,7 +1,7 @@
 #pragma once
 
 // ConversionLowering: a value of one type to another (unions, numbers, array
-// shapes), fail-fast consumption, parse methods, numeric casts. Defined in
+// shapes), fail-fast consumption, explicit casts. Defined in
 // conversion_lowering.cpp.
 
 #include "ir/function_builder.hpp"
@@ -37,12 +37,6 @@ public:
                                      const Type& target, SourceSpan span);
     ValueId lower_numeric_cast(
         const Expr& e, const CallExpr& n, const CallResolution& resolution);
-
-    // int.parse and the other numeric parses, bin.parse, and an error's
-    // .string()
-    std::optional<ValueId> try_parse_method(const Expr& e, const MethodCallExpr& n);
-    std::optional<ValueId> try_error_method(
-        const MethodCallExpr& n, const Type& receiver_type);
 
 private:
     // an array to an array of another shape type, for convert

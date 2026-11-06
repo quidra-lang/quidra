@@ -316,7 +316,7 @@ jobs:
           $output = & build/Release/quidra.exe run build/platform-smoke.qui
           if (($output -join "`n").Trim() -ne "Hello from Windows") { throw "native smoke failed: $output" }
           $pieces = ((1..64) | ForEach-Object { '"x"' }) -join ' + '
-          Set-Content -Path build/binary-smoke.qui -Value "string value := $pieces`nprint(len(value))"
+          Set-Content -Path build/binary-smoke.qui -Value "string value := $pieces`nprint(value.len())"
           & build/Release/quidra.exe check build/binary-smoke.qui | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "binary expression check failed with exit code $LASTEXITCODE" }
           & build/Release/quidra.exe llvm build/binary-smoke.qui | Out-File -Encoding utf8 build/binary-smoke.ll

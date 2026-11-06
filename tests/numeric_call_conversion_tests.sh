@@ -74,7 +74,7 @@ real64 count := 3.0
 print(string.repeat("x", count) == "xxx")
 print(NL)
 int8[] filled := array(count, fill = wider)
-print(len(filled) == 3 and filled[0] == 7)
+print(filled.len() == 3 and filled[0] == 7)
 print(NL)
 int64[] integer_shape := [2]
 tensor<int32> integer_shaped := tensor.ones<int32>(integer_shape)

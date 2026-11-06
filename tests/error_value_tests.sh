@@ -144,19 +144,19 @@ match check(-1)
         print(problem)
         print(NL)
         print("failed: {problem}" + NL)
-        print(problem.string() + NL)
+        print(string(problem) + NL)
 match described(-1)
     int n
         print(n)
     error problem
         error[] kept := [problem, problem]
         print("{kept[0]} / {kept[1]}" + NL)
-        print(len(kept))
+        print(kept.len())
 QUI
 
 # --- Core codes from their sources.
 stops utf8-decode UTF8_DECODE 3 16 "invalid UTF-8 text" <<'QUI'
-bin data := bin.parse("11111111")
+bin data := bin("11111111")
 print("before" + NL)
 string text := string.from_utf8(data)
 QUI
@@ -241,13 +241,13 @@ prints parse-reasons "$(printf '%s\n' \
     'cannot parse bin input')" <<'QUI'
 string[] wide := ["12x", "99999999999999999999"]
 for text := wide[]
-    match int64.parse(text)
+    match int64(text)
         int64 value
             print(value)
         error problem
             print(problem)
             print(NL)
-match int8.parse("300")
+match int8("300")
     int8 value
         print(value)
     error problem
@@ -255,7 +255,7 @@ match int8.parse("300")
         print(NL)
 string[] small := ["-1", "abc"]
 for text := small[]
-    match nat8.parse(text)
+    match nat8(text)
         nat8 value
             print(value)
         error problem
@@ -263,20 +263,20 @@ for text := small[]
             print(NL)
 string[] reals := ["x", "1e60"]
 for text := reals[]
-    match real32.parse(text)
+    match real32(text)
         real32 value
             print(value)
         error problem
             print(problem)
             print(NL)
-match int.parse("1.5")
+match int("1.5")
     int value
         print(value)
     error problem
         print(problem)
         print(NL)
 string bits := "0102"
-match bin.parse(bits)
+match bin(bits)
     bin value
         print(value)
     error problem
@@ -285,11 +285,11 @@ QUI
 stops parse-fail-fast NUMERIC_PARSE 3 11 "cannot parse numeric input as int8: value out of range" <<'QUI'
 string text := "300"
 print("before" + NL)
-int8 n := int8.parse(text)
+int8 n := int8(text)
 QUI
 details parse-details '{"code": "NUMERIC_PARSE", "details": {"type": "nat16", "reason": "INVALID_TEXT"}}' <<'QUI'
 string text := "x"
-nat16 n := nat16.parse(text)
+nat16 n := nat16(text)
 QUI
 
 # --- File operations keep their cause: the operation's code, the path as
@@ -346,7 +346,7 @@ QUI
 # a detail of another schema reads none.
 prints members "$(printf 'CONFIG_PORT\ninvalid port\nNUMERIC_PARSE\ncannot parse numeric input as int\nint\nINVALID_TEXT\nno path\nno text\ninvalid port')" <<'QUI'
 int | error read_port(string text)
-    match int.parse(text)
+    match int(text)
         int port
             return port
         error problem
@@ -421,14 +421,14 @@ error wrapped_c := error("outer", cause = c)
 print("{wrapped_a == wrapped_b}{NL}")
 print("{wrapped_a == wrapped_c}{NL}")
 error core := error("x")
-match int.parse("x")
+match int("x")
     int value
         print(value)
     error parsed
         core = parsed
 error user := error("cannot parse numeric input as int")
 print("{core == user}{NL}")
-match int.parse("y")
+match int("y")
     int value
         print(value)
     error again
@@ -606,15 +606,15 @@ bool | error flag()
     return true
 int[] | error items()
     return [4, 5]
-println(int.parse("1") + int.parse("2"))
-println(int8.parse("1") + 2)
-println(-int.parse("3"))
+println(int("1") + int("2"))
+println(int8("1") + 2)
+println(-int("3"))
 println(not flag() or flag())
-println(int.parse("1") < int.parse("2"))
-println(int.parse("1") < int.parse("2") < int.parse("3"))
+println(int("1") < int("2"))
+println(int("1") < int("2") < int("3"))
 int[] values := [8, 9]
-println(values[int.parse("1")])
-println(int64(int.parse("3")))
+println(values[int("1")])
+println(int64(int("3")))
 int[] shifted := items() + 1
 println("{shifted[0]}:{shifted[1]}")
 int | error problem := error("kept")
@@ -697,8 +697,8 @@ println("{result[0]}:{result[1]}")
 for left := items()[], right := items()[]
     println(left + right)
 nat number := 3
-println(len(bin(nat8(number))))
-println(len(bin(bytes())))
+println(bin(nat8(number)).len())
+println(bin(bytes()).len())
 QUI
 stops foreach-source-error ERROR 3 12 'source failed' <<'QUI'
 int[] | error values()
@@ -765,13 +765,13 @@ QUI
 # Uncontextualized nonliteral if branches still require identical types.
 rejects inferred-if-success-fallible-branches TYPE_MISMATCH <<'QUI'
 int value := 1
-result := if true then value else int.parse("2")
+result := if true then value else int("2")
 QUI
 prints contextual-if-fallible-branch $'1\nhandled' <<'QUI'
 int value := 1
-int selected := if true then value else int.parse("bad")
+int selected := if true then value else int("bad")
 println(selected)
-int | error result := if false then value else int.parse("bad")
+int | error result := if false then value else int("bad")
 match result
     int number
         println(number)
@@ -818,7 +818,7 @@ void inspect_name()
     println(owners(text) - before)
     match text
         string original
-            println(len(original))
+            println(original.len())
         error problem
             println("unexpected")
 inspect_name()
@@ -831,7 +831,7 @@ void inspect_member()
     println(owners(holder.text) - before)
     match holder.text
         string original
-            println(len(original))
+            println(original.len())
         error problem
             println("unexpected")
 inspect_member()
@@ -928,24 +928,24 @@ void inspect()
     remember(original)
     nat64 before := owners(original)
     string joined := text + "!"
-    println(len(joined))
+    println(joined.len())
     println(owners(original) - before)
-    println(len(values[0]))
+    println(values[0].len())
     println(owners(original) - before)
     for value := values[]
-        println(len(value))
+        println(value.len())
     println(owners(original) - before)
-    counts := [for value := values[] then len(value)]
+    counts := [for value := values[] then value.len()]
     println(counts[0])
     println(owners(original) - before)
     match text
         string kept
-            println(len(kept))
+            println(kept.len())
         error problem
             println("unexpected")
     match values
         string[] kept
-            println(len(kept[0]))
+            println(kept[0].len())
         error problem
             println("unexpected")
 inspect()
@@ -958,7 +958,7 @@ string replace(string &text)
     return "!"
 string text := string.repeat("a", 1024)
 string joined := text + replace(&text)
-println(len(joined))
+println(joined.len())
 println(joined[0])
 println(text[0])
 QUI

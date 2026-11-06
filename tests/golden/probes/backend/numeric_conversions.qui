@@ -82,57 +82,57 @@ real32 float32_of_float(real64 value)
     return real32(value)
 
 real64 parsed_float(string text)
-    match real64.parse(text)
+    match real64(text)
         real64 value
             return value
         error problem
             return 0.0
 
 real32 parsed_float32(string text)
-    match real32.parse(text)
+    match real32(text)
         real32 value
             return value
         error problem
             return 0.0
 
 int8 parsed_int8(string text)
-    match int8.parse(text)
+    match int8(text)
         int8 value
             return value
         error problem
             return int8(0)
 
 nat16 parsed_uint16(string text)
-    match nat16.parse(text)
+    match nat16(text)
         nat16 value
             return value
         error problem
             return nat16(0)
 
 nat64 parsed_uint64(string text)
-    match nat64.parse(text)
+    match nat64(text)
         nat64 value
             return value
         error problem
             return nat64(0)
 
 int32 | error kept_int32(string text)
-    int32 | error result := int32.parse(text)
+    int32 | error result := int32(text)
     return result
 
 int | error kept_bigint(string text)
-    int | error result := int.parse(text)
+    int | error result := int(text)
     return result
 
 real | error kept_bigreal(string text)
-    real | error result := real.parse(text)
+    real | error result := real(text)
     return result
 
 string formatted(int8 a, nat32 b, int c, real d, real e, real32 f)
     return "{a:4.} {b:06.} {c:3.} {d:5} {e:3.2} {f:.2}"
 
 string bin_text(bin value)
-    return value.string()
+    return string(value)
 
 nat64 uint64_of_bits(bin value)
     return nat64(value)

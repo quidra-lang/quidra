@@ -313,7 +313,7 @@ fi
 cat > "$TMP/stream-invalid-target.qui" <<'QUI'
 file.read source := file.read("unused.txt")
 if .source(string[] &values)
-    print(len(values))
+    print(values.len())
 QUI
 if "$QUIDRA" check "$TMP/stream-invalid-target.qui" >"$TMP/stream-invalid-target.out" 2>"$TMP/stream-invalid-target.err"; then
     echo "File read accepted an unsupported non-scalar output type" >&2

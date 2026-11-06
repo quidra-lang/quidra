@@ -12,5 +12,5 @@ int .grow(Holder holder)
 int[] values := [5, 0, 0]
 Holder c := Holder(&values)
 c.value[0] += .grow(c)
-print("cell: {c.value[0]} {len(c.value)}")
+print("cell: {c.value[0]} {c.value.len()}")
 print(NL)

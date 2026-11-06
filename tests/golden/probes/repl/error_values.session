@@ -1,4 +1,4 @@
-int.parse("x")
+int("x")
 int y := 3
 y
 error("shown")

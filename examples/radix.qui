@@ -1,6 +1,6 @@
 value := 255
 negative := -255
-large := nat.parse("18446744073709551616")
+large := nat("18446744073709551616")
 println("bin={value.b2}")
 println("oct={value.b8}")
 println("hex={value.B16}")
@@ -8,7 +8,7 @@ println("signed={negative.B16}")
 println("large={large.B16}")
 println("literal={255.b16}")
 println("negative-literal={(-255).b16}")
-println("method-hex={value.string(base = 16, uppercase = true)}")
+println("decimal={string(value)}")
 println("interp-bin={value:base=2}")
 println("interp-hex={value:base=16,upper}")
 println("interp-large={large:base=16,upper}")

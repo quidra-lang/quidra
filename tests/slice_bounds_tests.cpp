@@ -73,7 +73,7 @@ void written_cases() {
     expect(11, request(I, 10, ED, 0, -2), {10, 8, 6, 4, 2});
     expect(11, request(SD, 10, EI, 0, -2), {8, 6, 4, 2, 0});
     expect(6, request(SA, 0, EI, 5), {1, 2, 3, 4, 5});
-    // The reversal a[len(a)>:0] of an empty, a one-element and a longer array.
+    // The reversal a[a.len()>:0] of an empty, a one-element and a longer array.
     expect(0, request(SD, 0, EI, 0), {});
     expect(1, request(SD, 1, EI, 0), {0});
     expect(5, request(SD, 5, EI, 0), {4, 3, 2, 1, 0});

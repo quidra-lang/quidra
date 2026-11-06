@@ -4,7 +4,7 @@
 // than one character), and the negated forms of the one-character comparison
 // and of the counted prefix.
 string joined(int8 small, nat16 count, bool flag)
-    string[] fields := [small.string(), " ", count.string(), " ", flag.string(), NL]
+    string[] fields := [string(small), " ", string(count), " ", string(flag), NL]
     string line := fields.join("")
     return line
 
@@ -12,11 +12,11 @@ int appended(int8 small, nat16 count, bool flag)
     string content := ""
     int written := 0
     for: 0 <= nat index < 2
-        string[] fields := [small.string(), ", ", count.string(), ",", flag.string(), NL]
+        string[] fields := [string(small), ", ", string(count), ",", string(flag), NL]
         string line := fields.join("")
         content = content + line
-        written += int(len(line))
-    return written + int(len(content))
+        written += int(line.len())
+    return written + int(content.len())
 
 bool not_letter(string text, int index)
     return text[index] != "a"

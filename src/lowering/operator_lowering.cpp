@@ -288,24 +288,10 @@ std::optional<ValueId> OperatorLowering::lower_empty_string_test(const BinaryExp
                 std::get_if<IntegerExpr>(&zero_expression.data);
             if (!zero || !zero->fits_u64 || zero->value != 0)
                 return false;
-            const auto* length_call =
-                std::get_if<CallExpr>(&length_expression.data);
-            if (!length_call || length_call->callee != "len" ||
-                length_call->args.size() != 1 ||
-                length_call->args.front().name ||
-                length_call->args.front().writable ||
-                !length_call->args.front().value)
+            const auto* receiver = length_receiver(checked_, length_expression);
+            if (!receiver || type_of(checked_, *receiver).kind != TypeKind::String)
                 return false;
-            const auto resolution =
-                checked_.call_resolutions.find(&length_expression);
-            if (resolution == checked_.call_resolutions.end() ||
-                resolution->second.kind != CallKind::Builtin ||
-                resolution->second.builtin != BuiltinCallable::Len ||
-                type_of(checked_,*length_call->args.front().value).kind !=
-                    TypeKind::String)
-                return false;
-            empty_test_text =
-                length_call->args.front().value.get();
+            empty_test_text = receiver;
             return true;
         };
     if (matches_empty_length(*n.left,*n.right) ||

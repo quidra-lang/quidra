@@ -167,7 +167,7 @@ operation on either failure.
 The real types (`real16`, `real16b`, `real32`, `real64` and exact `real`)
 admit signed infinity, written `inf` and `-inf`. Exact `real` displays these
 values as `∞` and `-∞`; fixed-width types display `inf` and `-inf`. The same
-spellings are used by printing, interpolation and `.string()`.
+spellings are used by printing, interpolation and `string(value)`.
 
 Real overflow, nonzero real division by zero and zero to a negative real
 power may produce infinity. NaN is never observable: an indeterminate
@@ -186,7 +186,7 @@ real64 invalid := 0.0 / 0.0 // compile-time error: indeterminate division
 Finite out-of-range literals and finite narrowing conversions still fail;
 an already infinite real value preserves its sign in real-family conversions.
 Infinity cannot convert to an integer. Parsing accepts `inf` and `-inf`,
-rejects NaN, and retains range checks for finite text. Exact `real.parse`
+rejects NaN, and retains range checks for finite text. Exact `real(text)`
 also accepts `∞` and `-∞`. Signed zero and subnormal behavior is unchanged;
 fixed-width `-0.0` prints with its sign and compares equal to `0.0`.
 
@@ -215,8 +215,8 @@ print("{z} {w} {exact}")
 
 prints `1.0+2.0i 1.5-0.25i 0.0+0.5i`: each part as its real type prints it,
 the imaginary part's sign joining them, then `i`; interpolation formats apply
-to each part. `com64.parse("1.5-0.25i")` reads that form, each part rounded
-once to the part type; `com.parse` accepts the parts `real.parse` reads.
+to each part. `com64("1.5-0.25i")` reads that form, each part rounded
+once to the part type; `com(text)` accepts the parts `real(text)` reads.
 
 The operators are `+`, `-`, `*`, `/`, unary `-`, `==`, `!=` and, for the
 fixed-width types, `^`. Complex values have no ordering. Each part operation
@@ -357,17 +357,48 @@ cases.
 
 ## Parsing and text conversion
 
-Numeric parsing is distinct from conversion:
+When its operand is a `string`, `T(text)` parses the text as the numeric
+type `T` and has static type `T | error`, including for literal text.
+With a numeric operand, the call instead casts the existing numeric value.
 
 ```quidra
-int | error count := int.parse("123")
-real32 | error ratio := real32.parse("1.5")
-int | error huge := int.parse("123456789012345678901234567890")
-real | error exact := real.parse("0.1")
+int | error count := int("123")
+real32 | error ratio := real32("1.5")
+int | error huge := int("123456789012345678901234567890")
+real | error exact := real("0.1")
 ```
 
+An explicit `T | error` binding preserves either outcome. An inferred
+binding or a success-only destination fails fast on error, and `try`
+propagates the error from the enclosing function.
 
-All ten integer scalar types (`int`, `nat`, `int8`, `int16`, `int32`, `int64`, `nat8`, `nat16`, `nat32`, and `nat64`) expose `.b2` through `.b36` and `.B2` through `.B36` as members returning `string`, without parentheses. For a radix `N`, `value.bN` is equivalent to `value.string(base = N, uppercase = false)` and `value.BN` is equivalent to `value.string(base = N, uppercase = true)`. Lowercase `b` uses digits `a`–`z`; uppercase `B` uses `A`–`Z`. Zero renders as `"0"`, signed negatives retain a single leading minus, and no base prefix or automatic padding is added. Conversion preserves the exact integer value, including arbitrary-precision `int`/`nat`.
+`int(text)` and `real(text)` consume the input text directly without a
+fixed-width integer or IEEE intermediary. `real(text)` accepts a decimal
+with an optional exponent, signed infinity, or a fraction `p/q` with an
+optional sign (`1/3`, `-2/4`). It does not accept symbolic text such as
+`√2` or `π`. Fixed-width real parsing rounds the exact decimal value of
+the text once to the nearest value of the destination type, with ties to
+even and subnormals included. Finite text outside the representable range,
+or nonzero text that rounds to zero, is an error.
+
+A failed parse is a `NUMERIC_PARSE` error. Its details are `type` (the
+destination type) and `reason` (`INVALID_TEXT` or `OUT_OF_RANGE`). For
+`int8`, the messages are `cannot parse numeric input as int8` and
+`cannot parse numeric input as int8: value out of range`. The input is
+not echoed.
+
+`string(value)` takes one positional value and returns the standard text
+of a numeric value, `bool`, `bin`, `error`, or a printable union. An
+existing `string` is returned as the same text. For integers, the
+standard text uses decimal digits.
+All ten integer scalar types (`int`, `nat`, `int8`, `int16`, `int32`,
+`int64`, `nat8`, `nat16`, `nat32`, and `nat64`) also expose `.b2` through
+`.b36` and `.B2` through `.B36` as members returning `string`, without
+parentheses. Lowercase `b` uses digits `a`–`z`; uppercase `B` uses
+`A`–`Z`. Zero renders as `"0"`, signed negatives retain a single
+leading minus, and no base prefix or automatic padding is added.
+Conversion preserves the exact integer value, including arbitrary-precision
+`int` and `nat`.
 
 ```quidra
 binary := 255.b2       // "11111111"
@@ -378,9 +409,35 @@ signed := (-255).b16   // "-ff"
 
 These members use ordinary postfix precedence: `-255.b16` attempts to negate the resulting string and is invalid; `(-255).b16` formats the negative integer. Only canonical base spellings `2` through `36` are accepted on integers (`.b1`, `.b37`, and `.b02` are invalid). Other built-in type families do not expose radix members. These names remain ordinary identifiers for user-defined class members.
 
-The existing `value.string(base = 2)` and `value.string(base = 16, uppercase = true)` APIs remain available for integers. The optional `uppercase` flag defaults to false. `base` and `uppercase` are named compile-time literals, checked at compile time; other type families keep zero-argument `.string()`. The same integer semantics are available in string interpolation as `{value:base=16,upper}`; `base=N` accepts a decimal literal from 2 through 36, and the optional `upper` flag selects uppercase digits. Radix interpolation cannot be mixed with decimal padding, precision, or grouping options, and requires an integer expression. A radix member can also be interpolated directly as `"{value.B16}"`.
+String interpolation can select a radix with `"{value:base=16,upper}"`.
+`base=N` accepts a decimal literal from 2 through 36, and the optional
+`upper` flag selects uppercase digits. Radix interpolation cannot be
+combined with decimal padding, precision, or grouping, and requires an
+integer expression. A radix member can also be interpolated directly as
+`"{value.B16}"`.
 
-Scalar values provide `.string()` for their standard textual representation. A `real16` or `real16b` value prints as the shortest decimal that reads back to the same value of its type (`real16 x := 0.1` prints `0.1`, its value being 0.0999755859375); `real16.parse` and `real16b.parse` round once, as the other real parsers do. The text of a `real` is exact: a finite decimal when the value has one (`0.5`, `4.0`, `-0.75`), otherwise an exact fraction (`1/3`, `-1/3`), and a symbolic value in canonical text. Core lays that text out and a provider supplies only the symbols of its atoms and operations: square roots take the radical sign (`√2`, `√(2/3)`), other roots print as powers (`2^(1/3)`), coefficients are juxtaposed (`2√3`, `3π`, `π/2`, `√2/2`, with `·` only between two digits, `3·2^(1/3)`), a sum prints its constant first (`1+√2`), and an operation prints as its symbol applied to its arguments (`sin(1)`). An atom or operation of a version-1 provider, which has no symbol, prints in its intrinsic's source form (`real.atom("math", 1)`). Interpolation formats apply to `real` as well: `:.N` fixes fractional digits and `:N` fixes whole-number significant digits, correctly rounded with ties to even and certified by refinement (`EXACT_UNPROVEN` when refinement cannot decide them). `:W.N` and `:0W.N` pad that decimal text to a minimum integer width with spaces or zeros, without truncation; a final `:G` adds integer grouping. Exact-value padding and grouping require significant or fractional precision because canonical text need not be decimal. The shorter fractional spelling `:.2` is preferred to the equivalent `:.02`. `int.parse` and `real.parse` consume the input text directly rather than passing through a fixed-width integer or an IEEE type. `real32.parse` and `real64.parse` round the exact decimal value of the text once to the nearest value of their type, ties to even, subnormal values included, as literals do, so the text of any finite value parses back to the same value; text whose value lies beyond the finite range, or is not zero but rounds to zero, is an error. `real.parse` accepts a decimal with an optional exponent or a fraction `p/q` with an optional sign (`1/3`, `-2/4`), the text `real` prints for rationals; symbolic text such as `√2` or `π` is not parseable. A failed parse is a `NUMERIC_PARSE` error naming the type, `cannot parse numeric input as int8` for text that is not a number of the type and `cannot parse numeric input as int8: value out of range` for a number outside its range; its `type` and `reason` (`INVALID_TEXT`, `OUT_OF_RANGE`) are details. The input is not echoed.
+A finite fixed-width real prints as the shortest decimal that reads back to
+the same value of its type (`real16 x := 0.1` prints `0.1`, its value being
+0.0999755859375). The text of a `real` is exact: a finite decimal when the
+value has one (`0.5`, `4.0`, `-0.75`), an exact fraction otherwise
+(`1/3`, `-1/3`), or canonical text for a symbolic value. Core lays that
+text out and a provider supplies only the symbols of its atoms and
+operations: square roots take the radical sign (`√2`, `√(2/3)`), other
+roots print as powers (`2^(1/3)`), coefficients are juxtaposed (`2√3`,
+`3π`, `π/2`, `√2/2`, with `·` only between two digits, `3·2^(1/3)`), a
+sum prints its constant first (`1+√2`), and an operation prints as its
+symbol applied to its arguments (`sin(1)`). An atom or operation of a
+version-1 provider, which has no symbol, prints in its intrinsic's source
+form (`real.atom("math", 1)`).
+
+Interpolation formats apply to `real` as well: `:.N` fixes fractional
+digits and `:N` fixes whole-number significant digits, correctly rounded
+with ties to even and certified by refinement (`EXACT_UNPROVEN` when
+refinement cannot decide them). `:W.N` and `:0W.N` pad that decimal text
+to a minimum integer width with spaces or zeros, without truncation; a
+final `:G` adds integer grouping. Exact-value padding and grouping require
+significant or fractional precision because canonical text need not be
+decimal. Prefer the shorter fractional spelling `:.2` to `:.02`.
 
 JSON number parsing is likewise lossless at the syntax boundary: a valid JSON number token is retained even when it exceeds `real64` range. `json.Value.number()` performs IEEE-range conversion with the same rounding, while `json.Value.integer()` and `json.Value.real()` consume the preserved numeric token directly.
 
@@ -391,18 +448,24 @@ JSON number parsing is likewise lossless at the syntax boundary: a valid JSON nu
 ```quidra
 zeros := bin.fill(8, 0)
 ones := bin.fill(5, 1)
-bin | error pattern := bin.parse("01010000")
+bin | error pattern := bin("01010000")
 ```
 
-`bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `bin(value)` is reserved for explicit conversion. `len(value)` returns the bit count. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
+`bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `value.len()` returns the bit count as `nat`. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
 
 A written bit pattern is parsed rather than given a separate binary literal grammar:
 
 ```quidra
-bin | error value := bin.parse("01010000")
+bin | error value := bin("01010000")
 ```
 
-`bin.parse` always has static type `bin | error`, for literals and runtime strings alike. Only `0` and `1` are accepted; other text is the error `BIN_PARSE`, `cannot parse bin input`. A statically known invalid literal may be diagnosed at compile time; a statically known valid literal may be marked internally as success-proven so the backend can remove the impossible error branch without changing the source-visible union type.
+`bin(text)` with a `string` operand always has static type `bin | error`,
+for literals and runtime strings alike. Only `0` and `1` are accepted;
+other text is the error `BIN_PARSE`, `cannot parse bin input`. A
+statically known invalid literal may be diagnosed at compile time; a
+statically known valid literal may be marked internally as success-proven
+so the backend can remove the impossible error branch without changing
+the source-visible union type.
 
 Indexing and slicing operate in bits:
 
@@ -413,11 +476,15 @@ high := bits[0:<4]
 bits[0] = bin.fill(1, 1)
 ```
 
-An index result is a one-bit `bin`. Bin elements do not expose addressable references. `print(value)` and `value.string()` display the exact 0/1 sequence.
+An index result is a one-bit `bin`. Bin elements do not expose addressable references. `print(value)` and `string(value)` use the exact 0/1 sequence as text.
 
 ## Bin conversion
 
-All conversions between `bin` and other concrete types are explicit. Integer sources must have a fixed-width bit representation; arbitrary-precision `int` and `nat` have no fixed bit width and cannot be converted directly to `bin`:
+All conversions between `bin` and other concrete types are explicit. With
+a non-string operand, `bin(value)` converts a supported value's bit
+representation. Integer sources must have a fixed-width bit representation;
+arbitrary-precision `int` and `nat` have no fixed bit width and cannot be
+converted directly to `bin`:
 
 ```quidra
 bin raw := bin(3567446)          // error: default int has no fixed bit width
@@ -435,7 +502,7 @@ raw := bin(values)
 restored := int8[](raw)
 ```
 
-`T[](bin)` requires `len(bin)` to be exactly divisible by the destination element width. No conversion pads, truncates, wraps, or silently changes bit count.
+`T[](bits)` requires `bits.len()` to be exactly divisible by the destination element width. No conversion pads, truncates, wraps, or silently changes bit count.
 
 ## Value semantics
 

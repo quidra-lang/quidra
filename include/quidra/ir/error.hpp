@@ -47,7 +47,7 @@ struct ErrorMake {
     SourcePosition position{};
 };
 
-// The message of an error (e.message, e.string(), an interpolated error): a
+// The message of an error (e.message, string(e), an interpolated error): a
 // string the result owns.
 struct ErrorMessage { ValueId out; ValueId error; };
 // The code of an error (e.code): "ERROR" for a user error without a code.

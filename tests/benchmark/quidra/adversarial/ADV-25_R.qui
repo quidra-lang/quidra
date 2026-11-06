@@ -10,7 +10,7 @@ string read_input_line()
         error problem
             process.exit(2)
 string text := read_input_line()
-int value := int.parse(text)
+int value := int(text)
 int product := value * 2
 print("OBS=R:{product}")
 print(NL)

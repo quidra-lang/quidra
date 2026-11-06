@@ -60,13 +60,14 @@ assert x["c_ffi"] is True
 assert x["debug_build"] is True
 for name in ["int8","int16","int32","int64","int","nat8","nat16","nat32","nat64","nat","real16","real16b","real32","real64","real","com","com16","com16b","com32","com64","bin","(T, U, ...)"]:
     assert name in x["current_types"], name
-for name in ["print","flush","scan","array","len","tensor","error"]:
+for name in ["print","flush","scan","array","tensor","error"]:
     assert name in x["current_builtins"], name
-for name in ["write","input","abs","sqrt","min","max","range"]:
+for name in ["write","input","abs","sqrt","min","max","range","len"]:
     assert name not in x["current_builtins"], name
 assert x["standard_modules"] == ["cli","file","environment","test","time","gpu","autograd","reflect","random","process","map","distinct","json","http","tensor"]
 assert x["array_growth_model"].startswith("append(value)")
-assert "Unicode code-point" in x["string_operation_model"]
+assert ".len()" in x["string_operation_model"]
+assert "Unicode code points" in x["string_operation_model"]
 assert "tensor<T>{D0, D1, ...}" in x["current_types"]
 assert "map<K,V>" in x["current_types"]
 assert "distinct<T>" in x["current_types"]
@@ -91,7 +92,7 @@ print(base ^ exponent)
 print(NL)
 int exact_base := 2
 int exact_exponent := 100
-print((exact_base ^ exact_exponent).string())
+print(string(exact_base ^ exact_exponent))
 print(NL)
 nat8 flags := 3
 nat8 mask := 5
@@ -429,7 +430,7 @@ int64[] one := [7]
 int64[] one_down := one.sorted(descending = true)
 print("one" + spelled(one_down))
 print(NL)
-bool order := len(numbers) > 2
+bool order := numbers.len() > 2
 int64[] by_flag := numbers.sorted(descending = order)
 print("flag" + spelled(by_flag))
 print(NL)
@@ -1408,14 +1409,14 @@ match file.is_directory(root + "/root.txt")
         print(NL)
 match file.list(root)
     string[] paths
-        print(len(paths))
+        print(paths.len())
         print(NL)
     error problem
         print(problem)
         print(NL)
 match file.list(root, recursive = true)
     string[] paths
-        print(len(paths))
+        print(paths.len())
         print(NL)
     error problem
         print(problem)
@@ -1471,7 +1472,7 @@ string text := "  A日本B  "
 string merged := "A" + "B" + "C" + "D"
 print(merged)
 print(NL)
-print(len(text))
+print(text.len())
 print(NL)
 print(text.trim())
 print(NL)
@@ -1496,7 +1497,7 @@ print(NL)
 print("A日本"[2])
 print(NL)
 string[] parts := "a,b,,c".split(",")
-print(len(parts))
+print(parts.len())
 print(NL)
 print(parts[0])
 print(NL)
@@ -1505,12 +1506,12 @@ print(NL)
 print(parts.join("|"))
 print(NL)
 bin encoded := "A日本".utf8()
-print(len(encoded))
+print(encoded.len())
 print(NL)
 print(encoded[0])
 print(NL)
 int[] points := "A日本".codepoints()
-print(len(points))
+print(points.len())
 print(NL)
 print(points[1])
 print(NL)
@@ -1536,7 +1537,7 @@ print(NL)
 print(grown[2])
 print(NL)
 int[] joined := grown.concat([4, 5])
-print(len(joined))
+print(joined.len())
 print(NL)
 print(joined[4])
 print(NL)
@@ -1557,21 +1558,21 @@ text_array_expected=$(printf 'ABCD\n8\nA日本B\ntrue\ntrue\ntrue\n3\nA日本B\n
 
 cat > "$TMP/unicode-boundaries.qui" <<'QUI'
 string text := "A😀é"
-print(len(text))
+print(text.len())
 print(NL)
 print(text[1] == "😀")
 print(NL)
 print(text[1:<4] == "😀é")
 print(NL)
 bin encoded := text.utf8()
-print(len(encoded))
+print(encoded.len())
 print(NL)
 int[] points := text.codepoints()
 print(points[1])
 print(NL)
 print(points[3])
 print(NL)
-print(len(""))
+print("".len())
 print(NL)
 print(""[0:<0] == "")
 print(NL)
@@ -1660,13 +1661,13 @@ cat > "$TMP/string-growth.qui" <<'QUI'
 string built := ""
 for: 0 <= nat i < 2000
     built = built + "x"
-print(len(built))
+print(built.len())
 print(NL)
 
 string assigned := ""
 for: 0 <= nat i < 2000
     assigned += "y"
-print(len(assigned))
+print(assigned.len())
 print(NL)
 
 string shared := "ab"
@@ -1704,11 +1705,11 @@ int[2][2][] groups := [
     [[1], [2, 3]],
     [[4, 5, 6], []],
 ]
-print(len(groups))
+print(groups.len())
 print(NL)
-print(len(groups[0]))
+print(groups[0].len())
 print(NL)
-print(len(groups[0][1]))
+print(groups[0][1].len())
 print(NL)
 print(groups[1][0][2])
 print(NL)
@@ -1893,7 +1894,7 @@ string prefix := "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 int total := 0
 for: 0 <= nat i < 100000
     make_values()
-    total += int(len(prefix + i.string()))
+    total += int((prefix + string(i)).len())
 print(total > 0)
 print(NL)
 
@@ -2003,7 +2004,7 @@ string make_text()
     return "alpha" + "beta"
 
 string source := make_text()
-string copied := source.string()
+string copied := string(source)
 source = "changed"
 print(copied)
 print(NL)
@@ -2104,7 +2105,7 @@ int consume(bool present)
         int number
             return number
         string text
-            return int(len(text))
+            return int(text.len())
         none
             return 0
 
@@ -2185,7 +2186,7 @@ full_array_mark_count="$(grep -c 'call void @quidra_init_mark_range' "$TMP/full-
 
 cat > "$TMP/loop-array-proof.qui" <<'QUI'
 int[] values := array(8)
-for: 0 <= nat i < len(values)
+for: 0 <= nat i < values.len()
     values[i] = int(i) * 2
 print(values[7])
 print(NL)
@@ -2964,7 +2965,7 @@ const nat N := 3
 int shape_total()
     int[N] values := [1, 2, 3]
     tensor<real32>{N} grid := tensor.zeros<real32>([N])
-    return int(len(values)) + int(grid.shape()[0])
+    return int(values.len()) + int(grid.shape()[0])
 QUI
 cat > "$TMP/module-scalar-const/main.qui" <<'QUI'
 import values = "./constants.qui"
@@ -2985,7 +2986,7 @@ const nat N := 3
 int shape_total()
     int[N] values := [1, 2, 3]
     tensor<real32>{N} grid := tensor.zeros<real32>([N])
-    return int(len(values)) + int(grid.shape()[0])
+    return int(values.len()) + int(grid.shape()[0])
 println(shape_total())
 QUI
 [[ "$("$QUIDRA" run "$TMP/module-scalar-const/direct.qui")" == $'8\n6' ]]
@@ -3047,7 +3048,7 @@ class Local(local int initial)
 int shaped(nat extent)
     int[extent] values := array(extent, fill = 1)
     tensor<real32>{extent} grid := tensor.zeros<real32>([extent])
-    return int(len(values)) + int(grid.shape()[0])
+    return int(values.len()) + int(grid.shape()[0])
 QUI
 cat > "$TMP/module-scalar-const/prototype-main.qui" <<'QUI'
 import values = "./prototypes.qui"
@@ -3061,7 +3062,7 @@ cat > "$TMP/module-scalar-const/prototype-future-array.qui" <<'QUI'
 int size(int[N] values);
 const nat N := 3
 int size(int[N] values)
-    return int(len(values))
+    return int(values.len())
 QUI
 cat > "$TMP/module-scalar-const/prototype-future-tensor.qui" <<'QUI'
 int size(tensor<real32>{N} values);
@@ -3073,7 +3074,7 @@ cat > "$TMP/module-scalar-const/prototype-future-class.qui" <<'QUI'
 class Box(local int[N] values);
 const nat N := 3
 class Box(local int[N] values)
-    int size := int(len(values))
+    int size := int(values.len())
 QUI
 for module_constant_extent in array tensor class; do
     set +e
@@ -3379,7 +3380,7 @@ class Counter(local Slot[] slots, local int extra := 0)
     Slot[] bound
 
     bound = slots
-    count = int(len(bound)) + extra
+    count = int(bound.len()) + extra
 
     void .bump()
         for slot := bound[]
@@ -3400,7 +3401,7 @@ class Checked(local int count) | error
         return error("no slots")
 
 Checked | error make_checked<M>(M model)
-    return try Checked(int(len(reflect.collect<Slot>(model))))
+    return try Checked(int(reflect.collect<Slot>(model).len()))
 
 class Empty()
     int value
@@ -3532,7 +3533,7 @@ print("{declared.seen}{NL}")
 lib.Box<int>[] boxes := [boxed, lib.Box<int>(8)]
 nested := lib.Box(boxes)
 pair := lib.Pair(boxed, "right")
-print("{len(nested.value)} {nested.value[1].value} {pair.first.value} {pair.second}{NL}")
+print("{nested.value.len()} {nested.value[1].value} {pair.first.value} {pair.second}{NL}")
 
 tagged := lib.make_tagged(seven, model)
 print("{tagged.value} {tagged.tag}{NL}")
@@ -3673,7 +3674,7 @@ class Bag this(local int start)
         this.numbers = this.numbers.append(this.first.storage)
 
     string describe()
-        return "{this.count}:{len(this.numbers)}:{this.numbers[3]}:{this.first.storage}"
+        return "{this.count}:{this.numbers.len()}:{this.numbers[3]}:{this.first.storage}"
 
 class Box<T> this(local T initial)
     T value
@@ -4286,7 +4287,7 @@ QUI
 
 cat > "$TMP/builtins.qui" <<'QUI'
 int[] values := [1, 2, 3]
-print(len(values))
+print(values.len())
 print(NL)
 print(real64(3))
 print(NL)
@@ -4306,7 +4307,7 @@ print("value={real64(4.0)}")
 print(NL)
 print(real64(6.0))
 print("|")
-print(real64(7.0).string())
+print(string(real64(7.0)))
 print(NL)
 QUI
 [[ "$($QUIDRA run "$TMP/float-format.qui")" == $'4.0\n4.0\n4.5\n-2.0\nvalue=4.0\n6.0|7.0' ]]
@@ -4381,7 +4382,7 @@ print(converted_float)
 print(NL)
 print(compact)
 print(NL)
-print(a.string())
+print(string(a))
 print(NL)
 print("x")
 print("y")
@@ -4735,9 +4736,9 @@ exact_cast_output="$("$QUIDRA" run "$TMP/exact-cast-errors.qui")"
     "numeric conversion out of range: value cannot be represented as real32")" ]]
 
 cat > "$TMP/parse.qui" <<'QUI'
-int | error parsed := int.parse("123")
-real32 | error fraction := real32.parse("1.5")
-int | error bad := int.parse("12x")
+int | error parsed := int("123")
+real32 | error fraction := real32("1.5")
+int | error bad := int("12x")
 match parsed
     int value
         print(value)
@@ -4915,7 +4916,7 @@ bin data := bin.fill(4, 0)
 data[0] = bin.fill(1, 1)
 bin copy := data
 copy[2] = bin.fill(1, 1)
-print(len(data))
+print(data.len())
 print(NL)
 print(data[0])
 print(NL)
@@ -4946,9 +4947,9 @@ bin_output="$($QUIDRA run "$TMP/bin-value.qui")"
 cat > "$TMP/bin-fill.qui" <<'QUI'
 bin empty := bin.fill(0, 0)
 bin zeros := bin.fill(4, 0)
-print(len(empty))
+print(empty.len())
 print(NL)
-print(len(zeros))
+print(zeros.len())
 print(NL)
 print(zeros[0])
 print(NL)
@@ -5181,7 +5182,7 @@ grep -q '3' "$TMP/repl-dead-effect/output.txt"
 # failing every later submission on it. An error is displayed in the form of
 # its constructor, its cause nested.
 cat > "$TMP/repl-error-results.txt" <<'QUI'
-int.parse("x")
+int("x")
 int(1) + 2
 error("high", cause = error("low"), code = "TOP_LEVEL")
 :exit
@@ -5456,7 +5457,7 @@ grep -q PARALLEL_CONFLICT "$TMP/task-all.json"
 cat > "$TMP/task-all-failure.qui" <<'QUI'
 void fails()
     int[] values := [1, 2, 3]
-    nat i := len(values)
+    nat i := values.len()
     int invalid := values[i]
 
 void waits()
@@ -6111,7 +6112,7 @@ order_failure index_failure start 13:5 "index 4 out of bounds for length 2"
 cat > "$TMP/maybe-initialized.qui" <<'QUI'
 int[] values := [3, 4]
 int x
-if len(values) > 1
+if values.len() > 1
     x = values[1]
 int total := 0
 for v := values[]
@@ -6124,7 +6125,7 @@ QUI
 cat > "$TMP/maybe-uninitialized.qui" <<'QUI'
 int[] values := [3]
 int x
-if len(values) > 1
+if values.len() > 1
     x = values[1]
 print("before")
 print(NL)
@@ -6170,13 +6171,13 @@ class FieldPoint()
 
 FieldPoint p := FieldPoint()
 p.y = 0
-if len(flags) > 1
+if flags.len() > 1
     p.x = 3
 print("{p.x}")
 print(NL)
 FieldPoint s := FieldPoint()
 s.y = 0
-if len(flags) > 2
+if flags.len() > 2
     s.x = 1
 print(s.x)
 QUI
@@ -6319,25 +6320,25 @@ grep -q 'PACKAGE_CONST' "$TMP/module-interpolation/reject.json"
 cat > "$TMP/contextual-array-generation.qui" <<'QUI'
 class Observation(real64[] values)
 class Target(real64[][] values)
-Observation observation := Observation([for value := ["1"][] then real64.parse(value)])
+Observation observation := Observation([for value := ["1"][] then real64(value)])
 test.check(observation.values == [real64(1)])
 Target target := Target([for label := ["x"][] then []])
-test.check(len(target.values) == 1)
-test.check(len(target.values[0]) == 0)
+test.check(target.values.len() == 1)
+test.check(target.values[0].len() == 0)
 nat[] ancestors := []
 int ancestor := 1
 nat[] result := [nat(ancestor)].concat(ancestors)
-test.check(len(result) == 1)
+test.check(result.len() == 1)
 nat first := 1
 test.equal(result[0], first)
 nat code := 65
 bin bits := bin([nat8(code)])
-expected := bin.parse("01000001")
+expected := bin("01000001")
 test.check(bits == expected)
 bin mixed_bits := bin([nat8(code), nat8(65)])
-expected_pair := bin.parse("0100000101000001")
+expected_pair := bin("0100000101000001")
 test.check(mixed_bits == expected_pair)
-(real64 | error)[] preserved := [real64.parse("x")]
+(real64 | error)[] preserved := [real64("x")]
 class Preserved((real64 | error)[] values)
 Preserved retained := Preserved([for entry := preserved[] then entry])
 match retained.values[0]
@@ -6352,7 +6353,7 @@ QUI
 cat > "$TMP/contextual-array-generation-error.qui" <<'QUI'
 class Observation(real64[] values)
 println("before")
-Observation observation := Observation([for value := ["1", "x"][] then real64.parse(value)])
+Observation observation := Observation([for value := ["1", "x"][] then real64(value)])
 println("after")
 QUI
 set +e
@@ -6388,7 +6389,7 @@ grep -q 'TYPE_MISMATCH' "$TMP/contextual-concat-no-receiver-conversion.json"
 # bin's runtime ABI uses dynamic headers even when its source is fixed.
 cat > "$TMP/bin-fixed-array-abi.qui" <<'QUI'
 // Fixed and dynamic arrays must produce identical bit sequences.
-expected_byte := bin.parse("01000001")
+expected_byte := bin("01000001")
 test.check(bin([nat8(65)]) == expected_byte)
 nat8[1] fixed := [nat8(65)]
 test.check(bin(fixed) == expected_byte)
@@ -6396,16 +6397,16 @@ nat8[] dynamic := [nat8(65)]
 test.check(bin(dynamic) == expected_byte)
 nat code := 65
 test.check(bin([nat8(code)]) == expected_byte)
-expected_pair := bin.parse("0100000101000001")
+expected_pair := bin("0100000101000001")
 test.check(bin([nat8(code), nat8(65)]) == expected_pair)
-expected_wide := bin.parse("0000000100000010")
+expected_wide := bin("0000000100000010")
 test.check(bin([nat16(258)]) == expected_wide)
-expected_signed := bin.parse("11111111")
+expected_signed := bin("11111111")
 test.check(bin([int8(-1)]) == expected_signed)
-expected_bools := bin.parse("101")
+expected_bools := bin("101")
 test.check(bin([true, false, true]) == expected_bools)
 nat8[0] empty := []
-expected_empty := bin.parse("")
+expected_empty := bin("")
 test.check(bin(empty) == expected_empty)
 test.check(nat8[](expected_byte) == dynamic)
 println("ok")

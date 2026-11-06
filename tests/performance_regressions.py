@@ -276,7 +276,7 @@ for: 0 <= nat outer < 2048
     string row := ""
     for: 0 <= nat inner < 512
         row = row + "x"
-    total += int(len(row))
+    total += int(row.len())
 print(total)
 """,
     "1048576",
@@ -291,7 +291,7 @@ check_scaling(
 string acc := ""
 for: 0 <= int i < n
     acc = acc + "abcdefghij"
-print(len(acc))
+print(acc.len())
 """,
     40000, 80000, lambda n: str(n * 10))
 
@@ -320,7 +320,7 @@ for: 0 <= int i < n
     source = source + "x"
 int total := 0
 for: 0 <= int i < n
-    total += int(len(source[0:<1]))
+    total += int(source[0:<1].len())
 print(total)
 """,
     3000, 6000, lambda n: str(n), allow_too_fast=True)
@@ -337,7 +337,7 @@ int total := 0
 for: 0 <= nat pass < 8
     match string.from_utf8(data)
         string text
-            total += int(len(text))
+            total += int(text.len())
         error problem
             process.exit(1)
 print(total)
@@ -357,7 +357,7 @@ for: 0 <= int i < n
 for: 0 <= int i < n step 2
     .values.remove(i)
 int[] remaining := values.keys()
-print(len(remaining))
+print(remaining.len())
 """,
     12000, 24000, lambda n: str(n // 2), allow_too_fast=True)
 

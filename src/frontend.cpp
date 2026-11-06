@@ -1429,6 +1429,10 @@ void rename_expr(
     const std::unordered_set<std::string>& local_functions,
     const std::unordered_map<std::string, ImportBinding>& imports,
     const std::unordered_set<std::string>& type_parameters) {
+    // Type dimensions also enter here, without SourceOrderValidator::check_expr.
+    static thread_local std::size_t expression_depth{};
+    nesting::DepthGuard guard(expression_depth, nesting::max_frontend_expression_depth,
+                              expression.span, "Expression");
     if (auto* node = std::get_if<NameExpr>(&expression.data)) {
         if (!node->this_qualifier && !node->self_reference) {
             if (const auto* initializer = visible_literal_constant(node->name)) {
@@ -2408,6 +2412,8 @@ private:
     std::unordered_map<std::string, std::size_t> class_exposure_;
     std::unordered_map<std::string, std::size_t> class_completion_;
     mutable std::unordered_set<std::string> bound_names_;
+    mutable std::size_t expression_depth_{};
+    mutable std::size_t statement_depth_{};
     struct BindingScope {
         std::unordered_set<std::string>& names;
         std::unordered_set<std::string> saved;
@@ -2467,6 +2473,8 @@ private:
     }
 
     void check_expr(const Expr& expression, std::string_view current_function) const {
+        nesting::DepthGuard guard(expression_depth_, nesting::max_frontend_expression_depth,
+                                  expression.span, "Expression");
         if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
             if (name->this_qualifier || name->self_reference) return;
             if (bound_names_.contains(name->name)) return;
@@ -2557,6 +2565,8 @@ private:
     }
 
     void check_stmt(const Stmt& statement, std::string_view current_function) const {
+        nesting::DepthGuard guard(statement_depth_, nesting::max_ast_clone_depth,
+                                  statement.span, "Statement");
         std::visit([&](const auto& node){if constexpr(requires {node.pattern;})if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.type && p.type->name!="auto")check_type(*p.type,p.span.start.offset,true);if(p.place)check_expr(*p.place,current_function);});},statement.data);
         if (const auto* node = std::get_if<BindingStmt>(&statement.data)) {
             if (node->declared_type.name != "auto")
@@ -3937,6 +3947,7 @@ private:
     // Shared by clone_expr and clone_stmt: they interleave over one AST, and
     // this walk runs before the checker, so no checker budget can protect it.
     std::size_t clone_depth_{};
+    std::size_t clone_expression_depth_{};
 
     static bool known_generic_constraint(std::string_view constraint) {
         return constraint.empty() || constraint == "numeric" || constraint == "integer" ||
@@ -6431,6 +6442,9 @@ private:
         const Substitution& substitution,
         const std::unordered_set<std::string>& deferred,
         const std::string& current_class) {
+        nesting::DepthGuard expression_guard(
+            clone_expression_depth_, nesting::max_frontend_expression_depth,
+            source.span, "Expression");
         nesting::DepthGuard guard(
             clone_depth_, nesting::max_ast_clone_depth, source.span, "Expression");
         auto out = std::make_unique<Expr>();

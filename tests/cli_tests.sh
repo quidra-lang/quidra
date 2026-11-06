@@ -6015,6 +6015,7 @@ grep -q 'real64 division by zero' "$TMP/float-exception-runtime.err"
 python3 -c "
 import sys
 open(sys.argv[1] + '/nest-eager.qui', 'w').write('int x := 1' + ' + 1' * 1599 + '\n')
+open(sys.argv[1] + '/nest-dimension.qui', 'w').write('int[1' + ' + 1' * 1599 + '] values\n')
 open(sys.argv[1] + '/nest-shortcircuit.qui', 'w').write('bool b := true\nbool c := b' + ' and b' * 900 + '\n')
 open(sys.argv[1] + '/nest-postfix.qui', 'w').write(
     'class P(local int start)\n    int v\n\n\n    v = start\n\n    P grow()\n        return P(v + 1)\n\n'
@@ -6024,20 +6025,26 @@ open(sys.argv[1] + '/nest-statements.qui', 'w').write(
     + ' ' * (4 * 301) + 'print(\"x\")\n')
 " "$TMP"
 
-for nest_case in nest-eager nest-shortcircuit nest-postfix nest-statements; do
+for nest_case in nest-eager nest-dimension nest-shortcircuit nest-postfix nest-statements; do
     for nest_command in check ir inspect; do
         set +e
         "$QUIDRA" "$nest_command" "$TMP/$nest_case.qui" > "$TMP/$nest_case.$nest_command.out" 2>&1
         nest_rc=$?
         set -e
-        [[ "$nest_rc" -eq 1 ]]
+        if [[ "$nest_rc" -ne 1 ]] ||
+           ! grep -q 'NESTING_DEPTH' "$TMP/$nest_case.$nest_command.out"; then
+            cat "$TMP/$nest_case.$nest_command.out" >&2
+            exit 1
+        fi
     done
     set +e
     "$QUIDRA" check "$TMP/$nest_case.qui" --json > "$TMP/$nest_case.json" 2>&1
     nest_rc=$?
     set -e
-    [[ "$nest_rc" -eq 1 ]]
-    grep -q 'NESTING_DEPTH' "$TMP/$nest_case.json"
+    if [[ "$nest_rc" -ne 1 ]] || ! grep -q 'NESTING_DEPTH' "$TMP/$nest_case.json"; then
+        cat "$TMP/$nest_case.json" >&2
+        exit 1
+    fi
 done
 
 # Untrusted patch JSON: 50,000 nested brackets exhausted the stack.

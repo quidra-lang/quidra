@@ -3,6 +3,7 @@
 #include "quidra/member_function_names.hpp"
 #include "quidra/parser.hpp"
 
+#include "nesting_budget.hpp"
 #include "platform/sha256.hpp"
 
 #include <algorithm>
@@ -113,6 +114,8 @@ struct NodeCollector {
     std::vector<SourceNode> nodes;
     std::vector<std::string> parents;
     std::size_t next_id{};
+    std::size_t expression_depth{};
+    std::size_t statement_depth{};
 
     NodeCollector(std::string_view source_text, const CheckedProgram* checked_program)
         : source(source_text), checked(checked_program) {}
@@ -148,6 +151,8 @@ struct NodeCollector {
     }
 
     void expr(const Expr& expression) {
+        nesting::DepthGuard guard(expression_depth, nesting::max_frontend_expression_depth,
+                                  expression.span, "Expression");
         std::optional<Type> type;
         if (checked) {
             if (const auto found = checked->expr_types.find(&expression);
@@ -214,6 +219,8 @@ struct NodeCollector {
     }
 
     void stmt(const Stmt& statement) {
+        nesting::DepthGuard guard(statement_depth, nesting::max_ast_clone_depth,
+                                  statement.span, "Statement");
         std::optional<Type> inferred;
         std::optional<std::string> authority;
         if (const auto* binding = std::get_if<BindingStmt>(&statement.data)) {

@@ -22,10 +22,15 @@
 //   statement cycle, worst frame   IR lowering Lowerer::stmt
 //                                  9,696 B/level Debug
 //                                  5,023,334 / 9,696 = 518 -> 256 (2x margin)
-//   generic clone                  frontend GenericExpander::clone_expr
-//                                  4,576 B/level Debug
+//   frontend expression walks      frontend GenericExpander::clone_expr
+//                                  11,640 B/level with ASan/UBSan
+//                                  at most 256 expression frames within the
+//                                  combined 512-frame clone budget; with the
+//                                  remaining statement frames (6,776 B each),
+//                                  the frame-size product is about 4.7 MB,
+//                                  before caller and guard overhead
 //                                  deliberately looser than the checker so the
-//                                  checker stays the pass users actually meet
+//                                  checker stays the pass users normally meet
 //
 // Raising a limit is not the way to accept deeper programs: shrink the
 // pathological frames first (check_method_call_expr, check_builtin_call_expr
@@ -35,6 +40,9 @@ namespace quidra::nesting {
 
 inline constexpr std::size_t max_expression_depth = 64;
 inline constexpr std::size_t max_statement_depth = 256;
+// Name resolution and diagnostic inspection run before, or after a failed,
+// checker walk. They must bound raw ASTs independently of the checker.
+inline constexpr std::size_t max_frontend_expression_depth = 256;
 inline constexpr std::size_t max_ast_clone_depth = 512;
 
 // Counts one level of a recursive walk and reports NESTING_DEPTH when the walk

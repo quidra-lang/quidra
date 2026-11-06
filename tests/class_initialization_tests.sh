@@ -1517,6 +1517,13 @@ for name,code,source in cases:
     if code is not None:
         diagnostics=json.loads(result.stdout)["diagnostics"]
         assert any(d["code"].startswith(code) for d in diagnostics),(name,result.stdout)
+# Address equality can inspect a temporary selection even though stored
+# reference bindings require stable storage. Keep its normal value lowering.
+for name,selection in [('slice', 'items[0:<1]'), ('gather', 'items[[0]]')]:
+    path=tmp/("alias-address-"+name+".qui")
+    path.write_text('const int[] items := [1, 2]\nprintln(&'+selection+'[0] == &items[0])\n')
+    lowered=subprocess.run([quidra,"ir",str(path)],capture_output=True,text=True)
+    assert lowered.returncode==0,(name,lowered.stdout,lowered.stderr)
 # These programs exercise the existing native LoadReference initialization
 # guard and AddressElement bounds guard, not only checker acceptance.
 runtime_cases=[
@@ -1579,6 +1586,28 @@ int read()
     &item := &rows[next(&state)][0]
     return item.value
 println(read())
+'''),
+('nested-index-reference-write', 0, '9 9 1\n', None, '''class State(int calls)
+int next(State &state)
+    old := state.calls
+    state.calls += 1
+    return old
+class Box(int value)
+void read()
+    Box[][] rows := [[Box(7)]]
+    state := State(0)
+    &item := &rows[next(&state)][0]
+    item = Box(9)
+    println("{rows[0][0].value} {item.value} {state.calls}")
+read()
+'''),
+('nested-parent-uninitialized', 101, '', 'UNINITIALIZED', '''class Box(int value)
+int read(int index)
+    Box[][] rows := array(2)
+    rows[0] = [Box(7)]
+    &item := &rows[index][0]
+    return 0
+println(read(1))
 '''),
 ('bounds-dynamic', 101, '', 'INDEX_BOUNDS', '''class Box(int value)
 int read(int index)

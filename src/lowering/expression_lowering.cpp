@@ -210,7 +210,34 @@ ValueId ExpressionLowering::lower_address(const Expr& e, bool may_write) {
         if(array_type.kind==TypeKind::Tensor){
             throw std::logic_error("tensor elements do not expose raw addresses");
         }
-        auto array=lower(*n->base),index=lower_int64(*n->items.front().index),out=builder_.fresh();
+        ValueId array;
+        if (std::holds_alternative<IndexExpr>(n->base->data)) {
+            // Borrow each parent row from its actual storage, without the
+            // owned snapshots used by value-index lowering. ArrayGet keeps
+            // parent-slot initialization and bounds checks before loading a
+            // row; LoadAddress deliberately omits that check for arrays.
+            const auto borrow_parent = [&](const auto& self, const Expr& parent) -> ValueId {
+                const auto* index = std::get_if<IndexExpr>(&parent.data);
+                if (!index || index->items.size() != 1 ||
+                    index->items.front().slice || !index->items.front().index ||
+                    type_of(checked_, *index->base).kind != TypeKind::Array ||
+                    !is_integer_family_type(type_of(checked_, *index->items.front().index)))
+                    return lower(parent);
+                initialization_flags_.check(parent);
+                const auto base = self(self, *index->base);
+                const auto offset = lower_int64(*index->items.front().index);
+                const auto value = builder_.fresh();
+                const auto& at = index->items.front().index->span.start;
+                builder_.emit(ArrayGet{value, base, offset, type_of(checked_, parent),
+                    {static_cast<std::uint32_t>(at.line),
+                     static_cast<std::uint32_t>(at.column)}});
+                return value;
+            };
+            array = borrow_parent(borrow_parent, *n->base);
+        } else {
+            array = lower(*n->base);
+        }
+        auto index=lower_int64(*n->items.front().index),out=builder_.fresh();
         const auto element_type=array_type.kind==TypeKind::Bin
             ? Type::simple(TypeKind::Nat8)
             : *array_type.first;

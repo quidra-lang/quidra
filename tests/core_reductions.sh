@@ -91,6 +91,24 @@ if [[ "${2:-OFF}" == ON ]]; then
     fi
 fi
 
+cat > "$TMP/legacy.qui" <<'QUI'
+tensor<T> mean<T: floating>(extend tensor<T> value)
+    return value.gather([0], [])
+QUI
+
+cat > "$TMP/legacy-reduction.qui" <<'QUI'
+import legacy = "./legacy.qui"
+data := tensor.ones<real32>([2, 3])
+data[0, 0] = real32(7)
+println(data.mean().item() == real32(7))
+println(data.mean(dim = 1).shape() == [2])
+QUI
+actual=$("$QUIDRA" run "$TMP/legacy-reduction.qui")
+if [[ "$actual" != $'true\ntrue' ]]; then
+    printf 'Reduction extension compatibility output:\n%s\n' "$actual" >&2
+    exit 1
+fi
+
 rejects() {
     local code="$1"
     cat > "$TMP/reject.qui"

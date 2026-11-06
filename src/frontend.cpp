@@ -6877,6 +6877,11 @@ private:
                     })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return candidate.standard_reduction; });
+                } else if (std::any_of(extensions.begin(), extensions.end(), [](const auto& candidate) {
+                               return candidate.standard_reduction;
+                           })) {
+                    std::erase_if(extensions,
+                                  [](const auto& candidate) { return !candidate.standard_reduction; });
                 }
                 if (std::any_of(extensions.begin(), extensions.end(),
                                 [](const auto& candidate) { return candidate.preferred_call; })) {

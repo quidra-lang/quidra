@@ -1490,5 +1490,30 @@ int main() {
                 "formatter treats factorial as an expression end");
     }
 
+    {
+        auto p = parse("product := a @ b * c / d % e @ f + g\n"
+                       "grouped := a @ (b @ c)\n");
+        const auto& sum = std::get<BinaryExpr>(
+            std::get<BindingStmt>(p.statements[0]->data).value->data);
+        require(sum.op == "+", "matrix multiplication binds before addition");
+        const auto& last = std::get<BinaryExpr>(sum.left->data);
+        const auto& remainder = std::get<BinaryExpr>(last.left->data);
+        const auto& quotient = std::get<BinaryExpr>(remainder.left->data);
+        const auto& product = std::get<BinaryExpr>(quotient.left->data);
+        const auto& first = std::get<BinaryExpr>(product.left->data);
+        require(last.op == "@" && remainder.op == "%" && quotient.op == "/" &&
+                    product.op == "*" && first.op == "@",
+                "matrix multiplication shares left associativity with multiplicative operators");
+        require(first.op_span.start.column == 14,
+                "matrix multiplication retains its operator location");
+        const auto& grouped = std::get<BinaryExpr>(
+            std::get<BindingStmt>(p.statements[1]->data).value->data);
+        require(grouped.op == "@" && std::get<BinaryExpr>(grouped.right->data).op == "@",
+                "parentheses override matrix multiplication associativity");
+        require(format_source("result:=a@b@.next()\n") ==
+                    "result := a @ b @ .next()\n",
+                "formatter spaces matrix multiplication and its marked operand");
+    }
+
     std::cout << "all parser tests passed\n";
 }

@@ -366,7 +366,7 @@ shape-match range mismatch selects the next case.
 
 ## Integer digit decomposition
 
-> Specified for `develop`. Math implementation is pending.
+Integer digit decomposition is implemented by the Math package on `develop`.
 
 After `import math`, `value.digits()` returns the decimal digits of an
 integer scalar's magnitude as an `int[]`, most significant first.

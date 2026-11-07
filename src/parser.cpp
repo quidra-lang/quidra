@@ -2790,7 +2790,7 @@ ExprPtr Parser::shift_expr() {
     }
 }
 ExprPtr Parser::term() { auto e=factor(); while(match(TokenKind::Plus)||match(TokenKind::Minus)){auto op=previous(); e=make_binary(std::move(e),op,factor());} return e; }
-ExprPtr Parser::factor() { auto e=unary(); while(match(TokenKind::Star)||match(TokenKind::Slash)||match(TokenKind::Percent)){auto op=previous(); e=make_binary(std::move(e),op,unary());} return e; }
+ExprPtr Parser::factor() { auto e=unary(); while(match(TokenKind::Star)||match(TokenKind::Slash)||match(TokenKind::Percent)||match(TokenKind::At)){auto op=previous(); e=make_binary(std::move(e),op,unary());} return e; }
 
 ExprPtr Parser::unary() {
     ParseDepthGuard depth(unary_depth_, max_parse_depth, peek(), "Unary expression");

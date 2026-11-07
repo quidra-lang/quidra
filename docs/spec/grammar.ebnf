@@ -4,7 +4,7 @@
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
    NL, HT, CR, DQ, BS, FF, VT, and BL.
-   Postfix ! is implemented; infix @ is specified for develop and awaits implementation. *)
+   Postfix ! and the Math-backed infix @ are implemented on develop. *)
 
 program          = { NEWLINE | import_decl | export_decl | cli_decl | top_declaration | main_guard | statement }, EOF ;
 top_declaration  = [ "private" ], ( extern_decl | enum_decl | class_decl | function_decl | const_binding ) ;

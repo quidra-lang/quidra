@@ -102,6 +102,7 @@ bool spaced_operator(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
+        case TokenKind::At:
         case TokenKind::Caret:
         case TokenKind::Pipe:
             return true;
@@ -133,6 +134,7 @@ bool operand_follows(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
+        case TokenKind::At:
         case TokenKind::Caret:
         case TokenKind::EqEq:
         case TokenKind::NotEq:

@@ -83,6 +83,40 @@ actual="$("$QUIDRA" "$TMP/length.qui")"
 "$QUIDRA" fmt "$TMP/length.qui" --check
 [[ "$("$QUIDRA" "$TMP/length.qui")" == "$expected" ]]
 
+# A marker inside a grouped receiver covers that call before the synthetic
+# len() query. Its effects and evaluation count match an explicit .len().
+cat > "$TMP/nested-marker.qui" <<'QUI'
+class Producer(int calls)
+    string .produce()
+        calls += 1
+        return "abc"
+
+producer := Producer(0)
+println(#(.producer.produce()))
+println((.producer.produce()).len())
+println("{#(.producer.produce())}")
+println(producer.calls)
+QUI
+nested_expected=$'3\n3\n3\n3'
+[[ "$("$QUIDRA" "$TMP/nested-marker.qui")" == "$nested_expected" ]]
+"$QUIDRA" fmt "$TMP/nested-marker.qui"
+"$QUIDRA" fmt "$TMP/nested-marker.qui" --check
+[[ "$("$QUIDRA" "$TMP/nested-marker.qui")" == "$nested_expected" ]]
+
+cat > "$TMP/missing-marker.qui" <<'QUI'
+class Producer(int calls)
+    string .produce()
+        calls += 1
+        return "abc"
+producer := Producer(0)
+println(#(producer.produce()))
+QUI
+if "$QUIDRA" check "$TMP/missing-marker.qui" > "$TMP/missing-marker.out" 2>&1; then
+    echo "length shorthand accepted an unmarked state-changing receiver" >&2
+    exit 1
+fi
+grep -q 'MUTATION_MARKER' "$TMP/missing-marker.out"
+
 # A failed custom method retains the same typed failure and fail-fast boundary.
 cat > "$TMP/failure.qui" <<'QUI'
 class Fails()

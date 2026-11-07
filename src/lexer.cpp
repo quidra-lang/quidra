@@ -96,6 +96,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::PercentAssign: return "%="; case TokenKind::Plus: return "+";
         case TokenKind::Minus: return "-"; case TokenKind::Star: return "*";
         case TokenKind::Slash: return "/"; case TokenKind::Percent: return "%";
+        case TokenKind::At: return "@";
         case TokenKind::Caret: return "^";
         case TokenKind::Hash: return "#";
         case TokenKind::Bang: return "!";
@@ -326,6 +327,7 @@ std::vector<Token> Lexer::scan() {
             case '*': tokens.push_back(make(match('=') ? TokenKind::StarAssign : TokenKind::Star, start_index, start)); break;
             case '/': tokens.push_back(make(match('=') ? TokenKind::SlashAssign : TokenKind::Slash, start_index, start)); break;
             case '%': tokens.push_back(make(match('=') ? TokenKind::PercentAssign : TokenKind::Percent, start_index, start)); break;
+            case '@': tokens.push_back(make(TokenKind::At, start_index, start)); break;
             case '^': tokens.push_back(make(TokenKind::Caret, start_index, start)); break;
             case '#': tokens.push_back(make(TokenKind::Hash, start_index, start)); break;
             case '=': tokens.push_back(make(match('=') ? TokenKind::EqEq : TokenKind::Assign, start_index, start)); break;

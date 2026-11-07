@@ -6846,6 +6846,37 @@ private:
             out->data = UnaryExpr{
                 node->op, clone_expr(*node->operand, substitution, deferred, current_class), node->op_span};
         } else if (const auto* node = std::get_if<BinaryExpr>(&source.data)) {
+            if (node->op == "@") {
+                // Math owns the domain operation. Select its visible extension
+                // family, then use the ordinary function specialization path;
+                // no matrix type, shape, device or autograd rules live in Core.
+                std::optional<std::string> callee;
+                for (const auto& [name, family] : function_families_) {
+                    const auto& declaration = *family.front();
+                    const auto& identity = declaration.declaration;
+                    if (!identity || identity->package != "math" ||
+                        !identity->module_path.empty() || identity->source_name != "matmul" ||
+                        declaration.is_private || declaration.parameters.empty() ||
+                        !declaration.parameters.front().is_extension ||
+                        !extension_visible(declaration))
+                        continue;
+                    if (!callee || name < *callee) callee = name;
+                }
+                if (!callee)
+                    frontend_error("MATMUL_SCOPE",
+                                   "Matrix multiplication requires the Math package in scope; import math.",
+                                   node->op_span);
+                CallExpr call;
+                call.callee = *callee;
+                call.args.push_back(CallArg{std::nullopt, false,
+                    clone_expr(*node->left, substitution, deferred, current_class), node->left->span});
+                call.args.push_back(CallArg{std::nullopt, false,
+                    clone_expr(*node->right, substitution, deferred, current_class), node->right->span});
+                Expr rewritten;
+                rewritten.span = source.span;
+                rewritten.data = std::move(call);
+                return clone_expr(rewritten, {}, deferred, current_class);
+            }
             if (is_relational_operator(node->op))
                 reject_misread_generic_call(*node->right, node->op_span, current_class);
             out->data = BinaryExpr{

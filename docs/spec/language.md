@@ -1,6 +1,6 @@
 # Quidra Language Specification
 
-The [factorial](numeric-and-bin.md#factorial) section records the implemented `develop` contract. The [matrix multiplication operator](#matrix-multiplication-operator) section records its approved contract and pending compiler support.
+The [factorial](numeric-and-bin.md#factorial) and [matrix multiplication operator](#matrix-multiplication-operator) sections record their implemented `develop` contracts.
 
 ## Source structure
 
@@ -1465,7 +1465,7 @@ product := math.matmul(left, right)
 
 #### Matrix multiplication operator
 
-> Specified for `develop`. Compiler support is pending.
+The Math-backed matrix multiplication operator is implemented on `develop`.
 
 `a @ b` calls the first-party Math `matmul` overload for `a` and `b`, as in
 `a.matmul(b)` after `import math`. The Math package must be in scope. The

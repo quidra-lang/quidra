@@ -73,6 +73,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `LOOP_CONTROL_CONTEXT` | `break` or `continue` appears without an enclosing loop. | Use loop control only inside `while` or `for`. |
 | `MATCH_CASE` | A match case is duplicate or incompatible with the subject union. | Use each actual alternative exactly once. |
 | `MATCH_EXHAUSTIVE` | A match omits one or more alternatives. | Cover every union alternative. |
+| `MATMUL_SCOPE` | Matrix multiplication `@` has no visible first-party Math `matmul` family. | Import `math` in the module that defines the expression, or expose it through a public import. |
 | `MISSING_RETURN` | A non-`void` function can reach the end. | Return a value on every continuing path. |
 | `MUTATION_MARKER` | A function definition or call hides changes to existing state, a redundant marker reaches no marked callee, a parameter default changes existing state, or family markers disagree. | Declare ordinary functions `.name` and mark their calls; class generation has an inferred requirement and uses `.Type(...)` when needed. |
 | `NESTING_DEPTH` | Expression or statement nesting exceeds the compiler's safety budget. | Reduce nesting: split the expression or extract a function. |

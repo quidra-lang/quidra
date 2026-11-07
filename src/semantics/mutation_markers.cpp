@@ -386,7 +386,9 @@ private:
     void expr(const Expr& expression, const Expr* chain = nullptr, bool covered = false) {
         const bool call = std::holds_alternative<CallExpr>(expression.data) ||
                           std::holds_alternative<MethodCallExpr>(expression.data);
-        if (call && !chain) {
+        // A grouped receiver can carry its own explicit marker, as in
+        // #(.producer.next()). The enclosing len() query must not erase it.
+        if (call && (!chain || marked(expression))) {
             chain = &expression;
             covered = marked(expression);
             // '.receiver.extension(...)' is the method form of passing

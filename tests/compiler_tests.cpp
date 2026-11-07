@@ -7897,7 +7897,7 @@ tensor<int64> powered := 2 ^ base
  bad_code(R"(tensor<int64> base := tensor.ones<int64>([1])
 tensor<int64> powered := base ^ -1
 )", "POWER_DOMAIN");
- bad_code("int a := 2\nint b := 3\nint c := a @ b\n", "LEX_ERROR");
+ bad_code("int a := 2\nint b := 3\nint c := a @ b\n", "MATMUL_SCOPE");
  bad_code("int x := 0x10\n", "LEX_ERROR");
  bad_code("int array := 1\n", "SHADOWING");
  good("int math := 1\n");

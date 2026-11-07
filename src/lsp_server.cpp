@@ -1183,6 +1183,7 @@ bool is_operator_token(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
+        case TokenKind::At:
         case TokenKind::EqEq:
         case TokenKind::NotEq:
         case TokenKind::Less:

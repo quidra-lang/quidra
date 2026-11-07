@@ -1691,7 +1691,6 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_package_releases
       quidra_package_metadata_sync
       quidra_autograd_target_copy
-      quidra_floating_casts
       quidra_tensor_autograd_foundation
       quidra_tensor_view_fast_paths
       quidra_cpu_parallel
@@ -1702,7 +1701,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_complex
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
     )
-    # The CLI and stdlib suites compile and run many programs each. Fully
+    # Program suites, including the 40 floating-cast case/mode invocations,
+    # compile and run many programs each. Fully
     # instrumented compiler runs need additional cumulative build time;
     # each suite still has a finite hang guard.
     math(EXPR QUIDRA_PROGRAM_SUITE_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 2")
@@ -1716,6 +1716,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_array_selection_contracts
       quidra_range_contracts
       quidra_extension_visibility
+      quidra_floating_casts
       PROPERTIES TIMEOUT ${QUIDRA_PROGRAM_SUITE_TIMEOUT}
     )
     # The CLI and stdlib integration suites can exceed the shared 720-second

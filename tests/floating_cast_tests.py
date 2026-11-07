@@ -20,6 +20,7 @@ def main():
             for mode in case["saved_modes"]:
                 env["QUIDRA_SAVED_TENSORS"] = mode
                 phase = expected.get("phase", "run")
+                print(f"floating cast: {case['source']} ({mode}, {phase})", flush=True)
                 result = subprocess.run(
                     [compiler, phase, str(fixtures / case["source"])],
                     env=env, capture_output=True, text=True, timeout=90,

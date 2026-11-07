@@ -214,7 +214,7 @@ println(middle[0] + reversed[0] + evens[2])
 
 Strings take the same slices over Unicode code points, and a slice of a `string` is a `string`: `text[1:3]`, `text[:<n]`, and `text[text.len()>:0]` or `text[::-1]` for the reversed text. A string slice with constant operands over a string literal is checked at compile time.
 
-A slice of an array is also an assignment target. `a[1:3] = b` stores the elements of `b` into the selected elements, in the order of the slice, which may be strided, descending or exclusive (`a[a.len()>:0] = b` stores `b` reversed). The value must be an array whose element type equals the target's exactly (no conversion and no broadcast) and must have exactly as many elements as the slice selects: `SLICE_ASSIGNMENT` (`slice assignment needs 3 values, got 2`), at compile time when both counts are known. The slice's operands are evaluated first, then the value completely, then the elements are written; the value is independent of the target, so `a[1:<4] = a[0:<3]` is safe. A slice assignment initializes the elements it writes. A slice is a value, not storage: `&a[1:3]` is an error, and a string slice is never assigned (`INVALID_ASSIGNMENT`): strings are immutable.
+A slice of an array is also an assignment target. `a[1:3] = b` stores the elements of `b` into the selected elements, in the order of the slice, which may be strided, descending or exclusive (`a[a.len()>:0] = b` stores `b` reversed). The value must be an array with exactly as many elements as the slice selects: `SLICE_ASSIGNMENT` (`slice assignment needs 3 values, got 2`), at compile time when both counts are known. Numeric elements use the ordinary checked destination conversion; other element types must match exactly. Boolean and numeric elements never implicitly convert to one another, and scalar broadcast is not supported. The slice's operands are evaluated first, then the value completely, including every numeric conversion, before any element is written. A failed conversion leaves the destination unchanged. The value is independent of the target, so `a[1:<4] = a[0:<3]` is safe. A slice assignment initializes the elements it writes. A slice is a value, not storage: `&a[1:3]` is an error, and a string slice is never assigned (`INVALID_ASSIGNMENT`): strings are immutable.
 
 ## Bin
 
@@ -1656,7 +1656,7 @@ sorted. Operational failures return typed errors. Bare `file` as a type,
 
 ### test
 
-`test.check(condition)` takes a `bool` value argument, including an integer converted under the ordinary call rule. `test.equal(actual, expected)` requires identical static types and follows the same equality availability and class definite-initialization requirements as ordinary `==`.
+`test.check(condition)` requires a `bool` value argument. Test an integer explicitly, as in `test.check(count != 0)`; numeric values do not implicitly convert to `bool`. `test.equal(actual, expected)` requires identical static types and follows the same equality availability and class definite-initialization requirements as ordinary `==`.
 
 A failed assertion exits with status 1. This is a test failure, not a runtime-safety violation, so it does not use the runtime-safety status 101.
 

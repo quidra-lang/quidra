@@ -369,8 +369,10 @@ Fixed and runtime-sized arrays accept negative indices for reads and writes.
 Slices make inclusion and direction explicit: `values[1:<3]` excludes the end,
 `values[values.len()>:0]` reverses, and `values[::2]` selects every second
 element. A slice is an independent value. Array slice assignment writes the
-selected elements in order and requires an equally sized value with exactly
-the same element type; overlapping sources are safe. Strings use the same
+selected elements in order and requires an equally sized array. Numeric elements
+use checked conversion to the destination element type before any element is
+written; other element types must match exactly. No scalar broadcast is implied,
+and overlapping sources are safe. Strings use the same
 code-point slice syntax and remain immutable.
 
 `bin` is mutable packed raw binary data:
@@ -750,9 +752,10 @@ side. `.transpose()` is a metadata view; `.reshape()` never hides a copy, so
 call `.contiguous()` explicitly when a contiguous representation is required.
 
 Numeric representation changes use the same `T(value)` spelling as scalars and
-arrays. A tracked tensor must be explicitly disconnected before changing dtype,
-for example `real64(x.untrack())`; representation change never silently cuts an
-autograd graph.
+arrays. Casts between floating tensor element types preserve tracking and convert
+gradients back to the source element type. A tracked tensor must be explicitly
+disconnected before conversion to an integer or complex element type, for example
+`int32(x.untrack())`; representation change never silently cuts an autograd graph.
 
 ## Tensor autograd
 

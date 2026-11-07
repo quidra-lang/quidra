@@ -157,7 +157,7 @@ struct IndexPart {
 };
 struct IndexExpr { ExprPtr base; std::vector<IndexPart> items; };
 struct MemberExpr { ExprPtr base; std::string name; };
-struct UnaryExpr { std::string op; ExprPtr operand; };
+struct UnaryExpr { std::string op; ExprPtr operand; SourceSpan op_span{}; };
 // op_span is the operator token's span where the parser knows it.
 struct BinaryExpr { std::string op; ExprPtr left; ExprPtr right; SourceSpan op_span{}; };
 // Two or more comparison operators at one level (L14): `a < b <= c` means

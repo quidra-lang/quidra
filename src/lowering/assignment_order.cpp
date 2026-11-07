@@ -111,7 +111,8 @@ public:
                 if (left && is_real(*left) && op == "^") side.may_fail = true;
             } else if (const auto* unary = std::get_if<UnaryExpr>(&data)) {
                 const auto* type = type_of(*unary->operand);
-                if (type && unary->op == "-" && is_signed_integer(*type)) side.may_fail = true;
+                if (unary->op == "!" ||
+                    (type && unary->op == "-" && is_signed_integer(*type))) side.may_fail = true;
             } else if (std::holds_alternative<TryExpr>(data)) {
                 side.may_fail = true;
             } else if (std::holds_alternative<CallExpr>(data) ||

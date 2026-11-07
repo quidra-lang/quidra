@@ -296,7 +296,29 @@ void NumericEmitter::emit(const ir::ExactOp& n,const ir::Instruction&){
 
 void NumericEmitter::emit(const ir::Unary& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    if(n.op=="int.natural_view") {
+    if(n.op=="!") {
+        if(is_bare_integer(n.type)) {
+            builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::factorial),
+                {{bare_integer_type,symbols_.value(n.operand)},
+                 {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
+        } else {
+            const auto type=llvm_type(n.type);
+            const auto width=integer_width(n.type);
+            const bool is_signed=is_signed_integer(n.type);
+            auto operand=symbols_.value(n.operand);
+            if(width<64) {
+                const auto widened=names_.value("factorial.operand");
+                builder_.cast(widened,is_signed?CastOp::sext:CastOp::zext,{type,operand},i64);
+                operand=widened;
+            }
+            const auto result=width<64?names_.value("factorial.result"):symbols_.value(n.out);
+            builder_.call(result,is_signed?runtime_abi::numeric::integer_factorial_signed:
+                                          runtime_abi::numeric::integer_factorial_unsigned,
+                {{i64,operand},{i32,width},{i64,sites_.line(n.position.line)},
+                 {i64,sites_.column(n.position.column)}});
+            if(width<64)builder_.cast(symbols_.value(n.out),CastOp::trunc,{i64,result},type);
+        }
+    }else if(n.op=="int.natural_view") {
         copy_by_add_zero(builder_,symbols_.value(n.out),bare_integer_type,symbols_.value(n.operand));
     }else if(n.op=="int.is_inline") {
         // Compiler-owned range entry predicate: an inline integer word is

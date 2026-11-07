@@ -9947,6 +9947,48 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         if (node->op == "&") {
             (void)check_address_target(*node->operand, false);
             type = simple(TypeKind::Address);
+        } else if (node->op == "!") {
+            const Type* operand_context = nullptr;
+            const auto family = numeric_literal_family(*node->operand);
+            if (expected && integer_category(family)) {
+                if (is_integer_family_type(*expected) &&
+                    (family != NumericLiteralCategory::NegativeInteger || is_signed_integer(*expected))) {
+                    operand_context = expected;
+                } else if (expected->kind == TypeKind::Union) {
+                    for (const auto& candidate : expected->cases) {
+                        if (!is_integer_family_type(candidate) ||
+                            (family == NumericLiteralCategory::NegativeInteger && !is_signed_integer(candidate))) continue;
+                        if (operand_context)
+                            error("AMBIGUOUS_NUMERIC_LITERAL",
+                                  "Factorial literal matches multiple integer types.", expression.span);
+                        operand_context = &candidate;
+                    }
+                }
+            }
+            type = consume_operand(*node->operand,
+                check_expr(*node->operand, operand_context));
+            if (!poisoned(type) && !is_integer_family_type(type))
+                error("TYPE_MISMATCH", "Factorial requires an integer scalar.", expression.span);
+            if (!poisoned(type)) {
+                if (const auto* negative = std::get_if<UnaryExpr>(&node->operand->data);
+                    negative && negative->op == "-") {
+                    if (const auto* literal = std::get_if<IntegerExpr>(&negative->operand->data);
+                        literal && (literal->value != 0 || !literal->fits_u64))
+                        error("FACTORIAL_DOMAIN", "Factorial requires a non-negative integer.", expression.span);
+                }
+                if (const auto value = constant_eval::integer(*node->operand, &const_integer_values_)) {
+                    if (*value < 0)
+                        error("FACTORIAL_DOMAIN", "Factorial requires a non-negative integer.", expression.span);
+                }
+                if (is_fixed_integer(type)) {
+                    const auto bits = integer_width(type);
+                    const auto limit = bits == 8 ? 5 : bits == 16 ?
+                        (is_signed_integer(type) ? 7 : 8) : bits == 32 ? 12 : 20;
+                    if (const auto value = constant_eval::unsigned_integer(*node->operand, &const_integer_values_);
+                        value && *value > static_cast<unsigned>(limit))
+                        error("INTEGER_OVERFLOW", "Factorial exceeds the integer type's range.", expression.span);
+                }
+            }
         } else if (node->op == "not") {
             type = check_truth_value(*node->operand);
             if (type.kind == TypeKind::Never)

@@ -70,8 +70,9 @@ inline NumericLiteralCategory numeric_literal_family(const Expr& expression) {
     // A contextual constant is a literal of the real category.
     if (std::holds_alternative<LiteralConstantExpr>(expression.data)) return C::Real;
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
-        unary && (unary->op == "-" || unary->op == "NOT")) {
+        unary && (unary->op == "-" || unary->op == "NOT" || unary->op == "!")) {
         const auto operand = numeric_literal_family(*unary->operand);
+        if (unary->op == "!") return integer_category(operand) ? C::NonNegativeInteger : C::None;
         if (unary->op == "-" && integer_category(operand)) return C::NegativeInteger;
         return operand;
     }

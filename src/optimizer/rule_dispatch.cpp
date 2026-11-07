@@ -178,7 +178,7 @@ private:
         case Guard::Kind::Tracked: {
             const auto value = load(guard.parameter), tracked = builder_.fresh(); builder_.emit(TensorIsTracked{tracked, value});
             if (guard.expected) branch(tracked, failure);
-            else { const auto out = builder_.fresh(); builder_.emit(Unary{out, "!", tracked, Type::simple(TypeKind::Bool)}); branch(out, failure); }
+            else { const auto out = builder_.fresh(); builder_.emit(Unary{out, "not", tracked, Type::simple(TypeKind::Bool)}); branch(out, failure); }
             break;
         }
         case Guard::Kind::Contiguous: branch(compare(query("qcore_tensor_is_contiguous", guard.parameter, i32), guard.expected, i32), failure); break;

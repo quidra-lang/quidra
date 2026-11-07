@@ -133,6 +133,7 @@ private:
     ExprPtr power();
     ExprPtr marked_call();
     ExprPtr postfix();
+    ExprPtr factorial();
     ExprPtr primary();
     ExprPtr range_from(ExprPtr begin_value, SourcePos begin);
     ExprPtr range_operand();

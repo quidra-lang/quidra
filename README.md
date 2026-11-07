@@ -1129,7 +1129,7 @@ compatibility alias.
 - [Diagnostics](docs/spec/diagnostics.md)
 - [Source patch schema](docs/spec/patch-schema.md)
 
-The `develop` specifications cover [factorial](docs/spec/numeric-and-bin.md#factorial), [matrix multiplication with `@`](docs/spec/language.md#matrix-multiplication-operator), and [Math reductions](docs/spec/language.md#numerical-reductions). Each section states its implementation status.
+Postfix [factorial](docs/spec/numeric-and-bin.md#factorial) is implemented on `develop`: `n!` retains its integer type, supports exact arbitrary-precision `int`/`nat`, and checks negative operands and fixed-width overflow. The specifications also cover [matrix multiplication with `@`](docs/spec/language.md#matrix-multiplication-operator), which awaits compiler support, and implemented [Core reductions](docs/spec/language.md#numerical-reductions).
 
 ## Standard namespaces
 

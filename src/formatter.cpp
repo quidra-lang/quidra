@@ -78,6 +78,7 @@ bool expression_end(TokenKind kind) {
         case TokenKind::KwFalse:
         case TokenKind::RParen:
         case TokenKind::RBracket:
+        case TokenKind::Bang:
             return true;
         default:
             return false;
@@ -175,6 +176,7 @@ std::optional<std::string> canonical_gap(
     std::string_view gap) {
     const auto previous=tokens[index-1]->kind;
     const auto current=tokens[index]->kind;
+    if(current==TokenKind::Bang) return "";
     if(previous==TokenKind::KwFor && current==TokenKind::Colon) return "";
     if(previous==TokenKind::Colon && index>=2 && tokens[index-2]->kind==TokenKind::KwFor) return " ";
 

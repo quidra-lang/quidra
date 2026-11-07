@@ -951,9 +951,11 @@ ValueId ExpressionLowering::lower_unary(const Expr& e, const UnaryExpr& n) {
         checked_.implicit_numeric_argument_conversions.contains(n.operand.get());
     auto v = coerced_truth ? lower_into(*n.operand, raw) : lower(*n.operand);
     auto out = builder_.fresh();
+    const auto position = n.op == "!" && n.op_span.end.offset > n.op_span.start.offset ?
+        n.op_span.start : e.span.start;
     builder_.emit(Unary{
-        out,n.op,v,raw,{static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column)},
+        out,n.op,v,raw,{static_cast<std::uint32_t>(position.line),
+        static_cast<std::uint32_t>(position.column)},
         facts_.integer_ranges.inline_proven(e)});
     // Tensor, bigint and bigreal negation return a new value and
     // leave the operand alone; release an owned temporary operand

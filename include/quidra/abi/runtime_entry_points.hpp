@@ -428,6 +428,14 @@ extern "C" long long quidra_int_neg(
     long long value, unsigned long long line, unsigned long long column);
 extern "C" long long quidra_int_pow(
     long long left, long long right, unsigned long long line, unsigned long long column);
+// Factorial borrows its operand and returns a canonical owning word. Fixed-width
+// variants check the result against the original integer type before returning.
+extern "C" long long quidra_int_factorial(
+    long long value, unsigned long long line, unsigned long long column);
+extern "C" long long quidra_integer_factorial_signed(
+    long long value, int bits, unsigned long long line, unsigned long long column);
+extern "C" unsigned long long quidra_integer_factorial_unsigned(
+    unsigned long long value, int bits, unsigned long long line, unsigned long long column);
 extern "C" void quidra_for_step_check(long long step, bool descending,
     unsigned long long line, unsigned long long column);
 extern "C" int quidra_int_compare(long long left, long long right);

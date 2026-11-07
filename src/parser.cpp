@@ -370,6 +370,7 @@ void relocate_expr(Expr& expression, const SourcePos& base) {
     } else if (auto* node = std::get_if<MemberExpr>(&expression.data)) {
         relocate_expr(*node->base, base);
     } else if (auto* node = std::get_if<UnaryExpr>(&expression.data)) {
+        relocate_span(node->op_span, base);
         relocate_expr(*node->operand, base);
     } else if (auto* node = std::get_if<BinaryExpr>(&expression.data)) {
         relocate_span(node->op_span, base);
@@ -872,6 +873,17 @@ ExprPtr Parser::type_integer_factor() {
         return result;
     }
 
+    const auto finish = [&](ExprPtr value) {
+        if (match(TokenKind::Bang)) {
+            const auto end = previous().span.end;
+            auto result = std::make_unique<Expr>();
+            result->span = SourceSpan{value->span.start, end};
+            result->data = UnaryExpr{"!", std::move(value), previous().span};
+            return result;
+        }
+        return value;
+    };
+
     if (match(TokenKind::Integer)) {
         const auto token = previous();
         std::uint64_t value{};
@@ -884,17 +896,17 @@ ExprPtr Parser::type_integer_factor() {
         auto result = std::make_unique<Expr>();
         result->span = token.span;
         result->data = IntegerExpr{value, std::to_string(value), true};
-        return result;
+        return finish(std::move(result));
     }
 
-    if (at(TokenKind::KwThis)) return this_field();
+    if (at(TokenKind::KwThis)) return finish(this_field());
 
     if (match(TokenKind::Identifier)) {
         const auto token = previous();
         auto result = std::make_unique<Expr>();
         result->span = token.span;
         result->data = NameExpr{token.text};
-        return result;
+        return finish(std::move(result));
     }
 
     if (match(TokenKind::LParen)) {
@@ -902,7 +914,7 @@ ExprPtr Parser::type_integer_factor() {
         auto result = type_integer_expression();
         const auto end = consume(TokenKind::RParen, "Expected ')' after integer extent expression.").span.end;
         result->span = SourceSpan{start, end};
-        return result;
+        return finish(std::move(result));
     }
 
     error(peek(), "Expected an integer extent expression.");
@@ -2821,12 +2833,24 @@ ExprPtr Parser::unary() {
 }
 
 ExprPtr Parser::power() {
-    auto e = at(TokenKind::Dot) ? marked_call() : postfix();
+    auto e = factorial();
     if (match(TokenKind::Caret)) {
         const auto op = previous();
         e = make_binary(std::move(e), op, unary());
     }
     return e;
+}
+
+ExprPtr Parser::factorial() {
+    auto value = at(TokenKind::Dot) ? marked_call() : postfix();
+    if (match(TokenKind::Bang)) {
+        const auto end = previous().span.end;
+        auto result = std::make_unique<Expr>();
+        result->span = SourceSpan{value->span.start, end};
+        result->data = UnaryExpr{"!", std::move(value), previous().span};
+        return result;
+    }
+    return value;
 }
 
 // `.f()`, `.obj.f()`, `.mod.T(...)`: the mutation marker before a postfix
@@ -2874,7 +2898,7 @@ ExprPtr Parser::range_operand() {
         e->data = UnaryExpr{op.text, std::move(operand)};
         return e;
     }
-    return postfix();
+    return factorial();
 }
 
 ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {

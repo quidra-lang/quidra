@@ -1373,6 +1373,12 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_runtime_integer_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_runtime_integer_tests COMMAND quidra_runtime_integer_tests)
 
+  add_executable(quidra_runtime_factorial_tests tests/runtime_factorial_tests.cpp)
+  target_include_directories(quidra_runtime_factorial_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_runtime_factorial_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_factorial_tests COMMAND quidra_runtime_factorial_tests)
+
   # The exact text of every operation of the LLVM text layer.
   add_executable(quidra_llvm_text_tests tests/llvm_text_tests.cpp)
   target_link_libraries(quidra_llvm_text_tests PRIVATE quidra_core)
@@ -1483,6 +1489,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_stream_operators COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stream_operator_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/stream-operator-tests)
     add_test(NAME quidra_class_operators COMMAND bash ${CMAKE_SOURCE_DIR}/tests/class_operator_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/class-operator-tests)
+    add_test(NAME quidra_factorial COMMAND bash ${CMAKE_SOURCE_DIR}/tests/factorial_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/factorial-tests)
+    set_tests_properties(quidra_factorial PROPERTIES TIMEOUT 240)
     add_test(NAME quidra_iterators COMMAND bash ${CMAKE_SOURCE_DIR}/tests/iterator_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/iterator-tests)
     add_test(NAME quidra_sorted_by COMMAND bash ${CMAKE_SOURCE_DIR}/tests/sorted_by_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/sorted-by-tests)
     add_test(NAME quidra_line_io COMMAND bash ${CMAKE_SOURCE_DIR}/tests/line_io_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/line-io-tests)
@@ -1659,6 +1667,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_numeric_formats_tests
     quidra_exact_real_tests
     quidra_runtime_integer_tests
+    quidra_runtime_factorial_tests
     quidra_process_portability
     quidra_documentation_examples
     quidra_manifest_registry

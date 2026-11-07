@@ -28,6 +28,13 @@ inline std::optional<long long> integer(
     }
 
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+        if (unary->op == "!") {
+            const auto value = integer(*unary->operand, names);
+            if (!value || *value < 0 || *value > 20) return std::nullopt;
+            long long result = 1;
+            for (long long factor = 2; factor <= *value; ++factor) result *= factor;
+            return result;
+        }
         if (unary->op != "-") return std::nullopt;
         const auto value = integer(*unary->operand, names);
         if (!value || *value == std::numeric_limits<long long>::min()) {
@@ -104,6 +111,48 @@ inline std::optional<long long> integer(
     return result;
 }
 
+// Non-negative constants may use the full nat64 range, beyond integer()'s
+// signed evaluation budget. A numeric cast is evaluated only if its operand
+// fits, so an earlier failed conversion is never replaced by a later check.
+inline std::optional<unsigned long long> unsigned_integer(
+    const Expr& expression,
+    const std::unordered_map<std::string, long long>* names = nullptr) {
+    if (const auto value = integer(expression, names); value && *value >= 0)
+        return static_cast<unsigned long long>(*value);
+    if (const auto* literal = std::get_if<IntegerExpr>(&expression.data))
+        return literal->fits_u64 ? std::optional<unsigned long long>{literal->value} : std::nullopt;
+    if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+        if (call->args.size() != 1 || call->args[0].writable || call->args[0].name) return std::nullopt;
+        const auto target = builtin_scalar_type(call->callee);
+        if (!target || !is_integer_family_type(*target)) return std::nullopt;
+        const auto value = unsigned_integer(*call->args[0].value, names);
+        if (!value || (is_fixed_integer(*target) && !integer_literal_value_fits(*value, *target)))
+            return std::nullopt;
+        return value;
+    }
+    const auto* binary = std::get_if<BinaryExpr>(&expression.data);
+    if (!binary) return std::nullopt;
+    const auto left = unsigned_integer(*binary->left, names);
+    const auto right = unsigned_integer(*binary->right, names);
+    if (!left || !right) return std::nullopt;
+    const auto max = std::numeric_limits<unsigned long long>::max();
+    if (binary->op == "+") return *left <= max - *right ? std::optional{*left + *right} : std::nullopt;
+    if (binary->op == "-") return *left >= *right ? std::optional{*left - *right} : std::nullopt;
+    if (binary->op == "*") return !*right || *left <= max / *right ? std::optional{*left * *right} : std::nullopt;
+    if (binary->op == "/") return *right ? std::optional{*left / *right} : std::nullopt;
+    if (binary->op == "%") return *right ? std::optional{*left % *right} : std::nullopt;
+    if (binary->op == "^") {
+        if ((!*left && !*right) || *right > 64) return std::nullopt;
+        unsigned long long result = 1;
+        for (unsigned long long count = 0; count < *right; ++count) {
+            if (*left && result > max / *left) return std::nullopt;
+            result *= *left;
+        }
+        return result;
+    }
+    return std::nullopt;
+}
+
 // The evaluation of an integer literal expression in the type its literals
 // materialize as (a fixed-width integer type or nat), with every
 // intermediate result checked against that type's range, as the program
@@ -133,6 +182,17 @@ inline IntegerInType integer_in_type(const Expr& expression, const Type& type) {
         return {State::Known, value};
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+        if (unary->op == "!") {
+            const auto operand = integer_in_type(*unary->operand, type);
+            if (operand.state != State::Known) return operand;
+            if (operand.value < 0) return {};
+            if (operand.value > 20)
+                return is_fixed_integer(type) ? IntegerInType{State::OutOfRange, 0} : IntegerInType{};
+            long long result = 1;
+            for (long long factor = 2; factor <= operand.value; ++factor) result *= factor;
+            if (!integer_fits_literal_type(result, type)) return {State::OutOfRange, 0};
+            return {State::Known, result};
+        }
         if (unary->op != "-") return {};
         // A negated literal is one value (a signed minimum such as -128 in
         // int8 has no positive counterpart in the type).

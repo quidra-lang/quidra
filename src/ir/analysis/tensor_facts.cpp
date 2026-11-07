@@ -625,7 +625,7 @@ void Engine::instruction(const Instruction& instruction,Env& env,InstrRef at) {
         return;
     }
     if(const auto* node=std::get_if<Unary>(&instruction);node && node->type.kind!=TypeKind::Tensor) {
-        if(is_integer_family_type(node->type)) put(out_.scalars,node->out,node->op=="-"?extent_arithmetic("-",ShapeExtent(0),scalar(node->operand,env)):scalar(node->operand,env));
+        if(is_integer_family_type(node->type) && node->op!="!") put(out_.scalars,node->out,node->op=="-"?extent_arithmetic("-",ShapeExtent(0),scalar(node->operand,env)):scalar(node->operand,env));
         return;
     }
     if(const auto* node=std::get_if<Call>(&instruction)) {

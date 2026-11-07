@@ -4,7 +4,7 @@
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
    NL, HT, CR, DQ, BS, FF, VT, and BL.
-   Postfix ! and infix @ are specified for develop and await implementation. *)
+   Postfix ! is implemented; infix @ is specified for develop and awaits implementation. *)
 
 program          = { NEWLINE | import_decl | export_decl | cli_decl | top_declaration | main_guard | statement }, EOF ;
 top_declaration  = [ "private" ], ( extern_decl | enum_decl | class_decl | function_decl | const_binding ) ;
@@ -194,8 +194,8 @@ shift_expr       = term, { ( "<<" | ">>" ), term } ;
 term             = factor, { ( "+" | "-" ), factor } ;
 factor           = unary, { ( "*" | "/" | "%" | "@" ), unary } ;
 unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | power ;
-power            = ( bounded_range | marked_call | factorial ), [ "^", unary ] ;
-factorial        = postfix, [ "!" ] ;
+power            = ( bounded_range | factorial ), [ "^", unary ] ;
+factorial        = ( marked_call | postfix ), [ "!" ] ;
 (* ! applies to an integer scalar. Parenthesize a factorial before applying
    another postfix suffix. The lexer recognizes != as one token. @ resolves to
    the first-party Math matmul and shares the multiplicative precedence. *)

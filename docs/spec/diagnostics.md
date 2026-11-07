@@ -168,7 +168,7 @@ An explicit `error("message")` is instead a typed value (see [Error values](#err
 Real values, scalar or tensor elements, may be infinite but never NaN. Indeterminate arithmetic stops at the operation before NaN can be printed or consumed. A real tensor operation on the CPU stops at its first failing element; on a GPU its check is deferred to the next synchronization point and reported there (`TENSOR`, or `GPU_ASYNC` at exit) with the operation's message and `(deferred GPU check from FILE:L:C)`.
 
 
-The [factorial specification](numeric-and-bin.md#factorial) reserves `FACTORIAL_DOMAIN` for a negative operand and uses `INTEGER_OVERFLOW` for an out-of-range fixed-width result. These checks await compiler support for `!`.
+The [factorial operator](numeric-and-bin.md#factorial) reports `FACTORIAL_DOMAIN` for a negative operand and `INTEGER_OVERFLOW` for an out-of-range fixed-width result. Proven constant failures are compile-time diagnostics; dynamic failures identify the `!` operation, including inside grouped and generic expressions.
 
 ## Runtime failure format
 
@@ -239,6 +239,7 @@ The coded runtime failure codes:
 | `PARALLEL_OWNERSHIP` | A parallel consuming argument lacks an owning origin or an admissible capture lifetime. |
 | `TRAVERSAL` | A structural traversal is used as a value, visits unsupported storage, violates access authority, or has an inadmissible traversal function body. |
 | `TUPLE` | A tuple type, literal, pattern or operation violates the tuple element, shape or operation rules. |
+| `FACTORIAL_DOMAIN` | A postfix factorial operand is negative. The failure identifies the `!` token, including inside parentheses, interpolation and generic functions. |
 | `FOR_ITERATION` | A writable collection loop (`for &value := &values[]`) over a reference binding (a reference local or a `&` parameter) found that the body replaced or resized the iterated array through another binding that aliases it. Reported at that statement: `array iterated by reference was replaced or resized during the loop`. |
 | `GPU_ASYNC` | A deferred GPU check that no synchronization point consumed failed when the program exited. Reported naming the root file without a line. |
 | `GPU_SCOPE` | Package native code broke the Metal encode protocol of `include/quidra/native_extension.h`: it asked Core for device work inside its encoder scope, for a commit or wait while it held a device stream, or for another device during the hold, or it returned without ending the hold. Reported at the statement that made the extern call or that requested the refused work, at the parallel block that a hold left open earlier in its statement would block, at the `backward()` call whose custom autograd backward callback broke the protocol, and naming the root file without a line for a completion callback or a warm-up, which run outside any statement and end the process at once, and for a hold still open at program exit. Any other coded failure of a thread that still holds a stream ends the hold first and reports a violation the hold recorded instead, as `GPU_SCOPE`. |

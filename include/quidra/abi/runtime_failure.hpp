@@ -79,6 +79,7 @@ enum class RuntimeFailureCode : std::uint8_t {
     reference_target,
     for_length,
     parallel_for,
+    factorial_domain,
 };
 
 struct RuntimeFailureCodeInfo {
@@ -122,6 +123,7 @@ inline constexpr std::array runtime_failure_codes{
     RuntimeFailureCodeInfo{RuntimeFailureCode::reference_target, "REFERENCE_TARGET"},
     RuntimeFailureCodeInfo{RuntimeFailureCode::for_length, "FOR_LENGTH"},
     RuntimeFailureCodeInfo{RuntimeFailureCode::parallel_for, "PARALLEL_FOR"},
+    RuntimeFailureCodeInfo{RuntimeFailureCode::factorial_domain, "FACTORIAL_DOMAIN"},
 };
 
 constexpr std::string_view spelling(RuntimeFailureCode code) {
@@ -192,6 +194,7 @@ enum class FailureReason : std::uint16_t {
     reference_serial_exhausted,
     for_lengths_mismatch,
     parallel_for_unsupported,
+    factorial_negative,
 };
 
 struct FailureReasonInfo {
@@ -358,6 +361,8 @@ inline constexpr std::array failure_reasons{
                       "LENGTH_MISMATCH", "all arrays in a for header must have the same length"},
     FailureReasonInfo{FailureReason::parallel_for_unsupported, RuntimeFailureCode::parallel_for,
                       "UNPROVEN_ITERATION", "{message}"},
+    FailureReasonInfo{FailureReason::factorial_negative, RuntimeFailureCode::factorial_domain,
+                      "NEGATIVE_OPERAND", "factorial operand must be non-negative"},
 };
 
 constexpr const FailureReasonInfo& failure_reason_info(FailureReason reason) {

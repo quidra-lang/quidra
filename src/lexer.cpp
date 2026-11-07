@@ -98,6 +98,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::Slash: return "/"; case TokenKind::Percent: return "%";
         case TokenKind::Caret: return "^";
         case TokenKind::Hash: return "#";
+        case TokenKind::Bang: return "!";
         case TokenKind::EqEq: return "=="; case TokenKind::NotEq: return "!=";
         case TokenKind::Less: return "<"; case TokenKind::LessEq: return "<=";
         case TokenKind::Greater: return ">"; case TokenKind::GreaterEq: return ">=";
@@ -328,9 +329,7 @@ std::vector<Token> Lexer::scan() {
             case '^': tokens.push_back(make(TokenKind::Caret, start_index, start)); break;
             case '#': tokens.push_back(make(TokenKind::Hash, start_index, start)); break;
             case '=': tokens.push_back(make(match('=') ? TokenKind::EqEq : TokenKind::Assign, start_index, start)); break;
-            case '!':
-                if (!match('=')) error("LEX_ERROR", "Expected '=' after '!'.", start);
-                tokens.push_back(make(TokenKind::NotEq, start_index, start)); break;
+            case '!': tokens.push_back(make(match('=') ? TokenKind::NotEq : TokenKind::Bang, start_index, start)); break;
             case '<': tokens.push_back(make(match('=') ? TokenKind::LessEq : TokenKind::Less, start_index, start)); break;
             case '>': tokens.push_back(make(match('=') ? TokenKind::GreaterEq : TokenKind::Greater, start_index, start)); break;
             default: error("LEX_ERROR", "Unexpected character in source.", start);

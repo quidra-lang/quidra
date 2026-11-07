@@ -43,6 +43,7 @@ inline constexpr std::string_view div = "quidra.int.div";
 inline constexpr std::string_view rem = "quidra.int.rem";
 inline constexpr std::string_view neg = "quidra.int.neg";
 inline constexpr std::string_view pow = "quidra.int.pow";
+inline constexpr std::string_view factorial = "quidra.int.factorial";
 inline constexpr std::string_view compare = "quidra.int.compare";
 inline constexpr std::string_view eq = "quidra.int.eq";
 inline constexpr std::string_view ne = "quidra.int.ne";

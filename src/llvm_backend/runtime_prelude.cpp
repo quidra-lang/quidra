@@ -474,6 +474,8 @@ declare float @powf(float, float)
 )LLVM"),
     declare(runtime_abi::numeric::integer_pow_signed),
     declare(runtime_abi::numeric::integer_pow_unsigned),
+    declare(runtime_abi::numeric::integer_factorial_signed),
+    declare(runtime_abi::numeric::integer_factorial_unsigned),
     verbatim(R"LLVM(declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64)
 declare { i64, i1 } @llvm.ssub.with.overflow.i64(i64, i64)
 declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)

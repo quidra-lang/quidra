@@ -126,7 +126,8 @@ std::string spell(const Expr& expression, int depth = 0) {
         return base(*index->base) + "[...]";
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data))
-        return unary->op + spell(*unary->operand, depth + 1);
+        return unary->op == "!" ? spell(*unary->operand, depth + 1) + "!"
+                                : unary->op + spell(*unary->operand, depth + 1);
     if (const auto* binary = std::get_if<BinaryExpr>(&expression.data))
         return spell(*binary->left, depth + 1) + " " + binary->op + " " +
                spell(*binary->right, depth + 1);

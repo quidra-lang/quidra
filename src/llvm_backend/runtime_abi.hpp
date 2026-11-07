@@ -293,7 +293,7 @@ inline constexpr LlvmCallee repeat_text =
     llvm_callee<decltype(&quidra_string_repeat_text)>("quidra_string_repeat_text");
 } // namespace text
 
-// Integer and float conversions, formatting, parsing and integer powers.
+// Integer and float conversions, formatting, parsing, powers and factorials.
 namespace numeric {
 inline constexpr LlvmCallee integer_text_signed =
     llvm_callee<decltype(&quidra_integer_text_signed)>("quidra_integer_text_signed");
@@ -321,6 +321,10 @@ inline constexpr LlvmCallee integer_pow_signed =
     llvm_callee<decltype(&quidra_integer_pow_signed)>("quidra_integer_pow_signed");
 inline constexpr LlvmCallee integer_pow_unsigned =
     llvm_callee<decltype(&quidra_integer_pow_unsigned)>("quidra_integer_pow_unsigned");
+inline constexpr LlvmCallee integer_factorial_signed =
+    llvm_callee<decltype(&quidra_integer_factorial_signed)>("quidra_integer_factorial_signed");
+inline constexpr LlvmCallee integer_factorial_unsigned =
+    llvm_callee<decltype(&quidra_integer_factorial_unsigned)>("quidra_integer_factorial_unsigned");
 inline constexpr LlvmCallee parse_signed =
     llvm_callee<decltype(&quidra_parse_signed)>("quidra_parse_signed");
 inline constexpr LlvmCallee parse_unsigned =
@@ -493,6 +497,8 @@ inline constexpr LlvmCallee int_neg =
     llvm_callee<decltype(&quidra_int_neg)>("quidra_int_neg");
 inline constexpr LlvmCallee int_pow =
     llvm_callee<decltype(&quidra_int_pow)>("quidra_int_pow");
+inline constexpr LlvmCallee int_factorial =
+    llvm_callee<decltype(&quidra_int_factorial)>("quidra_int_factorial");
 inline constexpr LlvmCallee int_compare =
     llvm_callee<decltype(&quidra_int_compare)>("quidra_int_compare");
 inline constexpr LlvmCallee int_text =

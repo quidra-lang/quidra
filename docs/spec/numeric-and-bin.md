@@ -143,7 +143,7 @@ operator.
 
 ## Factorial
 
-> Specified for `develop`. Compiler support is pending.
+Postfix factorial is implemented on `develop`.
 
 Postfix `n!` computes the factorial of a non-negative integer scalar. The
 result is `1` for `0!` and the product of `1` through `n` otherwise. It keeps

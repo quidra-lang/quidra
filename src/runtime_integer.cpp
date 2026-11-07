@@ -679,6 +679,56 @@ extern "C" long long quidra_int_pow(
     }
     return canonical_word(std::move(result));
 }
+extern "C" long long quidra_int_factorial(
+    long long value, unsigned long long line, unsigned long long column) {
+    const WordValue operand(value);
+    const auto& bound = operand.get();
+    if (bound.sign < 0)
+        quidra::runtime::report_failure(abi::FailureReason::factorial_negative, {}, line, column);
+    const auto one = BigInt::from_u64(1);
+    auto result = one;
+    for (auto factor = BigInt::from_u64(2); cmp(factor, bound) <= 0; factor = add(factor, one))
+        result = mul(result, factor);
+    return canonical_word(std::move(result));
+}
+
+namespace {
+unsigned long long factorial_limit(int bits, bool is_signed,
+                                   unsigned long long line, unsigned long long column) {
+    if (bits != 8 && bits != 16 && bits != 32 && bits != 64)
+        exact_fail("invalid integer factorial width", line, column);
+    if (is_signed) return (1ULL << (bits - 1)) - 1ULL;
+    return bits == 64 ? ~0ULL : (1ULL << bits) - 1ULL;
+}
+
+unsigned long long fixed_factorial(unsigned long long value, unsigned long long limit,
+                                  unsigned long long line, unsigned long long column) {
+    unsigned long long result = 1;
+    for (unsigned long long factor = 2; factor <= value; ++factor) {
+        // Every supported width overflows by 21!, before the loop counter
+        // can wrap, including an input of UINT64_MAX.
+        if (result > limit / factor)
+            quidra::runtime::report_failure(abi::FailureReason::integer_overflow, {}, line, column);
+        result *= factor;
+    }
+    return result;
+}
+} // namespace
+
+extern "C" long long quidra_integer_factorial_signed(
+    long long value, int bits, unsigned long long line, unsigned long long column) {
+    if (value < 0)
+        quidra::runtime::report_failure(abi::FailureReason::factorial_negative, {}, line, column);
+    return static_cast<long long>(fixed_factorial(static_cast<unsigned long long>(value),
+                                                factorial_limit(bits, true, line, column),
+                                                line, column));
+}
+
+extern "C" unsigned long long quidra_integer_factorial_unsigned(
+    unsigned long long value, int bits, unsigned long long line, unsigned long long column) {
+    return fixed_factorial(value, factorial_limit(bits, false, line, column), line, column);
+}
+
 extern "C" int quidra_int_compare(long long left, long long right) {
     if (!word_boxed(left) && !word_boxed(right))
         return (left > right) - (left < right);

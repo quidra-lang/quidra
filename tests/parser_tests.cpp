@@ -1449,5 +1449,46 @@ int main() {
                 "a comparison after an ordinary operator method is not generic syntax");
     }
 
+    {
+        auto p = parse("power := 2 ^ 3!\nnegative := -3!\nindexed := values[0]!\n"
+                       "grouped := (3!)!\nmarked := .counter.next()!\nint[3!] shaped\n"
+                       "different := 3! != 4!\n");
+        const auto value = [&](std::size_t index) -> const Expr& {
+            return *std::get<BindingStmt>(p.statements[index]->data).value;
+        };
+        const auto& power = std::get<BinaryExpr>(value(0).data);
+        require(power.op == "^" && std::get<UnaryExpr>(power.right->data).op == "!",
+                "factorial binds before power");
+        const auto& negative = std::get<UnaryExpr>(value(1).data);
+        require(negative.op == "-" && std::get<UnaryExpr>(negative.operand->data).op == "!",
+                "factorial binds before unary minus");
+        require(std::holds_alternative<IndexExpr>(std::get<UnaryExpr>(value(2).data).operand->data),
+                "indexing precedes factorial");
+        require(std::get<UnaryExpr>(std::get<UnaryExpr>(value(3).data).operand->data).op == "!",
+                "grouping permits a second factorial");
+        require(std::holds_alternative<MethodCallExpr>(std::get<UnaryExpr>(value(4).data).operand->data),
+                "marked call precedes factorial");
+        const auto& shape = std::get<BindingStmt>(p.statements[5]->data).declared_type;
+        require(std::get<UnaryExpr>(shape.dimension_expressions.at(0)->data).op == "!",
+                "array extent admits factorial");
+        require(std::get<BinaryExpr>(value(6).data).op == "!=", "factorial preserves inequality tokenization");
+        reject("value := 3!!\n");
+        reject("value := 3!.b16\n");
+        reject("value := !3\n");
+        auto wrapped = parse("value := ((\n    input!\n))\n");
+        const auto& operation = std::get<UnaryExpr>(
+            std::get<BindingStmt>(wrapped.statements[0]->data).value->data);
+        require(operation.op_span.start.line == 2 && operation.op_span.start.column == 10,
+                "factorial token position survives enclosing parentheses");
+        auto interpolated = parse("text := \"x {input!}\"\n");
+        const auto& template_value = std::get<StringTemplateExpr>(
+            std::get<BindingStmt>(interpolated.statements[0]->data).value->data);
+        const auto& template_factorial = std::get<UnaryExpr>(template_value.expressions[0]->data);
+        require(template_factorial.op_span.start.line == 1 && template_factorial.op_span.start.column == 18,
+                "factorial token position relocates inside interpolation");
+        require(format_source("answer:=5 ! - 1\n") == "answer := 5! - 1\n",
+                "formatter treats factorial as an expression end");
+    }
+
     std::cout << "all parser tests passed\n";
 }

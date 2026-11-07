@@ -74,7 +74,7 @@ static std::int64_t execute(const Module& module, const Function& stub, const Di
             else if (const auto* n = std::get_if<StoreLocal>(&instruction)) locals[n->name] = values.at(n->value);
             else if (std::holds_alternative<DeclareLocal>(instruction)) {}
             else if (const auto* n = std::get_if<TensorIsTracked>(&instruction)) values[n->out] = values.at(n->tensor) ? input.other_tracked : input.tracked;
-            else if (const auto* n = std::get_if<Unary>(&instruction)) { check(n->op == "!", "unsupported unary guard"); values[n->out] = !values.at(n->operand); }
+            else if (const auto* n = std::get_if<Unary>(&instruction)) { check(n->op == "not", "unsupported unary guard"); values[n->out] = !values.at(n->operand); }
             else if (const auto* n = std::get_if<Binary>(&instruction)) {
                 const auto a = values.at(n->left), b = values.at(n->right);
                 if (n->op == "==") values[n->out] = a == b;

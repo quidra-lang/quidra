@@ -26,7 +26,7 @@ static_assert(abi::bare_integer_layout::boxed_bit == 1 &&
               abi::bare_integer_layout::inline_max == 4611686018427387903LL &&
               abi::bare_integer_layout::bytes == 8);
 
-constexpr std::array<const llvm_text::LlvmCallee*, 25> declarations{{
+constexpr std::array<const llvm_text::LlvmCallee*, 26> declarations{{
     &runtime_abi::bare_integer_support::int_add,
     &runtime_abi::bare_integer_support::int_sub,
     &runtime_abi::bare_integer_support::int_mul,
@@ -34,6 +34,7 @@ constexpr std::array<const llvm_text::LlvmCallee*, 25> declarations{{
     &runtime_abi::bare_integer_support::int_rem,
     &runtime_abi::bare_integer_support::int_neg,
     &runtime_abi::bare_integer_support::int_pow,
+    &runtime_abi::bare_integer_support::int_factorial,
     &runtime_abi::bare_integer_support::int_compare,
     &runtime_abi::bare_integer_support::int_text,
     &runtime_abi::bare_integer_support::int_parse,
@@ -202,6 +203,12 @@ slow:
 define internal i64 @quidra.int.pow(i64 %a, i64 %b, i64 %line, i64 %column) {
 entry:
   %r = call i64 @quidra_int_pow(i64 %a, i64 %b, i64 %line, i64 %column)
+  ret i64 %r
+}
+
+define internal i64 @quidra.int.factorial(i64 %a, i64 %line, i64 %column) {
+entry:
+  %r = call i64 @quidra_int_factorial(i64 %a, i64 %line, i64 %column)
   ret i64 %r
 }
 

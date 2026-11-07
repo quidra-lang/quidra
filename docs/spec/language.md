@@ -1,6 +1,6 @@
 # Quidra Language Specification
 
-The [factorial](numeric-and-bin.md#factorial) and [matrix multiplication operator](#matrix-multiplication-operator) sections record the approved `develop` contracts and identify the features awaiting implementation.
+The [factorial](numeric-and-bin.md#factorial) section records the implemented `develop` contract. The [matrix multiplication operator](#matrix-multiplication-operator) section records its approved contract and pending compiler support.
 
 ## Source structure
 

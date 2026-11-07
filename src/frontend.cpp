@@ -173,7 +173,7 @@ ExprPtr clone_literal_initializer(const Expr& source, SourceSpan use_span) {
         return result;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&source.data); unary && unary->op == "-") {
-        result->data = UnaryExpr{unary->op, clone_literal_initializer(*unary->operand, use_span)};
+        result->data = UnaryExpr{unary->op, clone_literal_initializer(*unary->operand, use_span), unary->op_span};
         return result;
     }
     if (const auto* binary = std::get_if<BinaryExpr>(&source.data);
@@ -288,7 +288,7 @@ ExprPtr clone_package_constant_expression(const Expr& source, SourceSpan use_spa
     if (const auto* unary = std::get_if<UnaryExpr>(&source.data)) {
         result->data = UnaryExpr{
             unary->op,
-            clone_package_constant_expression(*unary->operand, use_span)};
+            clone_package_constant_expression(*unary->operand, use_span), use_span};
         return result;
     }
     if (const auto* binary = std::get_if<BinaryExpr>(&source.data)) {
@@ -6844,7 +6844,7 @@ private:
             out->data = MemberExpr{std::move(base), node->name};
         } else if (const auto* node = std::get_if<UnaryExpr>(&source.data)) {
             out->data = UnaryExpr{
-                node->op, clone_expr(*node->operand, substitution, deferred, current_class)};
+                node->op, clone_expr(*node->operand, substitution, deferred, current_class), node->op_span};
         } else if (const auto* node = std::get_if<BinaryExpr>(&source.data)) {
             if (is_relational_operator(node->op))
                 reject_misread_generic_call(*node->right, node->op_span, current_class);

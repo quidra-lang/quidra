@@ -16,7 +16,7 @@ enum class TokenKind {
     Assign, PlusAssign, MinusAssign, StarAssign, SlashAssign, PercentAssign,
     Plus, Minus, Star, Slash, Percent, Caret, Hash,
     EqEq, NotEq, Less, LessEq, Greater, GreaterEq,
-    KwLocal, DeclareAssign
+    KwLocal, DeclareAssign, Bang
 };
 
 struct Token {

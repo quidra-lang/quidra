@@ -175,6 +175,19 @@ lengths must match before the body starts (`FOR_LENGTH` otherwise); empty
 matching arrays have no iterations. The initial form supports Array values
 only, with no reference, range, traversal, pattern or explicit index mixtures.
 
+## Length shorthand
+
+Prefer `#value` for a length query. It is exactly the ordinary zero-argument
+`value.len()` call, including on custom/generic classes and visible extensions;
+future classes need only define an applicable `len` method. Keep `.len()` method
+definitions and explicit calls valid. Built-in array/string/bin lengths are
+`nat`; user methods retain their declared return types and all normal access,
+default-argument, initialization, error and mutation-marker checks apply.
+The receiver is evaluated once. `#matrix[0]` counts a row, `#values ^ 2`
+squares a length, and `0:<#values` uses a length as a range bound.
+Use `#(a + b)` for a compound receiver and `(#value).member` to access the
+length result. Do not infer a `len` method for a type that only has `size()`.
+
 ## Local declaration scope
 
 `local` precedes `const` or the declared type. It is optional in ordinary function/if/for blocks and ordinary function parameters. Names become visible at their declaration and remain visible only in that block and its inner control blocks. A local does not become a class member or implicitly enter another function/class definition. At class body level and in class headers, use it for initialization-only temporaries.

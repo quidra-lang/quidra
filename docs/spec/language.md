@@ -356,6 +356,45 @@ counter := Counter(0)
 print(.counter())
 ```
 
+## Length shorthand
+
+`#value` is the prefix shorthand for the ordinary zero-argument call
+`value.len()`. It is available for every type on which that call resolves,
+including user-defined classes, generic classes and visible extension methods.
+Defining an applicable `len` method automatically enables `#`; no operator
+declaration or type registration is needed. `.len()` remains available and
+`len` remains an ordinary identifier.
+
+The shorthand inherits the method's return type, accessibility, omitted-argument
+defaults, initialization requirements, failure behavior and mutation-marker
+rules. In particular, it cannot silently invoke a mutating `len` or omit a
+required argument. An explicit `.#value` marks the same call chain as
+`.value.len()` when a mutation marker is required. User-defined methods keep their declared result types;
+built-in array, string and `bin` lengths return `nat`. They count outer array
+elements, Unicode code points and bits respectively. An array's length does
+not read its elements, so it can be queried before those elements are initialized.
+
+```quidra
+class Group(string[] members)
+    nat len()
+        return #members
+
+group := Group(["Aki", "Yui", "Haru"])
+println(#group)      // 3, exactly as group.len()
+matrix := [[1, 2, 3], [4, 5, 6]]
+println(#matrix)     // 2
+println(#matrix[0])  // 3
+```
+
+The receiver is evaluated once. Postfix calls, indexing and member access bind
+inside the receiver, while exponentiation and arithmetic bind outside it:
+`#matrix[0]` means `matrix[0].len()` and `#values ^ 2` means
+`values.len() ^ 2`. To select or call a member on the length result, write
+`(#value).member`. A following range uses the length as its bound, as in
+`0:<#values` or `#values>:0`; parenthesize a range or another compound receiver
+to count its result, as in `#(0:3)` or `#(left + right)`. Nested `##value`
+means `value.len().len()` and requires both calls to resolve normally.
+
 ## Evaluation order, execution order and numeric determinism
 
 ```quidra

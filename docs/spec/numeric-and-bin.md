@@ -451,7 +451,7 @@ ones := bin.fill(5, 1)
 bin | error pattern := bin("01010000")
 ```
 
-`bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `value.len()` returns the bit count as `nat`. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
+`bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `#value` (equivalently `value.len()`) returns the bit count as `nat`. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
 
 A written bit pattern is parsed rather than given a separate binary literal grammar:
 

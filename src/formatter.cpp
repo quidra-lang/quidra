@@ -221,6 +221,8 @@ std::optional<std::string> canonical_gap(
         return "";
     }
 
+    if(previous==TokenKind::Hash) return "";
+    if(current==TokenKind::Hash && word_like(previous)) return " ";
     if(previous==TokenKind::Ampersand) return "";
     if(current==TokenKind::Ampersand) {
         if(previous==TokenKind::LParen||previous==TokenKind::LBracket) return "";

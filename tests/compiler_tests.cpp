@@ -4072,7 +4072,69 @@ static void integer_radix_members() {
     }
 }
 
+static void length_shorthand() {
+    good("nat a := #[1, 2, 3]\nnat b := #\"é日\"\nnat c := #bin.fill(7, 0)\n"
+         "int[4] pending\nnat d := #pending\n"
+         "matrix := [[1, 2], [3, 4]]\nnat e := #matrix[0]\n"
+         "nat f := #matrix ^ 2\nint[#matrix] sized\n"
+         "tensor<real32>{#matrix} shaped := tensor.zeros([2])\n"
+         "for: 0 <= index < #matrix\n    println(index)\n"
+         "for item := (0:<#matrix)[]\n    println(item)\n"
+         "println(\"{#matrix}\")\n");
+    good("class Group(string[] members)\n"
+         "    nat len()\n        return #members\n"
+         "group := Group([\"Aki\", \"Yui\"])\nnat n := #group\n");
+    good("class DefaultLength()\n"
+         "    nat len(nat extra := 0)\n        return 3 + extra\n"
+         "item := DefaultLength()\nnat n := #item\n");
+    good("class DifferentResult()\n"
+         "    string len()\n        return \"custom\"\n"
+         "item := DifferentResult()\nstring n := #item\n");
+    good("class Fallible()\n"
+         "    nat | error len()\n        return 3\n"
+         "item := Fallible()\nnat | error n := #item\n"
+         "nat | error read(Fallible value)\n    return try #value\n");
+    good("class Box<T>(T[] values)\n"
+         "    nat len()\n        return #values\n"
+         "box := Box<int>([1, 2])\nnat n := #box\n");
+    good("class Extended()\n"
+         "nat len(extend Extended value)\n    return 3\n"
+         "value := Extended()\nnat n := #value\n");
+    good("class Inner()\n    nat len()\n        return 2\n"
+         "class Outer()\n    Inner len()\n        return Inner()\n"
+         "nat n := ##Outer()\n");
+    good("class Marked()\n    nat .len()\n        return 3\n"
+         "item := Marked()\nnat n := .#item\n");
+
+    // Both spellings go through the same checker. In particular, # does not
+    // waive required arguments, private access, initialization or effects.
+    for (const auto& prefix : {
+             std::string("value := 3\n"),
+             std::string("class Item()\n    nat len(nat required)\n        return required\nvalue := Item()\n"),
+             std::string("class Item()\n    private nat len()\n        return 3\nvalue := Item()\n"),
+             std::string("class Item()\n    nat .len()\n        return 3\nvalue := Item()\n"),
+             std::string("string value\n")}) {
+        std::string expected;
+        try { (void)quidra::check(prefix + "println(value.len())\n"); }
+        catch (const quidra::CompileError& error) { expected = error.diagnostic().code; }
+        catch (const quidra::CompileErrors& errors) { expected = errors.diagnostics().front().code; }
+        if (expected.empty()) {
+            std::cerr << "invalid len control was accepted:\n" << prefix;
+            std::exit(1);
+        }
+        bad_code(prefix + "println(#value)\n", expected);
+    }
+    const auto formatted = quidra::format_source("values:=[1,2]\ncount:=# values\nprintln( # values )\n");
+    if (formatted != "values := [1, 2]\ncount := #values\nprintln(#values)\n" ||
+        quidra::format_source(formatted) != formatted) {
+        std::cerr << "length shorthand formatting is not stable:\n" << formatted;
+        std::exit(1);
+    }
+    good(formatted);
+}
+
 int main(){
+    length_shorthand();
  integer_radix_members();
  good("x := 9223372036854775808\nint exact := x\n");
  // Defaults remain arbitrary precision until a concrete context is present.

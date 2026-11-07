@@ -194,7 +194,14 @@ marked_call      = ".", postfix ;   (* the postfix must end in a call *)
    where an operand starts is always a marker; a member access follows a complete operand. In a
    type, the `.` of a qualified name touches the name before it, so `T .name(` declares a marked
    function. *)
-postfix          = primary, { generic_call | direct_call | index_suffix | member_suffix } ;
+postfix          = { "#" }, primary,
+                   { generic_call | direct_call | index_suffix | member_suffix } ;
+(* #value resolves exactly as value.len(), including custom/generic classes,
+   visible extensions, default arguments, return types, errors and access/effect
+   checks. Its receiver includes postfix selectors, but excludes an unparenthesized
+   range: #rows[0] counts a row, #rows ^ 2 squares its length, 0:<#rows and
+   #rows>:0 use lengths as bounds, and #(0:3) counts the generated range.
+   A recursive # prefix is limited by the normal parser nesting limit. *)
 generic_call     = type_arguments, "(", [ arguments ], ")" ;
 direct_call      = "(", [ arguments ], ")" ;
 (* Type calls reuse direct_call. A single string argument to a numeric
@@ -210,6 +217,7 @@ slice_end        = [ "<" | ">" ], expression ;   (* a marker touches the colon *
 member_suffix    = ".", identifier, [ type_arguments ],
                    [ "(", [ arguments ], ")" ] ;
 (* The zero-argument method .len() is defined on arrays, strings and bin;
+   #value is its general shorthand, including user-defined len methods.
    len is an ordinary identifier, not a bare built-in function. *)
 (* Integer radix string members b2..b36 and B2..B36 use ordinary identifiers
    and member access, without a call: 255.b16 and (-255).B16. Their integer

@@ -1469,6 +1469,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_line_io COMMAND bash ${CMAKE_SOURCE_DIR}/tests/line_io_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/line-io-tests)
     add_test(NAME quidra_semantic_apis COMMAND bash ${CMAKE_SOURCE_DIR}/tests/semantic_apis_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/semantic-apis-tests)
     add_test(NAME quidra_nat_lengths COMMAND bash ${CMAKE_SOURCE_DIR}/tests/nat_length_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_length_operator COMMAND bash ${CMAKE_SOURCE_DIR}/tests/length_operator_tests.sh $<TARGET_FILE:quidra> ${CMAKE_BINARY_DIR}/length-operator-tests)
     add_test(NAME quidra_exact_real_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/exact_real_cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     # No visible NaN or infinity: real operations whose results are not finite.
     add_test(NAME quidra_nonfinite COMMAND bash ${CMAKE_SOURCE_DIR}/tests/nonfinite_tests.sh $<TARGET_FILE:quidra>)

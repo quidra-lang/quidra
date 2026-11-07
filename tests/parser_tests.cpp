@@ -1294,5 +1294,34 @@ int main() {
     reject_code("output := [for: 0 <= int x < 3 then x]\n", "ARRAY_COMPREHENSION");
     reject_code("int[] values := []\noutput := [for int x := values[] x]\n", "ARRAY_COMPREHENSION");
 
+    {
+        auto p = parse("count := #values\nrow := #matrix[0]\n"
+                       "square := #values ^ 2\nbound := 0:<#values\n"
+                       "nested := ##values\n");
+        const auto call_at = [&](std::size_t index) -> const MethodCallExpr& {
+            return std::get<MethodCallExpr>(
+                std::get<BindingStmt>(p.statements[index]->data).value->data);
+        };
+        require(call_at(0).method == "len" && call_at(0).args.empty(),
+                "length shorthand is an ordinary zero-argument len method call");
+        require(std::holds_alternative<IndexExpr>(call_at(1).receiver->data),
+                "length shorthand takes postfix selectors as its receiver");
+        const auto& square = std::get<BinaryExpr>(
+            std::get<BindingStmt>(p.statements[2]->data).value->data);
+        require(square.op == "^" && std::holds_alternative<MethodCallExpr>(square.left->data),
+                "length shorthand binds before exponentiation");
+        const auto& range = std::get<CallExpr>(
+            std::get<BindingStmt>(p.statements[3]->data).value->data);
+        require(std::holds_alternative<MethodCallExpr>(range.args[1].value->data),
+                "length shorthand is valid in a range bound");
+        require(std::holds_alternative<MethodCallExpr>(call_at(4).receiver->data),
+                "nested length shorthand is recursively desugared");
+        const auto& first = *std::get<BindingStmt>(p.statements[0]->data).value;
+        require(first.span.start.column == 10 && call_at(0).receiver->span.start.column == 11,
+                "length call and receiver preserve separate source spans");
+    }
+
+    reject_code("count := " + std::string(512, '#') + "values\n", "PARSE_DEPTH");
+
     std::cout << "all parser tests passed\n";
 }

@@ -62,6 +62,7 @@ Common forms therefore have deliberately narrow jobs:
 | `T \| error result := operation()` | retain an otherwise fail-fast failure channel |
 | `try` | propagate `error` |
 | `T(value)` | explicit representation conversion |
+| `#value` | the ordinary zero-argument `value.len()` call |
 | `tensor<T>{3, _, _}` | element type plus exact rank/shape constraints |
 | `(T, U)` | a fixed tuple of independently typed values |
 | `.update()` | a visible call that changes existing state |
@@ -360,6 +361,29 @@ bin | error parsed := bin("0101")
 returns another `bin`. `bin(text)` parses written bits and `string(data)` gives
 the exact 0/1 sequence. Binary-to-numeric interpretation is explicit, for
 example `nat8(bits)`, and the bit length must match the destination width.
+
+### Length shorthand
+
+Use `#value` wherever `value.len()` can be called without explicit arguments.
+This includes arrays, strings, `bin`, user-defined/generic classes and visible
+extension methods; defining an applicable `len()` automatically enables `#`.
+Both spellings retain the same result type, errors, accessibility and effect
+rules. Standard lengths return `nat` and count outer array elements, Unicode
+code points or bits.
+
+```quidra
+class Group(string[] members)
+    nat len()
+        return #members
+
+group := Group(["Aki", "Yui", "Haru"])
+println(#group)
+```
+
+The receiver is evaluated once. `#matrix[0]` counts the selected row;
+`#values ^ 2` squares the length. Use parentheses for a compound receiver,
+as in `#(left + right)`, or to access the result, as in `(#values).b16`.
+See [length shorthand](docs/spec/language.md#length-shorthand).
 
 ### Strings
 

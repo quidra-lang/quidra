@@ -2739,7 +2739,24 @@ ExprPtr Parser::range_from(ExprPtr begin_value, SourcePos begin) {
 }
 
 ExprPtr Parser::postfix() {
-    auto e = primary();
+    ExprPtr e;
+    if (match(TokenKind::Hash)) {
+        const auto hash = previous();
+        ParseDepthGuard depth(unary_depth_, max_parse_depth, hash, "Length expression");
+        ExprPtr receiver;
+        {
+            // Selectors and calls are part of the receiver, while a following
+            // range uses its length as the bound: #rows[0], 0:<#rows.
+            // Parentheses reset the range flag, so #(0:3) counts a range.
+            FlagScope no_nested_range(slice_start_marker_stop_, true);
+            receiver = postfix();
+        }
+        e = std::make_unique<Expr>();
+        e->span = SourceSpan{hash.span.start, receiver->span.end};
+        e->data = MethodCallExpr{std::move(receiver), "len", {}, {}};
+    } else {
+        e = primary();
+    }
     for (;;) {
         if(collection_header_source_ && at_collection_suffix()) break;
         if (at(TokenKind::LBracket) && peek(1).kind == TokenKind::RBracket &&

@@ -75,7 +75,8 @@ match preserved_error
         println(problem.code == "ORIGINAL_ERROR")
 QUI
 "$QUIDRA" run "$TMP/bindings.qui" > "$TMP/actual"
-diff -u <(printf 'true\n%.0s' {1..13}) "$TMP/actual"
+printf 'true\n%.0s' {1..13} > "$TMP/bindings.expected"
+diff -u "$TMP/bindings.expected" "$TMP/actual"
 
 # Literal/generator destinations convert each value after its own numeric
 # materialization; heterogeneous numeric source representations are valid.
@@ -102,7 +103,8 @@ println(make_ancestors(1) == [1])
 println(keep_ancestors([nat(ancestor)].concat([])) == [0])
 QUI
 "$QUIDRA" run "$TMP/contextual_arrays.qui" > "$TMP/contextual_arrays.actual"
-diff -u <(printf 'true\n%.0s' {1..6}) "$TMP/contextual_arrays.actual"
+printf 'true\n%.0s' {1..6} > "$TMP/contextual_arrays.expected"
+diff -u "$TMP/contextual_arrays.expected" "$TMP/contextual_arrays.actual"
 
 cat > "$TMP/compound.qui" <<'QUI'
 real32 delta := 0.0
@@ -147,7 +149,8 @@ holder := Holder(&old_value)
 println(old_value == 16777217 and next == 16777216)
 QUI
 "$QUIDRA" run "$TMP/compound.qui" > "$TMP/compound.actual"
-diff -u <(printf 'true\n%.0s' {1..7}) "$TMP/compound.actual"
+printf 'true\n%.0s' {1..7} > "$TMP/compound.expected"
+diff -u "$TMP/compound.expected" "$TMP/compound.actual"
 
 fails() {
     local name="$1" status=0
@@ -231,7 +234,7 @@ rejects() {
         printf 'case %s unexpectedly accepted\n' "$name" >&2
         return 1
     fi
-    grep -q 'TYPE_MISMATCH\|SPECIALIZATION_NO_MATCH\|UNKNOWN_MEMBER' "$TMP/$name.err"
+    grep -Eq 'TYPE_MISMATCH|SPECIALIZATION_NO_MATCH|UNKNOWN_MEMBER' "$TMP/$name.err"
 }
 for declaration in 'bool source := true' 'string source := "1"' 'bin source := bin("01")' 'com32 source := 1.0 + 0.0i'; do
     for destination in int32 real32; do

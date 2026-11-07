@@ -1322,6 +1322,18 @@ int main() {
     }
 
     reject_code("count := " + std::string(512, '#') + "values\n", "PARSE_DEPTH");
+    {
+        auto p = parse("int[#values] sized\nint[#matrix[0]] selected\n"
+                       "int[#\"ab\"] text\nint[#[1, 2]] literal\n"
+                       "int[#(left + right)] combined\n");
+        for (const auto& statement : p.statements) {
+            const auto& binding = std::get<BindingStmt>(statement->data);
+            require(binding.declared_type.dimension_expressions.size() == 1 &&
+                    std::holds_alternative<MethodCallExpr>(
+                        binding.declared_type.dimension_expressions[0]->data),
+                    "declaration lookahead accepts length shorthand in array dimensions");
+        }
+    }
 
     std::cout << "all parser tests passed\n";
 }

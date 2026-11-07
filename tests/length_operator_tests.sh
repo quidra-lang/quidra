@@ -34,10 +34,10 @@ int[] | error make_fallible(int &calls)
     calls += 1
     return [4, 5]
 
-int hidden_calls := 0
-int[] .make_hidden()
-    hidden_calls += 1
-    return [6]
+class Factory(int calls)
+    int[] .make()
+        calls += 1
+        return [6]
 
 class Marked(int count)
     nat .len()
@@ -61,8 +61,9 @@ println(#(0:<#values))
 println(#(#values>:0))
 println(#make_fallible(&evaluations))
 println(evaluations)
-println(.#make_hidden())
-println(hidden_calls)
+factory := Factory(0)
+println(.#factory.make())
+println(factory.calls)
 marked := Marked(0)
 println(.#marked)
 println(marked.count)

@@ -146,7 +146,8 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
             const auto kind = tokens[index].kind;
             if (parens == 0 && (kind == end_a || kind == end_b)) break;
             if (expect_operand) {
-                if (kind == TokenKind::Plus || kind == TokenKind::Minus) {
+                if (kind == TokenKind::Plus || kind == TokenKind::Minus ||
+                    kind == TokenKind::Hash) {
                     ++index;
                     continue;
                 }
@@ -286,11 +287,10 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     };
     skip_nested_reference();
     while (index < tokens.size() && tokens[index].kind == TokenKind::LBracket) {
-        ++index;
-        if (index < tokens.size() && tokens[index].kind != TokenKind::RBracket) {
-            if (!scan_integer_expr(TokenKind::RBracket, TokenKind::RBracket)) return false;
-        }
-        if (index >= tokens.size() || tokens[index++].kind != TokenKind::RBracket) return false;
+        // Extents are ordinary expressions, including #matrix[0], #"text"
+        // and #[1, 2]. Only recognize their balanced boundary here; type_name
+        // parses the expression and the checker enforces the count type.
+        if (!skip_balanced(tokens, index, TokenKind::LBracket, TokenKind::RBracket)) return false;
     }
     skip_nested_reference();
     if (index < tokens.size() && tokens[index].kind == TokenKind::Pipe) {

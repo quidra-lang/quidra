@@ -339,22 +339,53 @@ When a function or method returns a class value, the checker records the field p
 
 ### Callable classes
 
-A class may define a single method named `operator` to make its instances
-callable. This follows ordinary method and mutation authority rules, not a
-separate overload namespace. `value(args)` calls a read-only operator and
-`.value(args)` calls a mutating operator. The method is declared
-`Result operator(args)` or `Result .operator(args)`, never `operator()`
-as a method name. The ordinary no-overloading rule still applies.
+A class may define a method named `operator()` to make its instances callable.
+The operator name is followed by its parameter list: `Result operator()()` has
+no arguments, and `Result operator()(T value)` has one. `value(args)` calls a
+read-only operator; `.value(args)` calls a method declared
+`Result .operator()(args)`. Both follow ordinary method and mutation authority
+rules. Bare `operator` remains an ordinary identifier, not a callable alias.
 
 ```quidra
 class Counter(int value)
-    int .operator()
+    int .operator()()
         value += 1
         return value
 
 counter := Counter(0)
 print(.counter())
 ```
+
+### Class index operators
+
+A class may define `Result operator[](parameters)` for `value[arguments]`.
+At least one parameter is required. String keys, multiple indices, default
+parameters and generic classes use the ordinary rules for positional value
+arguments, including checked numeric conversions. Named arguments and writable
+reference arguments are not part of the index-list syntax. The receiver and arguments are evaluated once,
+left to right. A mutating index method is declared
+`Result .operator[](parameters)` and called as `.value[arguments]`.
+
+```quidra
+class Values(int[] data)
+    int operator()()
+        return data.sum()
+    int operator[](int index)
+        return data[index]
+
+values := Values([10, 20, 30])
+println(values())   // 60
+println(values[1])  // 20
+```
+
+Each operator has one ordinary definition per class, so `operator()` and
+`operator[]` can coexist without creating an overload set. Access control,
+value copying, typed errors and mutation effects are those of ordinary methods.
+Index results are values, never assignment targets or writable references.
+The methods can also be called explicitly as `value.operator()(args)` and
+`value.operator[](keys)`, using ordinary method-call argument syntax.
+Slice syntax is not passed to a class index operator; empty `[]` remains the
+existing collection-loop suffix. Built-in indexing is unchanged.
 
 ## Length shorthand
 

@@ -88,7 +88,7 @@ bool BorrowInference::expression_mutates_parameter(const Expr& expression, const
                 (((receiver_type.class_name == standard_class::file_read ||
                    receiver_type.class_name == standard_class::file_write ||
                    receiver_type.class_name == standard_class::file_append) &&
-                  node->method == "operator") ||
+                  node->method == "operator()") ||
                  (receiver_type.class_name == standard_class::file_handle &&
                   (node->method == "read" || node->method == "read_line" ||
                    node->method == "read_bin" || node->method == "write" ||

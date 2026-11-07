@@ -112,8 +112,13 @@ std::string spell(const Expr& expression, int depth = 0) {
         if (callee.starts_with("__quidra_")) callee = "...";
         return callee + "(" + arguments(call->args) + ")";
     }
-    if (const auto* method = std::get_if<MethodCallExpr>(&expression.data))
+    if (const auto* method = std::get_if<MethodCallExpr>(&expression.data)) {
+        if (method->method == "operator()")
+            return base(*method->receiver) + "(" + arguments(method->args) + ")";
+        if (method->method == "operator[]")
+            return base(*method->receiver) + "[" + arguments(method->args) + "]";
         return base(*method->receiver) + "." + method->method + "(" + arguments(method->args) + ")";
+    }
     if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
         if (index->items.size() == 1 && !index->items.front().slice && index->items.front().index)
             return base(*index->base) + "[" + spell(*index->items.front().index, depth + 1) + "]";

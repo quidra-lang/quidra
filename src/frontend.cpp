@@ -4717,9 +4717,9 @@ private:
             return named({"read", "read_line", "read_bin", "write", "write_line",
                           "flush", "seek", "close"});
         if (receiver.name == standard_class::file_read)
-            return method == "operator";
+            return method == "operator()";
         if (receiver.name == standard_class::file_write || receiver.name == standard_class::file_append)
-            return method == "operator" || method == "line";
+            return method == "operator()" || method == "line";
         if (receiver.name == "bin") return method == "len";
         auto class_name = receiver.name;
         if (const auto instance = class_instance_types_.find(class_name);
@@ -5393,6 +5393,9 @@ private:
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             auto base = infer_expression_type(*index->base, current_class);
             if (!base) return std::nullopt;
+            if (auto success = non_error_type(*base)) base = std::move(success);
+            if (receiver_has_method(*base, "operator[]"))
+                return method_return_type(base->name, "operator[]");
             if (base->name == "tensor" && base->dimensions.empty()) {
                 if (index->items.size() == 1 && !index->items.front().slice &&
                     index->items.front().index) {
@@ -6526,6 +6529,26 @@ private:
                 if (item.step) cloned.step = clone_expr(*item.step, substitution, deferred, current_class);
                 copy.items.push_back(std::move(cloned));
             }
+            auto receiver = infer_expression_type(*copy.base, current_class);
+            if (receiver) {
+                if (auto success = non_error_type(*receiver)) receiver = std::move(success);
+            }
+            if (receiver && receiver_has_method(*receiver, "operator[]")) {
+                MethodCallExpr indexed;
+                indexed.receiver = std::move(copy.base);
+                indexed.method = "operator[]";
+                for (auto& item : copy.items) {
+                    if (item.slice || !item.index)
+                        frontend_error("INDEX_SYNTAX",
+                                       "A class index operator accepts values, not slices.", item.span);
+                    indexed.args.push_back(CallArg{std::nullopt, false,
+                                                   std::move(item.index), item.span});
+                }
+                Expr rewritten;
+                rewritten.span = source.span;
+                rewritten.data = std::move(indexed);
+                return clone_expr(rewritten, {}, deferred, current_class);
+            }
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<MemberExpr>(&source.data)) {
             auto base = clone_expr(*node->base, substitution, deferred, current_class);
@@ -6601,18 +6624,18 @@ private:
                 return out;
             }
 
-            // A class value with an 'operator' method is invoked through the
+            // A class value with an 'operator()' method is invoked through the
             // ordinary method-call path. Keep direct function calls and
             // function-typed bindings unchanged.
             if (const auto binding = type_environment_.find(copy.callee);
                 binding != type_environment_.end() &&
-                receiver_has_method(binding->second, "operator")) {
+                receiver_has_method(binding->second, "operator()")) {
                 auto receiver = std::make_unique<Expr>();
                 receiver->span = source.span;
                 receiver->data = NameExpr{copy.callee};
                 MethodCallExpr callable;
                 callable.receiver = std::move(receiver);
-                callable.method = "operator";
+                callable.method = "operator()";
                 callable.args = std::move(copy.args);
                 callable.type_arguments = std::move(type_arguments);
                 callable.mutation_marker = copy.mutation_marker;

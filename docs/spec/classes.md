@@ -78,6 +78,15 @@ held. Operations whose failure the caller must handle, such as saving or closing
 an external resource, are explicit operations. Classes do not add a special
 user destructor.
 
+Class operators are ordinary methods with complete operator names. Use
+`Result operator()()` for a zero-argument call, `Result operator()(T value)`
+for a call with an argument, and `Result operator[](T key)` for index access.
+The two operator names may coexist; neither permits ordinary overloading.
+Index operators require at least one parameter and return values, not writable
+storage. Mark a mutating operator definition with `.` before its name and its
+call with `.` before the receiver, as in `.counter()` or `.lookup[key]`.
+See [class operators](language.md#callable-classes).
+
 If initialization changes existing state not exposed by a reference argument,
 the caller uses the usual explicit mutation call marker, such as `.Document(...)`.
 The class header has no separate constructor definition marker; that requirement

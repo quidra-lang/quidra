@@ -40,7 +40,12 @@ class_signature  = "class", qualified_identifier, [ type_parameters ],
 class_prototype  = class_signature, ";", statement_end ;
 class_definition = class_signature, NEWLINE, INDENT,
                    class_item, { class_item | NEWLINE }, DEDENT ;
-class_item       = [ "private" ], ( field | function_definition ) | statement ;
+class_item       = [ "private" ], ( field | method_definition ) | statement ;
+method_definition = type, [ "." ], method_name, [ type_parameters ],
+                    "(", [ parameters ], ")", suite ;
+method_name      = identifier | "operator", "(", ")" | "operator", "[", "]" ;
+(* Complete operator names are class methods only. operator[] requires at least
+   one parameter. A bare operator method name has no callable special meaning. *)
 field            = [ "const" ], type, identifier, [ ":=", expression ], statement_end
                  | [ "const" ], identifier, ":=", expression, statement_end
                  | type, "&", identifier, statement_end
@@ -185,7 +190,7 @@ range_operand    = { "-" }, factorial ;
    the resulting array. Parenthesize compound bounds or steps, e.g. 0:(n + 1).
    Scalar -2 ^ 2 retains the ordinary unary-minus/power precedence. Inside an
    index suffix the colon instead introduces the direct slice grammar below. *)
-marked_call      = ".", postfix ;   (* the postfix must end in a call *)
+marked_call      = ".", postfix ;   (* ends in a call or class operator[] access *)
 (* Mutation markers (L1): `.` before a definition's name (`void .update()`,
    `extern void .set(...)`) declares that the function may change existing state that its `&`
    parameters do not expose, and one `.` before a call's postfix chain (`.update()`,

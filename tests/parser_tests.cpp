@@ -1335,5 +1335,35 @@ int main() {
         }
     }
 
+    {
+        auto p = parse("class Operators(int value)\n"
+                       "    int operator()()\n        return value\n"
+                       "    int operator[](int index)\n        return value + index\n"
+                       "class Mutable(int value)\n"
+                       "    int .operator()(int extra)\n        value += extra\n        return value\n");
+        require(p.classes[0].methods[1].name == "operator()" &&
+                    p.classes[0].methods[1].parameters.empty(),
+                "call operator name is separate from its empty parameter list");
+        require(p.classes[0].methods[2].name == "operator[]" &&
+                    p.classes[0].methods[2].parameters.size() == 1,
+                "index operator has a distinct method name and parameter list");
+        require(p.classes[1].methods[1].name == "operator()" &&
+                    p.classes[1].methods[1].mutation_marker,
+                "call operator retains its definition mutation marker");
+        auto calls = parse("value.operator()()\nvalue.operator[](1)\n"
+                           "value.operator() < limit\n");
+        const auto& call = std::get<MethodCallExpr>(
+            std::get<ExprStmt>(calls.statements[0]->data).value->data);
+        const auto& index = std::get<MethodCallExpr>(
+            std::get<ExprStmt>(calls.statements[1]->data).value->data);
+        require(call.method == "operator()" && call.args.empty() &&
+                    index.method == "operator[]" && index.args.size() == 1,
+                "complete operator names also support explicit method calls");
+        const auto& comparison = std::get<BinaryExpr>(
+            std::get<ExprStmt>(calls.statements[2]->data).value->data);
+        require(std::get<MethodCallExpr>(comparison.left->data).method == "operator",
+                "a comparison after an ordinary operator method is not generic syntax");
+    }
+
     std::cout << "all parser tests passed\n";
 }

@@ -34,9 +34,24 @@ inline constexpr std::string_view internal_prefix = "__quidra_";
 inline constexpr std::string_view http_prefix = "quidra_http_";
 } // namespace symbol_namespace
 
-// `name` as symbol text, appended to `out`: every character outside
-// [A-Za-z0-9_] replaced by '_'.
+// Ordinary names retain their historical sanitized spelling. Full operator
+// names need an injective encoding: replacing both () and [] with underscores
+// would collide with each other and with an ordinary operator__ method. '$'
+// is legal in native/LLVM symbols and cannot be emitted by the ordinary name
+// sanitizer. Preserve the distinction again when naming a generic instance
+// whose prefix already contains this encoding.
 inline void append_symbol_text(std::string& out, std::string_view name) {
+    if (name.find("operator()") != std::string_view::npos ||
+        name.find("operator[]") != std::string_view::npos ||
+        name.find("$op$") != std::string_view::npos) {
+        constexpr std::string_view hex = "0123456789abcdef";
+        out += "$op$";
+        for (unsigned char c : name) {
+            out += hex[c >> 4];
+            out += hex[c & 15];
+        }
+        return;
+    }
     for (char c : name) out += (std::isalnum(static_cast<unsigned char>(c)) || c == '_') ? c : '_';
 }
 

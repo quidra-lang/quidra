@@ -337,9 +337,9 @@ struct StandardMethodEffect {
 // the mutation marker. tensor.track(), retrack() and untrack() return a new
 // value and leave their receiver as it was, so they are not listed.
 inline constexpr std::array<StandardMethodEffect, 16> standard_method_effects{{
-    {standard_class::file_read, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Read},
-    {standard_class::file_write, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
-    {standard_class::file_append, "operator", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
+    {standard_class::file_read, "operator()", StandardMethodChange::SharedState, StandardMethodFileAccess::Read},
+    {standard_class::file_write, "operator()", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
+    {standard_class::file_append, "operator()", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
     {standard_class::file_write, "line", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
     {standard_class::file_append, "line", StandardMethodChange::SharedState, StandardMethodFileAccess::Write},
     {"tensor", "clear_grad", StandardMethodChange::Receiver, StandardMethodFileAccess::None},

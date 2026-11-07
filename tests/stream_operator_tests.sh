@@ -22,7 +22,7 @@ QUI
 
 cat > "$TMP/callable-v2.qui" <<'QUI'
 class Counter(int value)
-    int .operator()
+    int .operator()()
         value += 1
         return value
 
@@ -91,7 +91,7 @@ fi
 
 cat > "$TMP/read-only-operator.qui" <<'QUI'
 class Addition(int offset)
-    int operator(int value)
+    int operator()(int value)
         return offset + value
 
 Addition add := Addition(7)
@@ -101,7 +101,7 @@ QUI
 
 cat > "$TMP/missing-mutation-marker.qui" <<'QUI'
 class Counter(int value)
-    int .operator()
+    int .operator()()
         value += 1
         return value
 
@@ -412,9 +412,9 @@ fi
 # namespace: mutable/immutable variants cannot be overloaded.
 cat > "$TMP/duplicate-call-operator.qui" <<'QUI'
 class Counter(int value)
-    int operator()
+    int operator()()
         return value
-    int .operator()
+    int .operator()()
         value += 1
         return value
 QUI

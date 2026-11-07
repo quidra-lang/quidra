@@ -464,7 +464,15 @@ bool Parser::looks_like_declaration(bool function) const {
         marked = true;
         ++i;
     }
-    if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Identifier) return false;
+    if (i >= tokens_.size() || tokens_[i].kind != TokenKind::Identifier) return false;
+    const auto& name = tokens_[i++];
+    // The empty delimiter pair belongs to the operator name; the following
+    // parentheses contain its actual parameters.
+    if (function && name.text == "operator" && i + 2 < tokens_.size() &&
+        ((tokens_[i].kind == TokenKind::LParen && tokens_[i + 1].kind == TokenKind::RParen) ||
+         (tokens_[i].kind == TokenKind::LBracket && tokens_[i + 1].kind == TokenKind::RBracket)) &&
+        (tokens_[i + 2].kind == TokenKind::LParen || tokens_[i + 2].kind == TokenKind::Less))
+        i += 2;
 
     if (function && i < tokens_.size() && tokens_[i].kind == TokenKind::Less) {
         ++i;
@@ -1174,7 +1182,7 @@ ClassDecl Parser::class_decl() {
             std::optional<ForeignExport> foreign_export;
             if (looks_like_export_prefix()) foreign_export = foreign_export_prefix();
             if (looks_like_declaration(true)) {
-                auto method = function_decl();
+                auto method = function_decl(true);
                 if (!method.parameters.empty() && method.parameters.front().is_extension)
                     error(peek(), "'extend' declares top-level extension functions, not class methods.");
                 method.is_private = is_private;
@@ -1249,12 +1257,20 @@ ExprPtr Parser::parameter_default() {
     return {};
 }
 
-FunctionDecl Parser::function_decl() {
+FunctionDecl Parser::function_decl(bool class_method) {
     const auto declaration_start = peek().span.start;
     auto result=type_name();auto start=declaration_start;
     reject_reference_result(peek());
     const bool marked=definition_marker();
     auto name=consume(TokenKind::Identifier,"Expected function name.");
+    if (name.text == "operator" &&
+        ((at(TokenKind::LParen) && peek(1).kind == TokenKind::RParen) ||
+         (at(TokenKind::LBracket) && peek(1).kind == TokenKind::RBracket)) &&
+        (peek(2).kind == TokenKind::LParen || peek(2).kind == TokenKind::Less)) {
+        if (!class_method) error(name, "Operators are declared as class methods.");
+        name.text += at(TokenKind::LParen) ? "()" : "[]";
+        current_ += 2;
+    }
     std::vector<std::string> type_constraints;
     auto type_parameters=type_parameter_list(&type_constraints);
     consume(TokenKind::LParen,"Expected '('."); std::vector<Parameter> params;
@@ -1283,6 +1299,8 @@ FunctionDecl Parser::function_decl() {
         if(!match(TokenKind::Comma)) break;
     }
     consume(TokenKind::RParen,"Expected ')'.");
+    if (name.text == "operator[]" && params.empty())
+        error(name, "An index operator requires at least one parameter.");
     if (match(TokenKind::Semicolon)) {
         auto end=previous().span.end;
         end_statement("function prototype");
@@ -2627,6 +2645,17 @@ ExprPtr Parser::marked_call() {
         call->mutation_marker = true;
     } else if (auto* method = std::get_if<MethodCallExpr>(&e->data)) {
         method->mutation_marker = true;
+    } else if (auto* index = std::get_if<IndexExpr>(&e->data)) {
+        MethodCallExpr call;
+        call.receiver = std::move(index->base);
+        call.method = "operator[]";
+        call.mutation_marker = true;
+        for (auto& item : index->items) {
+            if (item.slice || !item.index)
+                error(marker, "A class index operator accepts values, not slices.");
+            call.args.push_back(CallArg{std::nullopt, false, std::move(item.index), item.span});
+        }
+        e->data = std::move(call);
     } else {
         error(marker, "'.' marks a call.");
     }
@@ -2811,7 +2840,15 @@ ExprPtr Parser::postfix() {
         if (match(TokenKind::Dot)) {
             const auto start = e->span.start;
             if (at(TokenKind::Integer)) throw CompileError(Diagnostic{"TUPLE", "Tuples have no positional access; destructure the tuple instead.", peek().span});
-            const auto member = consume(TokenKind::Identifier, "Expected member name after '.'.");
+            auto member = consume(TokenKind::Identifier, "Expected member name after '.'.");
+            if (member.text == "operator" &&
+                ((at(TokenKind::LParen) && peek(1).kind == TokenKind::RParen) ||
+                 (at(TokenKind::LBracket) && peek(1).kind == TokenKind::RBracket)) &&
+                (peek(2).kind == TokenKind::LParen ||
+                 type_argument_call_open(tokens_, current_ + 2, max_parse_depth))) {
+                member.text += at(TokenKind::LParen) ? "()" : "[]";
+                current_ += 2;
+            }
 
             std::vector<TypeName> type_arguments;
             if (looks_like_type_argument_call()) {

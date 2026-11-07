@@ -297,11 +297,10 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
         print(target.has_grad())
     ''', 'EXTENSION_COLLISION')
     case('file-method-collision', '''
-        bool operator(extend file.read &value)
+        bool line(extend file.write &value)
             return true
-        file.read handle := file.read("unused")
-        string line := ""
-        .handle.operator(&line)
+        file.write handle := file.write("unused")
+        .handle.line()
     ''', 'EXTENSION_COLLISION')
     case('receiver-once-order', '''
         int receiver()

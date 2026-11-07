@@ -118,6 +118,7 @@
   "reference_rebinding": true,
   "substorage_references": true,
   "object_identity_operator": false,
+  "class_operator_model": "operator() and operator[] are distinct class method names followed by separate parameter lists: T operator()(), T operator()(U value), T operator[](K key); calls use value(args) or value[keys]; mutating methods use .operator()(args) or .operator[](keys) and .value(args) or .value[keys]; each name has one ordinary definition; index methods require at least one parameter, accept value arguments rather than slices, and return values that are not writable storage; bare operator is an ordinary identifier",
   "class_field_defaults": true,
   "class_value_equality": true,
   "array_value_equality": true,

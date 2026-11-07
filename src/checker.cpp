@@ -5484,7 +5484,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         receiver.class_name == standard_class::file_append)) {
                 const bool reader = receiver.class_name == standard_class::file_read;
                 const bool line_output = !reader && node->method == "line";
-                if (node->method != "operator" && !line_output)
+                if (node->method != "operator()" && !line_output)
                     error("UNKNOWN_METHOD", reader
                           ? "file.read supports only the call operator."
                           : "file.write/file.append support the call operator and .line().", expression.span);
@@ -11870,7 +11870,7 @@ bool Checker::condition_initializes_reference(
             for (const auto* target : format->second.targets)
                 if (const auto* name = std::get_if<NameExpr>(&target->data);
                     name && name->name == binding) return true;
-        if (method->method == "operator" && method->args.size() == 1 &&
+        if (method->method == "operator()" && method->args.size() == 1 &&
             method->args[0].writable) {
             const auto* argument = std::get_if<NameExpr>(&method->args[0].value->data);
             const auto receiver = raw_types_.find(method->receiver.get());

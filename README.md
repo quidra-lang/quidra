@@ -445,6 +445,13 @@ class Counter()
 
 Members are public by default. Private members are accessible only from initialization and methods of their declaring class. A header `class Document(local string path) | error` makes generation fallible; success-only bindings fail fast and `try Document(path)` propagates the error. Failed generation releases initialized owned values without rolling back external effects. Fields not initialized on all paths retain the existing compile-time/runtime initialization checks. Class equality compares initialized field values; `&left == &right` explicitly compares storage addresses.
 
+Classes may define `T operator()()` or `T operator()(U argument)` for
+`value(...)`, and `T operator[](K key)` for `value[key]`. The operator name
+and its parameter list are separate. Index operators can take multiple keys
+and return ordinary values; their results are not writable storage. Mutating
+definitions use `T .operator()()` or `T .operator[](K key)`; calls use `.value(...)`
+or `.value[key]`. See [class operators](docs/spec/language.md#callable-classes).
+
 ### References and mutation markers
 
 A reference may be declared before it is bound. Bind or rebind it with

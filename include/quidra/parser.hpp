@@ -76,7 +76,7 @@ private:
     ClassDecl class_decl();
     TypeName binding_type();
     ExprPtr parameter_default();
-    FunctionDecl function_decl();
+    FunctionDecl function_decl(bool class_method = false);
     FunctionDecl external_function_decl();
     ForeignExport foreign_export_prefix();
     FunctionDecl export_function_decl();

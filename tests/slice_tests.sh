@@ -1019,9 +1019,21 @@ rejects assign_scalar TYPE_MISMATCH "Slice assignment needs an array." <<'QUI'
 int[] values := [1, 2, 3, 4]
 values[0:2] = 5
 QUI
-rejects assign_elements TYPE_MISMATCH "int64[]" <<'QUI'
+expect assign_numeric_elements "3 4" <<'QUI'
 int64[] values := [int64(1), int64(2)]
 int[] other := [3, 4]
+values[0:1] = other
+println("{values[0]} {values[1]}")
+QUI
+rejects assign_non_numeric_elements TYPE_MISMATCH "int64[]" <<'QUI'
+int64[] values := [1, 2]
+bool[] other := [true, false]
+values[0:1] = other
+QUI
+fails assign_numeric_overflow NUMERIC_CONVERSION "array element cannot be represented as int8" <<'QUI'
+int8[] values := [1, 2]
+int[] other := [3, 256]
+println("before")
 values[0:1] = other
 QUI
 rejects assign_string INVALID_ASSIGNMENT "A string slice cannot be assigned" <<'QUI'

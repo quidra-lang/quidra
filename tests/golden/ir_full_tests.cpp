@@ -337,7 +337,7 @@ void check_arities() {
     check_arity<semantics::InterfaceSourceBinding>("InterfaceSourceBinding", 3);
     check_arity<semantics::InterfaceImportSource>("InterfaceImportSource", 3);
     check_arity<semantics::InterfaceContracts>("InterfaceContracts", 15);
-    check_arity<semantics::FunctionInterface>("FunctionInterface", 12);
+    check_arity<semantics::FunctionInterface>("FunctionInterface", 13);
     check_arity<semantics::ClassInterface>("ClassInterface", 7);
     check_arity<semantics::ClassInterface::Instance>("ClassInstanceInterface", 2);
     check_arity<semantics::FieldInterface>("FieldInterface", 6);
@@ -345,7 +345,7 @@ void check_arities() {
     check_arity<semantics::EnumVariantInterface>("EnumVariantInterface", 2);
     check_arity<semantics::PublicImportInterface>("PublicImportInterface", 2);
     check_arity<semantics::NamedTypeIdentity>("NamedTypeIdentity", 3);
-    check_arity<semantics::ConstantInterface>("ConstantInterface", 5);
+    check_arity<semantics::ConstantInterface>("ConstantInterface", 6);
     check_arity<semantics::AliasInterface>("AliasInterface", 3);
     check_arity<semantics::SignatureType>("SignatureType", 2);
     check_arity<semantics::ModuleSelector>("ModuleSelector", 2);

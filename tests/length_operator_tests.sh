@@ -35,7 +35,7 @@ int[] | error make_fallible(int &calls)
     return [4, 5]
 
 class Factory(int calls)
-    int[] .make()
+    int[] .produce()
         calls += 1
         return [6]
 
@@ -62,7 +62,7 @@ println(#(#values>:0))
 println(#make_fallible(&evaluations))
 println(evaluations)
 factory := Factory(0)
-println(.#factory.make())
+println(.#factory.produce())
 println(factory.calls)
 marked := Marked(0)
 println(.#marked)

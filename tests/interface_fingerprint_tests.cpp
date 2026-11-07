@@ -99,6 +99,14 @@ void essential_contract_changes() {
     fixture.contracts.functions[0].export_c = ForeignInterface{"C","read_public"};
     const auto exported = fixture.fingerprint();
     require(exported.signature != borrowed.signature,"C export contract was omitted");
+    fixture.contracts.functions[0].parameter_constraints = {
+        CanonicalInterfacePayload{"test-range/1",ir::canonical_encode_value(std::string("0 < value < 5")).bytes}};
+    const auto constrained = fixture.fingerprint();
+    require(constrained.signature != exported.signature, "parameter range omitted from interface signature");
+    fixture.contracts.functions[0].parameter_constraints[0]->fields =
+        ir::canonical_encode_value(std::string("0 < value < 6")).bytes;
+    require(fixture.fingerprint().signature != constrained.signature, "changed range endpoint omitted from interface signature");
+    fixture.contracts.functions[0].parameter_constraints.clear();
     fixture.contracts.functions[0].initialization->receiver.initializes.insert("field");
     require(fixture.fingerprint().summary != exported.summary,"initialization contract was omitted");
     const auto initialized = fixture.fingerprint();
@@ -142,6 +150,13 @@ void original_snapshots() {
         "enum State\n    Ready\n    Value(int)\n"
         "private class Record()\n    const int value := 7\n    private string label := \"\"\n"
         "T identity<T>(T value, int step := LIMIT)\n    return value\n";
+    const auto constrained = capture("void bounded(0 < int value <= 5)\n    void\n");
+    require(constrained.contracts.functions.at(0).parameter_constraints.at(0).has_value(),
+            "original non-generic parameter range was omitted");
+    const auto bounded_whitespace = capture("void bounded(0<int value<=5)\n    void\n");
+    require(constrained.contracts.functions.at(0).parameter_constraints.at(0)->fields ==
+            bounded_whitespace.contracts.functions.at(0).parameter_constraints.at(0)->fields,
+            "range whitespace entered original canonical contract");
     auto original = capture(source);
     require(original.contracts.functions.size() == 2 && original.contracts.enums.size() == 1 &&
             original.contracts.classes.size() == 1 && original.contracts.constants.size() == 1,

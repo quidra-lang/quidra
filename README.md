@@ -145,13 +145,13 @@ intent that cannot be inferred safely.
 ### Numeric conversions follow static rules
 
 Numeric operators select the highest operand family, then the widest type only
-within that family, and convert both operands before evaluation. Numeric value
-arguments convert to the resolved parameter type with the same checks as an
-explicit cast. Both rules preserve the original variables' storage types.
+within that family, and convert both operands before evaluation. Initialized
+declarations, assignments, parameter defaults, returns and value arguments use
+checked conversion to their numeric destination, preserving source storage types.
 
-Assignments and returns require explicit conversion between already-typed
-representations, such as `real32(value)` or `int8(value)`. Writable references
-require an exact storage type. Real-to-integer conversion accepts only
+Writable references require an exact storage type. `bool` stays separate from
+numeric values; conditions, logical operators and boolean arguments require bool.
+Real-to-integer conversion accepts only
 mathematically integral values in range. Fractional values require a named
 rounding operation: `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
@@ -217,6 +217,14 @@ inferred := source
 
 A declaration with an initializer uses `:=`. Omit the type by default when the initializer determines the intended static type. Write an explicit type when it supplies context, as in `nat count := 0`, `int32 count := 0` or `string[] names := []`, or states a stronger contract. A declaration without an initializer requires an explicit type. Use `=` for an existing binding. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
 
+Ordered scalar bounds can guard a declaration or an existing binding:
+`0 < x < 5 := 3` creates `x`; `0 < x < 5 = candidate` converts, validates and
+only then stores the candidate. The RHS and each bound are evaluated at most once.
+Parameter ranges check entry values; class-header ranges check generation inputs.
+A proven violation is a compile error, otherwise `RANGE_CONSTRAINT` fails fast.
+Tensor axes can capture a new constrained `nat N` or require equality to an
+existing constrained value. See [range constraints](docs/spec/language.md#range-constraints).
+
 ### Numeric types
 
 Signed fixed-width integers:
@@ -270,7 +278,7 @@ real
 
 Numeric literals use compatible context, otherwise default to `int`, exact `real`, or exact `com`; `nat` requires context. `a := 5 + 6` is `int`, `int32 b := 5 + 6` is `int32`, and `c := b + 1` stays `int32`. A numeric union context with multiple compatible alternatives remains ambiguous.
 
-Numeric binary operators choose a static common type: select Natural < Integer < Real < Complex, then the widest operand type only within the highest family; arbitrary precision/exact wins within that family. `real16` with `real16b` selects `real32`, and `com16` with `com16b` selects `com32`. Convert both operands before the operation with checked range and normal real/complex rounding; do not widen based on values or alter operand storage types. Thus `nat64 + int32` uses `int32`, and `int32 + real16` uses `real16`. Complex values have no ordering. Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion. See [numeric semantics](docs/spec/numeric-and-bin.md) for the full rules.
+Numeric binary operators choose a static common type: select Natural < Integer < Real < Complex, then the widest operand type only within the highest family; arbitrary precision/exact wins within that family. `real16` with `real16b` selects `real32`, and `com16` with `com16b` selects `com32`. Convert both operands before the operation with checked range and normal real/complex rounding; do not widen based on values or alter operand storage types. Thus `nat64 + int32` uses `int32`, and `int32 + real16` uses `real16`. Complex values have no ordering. Numeric values implicitly convert to the resolved numeric destination in initialized declarations, assignments, parameter defaults, returns, and value arguments to functions, methods and constructors. The checks match explicit `T(value)`: destination range, ordinary real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. A failed implicit conversion stops before the destination write, return or callee body; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. `bool` is separate from numeric types and never participates in these implicit conversions. See [numeric semantics](docs/spec/numeric-and-bin.md) for the full rules.
 
 Fixed-width integers use explicit bitwise syntax:
 
@@ -539,7 +547,7 @@ println(first<int>([4, 5]))
 
 Generic class type arguments are explicit in type positions. Class generation, generic function and method calls may infer them when every generic parameter is uniquely determined by typed call arguments; otherwise write them explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
 
-Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, and narrower statically ordered constraints win over broader ones. Concrete candidates requiring numeric value-argument conversion are considered only if no exact concrete or inferred generic candidate matches. Integer-to-`bool` argument conversion is a final fallback. An overlap with no unique most-specific member is a compile error.
+Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, and narrower statically ordered constraints win over broader ones. Concrete candidates requiring numeric value-argument conversion are considered only if no exact concrete or inferred generic candidate matches. An overlap with no unique most-specific member is a compile error.
 
 ### Control flow
 
@@ -561,9 +569,9 @@ while condition
     work()
 ```
 
-Blocks use four-space indentation. Conditions and the operands of `and`, `or`,
-and `not` accept `bool` and scalar integer types. An integer is true exactly
-when it is nonzero. The same conversion applies to a `bool` value parameter.
+Blocks use four-space indentation. Conditions, the operands of `and`, `or`,
+and `not`, and `bool` value parameters require booleans. Test an integer explicitly,
+for example `count != 0`.
 Range boundaries, direction and inclusion are written in the header. `for: i < end` declares a loop-local range variable and abbreviates
 `for: 0 <= i < end`; the descending form `for: start > i` ends at inclusive zero.
 The type is inferred from typed bounds, or defaults to `int` for integer literals.
@@ -812,7 +820,7 @@ The static checker rejects, among other things:
 - invalid field initialization paths,
 - attempts to write, rebind, or regain write authority through const access paths,
 - reference type mismatches,
-- representation-changing assignments or returns without explicit numeric conversion, and mismatched reference argument storage types,
+- unsupported value conversions, non-boolean conditions or logical operands, and mismatched reference argument storage types,
 - incomplete union matches,
 - use of partially initialized class values where fully initialized values are required,
 - import cycles and namespace collisions,
@@ -825,7 +833,7 @@ The native runtime checks invariant and safety failures that depend on runtime v
 - numeric operator conversions outside the destination range, and real/complex operations whose result would be NaN (signed infinity follows the defined real arithmetic policy),
 - array and bin bounds,
 - invalid allocation sizes,
-- zero range steps.
+- zero range steps and failed numeric range constraints (`RANGE_CONSTRAINT`).
 
 These runtime safety failures terminate deterministically with status `101`. A range-checked numeric cast is different: an out-of-range value produces the cast's typed `error` alternative. Arrays and tensors use the whole converted container as the success alternative and expose no partial conversion when one leaf fails. The cast terminates only when a success-only context deliberately consumes that alternative via the ordinary fail-fast rule.
 
@@ -869,7 +877,7 @@ The current implementation includes:
 - definite-initialization analysis for bindings, fields, arrays, and tensors,
 - receiver and reference-parameter effect summaries, and isolation of const arguments a call may change,
 - unions, exhaustive matching, and explicit `error` propagation,
-- fixed-width numeric checking with static common operator types and checked value-call conversions and explicit assignment/return conversions, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
+- fixed-width numeric checking with static common operator types and checked numeric destination conversions, scalar and tensor-axis range constraints, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
 - partially initialized classes, explicit composition, and value equality,
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,

@@ -6,6 +6,7 @@
 
 #include "lowering/checked_types.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/range_candidate.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <functional>
@@ -119,6 +120,26 @@ ShapeConstraintLowering::BraceShape ShapeConstraintLowering::capture_brace_shape
     return shape;
 }
 
+void ShapeConstraintLowering::check_range_constraints(
+    const ShapePlan& plan, const BraceShape& shape, SourceSpan span) {
+    const auto word = Type::simple(TypeKind::Int64);
+    const auto nat = Type::simple(TypeKind::Nat);
+    for (std::size_t i = 0; i < plan.axes.size(); ++i) {
+        const auto& axis = plan.axes[i];
+        if (!axis.range_constraint || !shape.extents[i]) continue;
+        auto extent = builder_.fresh();
+        builder_.emit(LoadLocal{extent, *shape.extents[i], word});
+        auto value = builder_.fresh();
+        builder_.emit(NumericConvert{value, extent, word, nat, false,
+            {static_cast<std::uint32_t>(span.start.line), static_cast<std::uint32_t>(span.start.column)}, true});
+        value = validate_owned_range_candidate(builder_, scope_, value, nat, [&](ValueId candidate) {
+            lowerer_.lower_range_constraint(*axis.range_constraint, candidate, nat,
+                axis.variable.empty() ? "tensor axis " + std::to_string(i) : axis.variable);
+        });
+        release_owned(builder_, value, nat);
+    }
+}
+
 void ShapeConstraintLowering::finish_brace_shape(
     const ShapePlan& plan, BraceShape& shape, std::optional<ValueId> value, TypeKind kind,
     const std::string& subject, SourceSpan span, const Expr* expression) {
@@ -179,7 +200,7 @@ void ShapeConstraintLowering::finish_brace_shape(
         if (current.check == ShapeAxisCheck::Variable)
             shape.extents[axis] = shape.variables[current.variable_index];
     }
-    if (!value) return;
+    if (!value) { check_range_constraints(plan, shape, span); return; }
 
     // One check of every constrained axis; an axis that a shape variable
     // fixes names it.
@@ -200,6 +221,7 @@ void ShapeConstraintLowering::finish_brace_shape(
         named = named || !current.variable.empty();
     }
     if (!named) variables.clear();
+    check_range_constraints(plan, shape, span);
     if (proof_.rank(expression) && std::none_of(loads.begin(), loads.end(),
         [](const auto& extent) { return extent.has_value(); })) return;
     builder_.emit(ShapedConstraintCheck{
@@ -342,6 +364,7 @@ ShapeConstraintLowering::capture_signature_shape(
     for (const auto axis : plan.after_order)
         if (result_axis(axis)) evaluate(axis);
     repeats();
+    check_range_constraints(plan, shape, span);
     std::vector<CapturedExtents> parts;
     for (const auto& part : unit.parts) {
         parts.emplace_back(shape.extents.begin() + part.offset,
@@ -382,7 +405,7 @@ void ShapeConstraintLowering::lower_case_shape(
     }
     if (plan.conditional) {
         for (std::size_t axis = 0; axis < rank; ++axis)
-            if (plan.axes[axis].check != ShapeAxisCheck::None) needed[axis] = true;
+            if (plan.axes[axis].check != ShapeAxisCheck::None || plan.axes[axis].range_constraint) needed[axis] = true;
     }
     if (std::none_of(needed.begin(), needed.end(), [](bool b) { return b; }) &&
         !(plan.conditional && plan.rank_unknown)) {
@@ -461,6 +484,60 @@ void ShapeConstraintLowering::lower_case_shape(
             builder_.emit(Branch{differs, next, holds});
             builder_.enter(builder_.add_block(holds));
         }
+    }
+    // Predicate failure rejects this case. Temporary shape variables let
+    // bounds refer to the complete shape scope without committing bindings.
+    const bool has_ranges = std::any_of(plan.axes.begin(), plan.axes.end(),
+        [](const auto& axis) { return axis.range_constraint != nullptr; });
+    if (has_ranges) {
+        auto saved = scope_.snapshot_full();
+        const auto nat = Type::simple(TypeKind::Nat);
+        std::vector<std::string> owned;
+        for (std::size_t i = 0; i < plan.variables.size(); ++i) {
+            const auto& variable = plan.variables[i];
+            if (!variable.read || !shape.variables[i]) continue;
+            const auto extent = builder_.fresh();
+            builder_.emit(LoadLocal{extent, *shape.variables[i], int64});
+            const auto bound = builder_.fresh();
+            builder_.emit(NumericConvert{bound, extent, int64, nat, false, {line, column}, true});
+            const auto slot = builder_.hidden("range.case.variable");
+            scope_.local_type(slot) = nat;
+            builder_.emit(DeclareLocal{slot, nat, {}, 0, 0});
+            builder_.emit(StoreLocal{slot, bound, nat});
+            scope_.bind_source_value(variable.name, bound);
+            owned.push_back(slot);
+        }
+        const auto rejected = builder_.label("range.case.rejected");
+        const auto accepted = builder_.label("range.case.accepted");
+        for (std::size_t axis = 0; axis < rank; ++axis) {
+            const auto* range = plan.axes[axis].range_constraint;
+            if (!range) continue;
+            auto candidate = builder_.fresh();
+            builder_.emit(NumericConvert{candidate, *axis_extents[axis], int64, nat, false, {line, column}, true});
+            ValueId condition = 0;
+            candidate = validate_owned_range_candidate(builder_, scope_, candidate, nat, [&](ValueId held) {
+                condition = lowerer_.lower_range_predicate(*range, held, nat);
+            });
+            release_owned(builder_, candidate, nat);
+            const auto holds = builder_.label("range.case.holds");
+            builder_.emit(Branch{condition, holds, rejected});
+            builder_.enter(builder_.add_block(holds));
+        }
+        for (const auto& slot : owned) {
+            const auto temporary = builder_.fresh();
+            builder_.emit(LoadLocal{temporary, slot, nat, true});
+            release_owned(builder_, temporary, nat);
+        }
+        builder_.emit(Jump{accepted});
+        builder_.enter(builder_.add_block(rejected));
+        for (const auto& slot : owned) {
+            const auto temporary = builder_.fresh();
+            builder_.emit(LoadLocal{temporary, slot, nat, true});
+            release_owned(builder_, temporary, nat);
+        }
+        builder_.emit(Jump{next});
+        builder_.enter(builder_.add_block(accepted));
+        scope_.restore(std::move(saved));
     }
     // The case is taken: its variables.
     for (std::size_t variable = 0; variable < plan.variables.size(); ++variable) {

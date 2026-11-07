@@ -76,6 +76,15 @@ private:
     ClassDecl class_decl();
     TypeName binding_type();
     ExprPtr parameter_default();
+    struct RangeHeader {
+        std::optional<TypeName> type;
+        Token subject;
+        bool reference{};
+        RangeConstraint constraint;
+    };
+    std::optional<RangeHeader> range_header(bool statement_context = false);
+    Parameter parameter_header();
+    StmtPtr range_stmt();
     FunctionDecl function_decl(bool class_method = false);
     FunctionDecl external_function_decl();
     ForeignExport foreign_export_prefix();

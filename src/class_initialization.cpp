@@ -22,7 +22,10 @@ public:
             for (auto& parameter : method.parameters) {
                 if (!method.is_constructor || parameter.is_local) reject_binding(parameter.name, parameter.span);
                 // Header defaults are evaluated by the caller, before an instance exists.
-                if (!method.is_constructor) type(parameter.type);
+                if (!method.is_constructor) {
+                    type(parameter.type);
+                    range(parameter.range_constraint);
+                }
             }
             if (!method.is_constructor) type(method.return_type);
             body(method.body);
@@ -57,6 +60,11 @@ private:
         if (members_.contains(name) || (!declaration_.self_name.empty() && name == declaration_.self_name))
             fail("SHADOWING", "Binding '" + name + "' conflicts with a class member or the fixed instance name.", span);
     }
+    void range(std::optional<RangeConstraint>& value) {
+        if (!value) return;
+        if (value->lower) expr(*value->lower);
+        if (value->upper) expr(*value->upper);
+    }
     void type(TypeName& value) {
         for (auto& argument : value.arguments) type(argument);
         for (auto& parameter : value.function_parameters) type(parameter);
@@ -66,6 +74,7 @@ private:
             if (axis.kind == ShapeAxisKind::Declare || axis.kind == ShapeAxisKind::DeclareEqual)
                 reject_binding(axis.name, axis.span);
             if (axis.value) expr(*axis.value);
+            range(axis.range_constraint);
         }
     }
     void pattern(Pattern& value) {
@@ -153,10 +162,12 @@ private:
         for (auto& statement : statements) {
             auto& value = *statement;
             if (auto* node = std::get_if<BindingStmt>(&value.data)) {
+                range(node->range_constraint);
                 if (node->pattern) pattern(*node->pattern);
                 else { reject_binding(node->name, value.span); type(node->declared_type); }
                 if (node->value) expr(*node->value);
             } else if (auto* node = std::get_if<AssignStmt>(&value.data)) {
+                range(node->range_constraint);
                 if (node->pattern) pattern(*node->pattern);
                 if (node->target) {
                     expr(*node->target);

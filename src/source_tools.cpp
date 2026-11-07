@@ -218,6 +218,23 @@ struct NodeCollector {
         parents.pop_back();
     }
 
+    void range(const std::optional<RangeConstraint>& value) {
+        if (!value) return;
+        const auto id = emit("RangeConstraint", value->span);
+        nodes.back().start_inclusive = value->lower_inclusive;
+        nodes.back().end_inclusive = value->upper_inclusive;
+        parents.push_back(id);
+        if (value->lower) expr(*value->lower);
+        if (value->upper) expr(*value->upper);
+        parents.pop_back();
+    }
+
+    void type_constraints(const TypeName& value) {
+        for (const auto& argument : value.arguments) type_constraints(argument);
+        for (const auto& parameter : value.function_parameters) type_constraints(parameter);
+        for (const auto& axis : value.shape_axes) range(axis.range_constraint);
+    }
+
     void stmt(const Stmt& statement) {
         nesting::DepthGuard guard(statement_depth, nesting::max_ast_clone_depth,
                                   statement.span, "Statement");
@@ -249,9 +266,12 @@ struct NodeCollector {
         std::visit([&](const auto& node) {
             using T = std::decay_t<decltype(node)>;
             if constexpr (std::is_same_v<T, BindingStmt>) {
+                range(node.range_constraint);
+                type_constraints(node.declared_type);
                 if(node.pattern)pattern(*node.pattern);
                 if (node.declared_type.name.rfind("$cli.", 0) != 0 && node.value) expr(*node.value);
             } else if constexpr (std::is_same_v<T, AssignStmt>) {
+                range(node.range_constraint);
                 if(node.pattern)pattern(*node.pattern);
                 if(!node.pattern && node.target_expr())expr(*node.target_expr());
                 expr(*node.value);
@@ -303,7 +323,12 @@ struct NodeCollector {
         const auto id = emit("function", fn.span, result);
         if (fn.mutation_marker) nodes.back().mutation_marker = true;
         parents.push_back(id);
-        for (const auto& p : fn.parameters) if(p.default_value) expr(*p.default_value);
+        type_constraints(fn.return_type);
+        for (const auto& p : fn.parameters) {
+            type_constraints(p.type);
+            range(p.range_constraint);
+            if(p.default_value) expr(*p.default_value);
+        }
         for (const auto& statement : fn.body) stmt(*statement);
         parents.pop_back();
     }

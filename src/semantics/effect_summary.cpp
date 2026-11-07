@@ -9,6 +9,7 @@
 // bodies bottom-up over the strongly connected components of the call graph
 // and iterates each component to a fixed point.
 
+#include "range_constraint_traversal.hpp"
 #include "semantics/effect_summary.hpp"
 #include "semantics/parallel_effects.hpp"
 #include "quidra/member_function_names.hpp"
@@ -269,6 +270,8 @@ struct Body {
     const std::vector<StmtPtr>* statements{};
 };
 
+EffectSummary external_summary(const FunctionType& signature, const FunctionDecl* declaration);
+
 // A write made while the arguments of a call are evaluated.
 struct LoggedWrite {
     bool unknown{};
@@ -308,6 +311,10 @@ public:
         for (const auto& field : info->second.fields) {
             if (field.default_value) expr(*field.default_value);
         }
+        for (const auto& declaration : checked_.program.classes)
+            if (declaration.name == class_name)
+                for (const auto& field : declaration.fields)
+                    visit_type_range_bounds(field.type, [&](const Expr& bound) { expr(bound); });
     }
 
     void stmt(const Stmt& statement) {
@@ -326,10 +333,12 @@ public:
                      type != checked_.binding_types.end() && type->second.kind == TypeKind::Class) {
                 class_defaults(type->second.class_name);
             }
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { expr(bound); });
         } else if (const auto* node = std::get_if<AssignStmt>(&statement.data)) {
             if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if(p.place)expr(*p.place);});
             else expr(*node->target_expr());
             expr(*node->value);
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { expr(bound); });
         } else if (const auto* node = std::get_if<RebindStmt>(&statement.data)) {
             if(node->place)expr(*node->place);
             expr(*node->target);
@@ -353,7 +362,10 @@ public:
             block(node->body);
         } else if (const auto* node = std::get_if<MatchStmt>(&statement.data)) {
             expr(*node->value);
-            for (const auto& match_case : node->cases) block(match_case.body);
+            for (const auto& match_case : node->cases) {
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) { expr(bound); });
+                block(match_case.body);
+            }
         }
     }
 
@@ -480,16 +492,20 @@ public:
         // The places of reference bindings and the provenance of locals only
         // grow; a body is walked again when one grew after it was read.
         for (int round = 0; round < 32; ++round) {
-            summary_ = EffectSummary{};
-            summary_.exposed_reads.assign(count, {});
-            summary_.exposed_writes.assign(count, {});
+            // Foreign bodies remain opaque, but their source preconditions
+            // execute in the generated wrapper and can add further effects.
+            summary_ = body_.kind == Body::Kind::External
+                ? external_summary(*body_.signature, body_.declaration) : EffectSummary{};
+            summary_.exposed_reads.resize(count);
+            summary_.exposed_writes.resize(count);
             summary_.mutates_shared_of_parameter.assign(count, false);
             summary_.const_parameter_address_observed.assign(count, false);
             summary_.reference_target_escapes.assign(count, false);
             summary_.reference_root_parameters.assign(count, false);
             conditional_depth_ = 0;
             saw_exit_ = false;
-            result_.reset();
+            result_ = body_.kind == Body::Kind::External
+                ? std::optional<Provenance>(existing()) : std::nullopt;
             read_keys_.clear();
             grew_after_read_ = false;
             walk_body();
@@ -537,6 +553,9 @@ private:
             binding.is_const = parameters[i].is_const;
             scopes_.back()[parameters[i].name] = binding;
         }
+        for (const auto& parameter : body_.declaration->parameters)
+            visit_parameter_range_bounds(parameter, [&](const Expr& bound) { read_expr(bound); });
+        visit_type_range_bounds(body_.declaration->return_type, [&](const Expr& bound) { read_expr(bound); });
         if (is_constructor()) walk_class_defaults(body_.class_name, {});
         walk_block(body_.declaration->body);
     }
@@ -1163,6 +1182,10 @@ private:
         for (const auto& field : info->second.fields) {
             if (field.default_value && !supplied.contains(field.name)) read_expr(*field.default_value);
         }
+        for (const auto& declaration : checked_.program.classes)
+            if (declaration.name == class_name)
+                for (const auto& field : declaration.fields)
+                    visit_type_range_bounds(field.type, [&](const Expr& bound) { read_expr(bound); });
         scopes_.pop_back();
         scope_floor_ = floor;
     }
@@ -1178,7 +1201,7 @@ private:
         struct Conditional { std::size_t& depth; bool active; ~Conditional(){if(active)--depth;} } guard{conditional_depth_,conditional};
         if (conditional) ++conditional_depth_;
         if (const auto* node = std::get_if<BindingStmt>(&statement.data)) {
-            if(node->pattern){read_expr(*node->value);const auto& expansion=checked_.pattern_expansions.at(&statement);walk_expansion(expansion,places_of(*node->value),provenance_of(*node->value));return;}
+            if(node->pattern){read_expr(*node->value);visit_statement_range_bounds(statement,[&](const Expr& bound){read_expr(bound);});const auto& expansion=checked_.pattern_expansions.at(&statement);walk_expansion(expansion,places_of(*node->value),provenance_of(*node->value));return;}
             Binding binding;
             binding.key = &statement;
             binding.is_const = node->is_const;
@@ -1198,6 +1221,7 @@ private:
                     observe_address(*places);
                     add_reference_places(&statement, *places);
                 }
+                visit_statement_range_bounds(statement, [&](const Expr& bound) { read_expr(bound); });
                 declare(node->name, binding);
                 return;
             }
@@ -1232,6 +1256,7 @@ private:
                        type != checked_.binding_types.end() && type->second.kind == TypeKind::Class) {
                 walk_class_defaults(type->second.class_name, {});
             }
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { read_expr(bound); });
             binding.kind = Binding::Kind::Value;
             declare(node->name, binding);
             add_local_provenance(&statement, provenance);
@@ -1240,11 +1265,12 @@ private:
                 active->writes.insert(StoragePath{StorageRoot::local(node->name),{}});
             if (node->value) add_held_targets(&statement,targets_of(*node->value));
         } else if (const auto* node = std::get_if<AssignStmt>(&statement.data)) {
-            if(node->pattern){read_expr(*node->value);walk_expansion(checked_.pattern_expansions.at(&statement),places_of(*node->value),provenance_of(*node->value));return;}
+            if(node->pattern){read_expr(*node->value);visit_statement_range_bounds(statement,[&](const Expr& bound){read_expr(bound);});walk_expansion(checked_.pattern_expansions.at(&statement),places_of(*node->value),provenance_of(*node->value));return;}
             read_storage_operands(*node->target_expr());
             auto target = places_of(*node->target_expr());
             if (!node->compound_op.empty() && target) record_read(*target);
             read_expr(*node->value);
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { read_expr(bound); });
             if (target) {
                 validate_complete_store(*node->target_expr(),*target,statement.span);
                 const auto held = targets_of(*node->value);
@@ -1385,6 +1411,7 @@ private:
                     declare(*match_case.binder, binding);
                     add_local_provenance(&match_case, provenance);
                 }
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) { read_expr(bound); });
                 walk_block(match_case.body);
                 scopes_.pop_back();
             }
@@ -2321,19 +2348,18 @@ EffectSummaries summarize_effects(const CheckedProgram& checked) {
     std::vector<std::string> names;
     std::map<std::string, std::vector<std::string>> edges;
     for (const auto& [name, body] : bodies) {
-        if (body.kind == Body::Kind::External) {
-            summaries.set(name, external_summary(*body.signature, body.declaration));
-            continue;
-        }
         names.push_back(name);
         std::set<std::string> callees;
         CalleeCollector collector(checked, referenced, callees);
+        for (const auto& parameter : body.declaration->parameters)
+            visit_parameter_range_bounds(parameter, [&](const Expr& bound) { collector.expr(bound); });
+        visit_type_range_bounds(body.declaration->return_type, [&](const Expr& bound) { collector.expr(bound); });
         if (body.kind == Body::Kind::Constructor) collector.class_defaults(body.class_name);
         collector.block(body.declaration->body);
         auto& out = edges[name];
         for (const auto& callee : callees) {
             const auto found = bodies.find(callee);
-            if (found != bodies.end() && found->second.kind != Body::Kind::External) out.push_back(callee);
+            if (found != bodies.end()) out.push_back(callee);
         }
     }
 
@@ -2409,7 +2435,6 @@ EffectSummaries summarize_effects(const CheckedProgram& checked) {
     ParallelBlockPlans parallel_plans;
     for(const auto& [name,body]:bodies) {
         (void)name;
-        if(body.kind==Body::Kind::External) continue;
         BodyWalker nodes(checked,summaries,referenced,quiet_methods,body,isolated,&parallel_plans);
         (void)nodes.summarize();
     }
@@ -2424,7 +2449,6 @@ EffectSummaries summarize_effects(const CheckedProgram& checked) {
     std::map<const Expr*,ReferenceCallWrites> reference_calls;
     // Validation runs once after all summaries have reached their fixed point.
     for (const auto& [name, body] : bodies) {
-        if (body.kind == Body::Kind::External) continue;
         BodyWalker validation(checked,summaries,referenced,quiet_methods,body,isolated,nullptr,true,&reference_expressions,&reference_paths,&reference_calls);
         (void)validation.summarize();
     }

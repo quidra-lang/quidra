@@ -1922,8 +1922,7 @@ static void brace_shapes_and_shape_variables() {
     bad_message("void grow(nat &n)\n    n += 1\n"
                 "tensor<real32>{nat N} x := tensor.zeros<real32>([3])\ngrow(&N)\n",
                 "INVALID_ASSIGNMENT", "Shape variable 'N' is read-only.");
-    bad_code("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nint i := N\n",
-             "TYPE_MISMATCH");
+    good("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nint i := N\n");
     good("tensor<real32>{nat N} x := tensor.zeros<real32>([3])\nint i := int(N)\n");
     // A repeat whose extents are known contradicts at compile time.
     bad_message("tensor<real32>{nat K, K} sq := tensor.zeros<real32>([2, 3])\n", "TENSOR_SHAPE",
@@ -1979,7 +1978,7 @@ static void if_expressions_are_typed_like_initializers() {
     good(ready + "x := if ready then 1 else 2\n");
     bad_message(ready + "int64 a := 1\nreal64 b := 2.0\nx := if ready then a else b\n",
                 "TYPE_MISMATCH", "different types: 'int64' and 'real64'");
-    good("int k := 1\nint x := if k then 1 else 2\n");
+    bad_code("int k := 1\nint x := if k then 1 else 2\n", "TYPE_MISMATCH");
     bad_message("string k := \"x\"\nint x := if k then 1 else 2\n", "TYPE_MISMATCH",
                 "An if-expression condition must be bool");
     bad_code("bool flag := 1\n", "TYPE_MISMATCH");
@@ -2467,7 +2466,8 @@ static void sorted_takes_a_descending_flag() {
                 "Unknown sorted argument 'order'.");
     bad_message(values + "d := a.sorted(descending = true, descending = false)\n",
                 "ARGUMENT_MISMATCH", "Duplicate sorted(descending=...).");
-    good(values + "int64 one := 1\nd := a.sorted(descending = one)\n");
+    bad_code(values + "int64 one := 1\nd := a.sorted(descending = one)\n", "TYPE_MISMATCH");
+    good(values + "int64 one := 1\nd := a.sorted(descending = one != 0)\n");
     bad_code(values + "d := a.sorted(descending = 1.0)\n", "TYPE_MISMATCH");
     // Ascending (no argument or a constant false) is today's instruction;
     // a constant true calls the descending entry, a flag branches.
@@ -4152,9 +4152,9 @@ int main(){
  bad_code("com16 | com32 ambiguous := 2.0i\n", "AMBIGUOUS_NUMERIC_LITERAL");
  good("int32 a := 1\nreal16 b := 2.0\nreal16 result := a + b\nint32 unchanged := a\n");
  good("int8 a := 1\nnat64 b := 2\nint8 bits := a AND b\nint8 shifted := a << b\n");
- bad_code("int32 x := 5\nreal32 y := 1.0\nx = x + y\n", "TYPE_MISMATCH");
+ good("int32 x := 5\nreal32 y := 1.0\nx = x + y\n");
  good("int32 x := 5\nnat64 n := 2\nx += n\nint32 verify := x\n");
- bad_code("int32 x := 5\nreal32 r := 2.0\nx += r\n", "TYPE_MISMATCH");
+ good("int32 x := 5\nreal32 r := 2.0\nx += r\n");
  // Numeric compound updates consume a fallible RHS before selecting the common type.
  good(R"(real64 | error next()
     return 2.0
@@ -4178,7 +4178,7 @@ accumulator.amount += next()
 )");
  bad_code("int32 | none | error next()\n    return 2\nint32 value := 1\nvalue += next()\n", "TYPE_MISMATCH");
  bad_code("int32 | real64 | error next()\n    return 2\nreal64 value := 1.0\nvalue += next()\n", "TYPE_MISMATCH");
- bad_code("real32 | error next()\n    return 2.0\nint32 value := 1\nvalue += next()\n", "TYPE_MISMATCH");
+ good("real32 | error next()\n    return 2.0\nint32 value := 1\nvalue += next()\n");
  good("values := (1, 2.0, 3.0i)\n(int a, real b, com c) := values\n");
  // Value calls convert to the chosen formal type; references retain identity.
  good("real32 f(real32 x)\n    return x\nint64 value := 7\nreal32 result := f(value)\nint64 original := value\n");
@@ -4820,8 +4820,8 @@ print(NL)
  bad_code("tensor<nat> t := tensor.zeros<nat>([2])\n", "INVALID_TYPE");
  bad_code("extern int c_abs(int value) = \"llabs\"\n", "FFI_TYPE");
  bad_code("extern int64 c_abs(nat value) = \"llabs\"\n", "FFI_TYPE");
- bad_code("nat n := -1\n", "NUMERIC_FAMILY");
- bad_code("int a := 3\nnat n := a\n", "TYPE_MISMATCH");
+ good("nat n := -1\n"); // Checked conversion fails at runtime.
+ good("int a := 3\nnat n := a\n");
  good(R"(T twice<T: integer>(T value)
     return value * 2
 
@@ -4836,40 +4836,24 @@ nat b := twice(nat(4))
  // nat subtraction checks its sign; int64 keeps the overflow branch.
  llvm_contains("nat f(nat a, nat b)\n    return a - b\n", "call i64 @quidra.nat.sub");
  llvm_contains("int64 g(int64 a, int64 b)\n    return a + b\n", "@llvm.sadd.with.overflow.i64");
- // Literal categories against every numeric destination: a non-negative
- // integer literal materializes as nat* and int*, a negative one as int*
- // only, a real literal as real*, and an imaginary literal as no type yet.
+ // Compatible literal categories materialize directly; other numeric
+ // categories first become their own value and then convert with checks.
  {
-     const char* categories[] = {"10", "-10", "-0", "10.0", "2.0i"};
+     const char* categories[] = {"10", "-10", "-0", "10.0"};
      const char* kinds[] = {"int8", "int16", "int32", "int64", "int", "nat8", "nat16",
-                            "nat32", "nat64", "nat", "real32", "real64", "real"};
+                            "nat32", "nat64", "nat", "real16", "real16b", "real32", "real64", "real",
+                            "com16", "com16b", "com32", "com64", "com"};
      for (const std::string literal : categories) {
          for (const std::string kind : kinds) {
-             const bool integer = kind.starts_with("int") || kind.starts_with("nat");
-             const bool natural = kind.starts_with("nat");
-             bool accepted = false;
-             if (literal == "10") accepted = integer;
-             else if (literal == "-10" || literal == "-0") accepted = integer && !natural;
-             else if (literal == "10.0") accepted = !integer;
-             const auto source = kind + " value := " + literal + "\n";
-             if (accepted) good(source);
-             else bad_code(source, "NUMERIC_FAMILY");
-             // The same rows inside an if-expression of literals.
-             const auto conditional =
-                 "bool ready := true\n" + kind + " value := (if ready then " + literal + " else " +
-                 literal + ")\n";
-             if (accepted) good(conditional);
-             else bad_code(conditional, "NUMERIC_FAMILY");
+             good(kind + " value := " + literal + "\n");
+             good("bool ready := true\n" + kind + " value := (if ready then " + literal +
+                  " else " + literal + ")\n");
          }
      }
  }
- bad_message("real32 x := 7\n", "NUMERIC_FAMILY",
-             "An integer literal cannot materialize as real32: write 7.0 or real32(7).");
- bad_message("int32 x := 1.5\n", "NUMERIC_FAMILY", "A real literal cannot materialize as int32.");
- bad_message("nat8 x := -1\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
- bad_message("nat8 x := 5 + -3\n", "NUMERIC_FAMILY", "A negative integer literal cannot materialize as nat8.");
+ good("real32 x := 7\nint32 y := 1.5\nnat8 z := -1\nnat8 n := 5 + -3\n");
  bad_message("real64 z := 2i\n", "NUMERIC_FAMILY", "An imaginary literal requires real form: write 2.0i.");
- bad_message("real64 z := 1.0 + 2.0i\n", "NUMERIC_FAMILY", "A complex literal cannot materialize as real64.");
+ bad_code("real64 z := 1.0 + 2.0i\n", "TYPE_MISMATCH");
  bad_code("real64 z := 1 + 2.0i\n", "TYPE_MISMATCH");
  good("z := 2.0i\n");
  good("x := 10\n");
@@ -6501,7 +6485,7 @@ print(NL)
  "int | none x := 1\nmatch x\n    int\n        print(x)\n", "int | none x := 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
  "int | none x := 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
  "x := []\n", "x := range(3)\n",
- "int8 x := 128\n", "nat8 x := -1\n", "int8 x := int8(300)\n",
+ "int8 x := 128\n", "nat8 x := 256\n", "int8 x := int8(300)\n",
  "bin x := bin(2, fill = 0)\n", "bin x := bin.fill(-1, 0)\n", "bin x := bin.fill(2, 2)\n", "string x := string(2, fill = \"a\")\n", "string x := string.repeat(\"a\", -1)\n",
  "string HT := \"x\"\n", "void f(string NL)\n    return\n",
  "int x := 1\nif true\n    int x := 2\n", "int x := 1\nint x := 2\n",
@@ -7848,8 +7832,8 @@ print(NL)
  good("x := 3\n");
  good("x := 1.5\n");
  good("print(1)\n");
- bad_code("real64 x := 3\n", "NUMERIC_FAMILY");
- bad_code("int x := 3.0\n", "NUMERIC_FAMILY");
+ good("real64 x := 3\n");
+ good("int x := 3.0\n");
  good("x := [1, 2, 3]\n");
  good(R"(int32 seed := 1
 values := [2, seed, 3]
@@ -8640,7 +8624,7 @@ match narrowed
         print(problem)
         print(NL)
 )", "@quidra_tensor_try_cast");
- bad_code("int[] values := [1, 2]\nreal64[] converted := values\n", "TYPE_MISMATCH");
+ good("int[] values := [1, 2]\nreal64[] converted := values\n");
  good("real64[] values := [1.0, 2.0]\nint[] converted := int(values)\n");
  bad_code("tensor<real64> values := tensor.ones<real64>([2])\nconverted := int(values)\n", "NUMERIC_CAST");
  bad_code("tensor<int64> values := tensor.ones<int64>([2])\nconverted := values.cast<real64>()\n", "UNKNOWN_MEMBER");
@@ -9127,8 +9111,10 @@ print("{holder.read()}{NL}")
  good("T identity<T>(T value)\n    return value\nint[] values := [1, 2]\noutput := [for x := values[] then identity(x)]\ncopied := identity([for int item := values[] then item])\n");
  good("int change(int &value)\n    value = value + 1\n    return value\nint[] values := [1, 2]\noutput := [for int x := values[] then change(&x)]\n");
  bad_code("int[] values := []\noutput := [for int x := values[] then x]\nprint(x)\n", "UNKNOWN_NAME");
- good("int[] values := []\noutput := [for int x := values[] if x then x]\n");
- good("nat[] values := []\noutput := [for nat x := values[] if x then x]\n");
+ good("int[] values := []\noutput := [for int x := values[] if x != 0 then x]\n");
+ good("nat[] values := []\noutput := [for nat x := values[] if x != 0 then x]\n");
+ bad_code("int[] values := []\noutput := [for int x := values[] if x then x]\n", "TYPE_MISMATCH");
+ bad_code("nat[] values := []\noutput := [for nat x := values[] if x then x]\n", "TYPE_MISMATCH");
  bad_code("real[] values := []\noutput := [for real x := values[] if x then x]\n", "TYPE_MISMATCH");
  bad_code("int[] values := []\noutput := [for real32 x := values[] then x]\n", "TYPE_MISMATCH");
  bad_code("string value := \"abc\"\noutput := [for x := value[] then x]\n", "ARRAY_COMPREHENSION");
@@ -9536,16 +9522,16 @@ Observation value := Observation([for text := ["x"][] then next()])
 bin result := bin([nat8(code), nat8(65)])
 )");
 
-// typed-concat-receiver-reject.qui
- bad_code(R"(real64[] tail := [real64(2)]
+// A contextual literal receiver converts numeric elements before concat.
+ good(R"(real64[] tail := [real64(2)]
 real64[] result := [int32(1)].concat(tail)
-)", "TYPE_MISMATCH");
+)");
 
-// named-typed-concat-receiver-reject.qui
- bad_code(R"(int32[] head := [1]
+// concat checks its numeric argument, then the result destination converts.
+ good(R"(int32[] head := [1]
 real64[] tail := [real64(2)]
 real64[] result := head.concat(tail)
-)", "TYPE_MISMATCH");
+)");
 
 // Bounded pure getter/conditional copy regressions; no source edits yet.
 

@@ -789,7 +789,12 @@ nat asynchronous := 0
 time.Instant start := time.now(sync = synchronize)
 time.Duration elapsed := time.since(start, sync = asynchronous)
 QUI
-"$QUIDRA" check "$TMP/time-sync-integer-flags.qui" >/dev/null
+if "$QUIDRA" check "$TMP/time-sync-integer-flags.qui" > "$TMP/time-sync-integer-flags.err" 2>&1; then
+    echo 'time sync unexpectedly accepted numeric flags' >&2
+    exit 1
+fi
+grep -q 'Expected bool but received int' "$TMP/time-sync-integer-flags.err"
+grep -q 'Expected bool but received nat' "$TMP/time-sync-integer-flags.err"
 
 cat > "$TMP/time-now-sync-must-be-bool.qui" <<'QUI'
 time.Instant invalid := time.now(sync = 1.0)
@@ -2635,15 +2640,13 @@ grep -q 'INTEGER_OVERFLOW' "$TMP/nat-underflow.err"
 grep -q 'nat subtraction result is negative' "$TMP/nat-underflow.err"
 
 # Fixed width is required where the representation matters: bit
-# operations, tensor elements and C signatures reject `int` and `nat`, and a
-# negative literal does not materialize as `nat`.
-for case_name in bitwise shift tensor extern negative-nat; do
+# operations, tensor elements and C signatures reject `int` and `nat`.
+for case_name in bitwise shift tensor extern; do
     case "$case_name" in
         bitwise) printf 'int a := 6\nprint(a AND 3)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
         shift) printf 'nat a := 6\nprint(a << 1)\n' > "$TMP/int-reject-$case_name.qui"; code=TYPE_MISMATCH ;;
         tensor) printf 'tensor<int> t := tensor.zeros<int>([2])\n' > "$TMP/int-reject-$case_name.qui"; code=INVALID_TYPE ;;
         extern) printf 'extern int abs(int value) = "llabs"\n' > "$TMP/int-reject-$case_name.qui"; code=FFI_TYPE ;;
-        negative-nat) printf 'nat a := -1\n' > "$TMP/int-reject-$case_name.qui"; code=NUMERIC_FAMILY ;;
     esac
     set +e
     "$QUIDRA" check "$TMP/int-reject-$case_name.qui" >"$TMP/int-reject-$case_name.out" 2>&1
@@ -2652,6 +2655,15 @@ for case_name in bitwise shift tensor extern negative-nat; do
     [[ "$rc" -ne 0 ]]
     grep -q "$code" "$TMP/int-reject-$case_name.out"
 done
+
+# A negative literal first becomes int, then checked nat conversion fails.
+printf 'nat a := -1\n' > "$TMP/negative-nat.qui"
+set +e
+"$QUIDRA" run "$TMP/negative-nat.qui" >"$TMP/negative-nat.out" 2>"$TMP/negative-nat.err"
+negative_nat_rc=$?
+set -e
+[[ "$negative_nat_rc" -eq 101 ]]
+grep -q 'NUMERIC_CONVERSION' "$TMP/negative-nat.err"
 
 # Undefined powers retain POWER_DOMAIN: 0 ^ 0 and a negative real base
 # with a fractional exponent. Zero to a negative real power is infinity.

@@ -401,9 +401,10 @@ value := c
 real typed := value
 print(typed == 1.0 / 3.0)
 QUI
-rejects contextual-integer NUMERIC_FAMILY <<'QUI'
-const literal real c := 1.0 / 3.0
+ok contextual-integer "3" <<'QUI'
+const literal real c := 3.0
 int32 value := c
+print(value)
 QUI
 rejects contextual-type LITERAL_CONSTANT <<'QUI'
 const literal real32 c := 1.5
@@ -411,9 +412,10 @@ QUI
 rejects contextual-initializer LITERAL_CONSTANT <<'QUI'
 const literal real c := real("ab".len())
 QUI
-rejects atom-typed-real TYPE_MISMATCH <<'QUI'
+ok atom-typed-real "true" <<'QUI'
 import exactprobe
 real32 value := real.atom("exactprobe", 2)
+print(value == real32(real.atom("exactprobe", 2)))
 QUI
 ok literal-identifier "3" <<'QUI'
 int literal := 3
@@ -430,9 +432,9 @@ QUI
 reason contextual-unproven ZERO_UNDECIDED
 if [[ -s "$TMP/contextual-unproven.out" ]]; then fail "contextual-unproven: a statement ran"; fi
 
-# --- Typed constants keep their declared type at every use: another type
-# needs an explicit conversion (which converts the declared value), and only
-# a `const literal` constant re-materializes in its use-site type.
+# --- Typed constants keep their declared source type. Destination
+# conversion uses that stored value; only a `const literal` constant
+# re-materializes directly in its use-site type.
 cat > "$TMP/typed.qui" <<'QUI'
 const real32 eps := 1.0e-5
 const int32 count := 7
@@ -448,22 +450,16 @@ real32 t32 := typed.tenth
 real64 t64 := typed.tenth
 print("{a} {typed.eps} {widened} {wide} {same} {t32} {t64}")
 QUI
-rejects typed-real-retype TYPE_MISMATCH <<'QUI'
+ok typed-real-retype "9.999999747378752e-06" <<'QUI'
 import typed = "./typed.qui"
 real64 value := typed.eps
+print(value)
 QUI
-rejects typed-integer-retype TYPE_MISMATCH <<'QUI'
+ok typed-integer-retype "7" <<'QUI'
 import typed = "./typed.qui"
 int64 value := typed.count
+print(value)
 QUI
-printf 'import typed = "./typed.qui"\nreal64 value := typed.eps\n' > "$TMP/typed-message.qui"
-if "$QUIDRA" check "$TMP/typed-message.qui" > "$TMP/typed-message.out" 2>&1; then
-    fail "typed-message: compiled"
-elif ! grep -qF "'typed.eps' has type real32; convert it explicitly (real64(typed.eps)) or declare it 'const literal real'." "$TMP/typed-message.out"; then
-    fail "typed-message"; cat "$TMP/typed-message.out"
-else
-    echo "ok   typed-message"
-fi
 
 # --- real.op is checked like real.atom and real.unary.
 rejects op-provider-literal EXACT_PROVIDER <<'QUI'

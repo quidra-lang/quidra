@@ -148,6 +148,39 @@ CallLowering::LoweredCallArguments CallLowering::lower_call_arguments(const std:
         const auto& parameter=sig.parameters[i];
         lowered.args[i]=CallArgument{lower_value(*parameter.default_value,parameter,i),std::nullopt};
     }
+    if (sig.external && std::any_of(sig.parameters.begin(), sig.parameters.end(),
+            [](const auto& parameter) { return parameter.range_constraint != nullptr; })) {
+        auto saved = scope_.snapshot_full();
+        scope_.reset();
+        for (std::size_t i = 0; i < sig.parameters.size(); ++i) {
+            const auto& parameter = sig.parameters[i];
+            if (lowered.args[i].writable_address) {
+                const auto reference = scope_.bind_source_reference(builder_, parameter.name, parameter.type);
+                builder_.emit(DeclareReference{reference, parameter.type});
+                builder_.emit(BindReference{reference, *lowered.args[i].writable_address});
+            } else {
+                const auto local = scope_.bind_source_local(builder_, parameter.name, parameter.type);
+                builder_.emit(DeclareLocal{local, parameter.type, {}, 0, 0});
+                builder_.emit(StoreLocal{local, lowered.args[i].value, parameter.type, true});
+            }
+        }
+        for (std::size_t i = 0; i < sig.parameters.size(); ++i) {
+            const auto& parameter = sig.parameters[i];
+            if (!parameter.range_constraint) continue;
+            const auto value = builder_.fresh();
+            if (scope_.is_source_reference(parameter.name))
+                builder_.emit(LoadReference{value, scope_.source_reference(parameter.name), parameter.type});
+            else builder_.emit(LoadLocal{value, scope_.source_local(parameter.name), parameter.type});
+            lowerer_.lower_range_constraint(*parameter.range_constraint, value, parameter.type, parameter.name);
+        }
+        for (std::size_t i = 0; i < sig.parameters.size(); ++i) {
+            if (lowered.args[i].writable_address) continue;
+            const auto value = builder_.fresh();
+            builder_.emit(LoadLocal{value, scope_.source_local(sig.parameters[i].name), sig.parameters[i].type});
+            lowered.args[i].value = value;
+        }
+        scope_.restore(std::move(saved));
+    }
     return lowered;
 }
 
@@ -188,6 +221,13 @@ CallLowering::ShapedCall CallLowering::prepare_shaped_call(
                     [](const auto& part) { return part.parameter != 0; });
     for (const auto& parameter : result.declaration->parameters)
         if (!parameter.type.dimension_expressions.empty()) checked_entry = false;
+    // Range bounds may have effects. Let the ordinary checking entry
+    // evaluate them once rather than bypassing it through the shape body.
+    for (const auto& parameter : result.declaration->parameters) {
+        if (parameter.range_constraint || std::any_of(parameter.type.shape_axes.begin(),
+            parameter.type.shape_axes.end(), [](const auto& axis) { return axis.range_constraint.has_value(); }))
+            checked_entry = false;
+    }
     if (!result.external && !checked_entry) return result;
     auto scope = scope_.snapshot_full();
     const auto isolated = lowerer_.isolate_shape_source_facts(true);

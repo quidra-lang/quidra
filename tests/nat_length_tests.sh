@@ -97,15 +97,9 @@ print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/indices.qui")" == "$(printf '20 30 40 10\nb\n100')" ]]
 
-# Assignment from nat to int still requires an explicit destination cast.
-printf 'int64[] values := [1, 2]\nint count := values.len()\n' > "$TMP/to-int.qui"
-set +e
-"$QUIDRA" check "$TMP/to-int.qui" >"$TMP/to-int.out" 2>&1
-to_int_rc=$?
-set -e
-[[ "$to_int_rc" -ne 0 ]]
-grep -q 'TYPE_MISMATCH' "$TMP/to-int.out"
-grep -q "'values.len()' has type nat; convert explicitly: int(values.len())." "$TMP/to-int.out"
+# Assignment converts nat lengths into an integer destination exactly.
+printf 'int64[] values := [1, 2]\nint count := values.len()\nprintln(count)\n' > "$TMP/to-int.qui"
+[[ "$("$QUIDRA" run "$TMP/to-int.qui")" == '2' ]]
 
 # A by-value nat parameter converts a named integer exactly as nat(n).
 printf 'int n := 3\nint64[] values := array(n, fill = 0)\nprint(values.len())\n' > "$TMP/to-nat.qui"

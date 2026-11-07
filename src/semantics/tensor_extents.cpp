@@ -1,3 +1,4 @@
+#include "range_constraint_traversal.hpp"
 #include "semantics/tensor_extents.hpp"
 #include "semantics/effect_summary.hpp"
 #include "ir/facts/tensor.hpp"
@@ -968,9 +969,15 @@ private:
                     recorded.length = environment.tensors[binding->name].length;
                     recorded.tensor_known_shape_prefix = environment.tensors[binding->name].tensor_known_shape_prefix;
                 }
+                visit_statement_range_bounds(*statement, [&](const Expr& bound) {
+                    expression_type(bound, environment);
+                });
             } else if (const auto* assignment = std::get_if<AssignStmt>(&statement->data)) {
                 const auto previous = expression_type(*assignment->target, environment);
                 auto value = expression_type(*assignment->value, environment);
+                visit_statement_range_bounds(*statement, [&](const Expr& bound) {
+                    expression_type(bound, environment);
+                });
                 if (!assignment->compound_op.empty() && previous.kind == TypeKind::Tensor) {
                     const auto right = value;
                     value = previous;
@@ -1042,6 +1049,12 @@ private:
                 loop(*statement, iteration->body, environment);
             } else if (const auto* match = std::get_if<MatchStmt>(&statement->data)) {
                 const auto value = expression_type(*match->value, environment);
+                // A failing case may still evaluate bounds before trying the
+                // next case. Retain no facts their calls may invalidate.
+                for (const auto& arm : match->cases)
+                    visit_type_range_bounds(arm.type, [&](const Expr& bound) {
+                        expression_type(bound, environment);
+                    });
                 std::vector<Environment> continuing;
                 for (const auto& arm : match->cases) {
                     auto branch = environment;
@@ -1145,6 +1158,13 @@ private:
             environment.result_contract.extents = capture_array_contract(declaration.return_type, environment);
         for (const auto& parameter : declaration.parameters)
             capture_callable_shape(parameter.name, parameter.type, environment);
+        for (const auto& parameter : declaration.parameters)
+            visit_parameter_range_bounds(parameter, [&](const Expr& bound) {
+                expression_type(bound, environment);
+            });
+        visit_type_range_bounds(declaration.return_type, [&](const Expr& bound) {
+            expression_type(bound, environment);
+        });
         block(declaration.body, environment);
         std::vector<ExtentOrigin> summary;
         bool seen = false;

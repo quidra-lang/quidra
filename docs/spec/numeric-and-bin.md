@@ -27,7 +27,7 @@ ratio := 0.1        // exact real
 z := 1.0 + 2.0i     // com
 ```
 
-Contextual materialization is not a conversion: the literal was never a default-typed value first. Binding, assignment, field, compatible parameter, return, tuple and array element contexts may determine literal types. A numeric value argument not directly materialized in its parameter category may convert to the formal type under the call conversion rule. A context with several compatible numeric union alternatives remains ambiguous; defaulting does not choose an alternative of such a union.
+Contextual materialization is not a conversion: the literal was never a default-typed value first. Binding, assignment, field, compatible parameter, return, tuple and array element contexts may determine literal types. When a numeric destination is outside the literal category, the literal may first materialize in its own category and then undergo checked conversion to the destination type. A context with several compatible numeric union alternatives remains ambiguous; defaulting does not choose an alternative of such a union.
 
 ### Literal categories
 
@@ -39,9 +39,9 @@ Contextual materialization is not a conversion: the literal was never a default-
 | imaginary | a real literal followed by `i` (`2.0i`) | `com*` | `com` |
 | complex | real and imaginary literals joined by `+` or `-` (`1.0 + 2.0i`) | `com*` | `com` |
 
-Direct materialization preserves categories: `real32 x := 10` and `int y := 3.0` are errors; write `10.0` or an explicit `real32(10)` conversion. `nat8 n := -1` is also an error. In a mixed numeric operator, a literal may first materialize in its own category and then participate in the common-type conversion below: `real32 y := 1.0; y + 2` has type `real32`. The integer form `2i` is rejected; write `2.0i`.
+Direct materialization preserves categories. A numeric destination can instead use materialization in the literal's own category followed by checked conversion: `real32 x := 10` and `int y := 3.0` are valid; `int y := 3.5` fails the integrality check, and `nat8 n := -1` fails the destination range check. In a mixed numeric operator, a literal may first materialize in its own category and then participate in the common-type conversion below: `real32 y := 1.0; y + 2` has type `real32`. The integer form `2i` is rejected; write `2.0i`.
 
-A compound literal expression computes in its resolved context type with checked arithmetic: `nat8 x := 3 - 5` and `int8 y := 100 + 100` are compile-time errors. Contextual/default literal typing does not permit assignments between already-typed representations: `nat32 n := 10` followed by `int32 x := n` is an error.
+A compound literal expression computes in its resolved context type with checked arithmetic: `nat8 x := 3 - 5` and `int8 y := 100 + 100` are compile-time errors. Already-typed numeric values also convert at a numeric destination: `nat32 n := 10` followed by `int32 x := n` is valid, subject to the destination range check.
 
 A real-family literal materialized as an IEEE type is rounded once to nearest, ties to even, with subnormals included, and must stay within the finite destination range. It is not rounded through `real64` first. `real32 x := 0.1` therefore deterministically rounds to binary32. In exact `real`, the decimal spelling is an exact rational. Explicit integer-to-real conversion such as `real32(16777217)` uses destination rounding too.
 
@@ -77,7 +77,7 @@ For numeric operators:
 
 For example, `nat64` plus `int32` uses `int32` even if the natural operand currently exceeds its range. That operand's conversion fails before addition; cancellation cannot rescue it. Similarly, an integer combined with `real16` is rounded to `real16` before arithmetic, and a finite out-of-range conversion fails. The original variables retain their declared types. Complex precision comes only from complex operands, and complex values still have no ordering.
 
-Numeric value arguments to functions, methods and constructors implicitly convert to the resolved parameter type using the same rules as explicit `T(value)`: range checks, destination real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. Failed conversions stop before the callee executes; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. Assignments and returns still require explicit representation conversion.
+Numeric values implicitly convert to the resolved numeric destination in initialized declarations, assignments, parameter defaults, returns, and value arguments to functions, methods and constructors. The checks match explicit `T(value)`: destination range, ordinary real/complex rounding, and integral-only real-to-integer conversion. Supported whole-array/tensor conversions preserve structure and shape. A failed implicit conversion stops before the destination write, return or callee body; source variable types stay unchanged. Writable `T &` arguments require the exact storage type and never convert. `bool` is separate from numeric types and never participates in these implicit conversions.
 
 For example, `fahrenheit := celsius * 1.8 + 32` uses exact `real` arithmetic when `celsius` is an integer. The decimal `1.8` is exactly nine fifths, and both integer operands convert at their respective operators. Celsius `22` therefore gives `71.6`.
 
@@ -99,7 +99,7 @@ flag := true         // bool
 
 If the inferred type is an unnamed union containing `error`, an inferred declaration removes only `error` from the binding type and fails fast on error. An explicit union destination retains that failure channel.
 
-A compatible concrete function parameter supplies literal context; a cross-category numeric argument instead converts to the formal type under the call rule above: `identity32(3)` materializes `3` as `int32` when that parameter is `int32`. Without a concrete generic context, the numeric default supplies a type for inference: `identity(3)` can infer `T = int` for `T identity<T>(T value)`. Printable literals use the same defaults, so `print(1)` is valid with `int`; display and interpolation do not create a separate numeric default policy.
+A compatible concrete function parameter supplies literal context; a cross-category numeric argument instead materializes in its own category and converts to the formal type under the destination conversion rule above: `identity32(3)` materializes `3` as `int32` when that parameter is `int32`. Without a concrete generic context, the numeric default supplies a type for inference: `identity(3)` can infer `T = int` for `T identity<T>(T value)`. Printable literals use the same defaults, so `print(1)` is valid with `int`; display and interpolation do not create a separate numeric default policy.
 
 ## Exponentiation
 
@@ -234,8 +234,8 @@ is 0 when the real part of `w` is positive and `POWER_DOMAIN` otherwise.
 Mixed numeric operators convert real/integer operands to the selected complex
 type with imaginary part zero: `real64 + com16` uses `com16`, so the
 real operand is checked and rounded to `real16` before the operation.
-Numeric value call arguments convert to their resolved parameter type; assignments and returns still require explicit conversion. A real
-or integer value, or a literal, converts explicitly with imaginary part 0,
+Numeric destinations, including bindings, assignments, returns and value parameters, use checked conversion. A real
+or integer value, or a literal, converts to complex with imaginary part 0,
 as its real part converts
 (`com32(1.0)`, `com64(n)` for `int32 n`); complex types convert part by part
 (`com32(z)` for `com64 z` is `com32 | error`). A complex value has no real
@@ -305,19 +305,22 @@ real32 single_pi := math.pi
 real64 h := planck
 ```
 
-A use materializes into the type its context expects, as a real literal does: in `real` it is the exact value; in `real32` or `real64` it is the exact value rounded once, correctly (a lone literal at compile time; any other initializer once per constant and type, before the first statement, by certified refinement, so every use is a load). `real64(math.pi)` is that same one rounding, an operand takes the other operand's type (`x * math.pi` with a `real32 x` is `real32`), and a compound expression evaluates in the materialized type. Without a resolved context a contextual real constant defaults to exact `real` (`x := math.pi` is `real`); a context with multiple compatible numeric union alternatives remains ambiguous. It never directly materializes as an integer (`NUMERIC_FAMILY`). A constant whose rounding refinement cannot certify stops the program before its first statement with `EXACT_UNPROVEN` at its first use. `real.atom(...)` itself has type `real`: in a fixed-width context write `real64(real.atom(...))` or declare a contextual constant. Any other typed constant, imported ones included, keeps its declared type at every use (`const real32 eps := 1.0e-5` is a `real32` everywhere); assignment/return conversion to another type is explicit, while numeric operators convert it to their common type and numeric value call arguments convert it to the resolved parameter type.
+A use materializes into the type its context expects, as a real literal does: in `real` it is the exact value; in `real32` or `real64` it is the exact value rounded once, correctly (a lone literal at compile time; any other initializer once per constant and type, before the first statement, by certified refinement, so every use is a load). `real64(math.pi)` is that same one rounding, an operand takes the other operand's type (`x * math.pi` with a `real32 x` is `real32`), and a compound expression evaluates in the materialized type. Without a resolved context a contextual real constant defaults to exact `real` (`x := math.pi` is `real`); a context with multiple compatible numeric union alternatives remains ambiguous. An integer destination instead materializes the real category first and attempts checked integral-only conversion. A constant whose rounding refinement cannot certify stops the program before its first statement with `EXACT_UNPROVEN` at its first use. `real.atom(...)` itself has type `real`: in a fixed-width context write `real64(real.atom(...))` or declare a contextual constant. Any other typed constant, imported ones included, keeps its declared type at every use (`const real32 eps := 1.0e-5` is a `real32` everywhere); numeric destinations convert that stored value with the ordinary checked rules, while numeric operators convert it to their static common type.
 
 ## Conversion
 
-Assignments and returns between numeric types require explicit conversion.
-Scalar integers have a separate [truth test](language.md#conditions-and-iteration)
-in conditions, logical operands, and `bool` value arguments. The test is exact
-at every integer width.
+Numeric destinations use checked implicit conversion for initialized declarations,
+assignments, parameter defaults, returns and value arguments. For example,
+`int32 small := 3` followed by `int wider := small` is valid; the destination
+has its declared type and the source stays `int32`. Invalid direct literal
+materialization is diagnosed at compile time. A failed runtime implicit conversion
+stops with `NUMERIC_CONVERSION` before the value is committed. Use explicit
+`T(value)` when its typed conversion-error result must be retained or handled.
 
-```quidra
-int32 small := 3
-int wider := small // error
-```
+`bool` is not numeric. Conditions, logical operands and `bool` value arguments
+require `bool`; write `n != 0` to test an integer. There is no implicit conversion
+in either direction between boolean and numeric values. Reference bindings and
+writable arguments retain their exact storage type.
 
 Explicit conversion uses the destination type as a call:
 
@@ -329,21 +332,37 @@ value := 100
 checked := int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. An inferred declaration infers the success type and fails fast on error, an explicit union destination keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Already infinite values retain their sign in real-family conversions; they cannot convert to an integer. Integer widening whose source range is fully contained in the destination is infallible.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A failed conversion's error says what was converted, the destination type and why: `numeric conversion out of range: value cannot be represented as int8`, `numeric conversion out of range: array element cannot be represented as int8`, `numeric conversion failed: non-finite value cannot be represented as real32` (a finite value whose conversion to `real32` would round to infinity), `numeric conversion failed: value is not an integer and cannot be represented as int` (a non-integral exact `real`), `numeric conversion failed: the exact value could not be decided for int64` (a symbolic `real` the proof budget cannot decide). An explicit conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. An inferred declaration infers the success type and fails fast on error, an explicit union destination keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Already infinite values retain their sign in real-family conversions; they cannot convert to an integer. Integer widening whose source range is fully contained in the destination is infallible.
 
-A real (`real16`, `real16b`, `real32`, `real64` or exact `real`) converts to an integer-family type only when its mathematical value is integral and fits the destination range. The result has type `T | error`: `NOT_INTEGRAL` for a fractional value, `OUT_OF_RANGE` for an integral value outside the range, and `UNDECIDED` when an exact proof cannot establish integrality. Signed zero converts to integer zero. No integer rounding is performed; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to select one.
+A real (`real16`, `real16b`, `real32`, `real64` or exact `real`) converts to an integer-family type only when its mathematical value is integral and fits the destination range. An explicit cast has type `T | error`: `NOT_INTEGRAL` for a fractional value, `OUT_OF_RANGE` for an integral value outside the range, and `UNDECIDED` when an exact proof cannot establish integrality. Signed zero converts to integer zero. No integer rounding is performed; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to select one.
 
 Exact conversions follow these rules:
 
 - fixed-width integer -> `int`: exact; unsigned fixed-width integer -> `nat`: exact; `nat` -> `int`: exact;
-- `int` or a signed fixed-width integer -> `nat`: explicit and checked to be non-negative;
+- `int` or a signed fixed-width integer -> `nat`: checked to be non-negative;
 - integer-family value -> `real`: exact;
 - `real32`/`real64` -> `real`: exact conversion of the stored IEEE value, not reinterpretation of the original decimal spelling;
-- `int`/`nat` -> fixed-width integer: explicit and range-checked;
+- `int`/`nat` -> fixed-width integer: range-checked;
 - `real` -> integer-family type: accepted only when the mathematical value is provably integral, then range-checked when the destination is fixed-width or `nat`;
-- `int`/`nat`/`real` -> `real32`/`real64`: explicit, correctly rounded (to nearest, ties to even, subnormals included), with finite destination-range checking through the same whole-value `converted-type | error` conversion channel. A symbolic `real` converts once refinement certifies the rounding, that is, once both ends of its enclosure round to the same value; otherwise the conversion fails as undecided. A symbolic `real` converts to an integer type when its provider proves it integral and refinement isolates the integer; refinement that places it strictly between two integers makes it not an integer.
+- `int`/`nat`/`real` -> `real32`/`real64`: correctly rounded (to nearest, ties to even, subnormals included), with finite destination-range checking (explicit casts expose the whole-value `converted-type | error` channel; implicit destinations fail fast). A symbolic `real` converts once refinement certifies the rounding, that is, once both ends of its enclosure round to the same value; otherwise the conversion fails as undecided. A symbolic `real` converts to an integer type when its provider proves it integral and refinement isolates the integer; refinement that places it strictly between two integers makes it not an integer.
 
-In short: **an explicit conversion may discard precision when the destination representation requires it, but it may not discard range or invent an integer rounding policy**.
+A numeric conversion may discard precision through the destination representation's defined rounding, but it never discards range or invents an integer rounding policy. Complex-to-real or complex-to-integer conversion is unsupported, even when the imaginary part is zero; select `.real`, `.imag` or a package operation explicitly.
+
+### Range constraints
+
+An ordered scalar candidate can carry a [range constraint](language.md#range-constraints):
+`0 < x < 5 := value` declares a checked binding; `0 < x < 5 = value`
+guards a store to an existing binding. Infer or annotate its storage type first,
+convert the candidate into it, and compare with the bounds using ordinary numeric
+common types. The candidate and each bound are evaluated at most once; validation
+precedes the store. A proven violation is a compile error; an unresolved violation
+stops with `RANGE_CONSTRAINT`, including in release builds.
+
+The same ordered constraints apply to function, method and class-header parameters,
+and to tensor axes. A new `nat N` captures the actual axis extent; a range around
+an existing name also retains the axis-equality requirement. Boolean predicates
+are not numeric extents. Class-header ranges are generation preconditions, and a
+shape-match range mismatch selects the next case.
 
 ## Integer digit decomposition
 

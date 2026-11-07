@@ -124,7 +124,7 @@ bool TextIdioms::is_signed_parse_wrapper(const std::string& target) const {
 bool TextIdioms::split_parse_call(
     const BindingStmt& binding, const std::string& fields_name,
     std::uint64_t expected_index) const {
-    if (binding.reference || !binding.value) return false;
+    if (binding.reference || binding.range_constraint || !binding.value) return false;
     const auto binding_type_it = checked_.expr_types.find(binding.value.get());
     if (binding_type_it == checked_.expr_types.end() ||
         binding_type_it->second.kind != TypeKind::Int64)
@@ -289,7 +289,8 @@ bool TextIdioms::lower_string_build_append_quad(
     if (!array_binding || !line_binding || !append || !length_update ||
         array_binding->reference || line_binding->reference ||
         !array_binding->value || !line_binding->value ||
-        !append->compound_op.empty() || length_update->compound_op != "+")
+        !append->compound_op.empty() || length_update->compound_op != "+" ||
+        append->range_constraint || length_update->range_constraint)
         return false;
 
     const auto array_type = checked_.binding_types.at(&array_statement);
@@ -748,7 +749,7 @@ bool TextIdioms::lower_string_ascii_count_for(const ForStmt& n) {
 
     const auto* assignment =
         std::get_if<AssignStmt>(&branch->then_body.front()->data);
-    if (!assignment || assignment->compound_op != "+" ||
+    if (!assignment || assignment->compound_op != "+" || assignment->range_constraint ||
         type_of(checked_, *assignment->target).kind != TypeKind::Int64)
         return false;
     const auto* target =

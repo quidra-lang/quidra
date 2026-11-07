@@ -7,6 +7,7 @@
 // value they create as fresh state; a plain declaration `T x` runs no
 // constructor and never needs the marker.
 
+#include "range_constraint_traversal.hpp"
 #include "semantics/mutation_markers.hpp"
 
 #include "quidra/language.hpp"
@@ -181,6 +182,7 @@ public:
                 if (field.default_value)
                     default_value(*field.default_value, "A field default", field.name,
                                   "move the call into the class initialization body");
+                visit_type_range_bounds(field.type, [&](const Expr& bound) { expr(bound); });
             }
             for (const auto& method : class_decl.methods) body(method);
         }
@@ -246,7 +248,9 @@ private:
             if (parameter.default_value)
                 default_value(*parameter.default_value, "A parameter default", parameter.name,
                               "pass the value as an argument");
+            visit_parameter_range_bounds(parameter, [&](const Expr& bound) { expr(bound); });
         }
+        visit_type_range_bounds(function.return_type, [&](const Expr& bound) { expr(bound); });
         for (const auto& statement : function.body) stmt(*statement);
     }
 
@@ -484,10 +488,12 @@ private:
         const auto& data = statement.data;
         if (const auto* node = std::get_if<BindingStmt>(&data)) {
             if (node->value) expr(*node->value);
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { expr(bound); });
         } else if (const auto* node = std::get_if<AssignStmt>(&data)) {
             if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if(p.place)expr(*p.place);});
             else expr(*node->target_expr());
             expr(*node->value);
+            visit_statement_range_bounds(statement, [&](const Expr& bound) { expr(bound); });
         } else if (const auto* node = std::get_if<RebindStmt>(&data)) {
             if(node->place)expr(*node->place);
             expr(*node->target);
@@ -511,7 +517,10 @@ private:
             block(node->body);
         } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
             expr(*node->value);
-            for (const auto& match_case : node->cases) block(match_case.body);
+            for (const auto& match_case : node->cases) {
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) { expr(bound); });
+                block(match_case.body);
+            }
         }
     }
 

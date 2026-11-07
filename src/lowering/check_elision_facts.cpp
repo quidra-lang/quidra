@@ -3,6 +3,7 @@
 // lowered, from the checker's facts, the source scope and what the lowering
 // recorded so far.
 
+#include "range_constraint_traversal.hpp"
 #include "lowering/check_elision_facts.hpp"
 #include "lowering/checked_types.hpp"
 #include "lowering/syntax_queries.hpp"
@@ -404,6 +405,9 @@ void IntegerRangeFacts::inspect_integer_range_candidate(
 
     for (const auto& statement : body) {
         const auto& data = statement->data;
+        visit_statement_range_bounds(*statement, [&](const Expr& bound) {
+            if (inspect_expression(bound)) candidate.invalid = true;
+        });
         if (const auto* binding = std::get_if<BindingStmt>(&data)) {
             if (binding->value &&
                 ((binding->reference || binding->reference_initializer) &&
@@ -489,9 +493,13 @@ void IntegerRangeFacts::inspect_integer_range_candidate(
         } else if (const auto* match = std::get_if<MatchStmt>(&data)) {
             if (inspect_expression(*match->value))
                 candidate.invalid = true;
-            for (const auto& match_case : match->cases)
+            for (const auto& match_case : match->cases) {
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) {
+                    if (inspect_expression(bound)) candidate.invalid = true;
+                });
                 inspect_integer_range_candidate(
                     match_case.body, name, constants, candidate);
+            }
         }
     }
 }
@@ -952,7 +960,7 @@ std::optional<std::string> ArrayInitializationProof::full_array_written_by_for(c
     if(!limit || !is_integer_family_type(type_of(checked_,*limit))) return std::nullopt;
 
     const auto* assignment = std::get_if<AssignStmt>(&loop.body.front()->data);
-    if (!assignment || !assignment->compound_op.empty()) return std::nullopt;
+    if (!assignment || !assignment->compound_op.empty() || assignment->range_constraint) return std::nullopt;
     const auto* indexed = std::get_if<IndexExpr>(&assignment->target->data);
     if (!indexed || indexed->items.size() != 1 || !indexed->items[0].index ||
         indexed->items[0].start || indexed->items[0].stop || indexed->items[0].step) {

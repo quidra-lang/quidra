@@ -2,6 +2,7 @@
 // statement may write, from BorrowInference's mutation queries, the
 // checker's receiver effects and the types that can hold a place's storage.
 
+#include "range_constraint_traversal.hpp"
 #include "lowering/storage_writes.hpp"
 #include "lowering/checked_types.hpp"
 #include "lowering/syntax_queries.hpp"
@@ -91,6 +92,11 @@ bool any_statement_expression(const Stmt& statement, const Test& test) {
         return false;
     };
     const auto& data = statement.data;
+    bool bound_matches = false;
+    visit_statement_range_bounds(statement, [&](const Expr& bound) {
+        bound_matches |= any_subexpression(bound, test);
+    });
+    if (bound_matches) return true;
     if (const auto* node = std::get_if<BindingStmt>(&data)) return expression(node->value);
     if (const auto* node = std::get_if<AssignStmt>(&data)){
         if(node->pattern){bool found=false;visit_pattern(*node->pattern,[&](const Pattern& p){if(p.place && test(*p.place))found=true;});return found || expression(node->value);}
@@ -110,8 +116,13 @@ bool any_statement_expression(const Stmt& statement, const Test& test) {
     }
     if (const auto* node = std::get_if<MatchStmt>(&data)) {
         if (expression(node->value)) return true;
-        for (const auto& match_case : node->cases)
+        for (const auto& match_case : node->cases) {
+            visit_type_range_bounds(match_case.type, [&](const Expr& bound) {
+                bound_matches |= any_subexpression(bound, test);
+            });
+            if (bound_matches) return true;
             if (block(match_case.body)) return true;
+        }
         return false;
     }
     if (const auto* node = std::get_if<MainGuardStmt>(&data)) return block(node->body);
@@ -402,6 +413,11 @@ bool StorageWrites::statement_may_reshape_iterable(
 StorageWrites::IterableWrite StorageWrites::classify_iterable_write(
     const Stmt& statement, const Expr& iterable, const RootedPath& path) const {
     if (!statement_may_write_path(statement, path)) return IterableWrite::none;
+    bool bound_writes = false;
+    visit_statement_range_bounds(statement, [&](const Expr& bound) {
+        bound_writes |= expression_may_write_path(bound, path);
+    });
+    if (bound_writes) return IterableWrite::in_place;
     const auto blocks = [&](const Expr* condition,
                             std::initializer_list<const std::vector<StmtPtr>*> bodies) {
         if (condition && expression_may_write_path(*condition, path))

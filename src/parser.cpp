@@ -327,6 +327,11 @@ void relocate_type(TypeName& type, const SourcePos& base) {
     }
     for (auto& axis : type.shape_axes) {
         relocate_span(axis.span, base);
+        if (axis.range_constraint) {
+            relocate_span(axis.range_constraint->span, base);
+            if (axis.range_constraint->lower) relocate_expr(*axis.range_constraint->lower, base);
+            if (axis.range_constraint->upper) relocate_expr(*axis.range_constraint->upper, base);
+        }
         // A literal axis shares its expression with tensor_shape_expressions.
         if (axis.value && axis.kind != ShapeAxisKind::Unnamed) relocate_expr(*axis.value, base);
         else if (axis.value && !std::holds_alternative<IntegerExpr>(axis.value->data))
@@ -689,7 +694,23 @@ TypeName Parser::type_name() {
             axis.span = peek().span;
             long long code = -2;
             std::shared_ptr<Expr> literal;
-            if (at(TokenKind::Identifier) && peek().text == "_" && axis_end(1)) {
+            if (auto range = range_header()) {
+                if (range->reference || (range->type &&
+                    (range->type->name != "nat" || !range->type->dimensions.empty() || !range->type->arguments.empty())))
+                    throw CompileError(Diagnostic{"SHAPE_VARIABLE", "A captured shape candidate is declared with 'nat'.", range->constraint.span});
+                axis.name = range->subject.text;
+                axis.kind = range->type ? ShapeAxisKind::Declare : ShapeAxisKind::Bare;
+                axis.span = range->constraint.span;
+                axis.range_constraint = std::move(range->constraint);
+                if (range->type) code = -1;
+                else {
+                    axis.value = std::make_shared<Expr>();
+                    axis.value->span = range->subject.span;
+                    axis.value->data = NameExpr{range->subject.text};
+                }
+                if (!axis_end(0))
+                    throw CompileError(Diagnostic{"RANGE_CONSTRAINT", "A constrained shape axis ends after its bounds.", peek().span});
+            } else if (at(TokenKind::Identifier) && peek().text == "_" && axis_end(1)) {
                 consume(TokenKind::Identifier, "Expected '_'.");
                 axis.kind = ShapeAxisKind::Discard;
                 code = -1;
@@ -1128,15 +1149,9 @@ ClassDecl Parser::class_decl() {
     std::vector<Parameter> parameters;
     std::vector<FieldDecl> fields;
     while (!at(TokenKind::RParen)) {
-        const bool local = match(TokenKind::KwLocal);
-        const bool is_const = match(TokenKind::KwConst);
-        auto type = binding_type();
-        const bool reference = match(TokenKind::Ampersand);
-        reject_const_reference(is_const, reference);
-        const auto parameter = consume(TokenKind::Identifier, "Expected class argument name.");
-        auto value = parameter_default();
-        if (!local) fields.push_back(FieldDecl{parameter.text, type, parameter.span, {}, is_const, false, reference});
-        parameters.push_back(Parameter{parameter.text, std::move(type), reference, parameter.span, std::move(value), is_const, local});
+        auto parameter = parameter_header();
+        if (!parameter.is_local) fields.push_back(FieldDecl{parameter.name, parameter.type, parameter.span, {}, parameter.is_const, false, parameter.writable});
+        parameters.push_back(std::move(parameter));
         if (!match(TokenKind::Comma)) break;
     }
     consume(TokenKind::RParen, "Expected ')' after class arguments.");
@@ -1238,6 +1253,202 @@ ClassDecl Parser::class_decl() {
     return declaration;
 }
 
+// Range constraints have a contextual header, not an assignment expression.
+// Parse numeric operands at the same precedence used by for-range headers;
+// comparison() remains responsible for ordinary boolean comparisons.
+std::optional<Parser::RangeHeader> Parser::range_header(bool statement_context) {
+    const auto saved = current_;
+    const auto saved_markers = mutation_markers_.size();
+    const auto relation = [](TokenKind kind) {
+        return kind == TokenKind::Less || kind == TokenKind::LessEq ||
+               kind == TokenKind::Greater || kind == TokenKind::GreaterEq;
+    };
+    // Only a top-level := or = gives a statement's comparisons constraint
+    // meaning. Named arguments and nested expressions do not count.
+    bool has_relation = false;
+    bool has_assignment = false;
+    std::size_t depth = 0;
+    for (auto i = current_; i < tokens_.size(); ++i) {
+        const auto kind = tokens_[i].kind;
+        if (!depth && (kind == TokenKind::Newline || kind == TokenKind::Eof ||
+                       kind == TokenKind::Comma || kind == TokenKind::RParen ||
+                       kind == TokenKind::RBrace)) break;
+        if (!depth && (kind == TokenKind::Assign || kind == TokenKind::DeclareAssign)) {
+            has_assignment = true;
+            break;
+        }
+        if (!depth && relation(kind)) has_relation = true;
+        if (kind == TokenKind::LParen || kind == TokenKind::LBracket || kind == TokenKind::LBrace) ++depth;
+        else if (kind == TokenKind::RParen || kind == TokenKind::RBracket || kind == TokenKind::RBrace) {
+            if (!depth) break;
+            --depth;
+        }
+    }
+    if (!has_relation || (statement_context && !has_assignment)) return {};
+    struct Operand {
+        ExprPtr value;
+        std::optional<TypeName> type;
+        bool reference{};
+    };
+    const auto operand = [&]() {
+        Operand out;
+        auto cursor = current_;
+        const bool scanned = scan_type_lookahead(tokens_, cursor, 0, max_parse_depth);
+        const bool reference = scanned && cursor < tokens_.size() && tokens_[cursor].kind == TokenKind::Ampersand;
+        const auto name_cursor = cursor + (reference ? 1u : 0u);
+        const bool typed = scanned && name_cursor + 1 < tokens_.size() &&
+            tokens_[name_cursor].kind == TokenKind::Identifier &&
+            (relation(tokens_[name_cursor + 1].kind) ||
+             tokens_[name_cursor + 1].kind == TokenKind::DeclareAssign ||
+             tokens_[name_cursor + 1].kind == TokenKind::Assign ||
+             tokens_[name_cursor + 1].kind == TokenKind::Comma ||
+             tokens_[name_cursor + 1].kind == TokenKind::RParen ||
+             tokens_[name_cursor + 1].kind == TokenKind::RBrace ||
+             tokens_[name_cursor + 1].kind == TokenKind::Newline);
+        if (typed) {
+            out.type = type_name();
+            out.reference = match(TokenKind::Ampersand);
+            const auto name = consume(TokenKind::Identifier, "Expected range candidate name.");
+            out.value = std::make_unique<Expr>();
+            out.value->span = name.span;
+            out.value->data = NameExpr{name.text};
+        } else out.value = bit_or_expr();
+        return out;
+    };
+    auto first = operand();
+    if (!relation(peek().kind)) {
+        current_ = saved;
+        mutation_markers_.resize(saved_markers);
+        return {};
+    }
+    const auto start = tokens_[saved].span.start;
+    const auto first_op = tokens_[current_++];
+    auto second = operand();
+    std::optional<Operand> third;
+    Token second_op;
+    if (relation(peek().kind)) {
+        second_op = tokens_[current_++];
+        third = operand();
+    }
+    const auto fail = [&](const char* message) -> void {
+        throw CompileError(Diagnostic{"RANGE_CONSTRAINT", message, {start, previous().span.end}});
+    };
+    if (relation(peek().kind)) fail("A range constraint has one candidate and at most two bounds.");
+    const auto name = [](const Operand& value) -> const NameExpr* {
+        const auto* out = std::get_if<NameExpr>(&value.value->data);
+        return out && !out->this_qualifier && !out->self_reference ? out : nullptr;
+    };
+    Operand* subject;
+    if (third) subject = &second;
+    else if (first.type) subject = &first;
+    else if (second.type) subject = &second;
+    else if (name(first)) subject = &first;
+    else subject = &second;
+    const auto* candidate = name(*subject);
+    if (!candidate) fail("A range constraint identifies a single candidate name.");
+    if ((first.type && subject != &first) || (second.type && subject != &second) ||
+        (third && third->type)) fail("Only the range candidate may have a type.");
+    RangeHeader out;
+    out.subject = Token{TokenKind::Identifier, candidate->name, subject->value->span};
+    out.type = std::move(subject->type);
+    out.reference = subject->reference;
+    out.constraint.span = {start, previous().span.end};
+    const auto descending = [](TokenKind kind) { return kind == TokenKind::Greater || kind == TokenKind::GreaterEq; };
+    const auto inclusive = [](TokenKind kind) { return kind == TokenKind::LessEq || kind == TokenKind::GreaterEq; };
+    if (third) {
+        if (descending(first_op.kind) != descending(second_op.kind))
+            fail("A range constraint keeps one direction: '<' and '<=', or '>' and '>='.");
+        if (descending(first_op.kind)) {
+            out.constraint.upper_first = true;
+            out.constraint.upper = std::move(first.value);
+            out.constraint.upper_inclusive = inclusive(first_op.kind);
+            out.constraint.lower = std::move(third->value);
+            out.constraint.lower_inclusive = inclusive(second_op.kind);
+        } else {
+            out.constraint.lower = std::move(first.value);
+            out.constraint.lower_inclusive = inclusive(first_op.kind);
+            out.constraint.upper = std::move(third->value);
+            out.constraint.upper_inclusive = inclusive(second_op.kind);
+        }
+    } else {
+        auto bound = subject == &first ? std::move(second.value) : std::move(first.value);
+        const bool lower = descending(first_op.kind) == (subject == &first);
+        if (lower) {
+            out.constraint.lower = std::move(bound);
+            out.constraint.lower_inclusive = inclusive(first_op.kind);
+        } else {
+            out.constraint.upper = std::move(bound);
+            out.constraint.upper_inclusive = inclusive(first_op.kind);
+        }
+    }
+    return out;
+}
+
+Parameter Parser::parameter_header() {
+    Parameter out;
+    out.is_local = match(TokenKind::KwLocal);
+    out.is_const = match(TokenKind::KwConst);
+    if (auto range = range_header()) {
+        out.type = range->type ? std::move(*range->type) : TypeName{};
+        if (!range->type) out.type.name = "auto";
+        out.name = range->subject.text;
+        out.span = range->subject.span;
+        out.writable = range->reference;
+        out.range_constraint = std::move(range->constraint);
+    } else {
+        out.type = binding_type();
+        out.writable = match(TokenKind::Ampersand);
+        const auto name = consume(TokenKind::Identifier, "Expected parameter name.");
+        out.name = name.text;
+        out.span = name.span;
+    }
+    reject_const_reference(out.is_const, out.writable);
+    out.default_value = parameter_default();
+    return out;
+}
+
+StmtPtr Parser::range_stmt() {
+    const auto saved = current_;
+    const auto start = peek().span.start;
+    const bool is_local = match(TokenKind::KwLocal);
+    const bool is_const = match(TokenKind::KwConst);
+    auto range = range_header(true);
+    if (!range) { current_ = saved; return {}; }
+    const bool declaration = match(TokenKind::DeclareAssign);
+    if (!declaration) consume(TokenKind::Assign, "A constrained binding uses ':=' or '=' followed by its candidate value.");
+    if (!declaration && (range->type || is_local || is_const || range->reference))
+        throw CompileError(Diagnostic{"RANGE_CONSTRAINT", "A guarded assignment names an existing value; declare a typed candidate with ':='.", range->constraint.span});
+    reject_const_reference(is_const, range->reference);
+    const bool reference_initializer = declaration && range->reference && match(TokenKind::Ampersand);
+    auto value = expression();
+    const auto end = value->span.end;
+    end_statement(declaration ? "constrained binding" : "guarded assignment");
+    auto out = std::make_unique<Stmt>();
+    out->span = {start, end};
+    if (declaration) {
+        BindingStmt binding;
+        binding.declared_type = range->type ? std::move(*range->type) : TypeName{};
+        if (!range->type) binding.declared_type.name = "auto";
+        binding.name = range->subject.text;
+        binding.value = std::move(value);
+        binding.reference = range->reference;
+        binding.reference_initializer = reference_initializer;
+        binding.is_const = is_const;
+        binding.is_local = is_local;
+        binding.range_constraint = std::move(range->constraint);
+        out->data = std::move(binding);
+    } else {
+        AssignStmt assignment;
+        assignment.target = std::make_unique<Expr>();
+        assignment.target->span = range->subject.span;
+        assignment.target->data = NameExpr{range->subject.text};
+        assignment.value = std::move(value);
+        assignment.range_constraint = std::move(range->constraint);
+        out->data = std::move(assignment);
+    }
+    return out;
+}
+
 TypeName Parser::binding_type() {
     const auto name_offset = at(TokenKind::Ampersand) ? 1u : 0u;
     const auto& name = peek(name_offset);
@@ -1283,17 +1494,11 @@ FunctionDecl Parser::function_decl(bool class_method) {
                 error(peek(), "'extend' is permitted only on the first function parameter.");
             ++current_;
         }
-        const bool is_local=match(TokenKind::KwLocal);
-        if (extension && is_local)
+        auto parameter = parameter_header();
+        if (extension && parameter.is_local)
             error(peek(), "An extension receiver is a value or reference, not a local class-generation parameter.");
-        const bool is_const=match(TokenKind::KwConst);
-        auto type = binding_type(); bool write = match(TokenKind::Ampersand);
-        reject_const_reference(is_const,write);
-        auto p=consume(TokenKind::Identifier,"Expected parameter name.");
-        auto value = parameter_default();
-        if(extension && value)
+        if(extension && parameter.default_value)
             error(peek(), "An extension receiver cannot have a default value.");
-        Parameter parameter{p.text,std::move(type),write,p.span,std::move(value),is_const,is_local};
         parameter.is_extension = extension;
         params.push_back(std::move(parameter));
         if(!match(TokenKind::Comma)) break;
@@ -1332,16 +1537,7 @@ FunctionDecl Parser::external_function_decl() {
     consume(TokenKind::LParen,"Expected '(' after external function name.");
     std::vector<Parameter> parameters;
     while(!at(TokenKind::RParen)) {
-        const bool is_local=match(TokenKind::KwLocal);
-        const bool is_const=match(TokenKind::KwConst);
-        auto type = binding_type();
-        const bool reference=match(TokenKind::Ampersand);
-        reject_const_reference(is_const,reference);
-        const auto parameter=consume(TokenKind::Identifier,"Expected external parameter name.");
-        auto default_value = parameter_default();
-        parameters.push_back(Parameter{
-            parameter.text,std::move(type),reference,parameter.span,
-            std::move(default_value),is_const,is_local});
+        parameters.push_back(parameter_header());
         if(!match(TokenKind::Comma)) break;
     }
     consume(TokenKind::RParen,"Expected ')' after external parameters.");
@@ -1416,6 +1612,7 @@ StmtPtr Parser::statement() {
     if (at(TokenKind::KwPublic)) error(peek(), "public is only valid as 'public import' at top level.");
     if (at(TokenKind::KwClass) || at(TokenKind::KwEnum))
         error(peek(),"class and enum are only valid at declaration boundaries.");
+    if (auto constrained = range_stmt()) return constrained;
     if (looks_like_declaration(false)) return binding_stmt();
     if (at(TokenKind::KwLocal)) {
         const auto prefix = tokens_[current_++];

@@ -446,7 +446,8 @@ with tempfile.TemporaryDirectory(prefix='quidra-array-extensions-') as directory
         int32[] values := [1, 2]
         real64[] other := [real64(3), real64(4)]
         values += other
-    ''', 'TYPE_MISMATCH')
+        print(values == [4, 6])
+    ''')
     case('array-compound-remainder-real', '''
         real64[] values := [real64(1), real64(2)]
         values %= 2

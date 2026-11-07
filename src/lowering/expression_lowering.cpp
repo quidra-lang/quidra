@@ -649,7 +649,8 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
 
 ValueId ExpressionLowering::lower_array_literal(const Expr& e, const ArrayExpr& n) {
     std::vector<ValueId> values; values.reserve(n.elements.size());
-    for(const auto& x:n.elements) values.push_back(lower_into(*x,type_of(checked_,*x)));
+    const auto& element_type = *checked_.raw_types.at(&e).first;
+    for (const auto& x : n.elements) values.push_back(lower_into(*x, element_type));
     auto out=builder_.fresh(); builder_.emit(ArrayMake{out,std::move(values),checked_.raw_types.at(&e)}); return out;
 }
 

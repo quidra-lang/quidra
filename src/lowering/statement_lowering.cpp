@@ -9,6 +9,7 @@
 
 #include "lowering/checked_types.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/range_candidate.hpp"
 #include "quidra/language.hpp"
 #include <algorithm>
 #include <stdexcept>
@@ -95,6 +96,12 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
         }
         auto address=n.value ? lowerer_.lower_address(*n.value, !n.is_const) : 0;
         builder_.emit(BindReference{ir_name,address});
+        if (n.range_constraint && n.value) {
+            lowerer_.initialization_flags().check(*n.value);
+            const auto value = builder_.fresh();
+            builder_.emit(LoadReference{value, ir_name, t});
+            lowerer_.lower_range_constraint(*n.range_constraint, value, t, n.name);
+        }
         if (shape && n.value) {
             const auto value = builder_.fresh();
             builder_.emit(LoadReference{value, ir_name, t});
@@ -194,6 +201,10 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
             t.kind == TypeKind::Array &&
             facts_.array_initialization.fully_initialized(*n.value);
         auto v=lowerer_.lower_into(*n.value,t);
+        if (n.range_constraint)
+            v = validate_owned_range_candidate(builder_, scope_, v, t, [&](ValueId candidate) {
+                lowerer_.lower_range_constraint(*n.range_constraint, candidate, t, n.name);
+            });
         if(brace_plan){
             shape_constraints_.finish_brace_shape(*brace_plan,*brace_shape,v,t.kind,n.name,s.span,n.value.get());
             shapes_.constrain_tensor(ir_name, brace_shape->extents);
@@ -370,7 +381,10 @@ void StatementLowering::lower_main_guard(const MainGuardStmt& n) {
     if(!n.active) return;
     auto before=scope_.snapshot_full();
     const auto before_full=facts_.array_initialization.full_arrays();
+    const auto source_file = builder_.function()->source_file;
+    if (!n.source_file.empty()) builder_.function()->source_file = n.source_file;
     for(const auto& x:n.body){ lower_statement(*x); if(current_block_ended(builder_)) break; }
+    builder_.function()->source_file = source_file;
     if(current_block_ended(builder_)) return;
     scope_.restore(std::move(before));
     facts_.array_initialization.set_full_arrays(

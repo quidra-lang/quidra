@@ -131,6 +131,10 @@ public:
     // The module being built, which ir::lower starts with the class layouts
     // and takes when every function is lowered.
     ir::Module& module() { return module_; }
+    ir::ValueId lower_range_predicate(const RangeConstraint& range, ir::ValueId candidate,
+                                     const Type& type);
+    void lower_range_constraint(const RangeConstraint& range, ir::ValueId candidate,
+                                const Type& type, const std::string& subject);
     ir::analysis::SummaryBindings& summary_bindings() { return summary_bindings_; }
     BindingOriginRecorder& binding_origins() { return binding_origins_; }
     StatementSites& statement_sites() { return statement_sites_; }

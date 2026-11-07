@@ -52,6 +52,7 @@ struct FunctionInterface {
     // Checker L13 facts of existing instances can differ by concrete types.
     std::map<std::vector<std::string>,InitializationContract> instance_initialization;
     OriginalSummaryState summary_state{OriginalSummaryState::Missing};
+    std::vector<std::optional<CanonicalInterfacePayload>> parameter_constraints{};
 };
 struct FieldInterface {
     std::string name;
@@ -87,6 +88,7 @@ struct ConstantInterface {
     bool is_private{}, literal{};
     SignatureType type;
     CanonicalInterfacePayload initializer;
+    std::optional<CanonicalInterfacePayload> range_constraint{};
 };
 struct NamedTypeIdentity {
     ModuleSelector module;

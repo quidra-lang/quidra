@@ -1,5 +1,6 @@
 // AssignmentOrder: see assignment_order.hpp.
 
+#include "range_constraint_traversal.hpp"
 #include "lowering/assignment_order.hpp"
 
 #include "lowering/syntax_queries.hpp"
@@ -277,6 +278,9 @@ AssignmentOrder::Tier AssignmentOrder::classify(const AssignStmt& assignment) co
     if (target.expressions.empty()) return Tier::none;
     Side value;
     value.expressions.push_back(assignment.value.get());
+    visit_range_bounds(assignment.range_constraint, [&](const Expr& bound) {
+        value.expressions.push_back(&bound);
+    });
     const Classifier classifier(checked_, borrows_);
     classifier.summarize(target);
     classifier.summarize(value);

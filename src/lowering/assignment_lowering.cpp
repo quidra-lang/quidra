@@ -19,8 +19,10 @@
 // old value is retained across the right-hand side.
 
 #include "lowering/checked_types.hpp"
+#include "lowering/compound_numeric.hpp"
 #include "lowering/finite_checks.hpp"
 #include "lowering/lowerer.hpp"
+#include "lowering/range_candidate.hpp"
 #include "lowering/string_concat_chain.hpp"
 #include "quidra/language.hpp"
 #include <vector>
@@ -90,6 +92,18 @@ void AssignmentLowering::lower_assignment(const Stmt& s, const AssignStmt& n) {
                 old=builder_.fresh();
                 builder_.emit(BinGet{old,bit->array,bit->index,{0,0},true});
             }
+            const auto calculation = n.compound_op.empty() ? std::optional<Type>{}
+                : numeric_compound_type(t, type_of(checked_, *n.value));
+            if (calculation && *calculation != t) {
+                const auto rhs = lowerer_.lower(*n.value);
+                const auto result = checked_numeric_compound(builder_, lowerer_.conversions_,
+                    lowerer_.operators_, n.compound_op, old, t, rhs,
+                    type_of(checked_, *n.value), *calculation, s.span);
+                lifetime_.release_temporary(*n.value, rhs);
+                builder_.emit(BinSet{bit->array, bit->index, result, {0,0}, true});
+                release_owned(builder_, result, t);
+                return;
+            }
             auto value=lowerer_.lower_into(*n.value,t);
             if(!n.compound_op.empty()) {
                 auto result=builder_.fresh();
@@ -137,6 +151,45 @@ void AssignmentLowering::release_compound_rhs(const Expr& expression, ValueId va
 
 void AssignmentLowering::lower_compound_assignment(
     const Stmt& s, const AssignStmt& n, const Type& t) {
+    const auto source = type_of(checked_, *n.value);
+    const auto calculation = numeric_compound_type(t, source);
+    if (calculation && *calculation != t) {
+        if (const auto* name = std::get_if<NameExpr>(&n.target_expr()->data);
+            name && !checked_.field_accesses.contains(n.target_expr()) &&
+            !scope_.is_source_reference(name->name))
+            facts_.array_bounds.invalidate_length_relation(name->name);
+        std::vector<ValueId> indices;
+        std::optional<std::size_t> first;
+        const bool replayable = target_path_replayable(*n.target_expr());
+        const bool named = std::holds_alternative<NameExpr>(n.target_expr()->data);
+        const auto address = named ? lowerer_.lower_address(*n.target_expr())
+            : lower_target_address(*n.target_expr(), indices, first);
+        auto old = builder_.fresh();
+        builder_.emit(LoadAddress{old, address, t});
+        std::string held;
+        if (owns_managed(t)) {
+            old = copy_owned(builder_, old, t);
+            held = builder_.hidden("compound.left");
+            lowerer_.scope_.local_type(held) = t;
+            builder_.emit(DeclareLocal{held, t, {}, 0, 0});
+            builder_.emit(StoreLocal{held, old, t});
+        }
+        const auto rhs = lowerer_.lower(*n.value);
+        const auto result = checked_numeric_compound(builder_, lowerer_.conversions_,
+            lowerer_.operators_, n.compound_op, old, t, rhs, source, *calculation, s.span);
+        lifetime_.release_temporary(*n.value, rhs);
+        if (!held.empty()) {
+            const auto consumed = builder_.fresh();
+            builder_.emit(LoadLocal{consumed, held, t, true});
+            release_owned(builder_, consumed, t);
+        }
+        std::optional<std::size_t> replay{0};
+        const auto current = named
+            ? lowerer_.lower_address(*n.target_expr())
+            : replayable ? lower_target_address(*n.target_expr(), indices, replay) : address;
+        builder_.emit(StoreAddress{current, result, t});
+        return;
+    }
     if (t.kind == TypeKind::Array) {
         std::vector<ValueId> indices;
         std::optional<std::size_t> first;
@@ -606,6 +659,11 @@ void AssignmentLowering::lower_plain_assignment(
             lowerer_.precompute(*part);
     }
     auto v=lowerer_.lower_into(*n.value,t);
+    if (n.range_constraint)
+        v = validate_owned_range_candidate(builder_, lowerer_.scope_, v, t, [&](ValueId candidate) {
+            lowerer_.lower_range_constraint(*n.range_constraint, candidate, t,
+                std::get<NameExpr>(n.target_expr()->data).name);
+        });
     if(const auto* name=std::get_if<NameExpr>(&n.target_expr()->data)){
         if(const auto it=checked_.field_accesses.find(n.target_expr());it!=checked_.field_accesses.end()){
             auto object=load_receiver(builder_,enclosing_class_);

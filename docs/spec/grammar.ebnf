@@ -67,7 +67,8 @@ generic_constraint = "numeric" | "integer" | "floating" | "ordered" | "equatable
 parameters       = [ "extend" ], parameter, { ",", parameter }, [ "," ] ;
 parameter        = [ "local" ], (
                      ( "const", type | type, [ "&" ] ), identifier, [ ":=", expression ]
-                   | [ "const" ], identifier, ":=", expression ) ;
+                   | [ "const" ], identifier, ":=", expression
+                   | [ "const" ], range_constraint, [ ":=", expression ] ) ;
 (* `extend` is a contextual modifier permitted only on the first parameter of
    a top-level function. It declares that parameter as the method receiver;
    class methods, constructors, and extern signatures cannot use it. *)
@@ -80,6 +81,7 @@ tensor_type      = "tensor", "<", type, ">", [ brace_shape ] ;
 brace_shape      = "{", brace_axis, { ",", brace_axis }, "}" ;
 brace_axis       = "..." | "nat", identifier
                  | [ "nat" ], identifier, ":=", expression
+                 | range_constraint
                  | "_"
                  | expression ;
 integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;
@@ -90,7 +92,7 @@ type_arguments   = "<", type, { ",", type }, ">" ;
 
 suite            = NEWLINE, INDENT, statement, { statement | NEWLINE }, DEDENT ;
 main_guard       = "if", "main", suite ;
-statement        = binding | destructuring | assignment | address_assignment | return_stmt |
+statement        = binding | constrained_binding | destructuring | assignment | guarded_assignment | address_assignment | return_stmt |
                    loop_control_stmt | if_stmt | while_stmt | for_stmt | match_stmt | parallel_stmt | expr_stmt ;
 binding          = [ "local" ], ( "const", ( "literal", type | [ type ] ), identifier, ":=", expression
                    | type, [ "&" ], identifier
@@ -104,6 +106,23 @@ binding          = [ "local" ], ( "const", ( "literal", type | [ type ] ), ident
    expression; elsewhere `literal` is an ordinary identifier. *)
 assignment       = assignable, assignment_operator, expression, statement_end ;
 assignment_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+constrained_binding = [ "local" ], [ "const" ], range_constraint,
+                      ":=", [ "&" ], expression, statement_end ;
+guarded_assignment = range_constraint, "=", expression, statement_end ;
+range_constraint = bit_or_expr, ascending_op, range_subject, ascending_op, bit_or_expr
+                 | bit_or_expr, descending_op, range_subject, descending_op, bit_or_expr
+                 | range_subject, relational_op, bit_or_expr
+                 | bit_or_expr, relational_op, range_subject ;
+range_subject    = [ type, [ "&" ] ], identifier ;
+relational_op    = ascending_op | descending_op ;
+(* A constraint identifies one ordered numeric scalar and at most two bounds.
+   Two bounds select the middle name. With one bound, an explicitly typed name
+   is the subject; otherwise x < y selects x, and 0 < x selects x. A guarded
+   assignment uses an existing untyped, non-reference subject and no declaration
+   modifiers. A required range parameter needs a type; a default may infer it.
+   In a brace axis only nat N declares a new captured subject; an untyped subject
+   is existing storage and retains axis equality. := on a derived shape axis is
+   an exact extent, never a default. Ordinary expression comparisons remain bool. *)
 address_assignment = "&", reference_place, "=", "&", expression, statement_end ;
 reference_place  = identifier ;
 assignable       = postfix ;
@@ -274,6 +293,8 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
      and an imaginary literal joined by + or -); direct materialization stays
      in that category. Without a resolved context defaults are int, real, com;
      nat requires context and ambiguous numeric union contexts remain errors;
+     a numeric value destination may instead materialize the literal's own category and
+     checked-convert it, so real32 x := 5 and int y := 3.0 are valid;
    - in a nat or int context an integer literal has no width ceiling; fixed-width
      contexts keep their ranges; a real literal rounds correctly to realN and is
      exact for real;
@@ -294,9 +315,22 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
    - cli_decl is root-only, occurs at most once, and its fields use
      argument(), trailing argument(default = value), option(default = value), or flag();
      required positional argument() fields must precede optional positional fields;
+   - initialized declarations, assignments, parameter defaults, returns and value
+     arguments use checked conversion between numeric types: range checks, defined
+     destination rounding and integral-only real-to-integer conversion. Complex
+     values do not convert to real/integer. References retain exact storage types;
+     bool never implicitly converts to or from numbers. Conditions, lowercase
+     logical operands and bool value arguments require bool;
+   - a contextual scalar range first determines its storage type, evaluates its
+     candidate and each bound at most once, converts the candidate, validates it,
+     and only then commits a guarded write. Proven failures are compile errors;
+     other failures stop with RANGE_CONSTRAINT, including in release builds.
+     Parameter ranges are entry preconditions; class-header ranges check generation
+     inputs and do not establish permanent member invariants;
    - `tensor<T>{AXIS, ...}` uses a mandatory fixed-width native numeric element type plus an
-     optional shape pattern; each explicit axis is `_`, a shape-variable declaration or a numeric
-     expression checked as a nat extent. Without `...`, the number of axes is the required rank; one `...` permits
+     optional shape pattern; each explicit axis is `_`, a shape-variable declaration,
+     an ordered range constraint or a numeric expression checked as a nat extent.
+     Boolean expressions never supply numeric extents. Without `...`, the number of axes is the required rank; one `...` permits
      zero or more middle axes, with preceding constraints aligned from the head and following
      constraints aligned from the tail. Rank must be at least the number of explicit axes; Integer expressions
      that are not compile-time constants are evaluated once when the binding is
@@ -308,7 +342,10 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
      the axis's extent), `N := EXPR` (a new shape variable equal to EXPR), a bare
      name (an existing shape variable or numeric value convertible to nat: the axis equals it), `_` (an
      extent of any length that binds nothing) or any other numeric expression (the
-     axis equals its checked conversion to nat); `nat N := EXPR` is the explicit spelling of `N := EXPR`. Only a lone identifier is a bare name, and
+     axis equals its checked conversion to nat); `nat N := EXPR` is the explicit spelling of `N := EXPR`.
+     A range around nat N captures the actual incoming extent before checking its bounds;
+     a range around existing x retains axis == nat(x) plus the scalar range check.
+     Two untyped names, x < y, select x as the subject. Only a lone identifier is a bare name, and
      `(n)` is an expression. Every extent is nat: evaluate each expression once at its
      original static type, then convert only the result with explicit nat-cast checks.
      Negative or fractional results fail. A bare name that names nothing, or a
@@ -317,9 +354,12 @@ radix_format     = "base", "=", decimal_count, [ ",", "upper" ]
      use any variable of its shape whatever the textual order, `N := EXPR` axes are
      evaluated in dependency order, and a cycle is an error. Shape variables are
      read-only nat values, scoped like bindings and reused by bare name; without an
-     initializer a declaration has no `nat N` axis. In bindings and match cases the
-     axes take every form; in signatures, constructors, extern declarations, fn types
-     and other type positions a brace shape takes integer literals and `_`;
+     initializer a declaration has no `nat N` capture, constrained or otherwise.
+     Captured extents fix the binding's shape contract even when source variables later
+     change. Bindings, match cases, function/method/class signatures, extern declarations
+     and func types use these axis forms. A signature is one scope unit for its parameter
+     captures and derived result extents; a bare nat capture in a result cannot infer a
+     value. A shape-match predicate mismatch selects the next case instead of aborting;
    - array dimensions use the same integer-expression rule. `[]` remains a
      runtime-sized dimension, while `[expr]` captures expr once for the binding;
    - generic classes require explicit type arguments in type positions; a

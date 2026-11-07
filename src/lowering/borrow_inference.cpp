@@ -2,6 +2,7 @@
 // parameters of every function and method; the mutation queries follow
 // every way a body can reach a name's storage.
 
+#include "range_constraint_traversal.hpp"
 #include "lowering/borrow_inference.hpp"
 #include "lowering/checked_types.hpp"
 #include "lowering/syntax_queries.hpp"
@@ -121,6 +122,11 @@ bool BorrowInference::block_mutates_parameter(const std::vector<StmtPtr>& body, 
 
 bool BorrowInference::statement_mutates_parameter(const Stmt& statement, const std::string& name) const {
     const auto& data = statement.data;
+    bool bound_mutates = false;
+    visit_statement_range_bounds(statement, [&](const Expr& bound) {
+        bound_mutates |= expression_mutates_parameter(bound, name);
+    });
+    if (bound_mutates) return true;
     if (const auto* node = std::get_if<BindingStmt>(&data)) {
         if (node->value) {
             if ((node->reference || node->reference_initializer) && storage_root_is(*node->value, name)) return true;
@@ -149,7 +155,12 @@ bool BorrowInference::statement_mutates_parameter(const Stmt& statement, const s
             block_mutates_parameter(node->body,name)) return true;
     } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
         if (expression_mutates_parameter(*node->value, name)) return true;
-        for (const auto& match_case : node->cases) if (block_mutates_parameter(match_case.body, name)) return true;
+        for (const auto& match_case : node->cases) {
+            visit_type_range_bounds(match_case.type, [&](const Expr& bound) {
+                bound_mutates |= expression_mutates_parameter(bound, name);
+            });
+            if (bound_mutates || block_mutates_parameter(match_case.body, name)) return true;
+        }
     }
     return false;
 }
@@ -185,7 +196,15 @@ BorrowInference::BorrowInference(const CheckedProgram& checked) : checked_(check
             if (parameter.is_const && address_observed(internal_name, signature_index)) continue;
             if(checked_.effects)if(const auto* summary=checked_.effects->find(internal_name);
                 summary && summary->escaping_locals.contains(parameter.name))continue;
-            if (!block_mutates_parameter(declaration.body, declaration.parameters[i].name))
+            bool precondition_mutates = false;
+            for (const auto& syntax : declaration.parameters)
+                visit_parameter_range_bounds(syntax, [&](const Expr& bound) {
+                    precondition_mutates |= expression_mutates_parameter(bound, declaration.parameters[i].name);
+                });
+            visit_type_range_bounds(declaration.return_type, [&](const Expr& bound) {
+                precondition_mutates |= expression_mutates_parameter(bound, declaration.parameters[i].name);
+            });
+            if (!precondition_mutates && !block_mutates_parameter(declaration.body, declaration.parameters[i].name))
                 borrowed_[internal_name].insert(signature_index);
         }
     };

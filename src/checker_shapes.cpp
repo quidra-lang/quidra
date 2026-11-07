@@ -12,6 +12,7 @@
 #include "quidra/language.hpp"
 #include "constant_integer_eval.hpp"
 #include "numeric_literal_policy.hpp"
+#include "range_constraint_key.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -59,6 +60,8 @@ void collect_names(const Expr& expression, std::vector<std::string>& names) {
             } else if constexpr (std::is_same_v<T, BinaryExpr>) {
                 collect_names(*node.left, names);
                 collect_names(*node.right, names);
+            } else if constexpr (std::is_same_v<T, ComparisonChainExpr>) {
+                for (const auto& operand : node.operands) collect_names(*operand, names);
             } else if constexpr (std::is_same_v<T, CallExpr>) {
                 for (const auto& argument : node.args) collect_names(*argument.value, names);
             } else if constexpr (std::is_same_v<T, MethodCallExpr>) {
@@ -167,8 +170,8 @@ void Checker::reject_transitional_brace_axes(const TypeName& source) const {
             continue;
         }
         error("SHAPE_VARIABLE",
-              "This axis form arrives with shape variables; write an integer literal, or the "
-              "old '<...>' form, for now.",
+              "Shape variables and range constraints require a value binding, a callable "
+              "signature or a match case; this type position requires fixed integer extents.",
               axis.span);
     }
 }
@@ -408,6 +411,20 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
                     break;
                 }
             }
+            if (axis.range_constraint) {
+                current.range_constraint = &*axis.range_constraint;
+                current.variable = axis.name;
+                if (declares(axis)) {
+                    current.variable_index = unit.at(axis.name);
+                    plan.variables[current.variable_index].read = true;
+                }
+                check_range_constraint(*axis.range_constraint, simple(TypeKind::Nat),
+                                       nullptr, axis.name);
+                for (const auto* bound : {axis.range_constraint->lower.get(), axis.range_constraint->upper.get()}) {
+                    if (!bound) continue;
+                    for (const auto variable : own_reads(*bound)) plan.variables[variable].read = true;
+                }
+            }
             if (current.value) {
                 current.capture = current.value;
                 if (const auto* operand = nat_conversion_operand(*current.value)) {
@@ -522,6 +539,17 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
     std::unordered_map<std::size_t, int> uses;
     for (std::size_t i = 0; i < axes.size(); ++i) {
         for (const auto v : reads[i]) ++uses[v];
+        if (axes[i].range_constraint) {
+            relates = true;
+            if (const auto found = unit.find(axes[i].name); found != unit.end()) ++uses[found->second];
+            for (const auto* bound : {axes[i].range_constraint->lower.get(), axes[i].range_constraint->upper.get()}) {
+                if (!bound) continue;
+                std::vector<std::string> names;
+                collect_names(*bound, names);
+                for (const auto& name : names)
+                    if (const auto found = unit.find(name); found != unit.end()) ++uses[found->second];
+            }
+        }
     }
     for (const auto& [variable, count] : uses) {
         if (count > 0) relates = true;
@@ -590,10 +618,35 @@ ShapePlan& Checker::check_brace_shape(const TypeName& source, Type& type, bool h
             } else if (current.value) {
                 key += spell(*current.value);
             }
+            if (axis.range_constraint) {
+                const auto encode = [&](const std::shared_ptr<Expr>& value) {
+                    if (!value) return std::string("_");
+                    std::vector<std::string> names;
+                    collect_names(*value, names);
+                    std::unordered_map<std::string, std::string> rename;
+                    for (const auto& name : names) rename[name] = identity(name);
+                    const auto canonical = range_bound_identity(*value, rename);
+                    constexpr char digits[] = "0123456789abcdef";
+                    std::string out;
+                    for (const auto byte : canonical) {
+                        const auto code = static_cast<unsigned char>(byte);
+                        out += digits[code >> 4]; out += digits[code & 15];
+                    }
+                    return out;
+                };
+                const auto& range = *axis.range_constraint;
+                key += "range(" + std::string(range.upper_first ? "R" : "F") +
+                    (range.lower_inclusive ? "[" : "(") + encode(range.lower) + ";" +
+                    encode(range.upper) + (range.upper_inclusive ? "]" : ")") + ";" +
+                    encode(axis.value) + ")";
+            }
         }
         type.tensor_shape_key = key + ">";
     }
 
+    if (std::any_of(plan.axes.begin(), plan.axes.end(), [](const auto& axis) {
+            return axis.range_constraint != nullptr;
+        })) plan.conditional = true;
     return plan;
 }
 
@@ -618,6 +671,12 @@ void Checker::declare_shape_variables(const TypeName& source, const ShapePlan& p
 // The result and every written parameter form one order-independent unit.
 void Checker::check_signature_shape(const FunctionDecl& source, FunctionType& type,
                                     std::size_t parameter_offset) {
+    struct Availability {
+        bool& value;
+        bool before;
+        ~Availability() { value = before; }
+    } availability{this_unavailable_, this_unavailable_};
+    if (source.is_constructor) this_unavailable_ = true;
     auto aggregate = std::make_shared<TypeName>();
     aggregate->name = "tensor";
     aggregate->brace_shape = true;
@@ -669,17 +728,10 @@ void Checker::check_signature_shape(const FunctionDecl& source, FunctionType& ty
         if (parameter.is_const) const_bindings_.insert(parameter.name);
     }
     current_module_namespace_ = source.module_namespace;
-    const auto check_function_types = [&](const auto& self, const TypeName& syntax, Type& checked) -> void {
-        if (syntax.name != "func" || checked.kind != TypeKind::Function) return;
-        self(self, syntax.arguments.front(), *checked.first);
-        for (std::size_t p = 0; p < syntax.function_parameters.size(); ++p)
-            self(self, syntax.function_parameters[p], checked.parameters[p]);
-        check_function_type_shape(syntax, checked);
-    };
-    check_function_types(check_function_types, source.return_type, type.result);
+    check_function_type_shape(source.return_type, type.result);
     for (std::size_t p = 0; p < source.parameters.size(); ++p)
-        check_function_types(check_function_types, source.parameters[p].type,
-                             type.parameters.at(p + parameter_offset).type);
+        check_function_type_shape(source.parameters[p].type,
+                                  type.parameters.at(p + parameter_offset).type);
     if (unit.parts.empty()) return;
     const auto previous_unit = signature_shape_unit_;
     const auto previous_parameters = signature_parameter_keys_;
@@ -743,6 +795,40 @@ void Checker::bind_signature_shape_variables(const FunctionDecl& source) {
 }
 
 void Checker::check_function_type_shape(const TypeName& source, Type& type) {
+    auto* element = &type;
+    for (std::size_t dimension = 0; dimension < source.array_depth && element->kind == TypeKind::Array;
+         ++dimension) element = element->first.get();
+    if (element != &type) {
+        check_function_type_shape(source, *element);
+        return;
+    }
+    if (source.name == "$tuple" && type.kind == TypeKind::Tuple) {
+        for (std::size_t i = 0; i < source.arguments.size(); ++i)
+            check_function_type_shape(source.arguments[i], type.parameters[i]);
+        return;
+    }
+    if (source.name == "union") {
+        // Union normalization sorts and merges alternatives. Resolve each
+        // source alternative with its own function-shape scope before merging.
+        struct Resolution {
+            bool& value;
+            bool before;
+            ~Resolution() { value = before; }
+        } resolution{signature_shape_resolution_, signature_shape_resolution_};
+        signature_shape_resolution_ = true;
+        std::vector<Type> cases;
+        for (const auto& alternative : source.arguments) {
+            auto current = resolve_type(alternative);
+            check_function_type_shape(alternative, current);
+            cases.push_back(std::move(current));
+        }
+        type = Type::union_of(std::move(cases));
+        return;
+    }
+    if (source.name != "func" || type.kind != TypeKind::Function) return;
+    check_function_type_shape(source.arguments.front(), *type.first);
+    for (std::size_t p = 0; p < source.function_parameters.size(); ++p)
+        check_function_type_shape(source.function_parameters[p], type.parameters[p]);
     auto aggregate = std::make_shared<TypeName>();
     aggregate->name = "tensor";
     aggregate->brace_shape = true;

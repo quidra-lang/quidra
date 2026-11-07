@@ -49,7 +49,7 @@ print("count = ")
 println(count)
 ```
 
-Omit the type by default when the initializer determines it, as in `label := "ready"`. Numeric literals default to `int`, exact `real`, or exact `com`, so `count := 7` infers `int`. In `int32 count := 7`, the annotation supplies a narrower context; `nat` requires context.
+Omit the type by default when the initializer determines it, as in `label := "ready"`. Numeric literals default to `int`, exact `real`, or exact `com`, so `count := 7` infers `int`. In `int32 count := 7`, the annotation supplies a narrower context; `nat` requires context. Numeric declarations, assignments, defaults, returns and value arguments use checked conversion to the destination type. Boolean conditions and arguments require `bool`; test an integer with `count != 0`. For checked scalar bounds such as `0 < count < 10 := 7`, see [range constraints](spec/language.md#range-constraints).
 
 The example also shows how values and references are passed:
 

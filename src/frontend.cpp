@@ -20,6 +20,7 @@
 
 #include "nesting_budget.hpp"
 #include "numeric_literal_policy.hpp"
+#include "range_constraint_key.hpp"
 #include "shape_relations.hpp"
 #include "compiler_extension_binding.hpp"
 #include "semantics/interface_contracts.hpp"
@@ -1247,12 +1248,13 @@ void rename_type(
     const std::unordered_set<std::string>& local_classes,
     const std::unordered_map<std::string, ImportBinding>& imports,
     const std::unordered_set<std::string>& type_parameters,
-    std::optional<SourceSpan> binding_exposure = std::nullopt) {
+    std::optional<SourceSpan> binding_exposure = std::nullopt,
+    const std::unordered_set<std::string>& local_functions = {}) {
     ConstantLookupScope constant_lookup_scope(binding_exposure);
     for (auto& extent : type.dimension_expressions)
-        if (extent) rename_expr(*extent, ns, local_classes, {}, imports, type_parameters);
+        if (extent) rename_expr(*extent, ns, local_classes, local_functions, imports, type_parameters);
     for (auto& extent : type.tensor_shape_expressions)
-        if (extent) rename_expr(*extent, ns, local_classes, {}, imports, type_parameters);
+        if (extent) rename_expr(*extent, ns, local_classes, local_functions, imports, type_parameters);
     for (auto& axis : type.shape_axes) {
         if (axis.kind == ShapeAxisKind::Declare || axis.kind == ShapeAxisKind::DeclareEqual) {
             auto exposure = axis.span;
@@ -1266,7 +1268,11 @@ void rename_type(
                 axis.name.clear();
             }
         }
-        if (axis.value) rename_expr(*axis.value, ns, local_classes, {}, imports, type_parameters);
+        if (axis.value) rename_expr(*axis.value, ns, local_classes, local_functions, imports, type_parameters);
+        if (axis.range_constraint) {
+            if (axis.range_constraint->lower) rename_expr(*axis.range_constraint->lower, ns, local_classes, local_functions, imports, type_parameters);
+            if (axis.range_constraint->upper) rename_expr(*axis.range_constraint->upper, ns, local_classes, local_functions, imports, type_parameters);
+        }
     }
     // A bare axis name refers only to a nat value, and a shape variable is a
     // new name: neither can be a type parameter of the declaration.
@@ -1287,16 +1293,16 @@ void rename_type(
     }
     if (type.name == "union" || type.name == "$tuple" || type.name == "$std.reflect.Each") {
         for (auto& argument : type.arguments) {
-            rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure);
+            rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure, local_functions);
         }
         return;
     }
 
     for (auto& argument : type.arguments) {
-        rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure);
+        rename_type(argument, ns, local_classes, imports, type_parameters, binding_exposure, local_functions);
     }
     for (auto& parameter : type.function_parameters) {
-        rename_type(parameter, ns, local_classes, imports, type_parameters, binding_exposure);
+        rename_type(parameter, ns, local_classes, imports, type_parameters, binding_exposure, local_functions);
     }
 
     // The reserved collection namespace is also its concise generic type name.
@@ -1467,7 +1473,7 @@ void rename_expr(
     }
     if (auto* node = std::get_if<ArrayComprehensionExpr>(&expression.data)) {
         reject_module_constant_shadow(node->name, node->binding_span);
-        if (node->type) rename_type(*node->type, ns, local_classes, imports, type_parameters);
+        if (node->type) rename_type(*node->type, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         visit_array_comprehension(*node, [&](Expr& child) {
             rename_expr(child, ns, local_classes, local_functions, imports, type_parameters);
         });
@@ -1572,7 +1578,7 @@ void rename_expr(
     }
     if (auto* node = std::get_if<CallExpr>(&expression.data)) {
         for (auto& type_argument : node->type_arguments) {
-            rename_type(type_argument, ns, local_classes, imports, type_parameters);
+            rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         }
         rename_call_args(node->args, ns, local_classes, local_functions, imports, type_parameters);
         if (node->callee == "map" && !node->type_arguments.empty()) {
@@ -1595,7 +1601,7 @@ void rename_expr(
             if (const auto target =
                     standard_type_function_target(receiver_name->name, node->method)) {
                 for (auto& type_argument : node->type_arguments) {
-                    rename_type(type_argument, ns, local_classes, imports, type_parameters);
+                    rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
                 }
                 rename_call_args(
                     node->args, ns, local_classes, local_functions, imports, type_parameters);
@@ -1613,7 +1619,7 @@ void rename_expr(
             const std::string local_callee = *local_namespace + "." + node->method;
             if (local_classes.contains(local_callee)) {
                 for (auto& type_argument : node->type_arguments) {
-                    rename_type(type_argument, ns, local_classes, imports, type_parameters);
+                    rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
                 }
                 rename_call_args(
                     node->args, ns, local_classes, local_functions, imports, type_parameters);
@@ -1632,7 +1638,7 @@ void rename_expr(
         if (const auto* module = expression_namespace(*node->receiver, imports, module_spelling)) {
             {
                 for (auto& type_argument : node->type_arguments) {
-                    rename_type(type_argument, ns, local_classes, imports, type_parameters);
+                    rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
                 }
                 rename_call_args(node->args, ns, local_classes, local_functions, imports, type_parameters);
 
@@ -1667,7 +1673,7 @@ void rename_expr(
             receiver_name->name = qualify(ns, receiver_name->name);
         rename_expr(*node->receiver, ns, local_classes, local_functions, imports, type_parameters);
         for (auto& type_argument : node->type_arguments) {
-            rename_type(type_argument, ns, local_classes, imports, type_parameters);
+            rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         }
         rename_call_args(node->args, ns, local_classes, local_functions, imports, type_parameters);
         return;
@@ -1775,11 +1781,17 @@ void rename_stmt(
     const std::unordered_set<std::string>& local_functions,
     const std::unordered_map<std::string, ImportBinding>& imports,
     const std::unordered_set<std::string>& type_parameters) {
-    const auto rename_pattern=[&](Pattern& pattern){visit_pattern(pattern,[&](Pattern& p){if(p.kind==Pattern::Kind::Declare)reject_module_constant_shadow(p.name,p.span);if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters);if(p.place)rename_expr(*p.place,ns,local_classes,local_functions,imports,type_parameters);});};
+    const auto rename_pattern=[&](Pattern& pattern){visit_pattern(pattern,[&](Pattern& p){if(p.kind==Pattern::Kind::Declare)reject_module_constant_shadow(p.name,p.span);if(p.type)rename_type(*p.type,ns,local_classes,imports,type_parameters,std::nullopt,local_functions);if(p.place)rename_expr(*p.place,ns,local_classes,local_functions,imports,type_parameters);});};
+    const auto rename_range = [&](std::optional<RangeConstraint>& range) {
+        if (!range) return;
+        if (range->lower) rename_expr(*range->lower, ns, local_classes, local_functions, imports, type_parameters);
+        if (range->upper) rename_expr(*range->upper, ns, local_classes, local_functions, imports, type_parameters);
+    };
     if (auto* node = std::get_if<BindingStmt>(&statement.data)) {
+        rename_range(node->range_constraint);
         if (!node->pattern) reject_module_constant_shadow(node->name, statement.span);
         if(node->pattern)rename_pattern(*node->pattern);
-        rename_type(node->declared_type, ns, local_classes, imports, type_parameters);
+        rename_type(node->declared_type, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         if (node->value) rename_expr(*node->value, ns, local_classes, local_functions, imports, type_parameters);
         if (node->literal_constant) {
             if (!node->value) literal_constant_error(statement.span);
@@ -1790,6 +1802,7 @@ void rename_stmt(
         return;
     }
     if (auto* node = std::get_if<AssignStmt>(&statement.data)) {
+        rename_range(node->range_constraint);
         if(node->pattern)rename_pattern(*node->pattern);
         if(node->target)rename_expr(*node->target, ns, local_classes, local_functions, imports, type_parameters);
         rename_expr(*node->value, ns, local_classes, local_functions, imports, type_parameters);
@@ -1856,8 +1869,8 @@ void rename_stmt(
         visit_for_header(*node,[&](Expr& operand) {
             rename_expr(operand,ns,local_classes,local_functions,imports,type_parameters);
         });
-        if(node->type) rename_type(*node->type,ns,local_classes,imports,type_parameters);
-        for(auto& binding:node->collections) if(binding.type) rename_type(*binding.type,ns,local_classes,imports,type_parameters);
+        if(node->type) rename_type(*node->type,ns,local_classes,imports,type_parameters,std::nullopt,local_functions);
+        for(auto& binding:node->collections) if(binding.type) rename_type(*binding.type,ns,local_classes,imports,type_parameters,std::nullopt,local_functions);
         if(node->pattern)rename_pattern(*node->pattern);
         LiteralConstantScope scope;
         for (auto& child : node->body) {
@@ -1870,7 +1883,7 @@ void rename_stmt(
     for (auto& match_case : node.cases) {
         if (match_case.binder) reject_module_constant_shadow(*match_case.binder, match_case.span);
         if(match_case.pattern)rename_pattern(*match_case.pattern);
-        else rename_type(match_case.type, ns, local_classes, imports, type_parameters);
+        else rename_type(match_case.type, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         LiteralConstantScope scope;
         for (auto& child : match_case.body) {
             rename_stmt(*child, ns, local_classes, local_functions, imports, type_parameters);
@@ -1915,13 +1928,17 @@ void rename_function(
     const auto inherited_bindings = current_value_bindings;
     ValueBindingScope value_binding_scope(value_bindings);
     const auto interface_exposure = parameter_exposure ? parameter_exposure : function.prototype_span;
-    rename_type(function.return_type, ns, local_classes, imports, type_parameters, interface_exposure);
+    rename_type(function.return_type, ns, local_classes, imports, type_parameters, interface_exposure, local_functions);
     for (auto& parameter : function.parameters) {
         auto exposure = parameter.span;
         if (const auto prototype = interface_exposure)
             exposure.start.offset = prototype->start.offset;
         reject_module_constant_shadow(parameter.name, exposure);
-        rename_type(parameter.type, ns, local_classes, imports, type_parameters, interface_exposure);
+        rename_type(parameter.type, ns, local_classes, imports, type_parameters, interface_exposure, local_functions);
+        if (parameter.range_constraint) {
+            if (parameter.range_constraint->lower) rename_expr(*parameter.range_constraint->lower, ns, local_classes, local_functions, imports, type_parameters);
+            if (parameter.range_constraint->upper) rename_expr(*parameter.range_constraint->upper, ns, local_classes, local_functions, imports, type_parameters);
+        }
         if (parameter.default_value) {
             const std::unordered_set<std::string> no_bindings;
             ValueBindingScope defaults_scope(inherited_bindings ? *inherited_bindings : no_bindings);
@@ -1991,11 +2008,27 @@ DeclarationIdentity original_declaration_identity(const FunctionDecl&, std::stri
     const std::vector<std::string>& class_constraints = {});
 
 
+std::string source_range_key(const std::optional<RangeConstraint>& range, std::string_view source) {
+    if (!range) return {};
+    const auto bound = [&](const std::shared_ptr<Expr>& value) {
+        if (!value) return std::string("_");
+        std::string key;
+        const auto span = value->span;
+        if (span.end.offset > source.size() || span.start.offset > span.end.offset) return std::string("<range>");
+        for (const auto& token : Lexer(std::string(source.substr(span.start.offset, span.end.offset - span.start.offset))).scan()) {
+            if (token.kind == TokenKind::Eof || token.kind == TokenKind::Newline) continue;
+            key += std::to_string(static_cast<int>(token.kind)) + ":" + std::to_string(token.text.size()) + ":" + token.text;
+        }
+        return key;
+    };
+    return std::string(range->upper_first ? "reverse:" : "") + (range->lower_inclusive ? "[" : "(") + bound(range->lower) + "," + bound(range->upper) + (range->upper_inclusive ? "]" : ")");
+}
+
 bool same_parameter_contract(const Parameter& a, const Parameter& b, std::string_view source) {
-    (void)source;
     return a.name == b.name && a.writable == b.writable &&
            a.is_const == b.is_const && a.is_extension == b.is_extension &&
-           a.type.name == b.type.name;
+           a.type.name == b.type.name &&
+           source_range_key(a.range_constraint, source) == source_range_key(b.range_constraint, source);
 }
 
 std::string function_prototype_key(const FunctionDecl& function, std::string_view source) {
@@ -2384,6 +2417,8 @@ public:
                     if (parameter.default_value) check_expr(*parameter.default_value, {});
                 for (const auto& parameter : method.parameters)
                     bound_names_.insert(parameter.name);
+                for (const auto& parameter : method.parameters)
+                    check_range(parameter.range_constraint, {});
                 for (const auto& statement : method.body)
                     check_stmt(*statement, {});
             }
@@ -2400,6 +2435,8 @@ public:
                 if (parameter.default_value) check_expr(*parameter.default_value, function.name);
             for (const auto& parameter : function.parameters)
                 bound_names_.insert(parameter.name);
+            for (const auto& parameter : function.parameters)
+                check_range(parameter.range_constraint, function.name);
             for (const auto& statement : function.body)
                 check_stmt(*statement, function.name);
         }
@@ -2434,6 +2471,12 @@ private:
         for (const auto& statement : body) check_stmt(*statement, current_function);
     }
 
+    void check_range(const std::optional<RangeConstraint>& range, std::string_view current_function) const {
+        if (!range) return;
+        if (range->lower) check_expr(*range->lower, current_function);
+        if (range->upper) check_expr(*range->upper, current_function);
+    }
+
     void check_type(const TypeName& type, std::size_t offset, bool complete) const {
         if (const auto found = class_exposure_.find(type.name); found != class_exposure_.end()) {
             const auto required = complete ? class_completion_.at(type.name) : found->second;
@@ -2448,6 +2491,7 @@ private:
         }
         for (const auto& argument : type.arguments) check_type(argument, offset, complete);
         for (const auto& parameter : type.function_parameters) check_type(parameter, offset, complete);
+        for (const auto& axis : type.shape_axes) check_range(axis.range_constraint, {});
     }
 
     void check_call_name(std::string_view name, SourceSpan span,
@@ -2574,9 +2618,11 @@ private:
             if (node->value) check_expr(*node->value, current_function);
             if (node->pattern) bind_pattern(*node->pattern);
             else bound_names_.insert(node->name);
+            check_range(node->range_constraint, current_function);
             return;
         }
         if (const auto* node = std::get_if<AssignStmt>(&statement.data)) {
+            check_range(node->range_constraint, current_function);
             if(node->target)check_expr(*node->target, current_function);
             check_expr(*node->value, current_function);
             return;
@@ -3368,11 +3414,30 @@ private:
             ModuleConstantScope statement_constants(root ? no_module_constants : module_constants);
             LiteralConstantScope scope;
             for (auto& statement : program.statements) {
-                if (root || std::holds_alternative<MainGuardStmt>(statement->data))
+                const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                if (root || std::holds_alternative<MainGuardStmt>(statement->data) ||
+                    (binding && binding->is_const && binding->range_constraint))
                     rename_stmt(*statement, ns, local_classes, local_functions, imports, {});
             }
         }
         if (!root) {
+            // An imported constant has no storage initialization, but its range
+            // is still an executable module precondition. Preserve only these
+            // constrained declarations in an internal active scoped guard;
+            // ordinary imported statements retain their existing rules.
+            for (auto& statement : program.statements) {
+                const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                if (!binding || !binding->is_const || !binding->range_constraint) continue;
+                MainGuardStmt precondition;
+                precondition.active = true;
+                precondition.source_file = source_file;
+                precondition.module_namespace = ns;
+                precondition.body.push_back(std::move(statement));
+                statement = std::make_unique<Stmt>();
+                statement->span.start.offset = std::numeric_limits<std::size_t>::max();
+                statement->span.end.offset = statement->span.start.offset;
+                statement->data = std::move(precondition);
+            }
             // Keep imported declarations in the semantic program while marking their top-level
             // spans as non-root. Source inspection/patching can then remain root-file scoped.
             const auto imported_offset = std::numeric_limits<std::size_t>::max();
@@ -3426,15 +3491,33 @@ TypeName clone_type(const TypeName& source) {
     return out;
 }
 
+std::string canonical_type(const TypeName&,
+    const std::unordered_map<std::string, std::string>*);
+
 // The spelling of an extent expression in an identity key. A shape variable
 // of the type being keyed prints as `rename` maps it (its number or `_`); a
 // conversion nat(e) prints e, which is the value it captures.
+std::string canonical_extent_expression_impl(
+    const Expr&, const std::unordered_map<std::string, std::string>*, bool);
+
 std::string canonical_extent_expression(
     const Expr& expression,
-    const std::unordered_map<std::string, std::string>* rename = nullptr) {
+    const std::unordered_map<std::string, std::string>* rename = nullptr, bool preserve_conversions = false) {
+    auto key = canonical_extent_expression_impl(expression, rename, preserve_conversions);
+    if (expression.contextual_default_type)
+        key = "typed(" + canonical_type(*expression.contextual_default_type, rename) + ":" + key + ")";
+    return key;
+}
+
+std::string canonical_extent_expression_impl(
+    const Expr& expression, const std::unordered_map<std::string, std::string>* rename,
+    bool preserve_conversions) {
     if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
-        return std::to_string(literal->value);
+        return literal->spelling.empty() ? std::to_string(literal->value) : literal->spelling;
     }
+    if (const auto* literal = std::get_if<RealLiteralExpr>(&expression.data)) return literal->spelling;
+    if (const auto* literal = std::get_if<ImaginaryLiteralExpr>(&expression.data)) return literal->spelling + "i";
+    if (const auto* literal = std::get_if<BoolExpr>(&expression.data)) return literal->value ? "true" : "false";
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
         if (!name->this_qualifier && !name->self_reference && rename) {
             if (const auto found = rename->find(name->name); found != rename->end())
@@ -3443,25 +3526,127 @@ std::string canonical_extent_expression(
         return name->this_qualifier ? "this." + name->name : name->name;
     }
     if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
-        if (call->callee == "nat" && call->type_arguments.empty() && call->args.size() == 1 &&
+        if (!preserve_conversions && call->callee == "nat" && call->type_arguments.empty() && call->args.size() == 1 &&
             !call->args[0].name && !call->args[0].writable) {
-            return canonical_extent_expression(*call->args[0].value, rename);
+            return canonical_extent_expression(*call->args[0].value, rename, preserve_conversions);
         }
-        std::string out = call->callee + "(";
+        std::string out = call->callee;
+        if (call->mutation_marker) out = "." + out;
+        if (!call->type_arguments.empty()) {
+            out += "<";
+            for (const auto& argument : call->type_arguments) out += canonical_type(argument, rename) + ",";
+            out += ">";
+        }
+        out += "(";
         for (std::size_t i = 0; i < call->args.size(); ++i) {
             if (i) out += ",";
-            out += canonical_extent_expression(*call->args[i].value, rename);
+            if (call->args[i].name) out += *call->args[i].name + "=";
+            if (call->args[i].writable) out += "&";
+            out += canonical_extent_expression(*call->args[i].value, rename, preserve_conversions);
         }
         return out + ")";
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
-        return unary->op + "(" + canonical_extent_expression(*unary->operand, rename) + ")";
+        return unary->op + "(" + canonical_extent_expression(*unary->operand, rename, preserve_conversions) + ")";
     }
     if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
-        return "(" + canonical_extent_expression(*binary->left, rename) + binary->op +
-               canonical_extent_expression(*binary->right, rename) + ")";
+        return "(" + canonical_extent_expression(*binary->left, rename, preserve_conversions) + binary->op +
+               canonical_extent_expression(*binary->right, rename, preserve_conversions) + ")";
     }
-    return "<extent>";
+    if (const auto* literal = std::get_if<StringExpr>(&expression.data))
+        return "string(" + std::to_string(literal->value.size()) + ":" + literal->value + ")";
+    if (const auto* values = std::get_if<ArrayExpr>(&expression.data)) {
+        std::string out = "array[";
+        for (const auto& value : values->elements) out += canonical_extent_expression(*value, rename, preserve_conversions) + ",";
+        return out + "]";
+    }
+    if (const auto* values = std::get_if<TupleExpr>(&expression.data)) {
+        std::string out = "tuple(";
+        for (const auto& value : values->elements) out += canonical_extent_expression(*value, rename, preserve_conversions) + ",";
+        return out + ")";
+    }
+    if (const auto* chain = std::get_if<ComparisonChainExpr>(&expression.data)) {
+        std::string out = "compare(";
+        for (std::size_t i = 0; i < chain->operands.size(); ++i) {
+            if (i) out += chain->ops.at(i - 1);
+            out += canonical_extent_expression(*chain->operands[i], rename, preserve_conversions);
+        }
+        return out + ")";
+    }
+    if (const auto* value = std::get_if<LiteralConstantExpr>(&expression.data))
+        return canonical_extent_expression(*value->value, rename, preserve_conversions);
+    if (const auto* member = std::get_if<MemberExpr>(&expression.data))
+        return canonical_extent_expression(*member->base, rename, preserve_conversions) + "." + member->name;
+    if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
+        std::string out = canonical_extent_expression(*call->receiver, rename, preserve_conversions) + "." + call->method + "<";
+        for (const auto& type : call->type_arguments) out += canonical_type(type, rename) + ",";
+        out += ">(";
+        for (const auto& argument : call->args) {
+            if (argument.name) out += *argument.name + "=";
+            if (argument.writable) out += "&";
+            out += canonical_extent_expression(*argument.value, rename, preserve_conversions) + ",";
+        }
+        return out + ")";
+    }
+    if (const auto* indexed = std::get_if<IndexExpr>(&expression.data)) {
+        std::string out = canonical_extent_expression(*indexed->base, rename, preserve_conversions) + "[";
+        for (const auto& item : indexed->items) {
+            if (item.index) out += canonical_extent_expression(*item.index, rename, preserve_conversions);
+            if (item.slice) {
+                if (item.start) out += canonical_extent_expression(*item.start, rename, preserve_conversions);
+                out += ":" + std::to_string(static_cast<int>(item.start_form)) + ":" + std::to_string(static_cast<int>(item.end_form)) + ":";
+                if (item.stop) out += canonical_extent_expression(*item.stop, rename, preserve_conversions);
+                out += ":";
+                if (item.step) out += canonical_extent_expression(*item.step, rename, preserve_conversions);
+            }
+            out += ",";
+        }
+        return out + "]";
+    }
+    if (const auto* value = std::get_if<TryExpr>(&expression.data))
+        return "try(" + canonical_extent_expression(*value->value, rename, preserve_conversions) + ")";
+    if (const auto* conditional = std::get_if<IfExpr>(&expression.data)) {
+        std::string out = "if(";
+        for (std::size_t i = 0; i < conditional->conditions.size(); ++i)
+            out += canonical_extent_expression(*conditional->conditions[i], rename, preserve_conversions) + ":" +
+                   canonical_extent_expression(*conditional->values[i], rename, preserve_conversions) + ";";
+        return out + canonical_extent_expression(*conditional->otherwise, rename, preserve_conversions) + ")";
+    }
+    if (const auto* array = std::get_if<ArrayComprehensionExpr>(&expression.data)) {
+        auto inner = rename ? *rename : std::unordered_map<std::string, std::string>{};
+        std::size_t depth = 0;
+        while (std::any_of(inner.begin(), inner.end(), [&](const auto& entry) {
+            return entry.second == "$iterator" + std::to_string(depth);
+        })) ++depth;
+        inner[array->name] = "$iterator" + std::to_string(depth);
+        return "generate(" + (array->type ? canonical_type(*array->type, rename) : "_") + ";" +
+            canonical_extent_expression(*array->source, rename, preserve_conversions) + ";" +
+            (array->condition ? canonical_extent_expression(*array->condition, &inner, preserve_conversions) : "_") + ";" +
+            canonical_extent_expression(*array->value, &inner, preserve_conversions) + ")";
+    }
+    if (const auto* text = std::get_if<StringTemplateExpr>(&expression.data)) {
+        std::string out = "template(";
+        for (const auto& literal : text->literals)
+            out += std::to_string(literal.size()) + ":" + literal + ";";
+        for (const auto& value : text->expressions)
+            out += canonical_extent_expression(*value, rename, preserve_conversions) + ";";
+        for (const auto& format : text->formats) {
+            for (const auto& number : {format.integer_width, format.fractional_digits,
+                    format.significant_digits, format.grouping, format.radix})
+                out += number ? std::to_string(*number) + "," : "_,";
+            out += std::to_string(format.uppercase) + std::to_string(format.zero) + ";";
+        }
+        return out + ")";
+    }
+    if (const auto* value = std::get_if<TupleProjectionExpr>(&expression.data)) {
+        const auto found = rename ? rename->find(value->subject) : std::unordered_map<std::string, std::string>::const_iterator{};
+        std::string out = "project(" + (rename && found != rename->end() ? found->second : value->subject);
+        for (const auto index : value->indices) out += ":" + std::to_string(index);
+        return out + ")";
+    }
+    if (std::holds_alternative<VoidExpr>(expression.data)) return "void";
+    if (std::holds_alternative<NoneExpr>(expression.data)) return "none";
+    throw std::logic_error("unhandled expression in a shape contract");
 }
 
 void count_extent_names(const Expr& expression, std::unordered_map<std::string, int>& counts) {
@@ -3471,11 +3656,34 @@ void count_extent_names(const Expr& expression, std::unordered_map<std::string, 
         }
     } else if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
         for (const auto& argument : call->args) count_extent_names(*argument.value, counts);
+    } else if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
+        count_extent_names(*call->receiver, counts);
+        for (const auto& argument : call->args) count_extent_names(*argument.value, counts);
+    } else if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+        count_extent_names(*member->base, counts);
+    } else if (const auto* indexed = std::get_if<IndexExpr>(&expression.data)) {
+        count_extent_names(*indexed->base, counts);
+        for (const auto& item : indexed->items) {
+            if (item.index) count_extent_names(*item.index, counts);
+            if (item.start) count_extent_names(*item.start, counts);
+            if (item.stop) count_extent_names(*item.stop, counts);
+            if (item.step) count_extent_names(*item.step, counts);
+        }
+    } else if (const auto* conditional = std::get_if<IfExpr>(&expression.data)) {
+        for (const auto& value : conditional->conditions) count_extent_names(*value, counts);
+        for (const auto& value : conditional->values) count_extent_names(*value, counts);
+        count_extent_names(*conditional->otherwise, counts);
+    } else if (const auto* literal = std::get_if<LiteralConstantExpr>(&expression.data)) {
+        count_extent_names(*literal->value, counts);
+    } else if (const auto* tried = std::get_if<TryExpr>(&expression.data)) {
+        count_extent_names(*tried->value, counts);
     } else if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
         count_extent_names(*unary->operand, counts);
     } else if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
         count_extent_names(*binary->left, counts);
         count_extent_names(*binary->right, counts);
+    } else if (const auto* chain = std::get_if<ComparisonChainExpr>(&expression.data)) {
+        for (const auto& operand : chain->operands) count_extent_names(*operand, counts);
     }
 }
 
@@ -3499,6 +3707,10 @@ std::string brace_shape_key(const std::vector<ShapeAxis>& axes,
             if (auto found = counts.find(axis.name); found != counts.end()) ++found->second;
         }
         if (axis.value) count_extent_names(*axis.value, counts);
+        if (axis.range_constraint) {
+            if (axis.range_constraint->lower) count_extent_names(*axis.range_constraint->lower, counts);
+            if (axis.range_constraint->upper) count_extent_names(*axis.range_constraint->upper, counts);
+        }
     }
     std::unordered_map<std::string, std::string> rename;
     int next = 0;
@@ -3545,6 +3757,15 @@ std::string brace_shape_key(const std::vector<ShapeAxis>& axes,
                 out += axis.value ? canonical_extent_expression(*axis.value, &rename) : "_";
                 break;
         }
+        if (axis.range_constraint) {
+            const auto& range = *axis.range_constraint;
+            if (range.upper_first) out += "reverse:";
+            out += range.lower_inclusive ? "[" : "(";
+            out += range.lower ? canonical_extent_expression(*range.lower, &rename, true) : "_";
+            out += ",";
+            out += range.upper ? canonical_extent_expression(*range.upper, &rename, true) : "_";
+            out += range.upper_inclusive ? "]" : ")";
+        }
         first_axis = false;
     }
     return out + ">";
@@ -3565,7 +3786,13 @@ std::unordered_map<std::string, std::string> signature_shape_rename(const Functi
             if (axis.kind == ShapeAxisKind::DeclareEqual) derived[axis.name] = axis.value.get();
         }
     }
-    for (const auto& axis : axes) if (axis.value) count_extent_names(*axis.value, counts);
+    for (const auto& axis : axes) {
+        if (axis.value) count_extent_names(*axis.value, counts);
+        if (axis.range_constraint) {
+            if (axis.range_constraint->lower) count_extent_names(*axis.range_constraint->lower, counts);
+            if (axis.range_constraint->upper) count_extent_names(*axis.range_constraint->upper, counts);
+        }
+    }
     std::unordered_map<std::string, std::string> rename;
     int next = 0;
     const auto number = [&](const std::string& name) {
@@ -4808,6 +5035,7 @@ private:
             copy.span = parameter.span;
             copy.is_const = parameter.is_const;
             copy.is_local = parameter.is_local;
+            copy.range_constraint = parameter.range_constraint;
             if (parameter.default_value) {
                 copy.default_value = standard_name("$method_family_default");
             }
@@ -5773,13 +6001,13 @@ private:
         return true;
     }
 
-    enum class ArgumentConversions { exact, numeric, integer_truth };
+    enum class ArgumentConversions { exact, numeric };
 
     std::optional<std::vector<TypeName>> infer_generic_arguments(
         const FunctionDecl& templ,
         const std::vector<CallArg>& args,
         const std::string& current_class,
-        ArgumentConversions conversions = ArgumentConversions::integer_truth) const {
+        ArgumentConversions conversions = ArgumentConversions::numeric) const {
         return infer_type_arguments(
             templ.type_parameters, templ.type_parameters, templ.parameters, args,
             current_class, &templ.return_type, conversions);
@@ -5795,7 +6023,7 @@ private:
         const std::vector<Parameter>& callee_parameters,
         const std::vector<CallArg>& args,
         const std::string& current_class, const TypeName* result_pattern = nullptr,
-        ArgumentConversions conversions = ArgumentConversions::integer_truth) const {
+        ArgumentConversions conversions = ArgumentConversions::numeric) const {
         const std::unordered_set<std::string> parameters{solved.begin(), solved.end()};
         Substitution inferred;
         std::vector<bool> filled(callee_parameters.size(), false);
@@ -5980,11 +6208,7 @@ private:
             if (infer_generic_pattern(expected, source, {}, ignored)) return true;
             if (conversions != ArgumentConversions::exact &&
                 numeric_argument_type_match(expected, source)) return true;
-            if (conversions != ArgumentConversions::integer_truth ||
-                expected.name != "bool" || !expected.dimensions.empty() ||
-                !source.dimensions.empty() || !source.arguments.empty()) return false;
-            const auto* numeric = numeric_type_name(source.name);
-            return numeric && is_integer_family_type(Type::simple(numeric->kind));
+            return false;
         };
         if (matches(actual)) return true;
         // Concrete value parameters can consume a fallible result. References
@@ -6018,10 +6242,8 @@ private:
                 if (!element.dimension_expressions.empty())
                     element.dimension_expressions.erase(element.dimension_expressions.begin());
                 element.array_depth = element.dimensions.size();
-                const auto element_mode = mode == ArgumentConversions::integer_truth
-                    ? ArgumentConversions::numeric : mode;
                 return std::all_of(array->elements.begin(), array->elements.end(),
-                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap, element_mode); });
+                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap, mode); });
             }
             if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
                 return self(self, *conditional->otherwise, expected, allow_error_unwrap, mode) &&
@@ -6141,16 +6363,12 @@ private:
             }
         }
 
-        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric,
-                                       ArgumentConversions::integer_truth}) {
+        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric}) {
             if (!concrete_matches.empty() || !generic_matches.empty()) break;
             for (const auto* function : family->second) {
                 if (function->type_parameters.empty()) {
                     if (concrete_family_match(*function, args, current_class, nullptr, true, conversions))
                         concrete_matches.push_back(function);
-                } else if (conversions == ArgumentConversions::integer_truth) {
-                    if (const auto inferred = generic_family_match(*function, args, current_class, conversions))
-                        generic_matches.push_back(GenericMatch{function, *inferred});
                 }
             }
         }
@@ -6296,11 +6514,23 @@ private:
         return instantiate_function(*chosen, arguments);
     }
 
+    std::optional<RangeConstraint> clone_range_constraint(
+        const std::optional<RangeConstraint>& source, const Substitution& substitution,
+        const std::unordered_set<std::string>& deferred, const std::string& current_class) {
+        if (!source) return {};
+        auto copy = *source;
+        if (source->lower) copy.lower = clone_expr(*source->lower, substitution, deferred, current_class);
+        if (source->upper) copy.upper = clone_expr(*source->upper, substitution, deferred, current_class);
+        return copy;
+    }
+
     TypeName materialize_type(
         const TypeName& source,
         const Substitution& substitution,
         const std::unordered_set<std::string>& deferred,bool traversal_result=false) {
         auto type = substitute_raw(source, substitution);
+        for (auto& axis : type.shape_axes)
+            axis.range_constraint = clone_range_constraint(axis.range_constraint, substitution, deferred, "");
         // Built-in collection bodies are injected after source-name qualification;
         // their self-referential method types still use the concise public names.
         if (type.name == "map" && !type.arguments.empty()) type.name = standard_class::map;
@@ -6310,7 +6540,7 @@ private:
             frontend_error("TRAVERSAL","reflect.Each<E> is only a traversal function's complete result type.",type.span);
         if (type.name == "union" || type.name == "$tuple" || type.name == "$std.reflect.Each") {
             for (auto& argument : type.arguments) {
-                argument = materialize_type(argument, {}, deferred);
+                argument = materialize_type(argument, substitution, deferred);
             }
             return type;
         }
@@ -6318,10 +6548,10 @@ private:
         if (deferred.contains(type.name) && type.arguments.empty()) return type;
 
         for (auto& argument : type.arguments) {
-            argument = materialize_type(argument, {}, deferred);
+            argument = materialize_type(argument, substitution, deferred);
         }
         for (auto& parameter : type.function_parameters) {
-            parameter = materialize_type(parameter, {}, deferred);
+            parameter = materialize_type(parameter, substitution, deferred);
         }
 
         if (!type.arguments.empty()) {
@@ -6772,7 +7002,6 @@ private:
                 std::string source_file;
                 bool writable{};
                 bool call_matches{};
-                bool truth_call_matches{};
                 bool preferred_call{};
                 bool receiver_collision{};
                 bool standard_reduction{};
@@ -6795,12 +7024,10 @@ private:
                 bool matches = false;
                 bool mutable_receiver = false;
                 bool call_matches = false;
-                bool truth_call_matches = false;
                 bool preferred_call = false;
                 bool exact_contextual_match = false;
                 bool exact_contextual_collision = false;
                 bool fallback_contextual_collision = false;
-                bool truth_contextual_collision = false;
                 for (const auto* declaration : family) {
                     if (declaration->parameters.empty() ||
                         !declaration->parameters.front().is_extension ||
@@ -6808,7 +7035,6 @@ private:
                          declaration->module_namespace != current_module_namespace_))
                         continue;
                     const auto& param = declaration->parameters.front();
-                    bool receiver_needs_truth = false;
                     if (receiver_type && !contains_parameter(*receiver_type, deferred)) {
                         Substitution inferred;
                         bool receiver_matches = infer_generic_pattern(
@@ -6835,13 +7061,8 @@ private:
                             }
                             if (declaration->type_parameters.empty() || substituted)
                                 receiver_matches = concrete_argument_type_match(*formal, *receiver_type, true);
-                            receiver_needs_truth = !receiver_matches && formal->name == "bool" &&
-                                concrete_argument_type_match(*formal, *receiver_type, true,
-                                                             ArgumentConversions::integer_truth);
                         }
-                        if (!receiver_matches &&
-                            (!receiver_needs_truth || receiver_has_method(*receiver_type, node->method)))
-                            continue;
+                        if (!receiver_matches) continue;
                     }
                     arguments.front().writable = param.writable;
                     const auto matches_call = [&](ArgumentConversions conversions,
@@ -6870,9 +7091,6 @@ private:
                     };
                     Substitution candidate_arguments;
                     const bool declaration_matches = matches_call(ArgumentConversions::numeric, candidate_arguments);
-                    if (!declaration_matches) candidate_arguments.clear();
-                    const bool truth_matches = !declaration_matches &&
-                        matches_call(ArgumentConversions::integer_truth, candidate_arguments);
                     preferred_call |= declaration_matches &&
                         ((!declaration->type_parameters.empty() && extension_type_arguments.empty()) ||
                          concrete_family_match(*declaration, arguments, current_class, &candidate_arguments,
@@ -6880,15 +7098,12 @@ private:
                     // An unknown type is not a wildcard. Literal receivers
                     // can still match through the ordinary family's concrete
                     // contextual argument rules above.
-                    if ((!receiver_type || receiver_needs_truth) &&
-                        !declaration_matches && !truth_matches) continue;
-                    if (!receiver_type || ((declaration_matches || truth_matches) && non_error_type(*receiver_type))) {
+                    if (!receiver_type && !declaration_matches) continue;
+                    if (!receiver_type || (declaration_matches && non_error_type(*receiver_type))) {
                         const auto contextual_receiver =
                             materialize_type(param.type, candidate_arguments, deferred);
                         const bool collision = receiver_has_method(contextual_receiver, node->method);
-                        if (truth_matches) {
-                            truth_contextual_collision |= collision;
-                        } else if (concrete_family_match(
+                        if (concrete_family_match(
                                        *declaration, arguments, current_class, &candidate_arguments)) {
                             exact_contextual_match = true;
                             exact_contextual_collision |= collision;
@@ -6899,19 +7114,18 @@ private:
                     matches = true;
                     mutable_receiver |= param.writable;
                     call_matches |= declaration_matches;
-                    truth_call_matches |= truth_matches;
                 }
                 const bool standard = standard_reduction_namespace(family.front()->module_namespace);
-                if (!matches || (standard && !receiver_type && !call_matches && !truth_call_matches))
+                if (!matches || (standard && !receiver_type && !call_matches))
                     continue;
                 // Inferred dispatch keeps an exact generic union match ahead
                 // of a concrete member that only matches after error removal.
                 // Such an unused member cannot introduce a native collision.
                 const bool receiver_collision = exact_contextual_match
                     ? exact_contextual_collision
-                    : call_matches ? fallback_contextual_collision : truth_contextual_collision;
+                    : fallback_contextual_collision;
                 extensions.push_back({name, family.front()->source_file, mutable_receiver,
-                                      call_matches, truth_call_matches, preferred_call, receiver_collision,
+                                      call_matches, preferred_call, receiver_collision,
                                       standard});
             }
             if (!extensions.empty()) {
@@ -6919,16 +7133,12 @@ private:
                                 [](const auto& candidate) { return candidate.call_matches; })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return !candidate.call_matches; });
-                } else if (std::any_of(extensions.begin(), extensions.end(),
-                                      [](const auto& candidate) { return candidate.truth_call_matches; })) {
-                    std::erase_if(extensions,
-                                  [](const auto& candidate) { return !candidate.truth_call_matches; });
                 }
                 // Existing extensions keep their behavior for calls they accept.
                 // Standard reductions supply the methods when no scoped extension matches.
                 if (std::any_of(extensions.begin(), extensions.end(), [](const auto& candidate) {
                         return !candidate.standard_reduction &&
-                               (candidate.call_matches || candidate.truth_call_matches);
+                               candidate.call_matches;
                     })) {
                     std::erase_if(extensions,
                                   [](const auto& candidate) { return candidate.standard_reduction; });
@@ -7127,9 +7337,11 @@ private:
                     type_environment_[copy.name] = clone_type(*inferred);
                 }
             }
+            copy.range_constraint = clone_range_constraint(node->range_constraint, substitution, deferred, current_class);
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<AssignStmt>(&source.data)) {
             AssignStmt copy;
+            copy.range_constraint = clone_range_constraint(node->range_constraint, substitution, deferred, current_class);
             if(node->target)copy.target=clone_expr(*node->target,substitution,deferred,current_class);
             copy.value=clone_expr(*node->value,substitution,deferred,current_class);copy.compound_op=node->compound_op;
             if(node->pattern)copy.pattern=clone_pattern(*node->pattern,substitution,deferred,current_class);
@@ -7483,6 +7695,9 @@ private:
                 type_environment_[copy.name] = clone_type(copy.type);
                 out.parameters.push_back(std::move(copy));
             }
+            for (std::size_t i = 0; i < source.parameters.size(); ++i)
+                out.parameters[i].range_constraint = clone_range_constraint(
+                    source.parameters[i].range_constraint, substitution, deferred, current_class);
             for (const auto& statement : source.body) {
                 auto cloned = clone_stmt(*statement, substitution, deferred, current_class);
                 if (source.is_constructor) materialize_initializer_field(current_class, *cloned);
@@ -7832,16 +8047,12 @@ private:
             }
         }
 
-        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric,
-                                       ArgumentConversions::integer_truth}) {
+        for (const auto conversions : {ArgumentConversions::exact, ArgumentConversions::numeric}) {
             if (!concrete_matches.empty() || !generic_matches.empty()) break;
             for (auto& member : family) {
                 if (member.signature.type_parameters.empty()) {
                     if (concrete_family_match(member.signature, args, current_class, nullptr, true, conversions))
                         concrete_matches.push_back(&member);
-                } else if (conversions == ArgumentConversions::integer_truth) {
-                    if (const auto inferred = generic_family_match(member.signature, args, current_class, conversions))
-                        generic_matches.push_back(GenericMethodMatch{&member, *inferred});
                 }
             }
         }
@@ -7999,6 +8210,11 @@ private:
 };
 
 } // namespace
+
+std::string range_bound_identity(
+    const Expr& expression, const std::unordered_map<std::string, std::string>& names) {
+    return canonical_extent_expression(expression, &names, true);
+}
 
 ResolvedProgram load_program_with_modules(
     const std::filesystem::path& root_file,

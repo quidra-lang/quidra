@@ -1,3 +1,4 @@
+#include "range_constraint_traversal.hpp"
 #include "quidra/checker.hpp"
 #include "quidra/language.hpp"
 #include <algorithm>
@@ -129,6 +130,7 @@ void Checker::validate_parallel_for(const Stmt& statement,const ForStmt& loop,
                 if(binding->reference||binding->pattern||!scalar(binding_types_.at(stmt.get())))
                     reject("A parallel iteration local must be a scalar value.",stmt->span);
                 if(binding->value)expression(*binding->value);
+                visit_statement_range_bounds(*stmt, expression);
                 locals.insert(binding->name);
             } else if(const auto* assign=std::get_if<AssignStmt>(&stmt->data)) {
                 if(assign->pattern)reject("Destructured parallel output needs a disjoint-place proof.",stmt->span);
@@ -139,6 +141,7 @@ void Checker::validate_parallel_for(const Stmt& statement,const ForStmt& loop,
                 else if(!std::holds_alternative<IndexExpr>(assign->target_expr()->data))
                     reject("This parallel assignment has no disjoint element proof.",stmt->span);
                 expression(*assign->value);
+                visit_statement_range_bounds(*stmt, expression);
                 if(!assign->compound_op.empty() && is_bare_integer(raw_types_.at(assign->target_expr())))
                     plan.worker_arithmetic=false;
             } else if(const auto* branch=std::get_if<IfStmt>(&stmt->data)) {

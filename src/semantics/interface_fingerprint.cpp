@@ -10,7 +10,7 @@ namespace {
 // Every input field needs an explicit signature/summary/lookup role. Growing
 // these capture models requires updating that classification in this file.
 static_assert(ir::fields::aggregate_arity<InterfaceContracts>() == 15);
-static_assert(ir::fields::aggregate_arity<FunctionInterface>() == 12);
+static_assert(ir::fields::aggregate_arity<FunctionInterface>() == 13);
 DeclarationIdentity original(DeclarationIdentity declaration) {
     declaration.source_file.clear();
     declaration.generic_args.clear();
@@ -108,6 +108,7 @@ struct SignatureFunction {
     std::optional<std::string> external_symbol;
     std::vector<std::optional<CanonicalInterfacePayload>> defaults;
     std::optional<CanonicalInterfacePayload> generic_body;
+    std::vector<std::optional<CanonicalInterfacePayload>> constraints;
 };
 struct SummaryInstance {
     std::vector<std::string> arguments;
@@ -184,6 +185,9 @@ ModuleFingerprints fingerprint_module(const ir::Module& module, const ModuleSele
         if (contract.parameter_defaults.size() != declaration.parameters.size())
             throw std::invalid_argument("default argument contract dimensions disagree");
         for (const auto& value : contract.parameter_defaults) if (value) payload(*value);
+        if (!contract.parameter_constraints.empty() && contract.parameter_constraints.size() != declaration.parameters.size())
+            throw std::invalid_argument("range constraint contract dimensions disagree");
+        for (const auto& value : contract.parameter_constraints) if (value) payload(*value);
         if (contract.generic_body) payload(*contract.generic_body);
         const bool generic = !declaration.generic_parameters.empty();
         const bool unchecked = generic && contract.summary_state == OriginalSummaryState::NotCheckedGeneric;
@@ -191,7 +195,7 @@ ModuleFingerprints fingerprint_module(const ir::Module& module, const ModuleSele
         if (generic && !declaration.external && !contract.generic_body)
             capture.missing(MissingComponent::GenericBody,key,true,unchecked);
         SignatureFunction signed_function{declaration,false,contract.export_c,contract.external_symbol,
-                                          contract.parameter_defaults,contract.generic_body};
+                                          contract.parameter_defaults,contract.generic_body,contract.parameter_constraints};
         SummaryFunction summarized{declaration,contract.summary_state,
                                    unchecked ? contract.generic_body : std::nullopt,
                                    std::nullopt,std::nullopt,contract.source_borrow,
@@ -288,7 +292,9 @@ ModuleFingerprints fingerprint_module(const ir::Module& module, const ModuleSele
         signature.aliases.push_back(std::move(value)); ++capture.result.exported_aliases;
     }
     for (auto value : contracts.constants) if (!value.is_private) {
-        payload(value.initializer); value.type = capture.type(std::move(value.type),value.source_name);
+        payload(value.initializer);
+        if (value.range_constraint) payload(*value.range_constraint);
+        value.type = capture.type(std::move(value.type),value.source_name);
         signature.constants.push_back(std::move(value)); ++capture.result.exported_constants;
     }
     for (auto value : contracts.enums) if (!value.is_private) {

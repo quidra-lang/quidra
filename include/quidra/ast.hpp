@@ -19,6 +19,17 @@ namespace quidra {
 namespace semantics { struct InterfaceSources; }
 
 struct Expr;
+// Bounds surround the candidate identified by the containing declaration,
+// parameter, assignment target or shape axis. The subject is not duplicated.
+struct RangeConstraint {
+    std::shared_ptr<Expr> lower;
+    std::shared_ptr<Expr> upper;
+    bool lower_inclusive{true};
+    bool upper_inclusive{true};
+    // Preserve the evaluation order of a descending written chain.
+    bool upper_first{};
+    SourceSpan span{};
+};
 using ExprPtr = std::unique_ptr<Expr>;
 
 // One axis of a brace shape (tensor<real32>{nat N, 3, _}), classified on
@@ -37,6 +48,7 @@ struct ShapeAxis {
     // The expression (DeclareEqual, Unnamed).
     std::shared_ptr<Expr> value;
     SourceSpan span{};
+    std::optional<RangeConstraint> range_constraint{};
 };
 
 struct TypeName {
@@ -257,8 +269,9 @@ struct BindingStmt {
     bool is_private{};
     std::optional<Pattern> pattern;
     bool is_local{};
+    std::optional<RangeConstraint> range_constraint{};
 };
-struct AssignStmt { ExprPtr target; ExprPtr value; std::string compound_op; std::optional<Pattern> pattern; const Expr* pattern_target{}; const Expr* target_expr() const {return pattern_target?pattern_target:target.get();} };
+struct AssignStmt { ExprPtr target; ExprPtr value; std::string compound_op; std::optional<Pattern> pattern; const Expr* pattern_target{}; const Expr* target_expr() const {return pattern_target?pattern_target:target.get();} std::optional<RangeConstraint> range_constraint{}; };
 struct RebindStmt { std::string name; ExprPtr target; ExprPtr place; };
 struct ReturnStmt { ExprPtr value; };
 struct LoopControlStmt { bool is_continue{}; };
@@ -334,7 +347,7 @@ struct Stmt {
     SourceSpan span{};
 };
 
-struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; bool is_extension{}; };
+struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; bool is_local{}; bool is_extension{}; std::optional<RangeConstraint> range_constraint{}; };
 // The `export "ABI"` prefix of a function declaration: the function is also
 // callable from C. `symbol` is the C symbol, the name as declared, which the
 // frontend records before it qualifies the name with the module namespace.

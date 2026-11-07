@@ -3,6 +3,7 @@
 // name, may a block replace an array reference, may a statement return.
 // They emit nothing; replacement queries may also read checked effects.
 
+#include "range_constraint_traversal.hpp"
 #include "lowering/syntax_queries.hpp"
 #include "semantics/effect_summary.hpp"
 #include <algorithm>
@@ -209,6 +210,11 @@ bool expression_mentions_name(
 bool statement_mentions_name(
     const Stmt& statement, const std::string& name) {
     const auto& data = statement.data;
+    bool bound_mentions = false;
+    visit_statement_range_bounds(statement, [&](const Expr& bound) {
+        bound_mentions |= expression_mentions_name(bound, name);
+    });
+    if (bound_mentions) return true;
     bool pattern_mentions=false;std::visit([&](const auto& node){if constexpr(requires{node.pattern;})if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){pattern_mentions|=p.name==name || (p.place && expression_mentions_name(*p.place,name));});},data);if(pattern_mentions)return true;
     if (const auto* node = std::get_if<BindingStmt>(&data))
         return node->name == name ||
@@ -254,6 +260,11 @@ bool statement_mentions_name(
     if (const auto* node = std::get_if<MatchStmt>(&data)) {
         if (expression_mentions_name(*node->value, name)) return true;
         for (const auto& current : node->cases) {
+            bool mentions = false;
+            visit_type_range_bounds(current.type, [&](const Expr& bound) {
+                mentions |= expression_mentions_name(bound, name);
+            });
+            if (mentions) return true;
             if (current.binder && *current.binder == name) return true;
             for (const auto& item : current.body)
                 if (statement_mentions_name(*item, name)) return true;
@@ -366,6 +377,11 @@ bool block_may_replace_array_reference(
     };
     for (const auto& statement : body) {
         const auto& data = statement->data;
+        bool replaces = false;
+        visit_statement_range_bounds(*statement, [&](const Expr& bound) {
+            replaces |= expression_may_replace_array_reference(bound, parameters, checked);
+        });
+        if (replaces) return true;
         if (const auto* node = std::get_if<BindingStmt>(&data)) {
             if (!node->value) continue;
             if ((node->reference || node->reference_initializer) && rooted(*node->value))
@@ -426,6 +442,10 @@ bool block_may_replace_array_reference(
             if (expression_may_replace_array_reference(*node->value, parameters,checked))
                 return true;
             for (const auto& match_case : node->cases) {
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) {
+                    replaces |= expression_may_replace_array_reference(bound, parameters, checked);
+                });
+                if (replaces) return true;
                 if (block_may_replace_array_reference(match_case.body, parameters,checked))
                     return true;
             }

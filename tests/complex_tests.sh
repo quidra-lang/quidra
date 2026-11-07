@@ -261,8 +261,9 @@ QUI
 [[ "$("$QUIDRA" run "$TMP/mixing.qui")" == "1.0+1.0i" ]]
 cat > "$TMP/real_literal.qui" <<'QUI'
 com32 z := 1.0
+print(z)
 QUI
-rejects real_literal NUMERIC_FAMILY 'A real literal cannot materialize as com32: write 1.0 + 0.0i or com32(1.0).'
+[[ "$("$QUIDRA" run "$TMP/real_literal.qui")" == "1.0+0.0i" ]]
 cat > "$TMP/to_real.qui" <<'QUI'
 com32 z := 1.0i
 real32 x := real32(z)

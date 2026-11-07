@@ -44,6 +44,12 @@ void FunctionLowering::capture_signature_constraints(
         }
         const auto& parameter = builder_.function()->parameters[ir_index];
         const auto& syntax = source.parameters[i].type;
+        if (source.parameters[i].range_constraint) {
+            const auto value = builder_.fresh();
+            builder_.emit(LoadLocal{value, parameter.name, parameter.type});
+            lowerer_.lower_range_constraint(*source.parameters[i].range_constraint, value,
+                                            parameter.type, source.parameters[i].name);
+        }
 
         if (shape_unit == checked_.signature_shapes.end() &&
             parameter.type.kind == TypeKind::Tensor && !syntax.brace_shape &&

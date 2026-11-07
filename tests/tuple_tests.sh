@@ -55,7 +55,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/values.qui")" == $'10 a, b\n2 1\n2 1 a, b\n(9, "changed")\n(2, "a, b")\nfalse\ntrue' ]]
 cat > "$TMP/bare.qui" <<'QUI'
 int gcd(int a, int b)
-    while b
+    while b != 0
         a,b=b,a%b
     return a
 for (a, b) := [(48, 180)][]

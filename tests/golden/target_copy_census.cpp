@@ -1,4 +1,5 @@
 #include "target_copy_census.hpp"
+#include "range_constraint_traversal.hpp"
 #include "quidra/member_function_names.hpp"
 #include "quidra/standard_classes.hpp"
 #include <algorithm>
@@ -45,6 +46,9 @@ public:
                 for(std::size_t i=0;i<signature->second.parameters.size();++i)
                     if(carries(signature->second.parameters[i].type))env[signature->second.parameters[i].name].insert(parameter(name,i));
                 current_=&result;file_=function->source_file.empty()?checked_.program.root_source_file:function->source_file;
+                for(const auto& input:function->parameters)
+                    visit_parameter_range_bounds(input,[&](const Expr& bound){expression(bound,env);});
+                visit_type_range_bounds(function->return_type,[&](const Expr& bound){expression(bound,env);});
                 block(function->body,env);
                 for(std::size_t i=0;i<result.outputs.size();++i)result.outputs[i]=env[signature->second.parameters[i].name];
                 auto merged=summaries_[name];join(merged.returned,result.returned);join(merged.used,result.used);
@@ -201,6 +205,7 @@ private:
     void block(const std::vector<StmtPtr>& body,Environment& env){for(const auto& statement:body)walk(*statement,env);}
     void walk(const Stmt& statement,Environment& env){
         const auto eval=[&](const ExprPtr& child){return child?expression(*child,env):Origins{};};
+        visit_statement_range_bounds(statement,[&](const Expr& bound){expression(bound,env);});
         if(const auto* binding=std::get_if<BindingStmt>(&statement.data)){
             auto origins=eval(binding->value);
             if(binding->value&&!binding->reference&&!binding->reference_initializer)origins=copy(*binding->value,std::move(origins));
@@ -252,6 +257,7 @@ private:
             }while(env!=before);
         }else if(const auto* match=std::get_if<MatchStmt>(&statement.data)){
             auto origins=eval(match->value);auto before=env;for(const auto& alternative:match->cases){auto branch=before;
+                visit_type_range_bounds(alternative.type,[&](const Expr& bound){expression(bound,branch);});
                 if(alternative.pattern){
                     if(const auto found=checked_.control_patterns.find(&*alternative.pattern);found!=checked_.control_patterns.end())pattern(found->second,origins,branch);
                 }else if(alternative.binder)branch[*alternative.binder]=origins;

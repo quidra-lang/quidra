@@ -1,3 +1,4 @@
+#include "range_constraint_traversal.hpp"
 #include "lsp_server.hpp"
 
 #include "quidra/compiler.hpp"
@@ -494,6 +495,7 @@ void consider_expression(const Expr& expression,std::size_t offset,const Expr*& 
 
 void consider_statement(const Stmt& statement,std::size_t offset,const Expr*& best) {
     if(!contains_offset(statement.span,offset)) return;
+    visit_statement_range_bounds(statement,[&](const Expr& bound) { consider_expression(bound,offset,best); });
     std::visit([&](const auto& node) {
         using T=std::decay_t<decltype(node)>;
         if constexpr(requires{node.pattern;})if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.place)consider_expression(*p.place,offset,best);});
@@ -520,8 +522,10 @@ void consider_statement(const Stmt& statement,std::size_t offset,const Expr*& be
             for(const auto& child:node.body) consider_statement(*child,offset,best);
         } else if constexpr(std::is_same_v<T,MatchStmt>) {
             consider_expression(*node.value,offset,best);
-            for(const auto& current:node.cases)
+            for(const auto& current:node.cases) {
+                visit_type_range_bounds(current.type,[&](const Expr& bound) { consider_expression(bound,offset,best); });
                 for(const auto& child:current.body) consider_statement(*child,offset,best);
+            }
         }
     },statement.data);
 }
@@ -576,17 +580,25 @@ void consider_expression(const Expr& expression,std::size_t offset,const Expr*& 
 const Expr* expression_at(const Program& program,std::size_t offset) {
     const Expr* best=nullptr;
     for(const auto& declaration:program.classes) {
-        for(const auto& field:declaration.fields)
+        for(const auto& field:declaration.fields) {
             if(field.default_value) consider_expression(*field.default_value,offset,best);
+            visit_type_range_bounds(field.type,[&](const Expr& bound) { consider_expression(bound,offset,best); });
+        }
         for(const auto& method:declaration.methods) {
-            for(const auto& parameter:method.parameters)
+            for(const auto& parameter:method.parameters) {
                 if(parameter.default_value) consider_expression(*parameter.default_value,offset,best);
+                visit_parameter_range_bounds(parameter,[&](const Expr& bound) { consider_expression(bound,offset,best); });
+            }
+            visit_type_range_bounds(method.return_type,[&](const Expr& bound) { consider_expression(bound,offset,best); });
             for(const auto& statement:method.body) consider_statement(*statement,offset,best);
         }
     }
     for(const auto& function:program.functions) {
-        for(const auto& parameter:function.parameters)
+        for(const auto& parameter:function.parameters) {
             if(parameter.default_value) consider_expression(*parameter.default_value,offset,best);
+            visit_parameter_range_bounds(parameter,[&](const Expr& bound) { consider_expression(bound,offset,best); });
+        }
+        visit_type_range_bounds(function.return_type,[&](const Expr& bound) { consider_expression(bound,offset,best); });
         for(const auto& statement:function.body) consider_statement(*statement,offset,best);
     }
     for(const auto& statement:program.statements) consider_statement(*statement,offset,best);
@@ -643,6 +655,7 @@ void consider_call(const Expr& expression,std::size_t offset,const Expr*& best) 
 
 void consider_call_statement(const Stmt& statement,std::size_t offset,const Expr*& best) {
     if(!contains_offset(statement.span,offset)) return;
+    visit_statement_range_bounds(statement,[&](const Expr& bound) { consider_call(bound,offset,best); });
     std::visit([&](const auto& node) {
         using T=std::decay_t<decltype(node)>;
         if constexpr(requires{node.pattern;})if(node.pattern)visit_pattern(*node.pattern,[&](const Pattern& p){if(p.place)consider_call(*p.place,offset,best);});
@@ -667,8 +680,10 @@ void consider_call_statement(const Stmt& statement,std::size_t offset,const Expr
             for(const auto& child:node.body) consider_call_statement(*child,offset,best);
         } else if constexpr(std::is_same_v<T,MatchStmt>) {
             consider_call(*node.value,offset,best);
-            for(const auto& current:node.cases)
+            for(const auto& current:node.cases) {
+                visit_type_range_bounds(current.type,[&](const Expr& bound) { consider_call(bound,offset,best); });
                 for(const auto& child:current.body) consider_call_statement(*child,offset,best);
+            }
         }
     },statement.data);
 }
@@ -676,17 +691,25 @@ void consider_call_statement(const Stmt& statement,std::size_t offset,const Expr
 const Expr* call_at(const Program& program,std::size_t offset) {
     const Expr* best=nullptr;
     for(const auto& declaration:program.classes) {
-        for(const auto& field:declaration.fields)
+        for(const auto& field:declaration.fields) {
             if(field.default_value) consider_call(*field.default_value,offset,best);
+            visit_type_range_bounds(field.type,[&](const Expr& bound) { consider_call(bound,offset,best); });
+        }
         for(const auto& method:declaration.methods) {
-            for(const auto& parameter:method.parameters)
+            for(const auto& parameter:method.parameters) {
                 if(parameter.default_value) consider_call(*parameter.default_value,offset,best);
+                visit_parameter_range_bounds(parameter,[&](const Expr& bound) { consider_call(bound,offset,best); });
+            }
+            visit_type_range_bounds(method.return_type,[&](const Expr& bound) { consider_call(bound,offset,best); });
             for(const auto& statement:method.body) consider_call_statement(*statement,offset,best);
         }
     }
     for(const auto& function:program.functions) {
-        for(const auto& parameter:function.parameters)
+        for(const auto& parameter:function.parameters) {
             if(parameter.default_value) consider_call(*parameter.default_value,offset,best);
+            visit_parameter_range_bounds(parameter,[&](const Expr& bound) { consider_call(bound,offset,best); });
+        }
+        visit_type_range_bounds(function.return_type,[&](const Expr& bound) { consider_call(bound,offset,best); });
         for(const auto& statement:function.body) consider_call_statement(*statement,offset,best);
     }
     for(const auto& statement:program.statements) consider_call_statement(*statement,offset,best);

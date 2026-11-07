@@ -1,5 +1,6 @@
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
+#include "quidra/formatter.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -619,7 +620,90 @@ static void function_types() {
     reject("int invoke(func<int> callback)\n    return 0\n");
 }
 
+static void range_constraints() {
+    const std::string source =
+        "0 < x < 5 := 3\n"
+        "0 <= int y <= 5 := 4\n"
+        "0 < x < 5 = y\n"
+        "0 < x < 5\n"
+        "7 >= int z > -2 := 3\n"
+        "int positive > 0 := 3\n"
+        "0 < int right := 3\n"
+        "left < right := 2\n"
+        "0 < effect < .bound() := 3\n"
+        "limit < read(value = 3)\n"
+        "void use(3 < int n < 7, limit < 9 := 8, nat count > 0)\n"
+        "    void\n"
+        "void shape(tensor<real32>{0 < nat N < 5, 0 < x < 5, x < y, 0 < x, N := 32} data)\n"
+        "    void\n"
+        "class Window(0 < int width <= 64)\n"
+        "    void method(int height > width)\n"
+        "        void\n";
+    const auto verify = [](const Program& program) {
+        const auto& inferred = std::get<BindingStmt>(program.statements.at(0)->data);
+        require(inferred.name == "x" && inferred.declared_type.name == "auto" && inferred.range_constraint,
+                "inferred range declaration identifies central candidate");
+        const auto& range = *inferred.range_constraint;
+        require(range.lower && range.upper && !range.lower_inclusive && !range.upper_inclusive &&
+                std::get<IntegerExpr>(range.lower->data).value == 0 &&
+                std::get<IntegerExpr>(range.upper->data).value == 5,
+                "range retains both exclusive bounds without duplicating candidate");
+        const auto& typed = std::get<BindingStmt>(program.statements.at(1)->data);
+        require(typed.declared_type.name == "int" && typed.range_constraint->lower_inclusive &&
+                typed.range_constraint->upper_inclusive,
+                "typed range retains candidate type and inclusive endpoints");
+        const auto& guarded = std::get<AssignStmt>(program.statements.at(2)->data);
+        require(guarded.range_constraint && std::get<NameExpr>(guarded.target->data).name == "x",
+                "range followed by equals guards a single existing candidate");
+        require(std::holds_alternative<ExprStmt>(program.statements.at(3)->data) &&
+                std::holds_alternative<ExprStmt>(program.statements.at(9)->data),
+                "ordinary comparisons and nested named arguments remain expressions");
+        const auto& descending = *std::get<BindingStmt>(program.statements.at(4)->data).range_constraint;
+        require(!descending.lower_inclusive && descending.upper_inclusive &&
+                std::holds_alternative<UnaryExpr>(descending.lower->data) &&
+                std::get<IntegerExpr>(descending.upper->data).value == 7,
+                "descending bounds normalize to lower and upper");
+        const auto& positive = *std::get<BindingStmt>(program.statements.at(5)->data).range_constraint;
+        const auto& right = std::get<BindingStmt>(program.statements.at(6)->data);
+        require(positive.lower && !positive.upper && right.name == "right" && right.range_constraint->lower,
+                "single bounds identify explicit typed candidates on either side");
+        const auto& left = std::get<BindingStmt>(program.statements.at(7)->data);
+        require(left.name == "left" && !left.range_constraint->lower &&
+                std::get<NameExpr>(left.range_constraint->upper->data).name == "right",
+                "single comparison between existing names identifies left subject");
+        require(program.mutation_markers.size() == 1,
+                "constraint bound mutation marker is recorded exactly once");
+        const auto& parameters = program.functions.at(0).parameters;
+        require(parameters.at(0).range_constraint && parameters.at(1).type.name == "auto" &&
+                parameters.at(1).default_value && !parameters.at(1).range_constraint->lower &&
+                parameters.at(2).range_constraint->lower && !parameters.at(2).range_constraint->upper,
+                "parameter ranges preserve typed/inferred/default/single-sided forms");
+        const auto& axes = program.functions.at(1).parameters.at(0).type.shape_axes;
+        require(axes.at(0).kind == ShapeAxisKind::Declare && axes.at(0).name == "N" && axes.at(0).range_constraint &&
+                axes.at(1).kind == ShapeAxisKind::Bare && axes.at(1).name == "x" && axes.at(1).value &&
+                axes.at(1).range_constraint && axes.at(2).name == "x" && axes.at(3).name == "x" &&
+                axes.at(4).kind == ShapeAxisKind::DeclareEqual && !axes.at(4).range_constraint,
+                "shape ranges preserve nat captures, existing equality subjects and exact extents");
+        const auto& methods = program.classes.at(0).methods;
+        require(methods.at(0).parameters.at(0).range_constraint && methods.at(1).parameters.at(0).range_constraint &&
+                std::get<NameExpr>(methods.at(1).parameters.at(0).range_constraint->lower->data).this_qualifier,
+                "class-header/method constraints survive elaboration and member-bound resolution");
+    };
+    verify(parse(source));
+    const auto formatted = format_source(source);
+    verify(parse(formatted));
+    require(format_source(formatted) == formatted, "constraint formatter round trip is stable");
+    reject_code("0 < x > 5 := 3\n", "RANGE_CONSTRAINT");
+    reject_code("0 < x < 5 < 7 := 3\n", "RANGE_CONSTRAINT");
+    reject_code("int x < int y := 3\n", "RANGE_CONSTRAINT");
+    reject_code("0 < 5 := 3\n", "RANGE_CONSTRAINT");
+    reject_code("0 < int x < 5 = 3\n", "RANGE_CONSTRAINT");
+    reject_code("void bad(tensor<real32>{0 < int N < 5} data)\n    void\n", "SHAPE_VARIABLE");
+    reject("0 < (x = 1) < 5 := 3\n");
+}
+
 int main() {
+    range_constraints();
     function_types();
     for_declaration_markers();
     bounded_range_precedence();

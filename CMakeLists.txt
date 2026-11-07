@@ -127,6 +127,7 @@ set(QUIDRA_CORE_SOURCES
     src/class_initialization.cpp
     src/semantics/binding_entry.cpp
     src/checker.cpp
+    src/checker_ranges.cpp
     src/parallel_for_check.cpp
     src/traversal_plan.cpp
     src/checker_shapes.cpp
@@ -205,6 +206,7 @@ set(QUIDRA_CORE_SOURCES
     src/lowering/reflection_lowering.cpp
     src/lowering/scan_lowering.cpp
     src/lowering/shape_constraint_lowering.cpp
+    src/lowering/range_constraint_lowering.cpp
     src/lowering/source_locator.cpp
     src/lowering/statement_lowering.cpp
     src/lowering/statement_sites.cpp
@@ -902,6 +904,10 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_operator_symbol_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
   add_test(NAME quidra_operator_symbols COMMAND quidra_operator_symbol_tests)
 
+  add_executable(quidra_range_syntax_tests tests/range_syntax_tests.cpp)
+  target_link_libraries(quidra_range_syntax_tests PRIVATE quidra_core)
+  add_test(NAME quidra_range_syntax_tests COMMAND quidra_range_syntax_tests)
+
   add_executable(quidra_array_selector_initialization_tests tests/array_selector_initialization_tests.cpp)
   target_link_libraries(quidra_array_selector_initialization_tests PRIVATE quidra_core)
   add_test(NAME quidra_array_selector_initialization_tests COMMAND quidra_array_selector_initialization_tests)
@@ -1035,6 +1041,11 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_parallel_effects_tests PRIVATE quidra_core)
   target_include_directories(quidra_parallel_effects_tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
   add_test(NAME quidra_parallel_effects_tests COMMAND quidra_parallel_effects_tests)
+
+  add_executable(quidra_range_constraint_traversal_tests tests/range_constraint_traversal_tests.cpp)
+  target_link_libraries(quidra_range_constraint_traversal_tests PRIVATE quidra_core)
+  target_include_directories(quidra_range_constraint_traversal_tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  add_test(NAME quidra_range_constraint_traversal_tests COMMAND quidra_range_constraint_traversal_tests)
 
   add_executable(quidra_parallel_block_abi_tests tests/parallel_block_abi_tests.cpp)
   target_include_directories(quidra_parallel_block_abi_tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
@@ -1399,6 +1410,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_numeric_conversion_matrix COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_conversion_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_numeric_common_type COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_common_type_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_numeric_call_conversion COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_call_conversion_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_numeric_binding_conversion COMMAND bash ${CMAKE_SOURCE_DIR}/tests/numeric_binding_conversion_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_range_constraint COMMAND bash ${CMAKE_SOURCE_DIR}/tests/range_constraint_tests.sh $<TARGET_FILE:quidra>)
+    set_tests_properties(quidra_range_constraint PROPERTIES TIMEOUT 240)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     # The run cache end to end: changed inputs, damaged entries, permissions,
     # concurrent runs, the replayed toolchain output, the cached program
@@ -1602,6 +1616,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_ir_value_allocator
     quidra_import_path_tests
     quidra_parser_tests
+    quidra_range_syntax_tests
     quidra_array_selector_initialization_tests
     quidra_type_policy_tests
     quidra_shape_relation_tests
@@ -1618,6 +1633,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_runtime_profile
     quidra_runtime_capture_configuration
     quidra_parallel_effects_tests
+    quidra_range_constraint_traversal_tests
     quidra_parallel_block_abi_tests
     quidra_owned_native_fences_tests
     quidra_platform_environment_tests

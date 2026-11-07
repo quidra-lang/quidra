@@ -57,6 +57,7 @@ public:
     // variables among them.
     BraceShape capture_brace_shape(const ShapePlan& plan, SourceSpan span, bool bind = true,
                                    const BraceShape* reserved = nullptr);
+    void check_range_constraints(const ShapePlan& plan, const BraceShape& shape, SourceSpan span);
     void adopt_shape_variable(const std::string& name) { prebound_variables_.insert(name); }
     // After it: the extents of the `nat N` variables something reads, the
     // expressions over the shape's own variables in dependency order, then

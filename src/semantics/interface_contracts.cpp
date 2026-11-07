@@ -51,9 +51,12 @@ FunctionInterface function(const FunctionDecl& declaration, bool parent_private,
     result.external_symbol = declaration.external_symbol;
     if (declaration.foreign_export)
         result.export_c = ForeignInterface{declaration.foreign_export->abi,declaration.foreign_export->symbol};
-    for (const auto& parameter : declaration.parameters)
+    for (const auto& parameter : declaration.parameters) {
         result.parameter_defaults.push_back(parameter.default_value ?
             std::optional<CanonicalInterfacePayload>(tokens.range(parameter.default_value->span)) : std::nullopt);
+        result.parameter_constraints.push_back(parameter.range_constraint ?
+            std::optional<CanonicalInterfacePayload>(tokens.range(parameter.range_constraint->span)) : std::nullopt);
+    }
     if (!result.declaration.generic_parameters.empty()) {
         result.summary_state = OriginalSummaryState::NotCheckedGeneric;
         if (!declaration.external_symbol) result.generic_body = tokens.range(declaration.span,true);
@@ -118,7 +121,8 @@ OriginalModuleInterfaces capture_original_interfaces(const Program& program, con
         const auto* binding = std::get_if<BindingStmt>(&statement->data);
         if (!binding || !binding->is_const || binding->is_local || !binding->value) continue;
         contracts.constants.push_back({binding->name,binding->is_private,binding->literal_constant,
-            {type(binding->declared_type),std::nullopt},tokens.range(binding->value->span)});
+            {type(binding->declared_type),std::nullopt},tokens.range(binding->value->span),
+            binding->range_constraint ? std::optional<CanonicalInterfacePayload>(tokens.range(binding->range_constraint->span)) : std::nullopt});
         result.bindings.push_back({InterfaceBindingKind::Constant,binding->name,{}});
     }
     for (const auto& import : program.imports) result.imports.push_back({import.alias,import.is_public,std::nullopt});
@@ -136,7 +140,7 @@ OriginalModuleInterfaces capture_original_interfaces(const Program& program, con
     for (const auto& declaration : program.functions) {
         contracts.signature_environment_required |= dependent_type(dependent_type,declaration.return_type);
         for (const auto& parameter : declaration.parameters)
-            contracts.signature_environment_required |= parameter.default_value != nullptr || dependent_type(dependent_type,parameter.type);
+            contracts.signature_environment_required |= parameter.default_value != nullptr || parameter.range_constraint.has_value() || dependent_type(dependent_type,parameter.type);
     }
     return result;
 }

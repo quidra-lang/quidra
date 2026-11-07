@@ -8,6 +8,7 @@
 // site.
 #include "census_keys.hpp"
 #include "target_copy_census.hpp"
+#include "range_constraint_traversal.hpp"
 
 #include "lowering/assignment_order.hpp"
 #include "lowering/borrow_inference.hpp"
@@ -117,6 +118,7 @@ void each_statement_expression(const Stmt& statement, Visit& visit) {
         if(value)visit_pattern(*value,[&](const Pattern& leaf){expression(leaf.place);});
     };
     const auto& data = statement.data;
+    visit_statement_range_bounds(statement, [&](const Expr& bound) { each_expression(bound, visit); });
     if (const auto* node = std::get_if<BindingStmt>(&data)) {
         pattern(node->pattern);
         expression(node->value);
@@ -145,7 +147,7 @@ void each_statement_expression(const Stmt& statement, Visit& visit) {
         block(node->body);
     } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
         expression(node->value);
-        for (const auto& match_case : node->cases){pattern(match_case.pattern);block(match_case.body);}
+        for (const auto& match_case : node->cases){visit_type_range_bounds(match_case.type,[&](const Expr& bound){each_expression(bound,visit);});pattern(match_case.pattern);block(match_case.body);}
     } else if (const auto* node = std::get_if<MainGuardStmt>(&data)) {
         block(node->body);
     }
@@ -343,6 +345,9 @@ private:
         for (const auto& parameter : function.parameters) {
             scopes_.back()[parameter.name] = Binding{parameter.writable, false, {}};
         }
+        for (const auto& parameter : function.parameters)
+            visit_parameter_range_bounds(parameter, [&](const Expr& bound) { walk_expression(bound); });
+        visit_type_range_bounds(function.return_type, [&](const Expr& bound) { walk_expression(bound); });
         walk_block(function.body);
     }
 
@@ -357,6 +362,7 @@ private:
             if (item) walk_expression(*item);
         };
         const auto& data = statement.data;
+        visit_statement_range_bounds(statement, [&](const Expr& bound) { walk_expression(bound); });
         if (const auto* node = std::get_if<BindingStmt>(&data)) {
             expression(node->value);
             if(node->pattern){
@@ -401,6 +407,7 @@ private:
             expression(node->value);
             for (const auto& match_case : node->cases) {
                 scopes_.emplace_back();
+                visit_type_range_bounds(match_case.type, [&](const Expr& bound) { walk_expression(bound); });
                 if(match_case.pattern){
                     const auto found=checked_.control_patterns.find(&*match_case.pattern);
                     if(found!=checked_.control_patterns.end())walk_pattern(found->second);

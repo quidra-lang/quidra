@@ -2585,13 +2585,23 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
         for (const auto& parameter : type.function_parameters) type_expressions(parameter);
         for (const auto& value : type.dimension_expressions) if (value) expression(*value);
         for (const auto& value : type.tensor_shape_expressions) if (value) expression(*value);
-        for (const auto& axis : type.shape_axes) if (axis.value) expression(*axis.value);
+        for (const auto& axis : type.shape_axes) {
+            if (axis.value) expression(*axis.value);
+            if (axis.range_constraint) {
+                if (axis.range_constraint->lower) expression(*axis.range_constraint->lower);
+                if (axis.range_constraint->upper) expression(*axis.range_constraint->upper);
+            }
+        }
     };
     if ((has_try || observe_expression || observe_statement) && signature) {
         type_expressions(signature->return_type);
         for (const auto& parameter : signature->parameters) {
             type_expressions(parameter.type);
             if (parameter.default_value) expression(*parameter.default_value);
+            if (parameter.range_constraint) {
+                if (parameter.range_constraint->lower) expression(*parameter.range_constraint->lower);
+                if (parameter.range_constraint->upper) expression(*parameter.range_constraint->upper);
+            }
         }
     }
     for (const auto& statement : body) {
@@ -2601,10 +2611,18 @@ void collect_possible_initializations(const std::vector<StmtPtr>& body,
             if (has_try || observe_expression || observe_statement) type_expressions(node->declared_type);
             if ((has_try || observe_expression || observe_statement) && node->pattern) visit_pattern(*node->pattern, [&](const Pattern& pattern) { if (pattern.type) type_expressions(*pattern.type); });
             if (node->value) expression(*node->value);
+            if (node->range_constraint) {
+                if (node->range_constraint->lower) expression(*node->range_constraint->lower);
+                if (node->range_constraint->upper) expression(*node->range_constraint->upper);
+            }
         } else if (const auto* node = std::get_if<AssignStmt>(&data)) {
             if(node->pattern)visit_pattern(*node->pattern,[&](const Pattern& p){if((has_try || observe_expression || observe_statement) && p.type)type_expressions(*p.type);if(p.place){place(*p.place);expression(*p.place);}});
             else {place(*node->target_expr());expression(*node->target_expr());}
             expression(*node->value);
+            if (node->range_constraint) {
+                if (node->range_constraint->lower) expression(*node->range_constraint->lower);
+                if (node->range_constraint->upper) expression(*node->range_constraint->upper);
+            }
         } else if (const auto* node = std::get_if<RebindStmt>(&data)) {
             names.insert(node->name);
             expression(*node->target);
@@ -2660,7 +2678,12 @@ bool operand_storage_pure(const Expr& value, const auto& calls,
         for (const auto& child : item.function_parameters) if (!type(child)) return false;
         for (const auto& child : item.dimension_expressions) if (child && !expression(*child)) return false;
         for (const auto& child : item.tensor_shape_expressions) if (child && !expression(*child)) return false;
-        for (const auto& axis : item.shape_axes) if (axis.value && !expression(*axis.value)) return false;
+        for (const auto& axis : item.shape_axes) {
+            if (axis.value && !expression(*axis.value)) return false;
+            if (axis.range_constraint &&
+                ((axis.range_constraint->lower && !expression(*axis.range_constraint->lower)) ||
+                 (axis.range_constraint->upper && !expression(*axis.range_constraint->upper)))) return false;
+        }
         return true;
     };
     expression = [&](const Expr& item) {
@@ -3445,10 +3468,13 @@ Type Checker::check_slice_assignment(const AssignStmt& node, const IndexExpr& ta
     // context, so that it is reported as a scalar.
     const bool scalar_literal =
         numeric_literal_family(*node.value) != NumericLiteralCategory::None;
-    const auto checked = check_expr(*node.value, scalar_literal ? &*base.first : &slice_type);
-    // The value as written (a fixed array keeps its length).
+    const auto checked = check_value_argument(*node.value, scalar_literal ? &*base.first : &slice_type);
+    // Conversion changes the representation, while the original array's
+    // static length still diagnoses a mismatched slice before execution.
     const auto raw = raw_types_.find(node.value.get());
-    const auto& value = raw != raw_types_.end() ? raw->second : checked;
+    auto value = checked;
+    if (raw != raw_types_.end() && raw->second.kind == TypeKind::Array &&
+        value.kind == TypeKind::Array) value.length = raw->second.length;
     if (!poisoned(checked) && !poisoned(value)) {
         if (value.kind != TypeKind::Array) {
             error("TYPE_MISMATCH", "Slice assignment needs an array.", node.value->span);
@@ -4429,6 +4455,17 @@ Type Checker::resolve_result_type(const TypeName& source) {
     catch(...) {traversal_result_type_=before;throw;}
 }
 Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
+    if (source.name == "union" || source.name == "$tuple" || source.array_depth > 0) {
+        const auto has_range = [&](const auto& self, const TypeName& type) -> bool {
+            if (type.name == "func") return false; // Its signature owns a separate shape scope.
+            for (const auto& axis : type.shape_axes) if (axis.range_constraint) return true;
+            for (const auto& child : type.arguments) if (self(self, child)) return true;
+            for (const auto& child : type.function_parameters) if (self(self, child)) return true;
+            return false;
+        };
+        if (has_range(has_range, source))
+            error("RANGE_CONSTRAINT", "Shape range constraints require a direct tensor binding, parameter, result or match case; nested container and union patterns are not supported.", source.span);
+    }
     if (source.name != "union" && source.name != "tensor" &&
         source.name != "func" && source.name != "$tuple" && source.name != "$std.reflect.Each" && !source.arguments.empty()) {
         throw std::logic_error("ConcreteProgram contains unresolved generic type arguments.");
@@ -6388,13 +6425,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
     const auto* node = &node_value;
     const auto& name = node->callee;
     auto builtin_arg = [&](std::size_t i, const std::string& label,
-                           const Type* required = nullptr, bool integer_truth = true) {
+                           const Type* required = nullptr) {
         const auto& argument = node->args[i];
         if (argument.writable || (argument.name && *argument.name != label)) {
             error("ARGUMENT_MISMATCH", "Invalid builtin argument.", argument.span);
         }
-        if (!integer_truth && required && required->kind == TypeKind::Bool)
-            return check_expr(*argument.value, required);
         return check_value_argument(*argument.value, required);
     };
             call_resolutions_[&expression] =
@@ -6905,12 +6940,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         expected_value = builtin_arg(1, "expected");
                         actual = poisoned(expected_value)
                             ? simple(TypeKind::Invalid)
-                            : builtin_arg(0, "actual", &expected_value, false);
+                            : builtin_arg(0, "actual", &expected_value);
                     } else {
                         actual = builtin_arg(0, "actual");
                         expected_value = poisoned(actual)
                             ? simple(TypeKind::Invalid)
-                            : builtin_arg(1, "expected", &actual, false);
+                            : builtin_arg(1, "expected", &actual);
                     }
                     if (poisoned(actual) || poisoned(expected_value)) {
                         type = simple(TypeKind::Invalid);
@@ -7849,6 +7884,8 @@ Type Checker::check_call_expr(const Expr& expression,
             call_resolutions_[&expression] =
                 CallResolution{CallKind::FunctionValue, name, std::nullopt, type};
         } else if (!current_class_.empty() && find_method(current_class_, name)) {
+            if (this_unavailable_)
+                error("UNINITIALIZED", "Class generation-header bounds cannot call an instance method before the instance exists.", expression.span);
             const auto private_it = classes_.at(current_class_).private_methods.find(name);
             if (private_it != classes_.at(current_class_).private_methods.end() &&
                 current_class_ != private_it->second) {
@@ -7935,6 +7972,9 @@ Type Checker::check_call_expr(const Expr& expression,
                     } else {
                     const auto actual = check_value_argument(*argument.value, &parameter.type);
                     any_poison |= poisoned(actual);
+                    if (!poisoned(actual) && parameter.range_constraint)
+                        prove_range_constraint(*parameter.range_constraint, parameter.type,
+                                               argument.value.get(), parameter.name);
                     if (const_access_path(*argument.value, false))
                         const_argument_uses_.push_back({&expression, target + offset, argument.value.get()});
                     if (!poisoned(actual) && (parameter.type.kind == TypeKind::Class || parameter.type.kind == TypeKind::Tuple) &&
@@ -7947,6 +7987,10 @@ Type Checker::check_call_expr(const Expr& expression,
             }
 
             for (std::size_t i = 0; i < count; ++i) {
+                const auto& parameter = function.parameters[i + offset];
+                if (!filled[i] && parameter.default_value && parameter.range_constraint)
+                    prove_range_constraint(*parameter.range_constraint, parameter.type,
+                                           parameter.default_value, parameter.name);
                 if (!filled[i] && !function.parameters[i + offset].default_value) {
                     error("ARGUMENT_MISMATCH",
                           "Missing required argument '" +
@@ -8358,6 +8402,7 @@ FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const Func
     copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(method.body);
     in_constructor_ = method.is_constructor;
     constructor_block_depth_ = 0;
+    check_parameter_constraints(method, signature, method.is_constructor ? 0 : 1);
     if (method.is_constructor) {
         current_receiver_effect_.initializes = default_initialized_paths(class_decl.name);
     }
@@ -8502,10 +8547,9 @@ Type Checker::check_class_construction(const Expr& expression, const CallExpr& n
     return function.result;
 }
 
-// Binds a call's arguments to a signature's parameters by position and name,
-// checks each argument against its parameter, and collects the reference
-// effects to apply once the call is accepted. Shared by function calls and
-// constructor calls, whose signatures carry no receiver parameter.
+// Numeric value destinations share one checked, explicit-equivalent
+// conversion path. Source expression and storage types remain unchanged;
+// writable references are checked separately and never use this path.
 Type Checker::check_value_argument(const Expr& expression, const Type* expected) {
     if (expected && expected->kind == TypeKind::Bool) return check_truth_value(expression);
 
@@ -8519,12 +8563,30 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
         (void)self;
         return is_numeric(*leaf);
     };
-    if (!expected || !numeric_destination(numeric_destination, *expected))
+    const Type* destination = expected;
+    if (expected && expected->kind == TypeKind::Union && expected->union_name.empty()) {
+        destination = nullptr;
+        for (const auto& candidate : expected->cases) {
+            if (!numeric_destination(numeric_destination, candidate)) continue;
+            // Several numeric alternatives still require an unambiguous
+            // contextual materialization or an explicit choice.
+            if (destination) return check_expr(expression, expected);
+            destination = &candidate;
+        }
+    }
+    if (!destination || !numeric_destination(numeric_destination, *destination))
+        return check_expr(expression, expected);
+    // Each branch has its own destination conversion. Checking an untyped
+    // conditional first would unnecessarily require identical source types.
+    if (std::holds_alternative<IfExpr>(expression.data) ||
+        (destination->kind == TypeKind::Array &&
+         (std::holds_alternative<ArrayExpr>(expression.data) ||
+          std::holds_alternative<ArrayComprehensionExpr>(expression.data))))
         return check_expr(expression, expected);
 
-    // A compatible literal still materializes in the parameter's type. All
-    // other values keep their source type until the call's explicit-equivalent
-    // conversion, so named storage and generic inference remain unchanged.
+    // A compatible literal still materializes in its contextual type. Other
+    // values keep their source type until conversion, so named storage and
+    // generic inference remain unchanged.
     // Read declared result/storage types without checking the expression:
     // probing with check_expr would apply receiver and reference effects twice.
     std::unordered_map<std::string, Type> contextual_bindings;
@@ -8598,6 +8660,13 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
             return std::all_of(array->elements.begin(), array->elements.end(),
                 [&](const auto& child) { return self(self, *child, *target.first); });
         }
+        // concat has an existing destination context for literal receivers.
+        // Preserve it before inferring an array of fallible element values.
+        if (const auto* method = std::get_if<MethodCallExpr>(&value.data);
+            method && method->method == "concat" && target.kind == TypeKind::Array &&
+            (std::holds_alternative<ArrayExpr>(method->receiver->data) ||
+             std::holds_alternative<ArrayComprehensionExpr>(method->receiver->data)))
+            return true;
         // Contextual factories obtain their result representation from the
         // destination; their hidden CLI calls and untyped containers cannot
         // first be checked without one.
@@ -8613,7 +8682,7 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
                     case BuiltinCallable::TensorCreate:
                     case BuiltinCallable::TensorZeros:
                     case BuiltinCallable::TensorOnes:
-                        if (call->type_arguments.empty()) return true;
+                        if (call->type_arguments.empty() || call->args.empty()) return true;
                         break;
                     default: break;
                 }
@@ -8648,7 +8717,7 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
         const auto context = numeric_literal_context(&target, family);
         return context.type && !context.ambiguous;
     };
-    if (contextual_literal(contextual_literal, expression, *expected))
+    if (contextual_literal(contextual_literal, expression, *destination))
         return check_expr(expression, expected);
     auto source = check_expr(expression);
     if (poisoned(source)) return source;
@@ -8656,7 +8725,8 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
 
     // A value with one success type follows the ordinary call fail-fast
     // rule before applying its numeric conversion.
-    if (source.kind == TypeKind::Union && source.union_name.empty()) {
+    if (source.kind == TypeKind::Union && source.union_name.empty() &&
+        expected->kind != TypeKind::Union) {
         const auto error_type = simple(TypeKind::Error);
         if (case_index(source, error_type) >= 0) {
             std::vector<Type> success;
@@ -8684,11 +8754,11 @@ Type Checker::check_value_argument(const Expr& expression, const Type* expected)
         }
         return false;
     };
-    if (!conversion_supported(conversion_supported, source, *expected)) {
+    if (!conversion_supported(conversion_supported, source, *destination)) {
         error("TYPE_MISMATCH", "Expected " + type_name(*expected) + " but received " +
               type_name(source) + ".", expression.span);
     }
-    implicit_numeric_argument_conversions_[&expression] = *expected;
+    implicit_numeric_argument_conversions_[&expression] = *destination;
     return *expected;
 }
 
@@ -8762,6 +8832,9 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
                     } else {
                     const auto actual = check_value_argument(*argument.value, &parameter.type);
                     any_poison |= poisoned(actual);
+                    if (!poisoned(actual) && parameter.range_constraint)
+                        prove_range_constraint(*parameter.range_constraint, parameter.type,
+                                               argument.value.get(), parameter.name);
                     if (const_access_path(*argument.value, false))
                         const_argument_uses_.push_back({&expression, target, argument.value.get()});
                     if (!poisoned(actual) && (parameter.type.kind == TypeKind::Class || parameter.type.kind == TypeKind::Tuple) &&
@@ -8774,6 +8847,10 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
             }
 
             for (std::size_t i = 0; i < filled.size(); ++i) {
+                const auto& parameter = function.parameters[i];
+                if (!filled[i] && parameter.default_value && parameter.range_constraint)
+                    prove_range_constraint(*parameter.range_constraint, parameter.type,
+                                           parameter.default_value, parameter.name);
                 if (!filled[i] && !function.parameters[i].default_value) {
                     error("ARGUMENT_MISMATCH",
                           "Missing required argument '" + function.parameters[i].name + "'.",
@@ -9049,11 +9126,9 @@ Type Checker::check_comparison_chain(const Expr& expression, const ComparisonCha
     return valid ? simple(TypeKind::Bool) : simple(TypeKind::Invalid);
 }
 
-Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected,
-                            bool integer_truth) {
+Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected) {
     const bool contextual = expected != nullptr;
     const bool infer_tuple_context = contextual && tuple_context_incomplete(*expected);
-    const bool infer_try_integer = integer_truth && contextual && expected->kind == TypeKind::Union;
     std::optional<Type> inferred_context;
 
     const auto save = [&]() {
@@ -9188,7 +9263,7 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
                 diagnostic.span.start.offset == condition.span.start.offset &&
                 diagnostic.span.end.offset == condition.span.end.offset &&
                 raw != raw_types_.end() && raw->second.kind != TypeKind::Bool) {
-                error("TYPE_MISMATCH", "An if-expression condition must be bool or an integer.", condition.span);
+                error("TYPE_MISMATCH", "An if-expression condition must be bool.", condition.span);
             }
             throw;
         }
@@ -9208,14 +9283,12 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         // effect on the flow. A nested if-expression is always typed here.
         const auto family = numeric_literal_family(value);
         if (!is_if_expression(value) &&
-            ((!contextual && family != NumericLiteralCategory::None) ||
-             (infer_try_integer && integer_category(family)))) {
+            !contextual && family != NumericLiteralCategory::None) {
             literal_branches.push_back(&value);
             return false;
         }
         const auto* branch_context = inferred_context ? &*inferred_context : expected;
-        const auto type = check_expr(value, branch_context,
-                                     integer_truth && branch_context == expected);
+        const auto type = check_value_argument(value, branch_context);
         const bool terminates = expr_has_no_normal_return(value);
         if (poisoned(type)) {
             poisoned_branch = true;
@@ -9223,11 +9296,6 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         }
         if (terminates || type.kind == TypeKind::Never) return true;
         if (infer_tuple_context && !inferred_context) inferred_context = type;
-        if (infer_try_integer && !inferred_context) {
-            const auto success = error_free_operand_type(type).value_or(type);
-            if (is_integer_family_type(success))
-                inferred_context = Type::union_of({success, simple(TypeKind::Error)});
-        }
         if (!contextual) {
             if (!branch_type) {
                 branch_type = type;
@@ -9275,8 +9343,6 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
     }
 
     if (poisoned_branch) return simple(TypeKind::Invalid);
-    if (infer_try_integer && !inferred_context && !literal_branches.empty())
-        inferred_context = Type::union_of({simple(TypeKind::Int), simple(TypeKind::Error)});
     Type type = simple(TypeKind::Never);
     if (contextual) {
         type = inferred_context ? *inferred_context : *expected;
@@ -9286,18 +9352,6 @@ Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Ty
         type = check_expr(*literal_branches.front());
     }
     for (const auto* value : literal_branches) (void)check_expr(*value, &type);
-    if (infer_try_integer && inferred_context) {
-        // Branches checked before the first integer can contribute error,
-        // but any success payload must match the inferred integer type.
-        const auto check_branch_type = [&](const Expr& value) {
-            const auto& raw = raw_types_.at(&value);
-            if (!assignable(raw, type))
-                error("TYPE_MISMATCH", "Expected " + type_name(type) +
-                      " but received " + type_name(raw) + ".", value.span);
-        };
-        for (const auto& value : node.values) check_branch_type(*value);
-        check_branch_type(*node.otherwise);
-    }
     if (type.kind == TypeKind::Void) {
         error("TYPE_MISMATCH", "An if-expression gives a value; its branches cannot be void.",
               expression.span);
@@ -9523,16 +9577,11 @@ Type Checker::check_numeric_array_result(
 
 Type Checker::check_truth_value(const Expr& expression) {
     const auto boolean = simple(TypeKind::Bool);
-    return check_expr(expression, &boolean, true);
+    return check_expr(expression, &boolean);
 }
 
-Type Checker::check_expr(const Expr& expression, const Type* expected, bool integer_truth) {
-    const Type* const truth_context = integer_truth ? expected : nullptr;
+Type Checker::check_expr(const Expr& expression, const Type* expected) {
     const Type* const bool_context = expected && expected->kind == TypeKind::Bool ? expected : nullptr;
-    // A truth test supplies no numeric literal type. Evaluate the integer
-    // expression normally before checking whether its result is nonzero.
-    if (truth_context && !std::holds_alternative<IfExpr>(expression.data) &&
-        integer_category(numeric_literal_family(expression))) expected = nullptr;
     const auto consume_operand = [&](const Expr& value, const Type& source) {
         const auto success = consume_error_operand(value, source,
             fail_fast_expressions_, expr_types_);
@@ -9803,10 +9852,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         } else {
             Type element;
             if (context) {
-                element = check_expr(*node->elements[0], context->first.get());
+                element = check_value_argument(*node->elements[0], context->first.get());
                 if (!poisoned(element)) {
                     for (std::size_t i = 1; i < node->elements.size(); ++i) {
-                        check_expr(*node->elements[i], &element);
+                        check_value_argument(*node->elements[i], &element);
                     }
                 }
             } else {
@@ -9870,7 +9919,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         } else if (node->op == "not") {
             type = check_truth_value(*node->operand);
             if (type.kind == TypeKind::Never)
-                error("TYPE_MISMATCH", "not requires bool or an integer.", expression.span);
+                error("TYPE_MISMATCH", "not requires bool.", expression.span);
         } else {
         std::optional<Type> literal_expected;
         const Type* operand_expected = nullptr;
@@ -9963,7 +10012,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         const auto left = check_truth_value(*logical->left);
         const auto right = check_truth_value(*logical->right);
         if (left.kind == TypeKind::Never || right.kind == TypeKind::Never)
-            error("TYPE_MISMATCH", "Logical operands must be bool or an integer.", expression.span);
+            error("TYPE_MISMATCH", "Logical operands must be bool.", expression.span);
         type = simple(poisoned(left) || poisoned(right) ? TypeKind::Invalid : TypeKind::Bool);
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
         const auto left_family = numeric_literal_family(*node->left);
@@ -10439,7 +10488,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         ScopedErrorConsumption propagation(error_terminating_expr_,&expression);
         if (expected) {
             const auto operand_expected = Type::union_of({*expected, error_type});
-            source = check_expr(*node->value, &operand_expected, integer_truth);
+            source = check_expr(*node->value, &operand_expected);
         } else {
             source = check_expr(*node->value);
         }
@@ -10477,7 +10526,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         check_writable_arguments(node->args);
         type = check_call_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<IfExpr>(&expression.data)) {
-        type = check_if_expr(expression, *node, expected, integer_truth);
+        type = check_if_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<ComparisonChainExpr>(&expression.data)) {
         type = check_comparison_chain(expression, *node);
     }
@@ -10491,21 +10540,6 @@ Type Checker::check_expr(const Expr& expression, const Type* expected, bool inte
         const auto copies = class_copy_initializations(expression, type);
         for (const auto& [path, dependencies] : copies)
             if (dependencies.empty()) class_expr_initialized_paths_[&expression].insert(path);
-    }
-    if (truth_context) {
-        const auto success = error_free_operand_type(type).value_or(type);
-        if (is_integer_family_type(success)) {
-            if (truth_context->kind == TypeKind::Bool) {
-                expr_types_[&expression] = consume_operand(expression, type);
-                implicit_numeric_argument_conversions_[&expression] = *truth_context;
-                return *truth_context;
-            }
-            // A try operand keeps its error channel. Convert the integer
-            // success value only after try has propagated any error.
-            expr_types_[&expression] = type;
-            return type;
-        }
-        expected = truth_context;
     }
     // An inlined constant is evaluated in its declared type. Its result
     // still has to satisfy a surrounding bool destination.
@@ -10775,6 +10809,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         ShapePlan* shape_plan = nullptr;
         if (type.kind == TypeKind::Tensor && brace_unit) {
             shape_plan = &check_brace_shape(node.declared_type, type, node.value != nullptr);
+            for (const auto& axis : shape_plan->axes)
+                if (axis.range_constraint && axis.value)
+                    prove_range_constraint(*axis.range_constraint, simple(TypeKind::Nat),
+                                           axis.value, axis.variable);
         } else if (type.kind == TypeKind::Tensor) {
             for (std::size_t axis = 0;
                  axis < node.declared_type.tensor_shape_expressions.size(); ++axis) {
@@ -10927,6 +10965,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (type.kind == TypeKind::Class) {
                 class_initialized_paths_[node.name] = initialized_paths_for_expr(*node.value);
             }
+            if (node.range_constraint) {
+                check_expr(*node.value);
+                check_range_constraint(*node.range_constraint, type, node.value.get(), node.name);
+            }
             return;
         }
 
@@ -10985,7 +11027,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 expr_types_[node.value.get()] = type;
             }
         } else if (node.value) {
-            check_expr(*node.value, &type);
+            check_value_argument(*node.value, &type);
             if (type.kind == TypeKind::Tensor) {
                 const auto raw = raw_types_.find(node.value.get());
                 if (raw != raw_types_.end() && raw->second.kind == type.kind) {
@@ -11013,6 +11055,16 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (!shape_plan->rank_unknown) {
                 for (std::size_t axis = 0; axis < shape_plan->axes.size(); ++axis) {
                     const auto& current = shape_plan->axes[axis];
+                    if (current.range_constraint) {
+                        const auto physical = tensor_pattern_axis(type, axis, raw->second.length);
+                        if (const auto extent = tensor_known_extent(raw->second, physical)) {
+                            Expr candidate;
+                            candidate.span = node.value->span;
+                            candidate.data = IntegerExpr{static_cast<std::uint64_t>(*extent), std::to_string(*extent), true};
+                            prove_range_constraint(*current.range_constraint, simple(TypeKind::Nat),
+                                                   &candidate, current.variable);
+                        }
+                    }
                     if (current.check != ShapeAxisCheck::Variable) continue;
                     const auto& variable = shape_plan->variables[current.variable_index];
                     if (variable.value) continue;
@@ -11059,6 +11111,8 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             }
         }
         binding_types_[&statement] = type;
+        if (node.range_constraint)
+            check_range_constraint(*node.range_constraint, type, node.value.get(), node.name);
         if (node.value) {
             initialized_.insert(node.name);
             const auto paths = initialized_paths_for_expr(*node.value);
@@ -11441,13 +11495,17 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     check_element_read(*node.value, nullptr, statement.span);
                 const auto result = check_numeric_array_result(
                     destination, source, node.compound_op, *node.value, statement.span);
-                if (!poisoned(result) && !assignable(result, destination))
+                const Type* result_leaf = &result;
+                while (result_leaf->kind == TypeKind::Array && result_leaf->first)
+                    result_leaf = result_leaf->first.get();
+                if (!poisoned(result) && !assignable(result, destination) &&
+                    !explicit_numeric_cast_supported(*result_leaf, *leaf))
                     error("TYPE_MISMATCH", "Compound assignment result cannot be stored in " +
                           type_name(destination) + ".", statement.span);
                 return source;
             }
             if (node.compound_op.empty() || !is_numeric(destination))
-                return check_expr(*node.value, &destination);
+                return check_value_argument(*node.value, &destination);
             const auto family = numeric_literal_family(*node.value);
             const auto context = numeric_literal_context(&destination, family);
             const Type* literal_context = context.type && !context.ambiguous ? &destination : nullptr;
@@ -11468,7 +11526,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
             }
             const auto common = numeric_common_type(destination, source);
-            if (!common || !assignable(*common, destination) ||
+            if (!common || !explicit_numeric_cast_supported(*common, destination) ||
                 (node.compound_op == "%" && !is_integer_family_type(*common))) {
                 error("TYPE_MISMATCH", "Compound assignment result cannot be stored in " +
                       type_name(destination) + ".", statement.span);
@@ -11478,6 +11536,9 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         ClassCopyInitializations assigned_copies;
         const auto check_value = [&](const Type& destination) {
             auto result = check_assigned_value(destination);
+            if (node.range_constraint)
+                check_range_constraint(*node.range_constraint, destination, node.value.get(),
+                    std::get<NameExpr>(node.target_expr()->data).name);
             assigned_copies = class_copy_initializations(*node.value, destination);
             return result;
         };
@@ -11784,7 +11845,7 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
             constructor_reference_error_exits_.push_back(current_reference_effects_);
             return;
         }
-        check_expr(*node.value, &current_return_);
+        check_value_argument(*node.value, &current_return_);
         if (current_return_.kind == TypeKind::Class || current_return_.kind == TypeKind::Tuple) {
             const auto paths = initialized_paths_for_expr(*node.value);
             if (!current_return_summary_seen_) {
@@ -12383,7 +12444,7 @@ Type Checker::check_array_comprehension(const Expr& expression,
     discard_loop_copy_initializations();
     try {
         if (node.condition) check_truth_value(*node.condition);
-        element = check_expr(*node.value, context ? context->first.get() : nullptr);
+        element = check_value_argument(*node.value, context ? context->first.get() : nullptr);
         if (!context) {
             // An inferred generated value follows inferred binding consumption.
             // An explicit error-element context keeps its failure alternative.
@@ -13139,7 +13200,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
                 const auto physical = tensor_pattern_axis(requested_case_type, axis, case_type.length);
                 if (tensor_known_extent(case_type, physical) != expected) equality = true;
             }
-            case_plan->conditional = equality || case_plan->rank_unknown;
+            case_plan->conditional = case_plan->conditional || equality || case_plan->rank_unknown;
             if (!case_plan->conditional) seen.insert(tag);
         }
 
@@ -13935,7 +13996,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         error("ARGUMENT_MISMATCH", "Required parameters must precede defaults.", parameter.span);
                     }
                     public_signature.parameters.push_back(
-                        {parameter.name, parameter_type, parameter.writable, parameter.default_value.get(), parameter.is_const});
+                        {parameter.name, parameter_type, parameter.writable, parameter.default_value.get(), parameter.is_const, parameter.range_constraint ? &*parameter.range_constraint : nullptr});
                 }
 
                 if (method.is_constructor) {
@@ -14194,9 +14255,18 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     error("ARGUMENT_MISMATCH", "Required parameters must precede defaults.", parameter.span);
                 }
                 signature.parameters.push_back(
-                    {parameter.name, type, parameter.writable, parameter.default_value.get(), parameter.is_const});
+                    {parameter.name, type, parameter.writable, parameter.default_value.get(), parameter.is_const, parameter.range_constraint ? &*parameter.range_constraint : nullptr});
             }
             if (function.external_symbol) {
+                const auto saved_variables = variables_;
+                const auto saved_initialized = initialized_;
+                for (const auto& input : signature.parameters) {
+                    variables_[input.name] = input.type;
+                    initialized_.insert(input.name);
+                }
+                check_parameter_constraints(function, signature);
+                variables_ = saved_variables;
+                initialized_ = saved_initialized;
                 std::string abi = ffi_abi_type_key(signature.result, ffi_abi_type_key);
                 for (const auto& parameter : signature.parameters) {
                     abi += "|" + ffi_abi_type_key(parameter.type, ffi_abi_type_key);
@@ -14333,6 +14403,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 enter_error_code_scope(function.source_file);
                 in_function_ = true;
                 copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(function.body);
+                check_parameter_constraints(function, signature);
                 check_block(function.body);
                 signature.no_normal_return =
                     !block_contains_return(function.body) &&
@@ -14420,7 +14491,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             const auto* field = find_field(class_decl.name, field_decl.name);
             if (!field) continue;
             try {
-                check_expr(*field_decl.default_value, &field->type);
+                check_value_argument(*field_decl.default_value, &field->type);
             } catch (const CompileError& compile_error) {
                 record(compile_error);
             }
@@ -14447,7 +14518,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         for (auto& parameter : functions_.at(function.name).parameters) {
             if (!parameter.default_value) continue;
             try {
-                check_expr(*parameter.default_value, &parameter.type);
+                check_value_argument(*parameter.default_value, &parameter.type);
                 if (parameter.type.kind == TypeKind::Class &&
                     !fully_initialized_for_equality(*parameter.default_value, parameter.type)) {
                     error("UNINITIALIZED_ARGUMENT",
@@ -14486,7 +14557,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 auto& parameter = signature.parameters[i];
                 if (!parameter.default_value) continue;
                 try {
-                    check_expr(*parameter.default_value, &parameter.type);
+                    check_value_argument(*parameter.default_value, &parameter.type);
                     if ((parameter.type.kind == TypeKind::Class || parameter.type.kind == TypeKind::Tuple) &&
                         !fully_initialized_for_equality(*parameter.default_value, parameter.type)) {
                         error("UNINITIALIZED_ARGUMENT",
@@ -14538,6 +14609,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         in_function_ = true;
         copy_dependencies_disabled_ = copy_body_has_unmodeled_loops(function.body);
         try {
+            check_parameter_constraints(function, signature);
             for (const auto& parameter : function.parameters) {
                 check_type_extent_expressions(parameter.type);
             }

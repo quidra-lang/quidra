@@ -329,82 +329,122 @@ cli args
 print(args.value)
 QUI
 
-cat > "$TMP/integer_truth.qui" <<'QUI'
-bool enabled(bool value)
-    return value
-int effect(int &calls)
-    calls += 1
-    return 1
-int | error read_value(int value)
-    return value
-bool | error try_enabled(int value)
-    return if (try (if value then read_value(value) else read_value(0))) then true else false
-bool extension_flag(extend bool value)
-    return value
-class Switch(bool on)
-    bool state(bool value)
-        return value
-
-int count := -3
-while count
-    count += 1
-nat64 wide := 18446744073709551615
-nat huge := 184467440737095516160000
-int8 negative := -128
-int calls := 0
-println(count)
-println(0 and effect(&calls))
-println(negative or effect(&calls))
-println(calls)
-println(not count)
-println(if wide then "wide" else "zero")
-println([for value := [0, -1, 2][] if value then value] == [-1, 2])
-println(enabled(0))
-println(enabled(value = negative))
-println(enabled(huge))
-println(enabled(read_value(0)))
-println(try_enabled(-1))
-println(Switch(wide).on)
-box := Switch(0)
-println(box.state(0))
-func<bool(bool)> callback := enabled
-println(callback(-1))
-println(wide.extension_flag())
-println([1, 2].sorted(descending = wide) == [2, 1])
+# Integer values are numeric, including when a bool parameter would otherwise
+# be the only specialization left. Every boolean context requires bool.
+reject_truth() {
+    local name="$1"
+    cat > "$TMP/$name.qui"
+    if "$QUIDRA" check "$TMP/$name.qui" > "$TMP/$name.out" 2> "$TMP/$name.err"; then
+        printf 'case %s unexpectedly accepted an integer truth conversion\n' "$name" >&2
+        return 1
+    fi
+    grep -q 'TYPE_MISMATCH\|SPECIALIZATION_NO_MATCH\|UNKNOWN_MEMBER' "$TMP/$name.err"
+}
+for kind in int8 int16 int32 int64 int nat8 nat16 nat32 nat64 nat; do
+    for body in 'if value' 'while value' 'println(not value)' 'println(value and true)' \
+                'println(false or value)' 'println(if value then 1 else 0)' \
+                'println(enabled(value))' 'println(enabled(input = value))' \
+                'println([for item := [value][] if item then item])'; do
+        suite=""
+        if [[ "$body" == 'if value' || "$body" == 'while value' ]]; then
+            suite='    println(true)'
+        fi
+        reject_truth "truth_${kind}" <<QUI
+bool enabled(bool input)
+    return input
+$kind value := 1
+$body
+$suite
 QUI
-"$QUIDRA" run "$TMP/integer_truth.qui" > "$TMP/integer_truth.actual"
-diff -u <(printf '%s\n' 0 false true 0 true wide true false true true false true true false true true true) "$TMP/integer_truth.actual"
+    done
+done
+for literal in 0 -1 184467440737095516160000; do
+    reject_truth literal_truth <<QUI
+println(not ($literal))
+QUI
+done
+reject_truth fallible_truth <<'QUI'
+int | error read_value()
+    return 1
+println(not read_value())
+QUI
+reject_truth try_truth <<'QUI'
+int | error read_value()
+    return 1
+bool | error flag()
+    return if (try read_value()) then true else false
+println(flag())
+QUI
+reject_truth return_truth <<'QUI'
+bool flag(int64 input)
+    return input
+println(flag(1))
+QUI
+reject_truth default_truth <<'QUI'
+bool flag(bool input := int64(1))
+    return input
+println(flag())
+QUI
+reject_truth constructor_truth <<'QUI'
+class Switch(bool on)
+int64 value := 1
+println(Switch(value).on)
+QUI
+reject_truth method_truth <<'QUI'
+class Switch()
+    bool state(bool input)
+        return input
+int64 value := 1
+println(Switch().state(value))
+QUI
+reject_truth callback_truth <<'QUI'
+bool enabled(bool input)
+    return input
+func<bool(bool)> callback := enabled
+int64 value := 1
+println(callback(value))
+QUI
+reject_truth extension_truth <<'QUI'
+bool flag(extend bool input)
+    return input
+int64 value := 1
+println(value.flag())
+QUI
+reject_truth sorted_truth <<'QUI'
+int64 value := 1
+println([1, 2].sorted(descending = value))
+QUI
+reject_truth specialization_truth <<'QUI'
+string fallback<T: floating>(T value)
+    return "floating"
+string fallback(bool value)
+    return "boolean"
+int64 value := 1
+println(fallback(value))
+QUI
 
-cat > "$TMP/integer_truth_specialization.qui" <<'QUI'
+cat > "$TMP/strict_bool_specialization.qui" <<'QUI'
 string pick<T: floating>(T value)
     return "floating"
 string pick(int32 value)
     return "numeric"
 string pick(bool value)
     return "boolean"
-string fallback<T: floating>(T value)
-    return "floating"
-string fallback(bool value)
-    return "boolean"
-
 int64 wider := 42
 println(pick(wider))
 println(pick(true))
 println(pick(real32(1.0)))
-println(fallback(wider))
 QUI
-"$QUIDRA" run "$TMP/integer_truth_specialization.qui" > "$TMP/integer_truth_specialization.actual"
-diff -u <(printf '%s\n' numeric boolean floating boolean) "$TMP/integer_truth_specialization.actual"
+"$QUIDRA" run "$TMP/strict_bool_specialization.qui" > "$TMP/strict_bool_specialization.actual"
+diff -u <(printf '%s\n' numeric boolean floating) "$TMP/strict_bool_specialization.actual"
 
 cat > "$TMP/truth_constants.qui" <<'QUI'
 const real32 fraction := 0.5
+const int64 count := 1
 QUI
-cat > "$TMP/real_truth_rejected.qui" <<'QUI'
+for name in fraction count; do
+    reject_truth imported_truth <<QUI
 import settings = "./truth_constants.qui"
-println(not settings.fraction)
+println(not settings.$name)
 QUI
-if "$QUIDRA" check "$TMP/real_truth_rejected.qui" > "$TMP/real_truth.out" 2> "$TMP/real_truth.err"; then
-    printf 'A typed real constant was accepted as a truth value\n' >&2
-    exit 1
-fi
-grep -q 'TYPE_MISMATCH' "$TMP/real_truth.err"
+done

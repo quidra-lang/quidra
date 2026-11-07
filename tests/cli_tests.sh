@@ -6382,16 +6382,12 @@ contextual_array_rc=$?
 set -e
 [[ "$contextual_array_rc" -eq 101 ]]
 [[ "$(cat "$TMP/contextual-bin-error.out")" == 'before' ]]
-cat > "$TMP/contextual-concat-no-receiver-conversion.qui" <<'QUI'
+cat > "$TMP/contextual-concat-conversion.qui" <<'QUI'
 real64[] tail := [real64(2)]
 real64[] result := [int32(1)].concat(tail)
+println(result == [real64(1), real64(2)])
 QUI
-set +e
-"$QUIDRA" check "$TMP/contextual-concat-no-receiver-conversion.qui" --json > "$TMP/contextual-concat-no-receiver-conversion.json"
-contextual_array_rc=$?
-set -e
-[[ "$contextual_array_rc" -eq 1 ]]
-grep -q 'TYPE_MISMATCH' "$TMP/contextual-concat-no-receiver-conversion.json"
+[[ "$("$QUIDRA" run "$TMP/contextual-concat-conversion.qui")" == 'true' ]]
 
 # bin's runtime ABI uses dynamic headers even when its source is fixed.
 cat > "$TMP/bin-fixed-array-abi.qui" <<'QUI'

@@ -68,7 +68,8 @@
     "com16b",
     "com32",
     "com64",
-    "(T, U, ...)"
+    "(T, U, ...)",
+    "Iterator<T>"
   ],
   "current_builtins": [
     "print",
@@ -255,5 +256,6 @@
     "official_distribution_prefix": "quidra-",
     "official_repository_base": "https://github.com/quidra-lang/"
   },
-  "math_package_model": "generic mathematical semantics, reductions, linear algebra, FFT/decompositions, mathematical autograd, and Math-specific native/GPU/compiler policy are owned by the explicit first-party math package; Core provides tensor/device/autograd/compiler-extension mechanisms and basic language operators but no Math namespace or numerical-library compatibility surface"
+  "math_package_model": "generic mathematical semantics, reductions, linear algebra, FFT/decompositions, mathematical autograd, and Math-specific native/GPU/compiler policy are owned by the explicit first-party math package; Core provides tensor/device/autograd/compiler-extension mechanisms and basic language operators but no Math namespace or numerical-library compatibility surface",
+  "iterator_model": "standard Iterator<T> borrows runtime-sized array storage with Iterator(&values), inferring constructor type arguments; explicit type arguments are required in type positions; bool .operator()(T &value) advances an independent cursor and initializes the output only on true, with false preserving it; single-source user value collection loops call iterator() once and advance until false; local-source escape is rejected and source replacement/resizing invalidates iteration"
 }

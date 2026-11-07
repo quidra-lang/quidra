@@ -28,6 +28,7 @@ inline constexpr char process_result[] = "$std.process.Result";
 inline constexpr char random_generator[] = "$std.random.Generator";
 inline constexpr char map[] = "$std.map.Map";
 inline constexpr char distinct[] = "$std.distinct.Distinct";
+inline constexpr char iterator[] = "$std.iterator.Iterator";
 
 // The start of the names the frontend gives the instances of the generic
 // standard classes: abi::generic_instance_prefix(abi::generic_class_kind, id),
@@ -35,6 +36,7 @@ inline constexpr char distinct[] = "$std.distinct.Distinct";
 // compiler_tests.cpp checks each prefix against that rule.
 inline constexpr char map_instance_prefix[] = "__quidra_gc__std_map_Map_";
 inline constexpr char distinct_instance_prefix[] = "__quidra_gc__std_distinct_Distinct_";
+inline constexpr char iterator_instance_prefix[] = "__quidra_gc__std_iterator_Iterator_";
 
 // Whether the class `name` is an instance of the built-in map or distinct type.
 // Only a class of the standard library (ClassDecl::standard_library,
@@ -46,6 +48,9 @@ inline bool is_map_instance(std::string_view name, bool standard_library) {
 }
 inline bool is_distinct_instance(std::string_view name, bool standard_library) {
     return standard_library && name.starts_with(distinct_instance_prefix);
+}
+inline bool is_iterator_instance(std::string_view name, bool standard_library) {
+    return standard_library && name.starts_with(iterator_instance_prefix);
 }
 
 

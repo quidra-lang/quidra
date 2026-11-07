@@ -730,6 +730,31 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         result.fields.push_back(standard_field("error", "string"));
         result.fields.push_back(standard_field("started", "bool"));
         declarations.push_back(std::move(result));
+    } else if (module == "$iterator") {
+        constexpr std::string_view source = R"QUI(class Iterator<T> this(local T[] &values)
+    private T[] &__source
+    private T[] &__entry
+    private nat __position := 0
+    private nat __length := values.len()
+
+    local T[] __entry_value := values
+    &this.__source = &values
+    &this.__entry = &__entry_value
+
+    bool .operator()(T &value)
+        if __position >= __length
+            return false
+        value = __source[__position]
+        __position += 1
+        return true
+)QUI";
+        Parser parser(Lexer(std::string(source)).scan(), 20);
+        auto program = parser.parse();
+        auto iterator = std::move(program.classes.front());
+        iterator.name = standard_class::iterator;
+        iterator.methods.front().return_type.name = iterator.name;
+        iterator.span = standard_span();
+        declarations.push_back(std::move(iterator));
     } else if (module == "map") {
         constexpr std::string_view source = R"QUI(class Map<K, V>()
     K[] __keys := []
@@ -1306,6 +1331,10 @@ void rename_type(
     }
 
     // The reserved collection namespace is also its concise generic type name.
+    if (type.name == "Iterator") {
+        type.name = standard_class::iterator;
+        return;
+    }
     if (type.name == "map" && !type.arguments.empty()) {
         type.name = standard_class::map;
         return;
@@ -1581,7 +1610,9 @@ void rename_expr(
             rename_type(type_argument, ns, local_classes, imports, type_parameters, std::nullopt, local_functions);
         }
         rename_call_args(node->args, ns, local_classes, local_functions, imports, type_parameters);
-        if (node->callee == "map" && !node->type_arguments.empty()) {
+        if (node->callee == "Iterator") {
+            node->callee = standard_class::iterator;
+        } else if (node->callee == "map" && !node->type_arguments.empty()) {
             node->callee = standard_class::map;
         } else if (node->callee == "distinct" && !node->type_arguments.empty()) {
             node->callee = standard_class::distinct;
@@ -2067,6 +2098,8 @@ std::string function_prototype_key(const FunctionDecl& function, std::string_vie
 // match binders are the checker's.
 void validate_declared_name(const std::string& name, SourceSpan span,
                             bool typed_binding = false) {
+    if (name == "Iterator")
+        frontend_error("SHADOWING", "Iterator is a standard generic type and cannot be redeclared.", span);
     if (is_discard_name(name)) {
         frontend_error("DISCARD",
                        typed_binding ? discard_typed_message : discard_declaration_message,
@@ -3032,6 +3065,17 @@ private:
         }
 
         auto tokens = Lexer(source).scan();
+        if (std::any_of(tokens.begin(), tokens.end(), [](const auto& token) {
+                return token.kind == TokenKind::Identifier && token.text == "Iterator";
+            }) && loaded_standard_declarations_.insert("$iterator").second) {
+            auto declarations = standard_declarations("$iterator");
+            for (auto& declaration : declarations) {
+                declaration.module_namespace = "$std.iterator";
+                for (auto& method : declaration.methods)
+                    method.module_namespace = declaration.module_namespace;
+                merged.classes.push_back(std::move(declaration));
+            }
+        }
         std::unordered_set<std::string> referenced_standard_modules;
         for (std::size_t i = 0; i + 1 < tokens.size(); ++i) {
             if (tokens[i].kind == TokenKind::Identifier &&
@@ -4175,6 +4219,11 @@ private:
     // this walk runs before the checker, so no checker budget can protect it.
     std::size_t clone_depth_{};
     std::size_t clone_expression_depth_{};
+    std::size_t iterator_loop_id_{};
+    using IteratorSources = std::unordered_set<std::string>;
+    std::unordered_map<std::string, IteratorSources> iterator_value_sources_;
+    std::unordered_map<std::string, IteratorSources> iterator_reference_sources_;
+    std::unordered_set<std::string> iterator_reference_parameters_;
 
     static bool known_generic_constraint(std::string_view constraint) {
         return constraint.empty() || constraint == "numeric" || constraint == "integer" ||
@@ -6535,6 +6584,7 @@ private:
         // their self-referential method types still use the concise public names.
         if (type.name == "map" && !type.arguments.empty()) type.name = standard_class::map;
         if (type.name == "distinct" && !type.arguments.empty()) type.name = standard_class::distinct;
+        if (type.name == "Iterator") type.name = standard_class::iterator;
 
         if(type.name=="$std.reflect.Each"&&(!traversal_result||!type.dimensions.empty()))
             frontend_error("TRAVERSAL","reflect.Each<E> is only a traversal function's complete result type.",type.span);
@@ -7300,8 +7350,210 @@ private:
     }
 
     void infer_pattern_bindings(const Pattern& pattern,const TypeName& subject) {
+        if (pattern.kind == Pattern::Kind::Declare && pattern.name == "Iterator")
+            frontend_error("SHADOWING", "Iterator is a standard generic type and cannot be redeclared.", pattern.span);
         if(pattern.kind==Pattern::Kind::Tuple){if(subject.name!="$tuple" || subject.arguments.size()!=pattern.elements.size())return;for(std::size_t i=0;i<pattern.elements.size();++i)infer_pattern_bindings(pattern.elements[i],subject.arguments[i]);return;}
         if(pattern.kind==Pattern::Kind::Declare)type_environment_[pattern.name]=clone_type(pattern.type && pattern.type->name!="auto"?*pattern.type:subject);
+    }
+
+    bool contains_iterator_type(const TypeName& type, std::unordered_set<std::string>& seen) const {
+        if (type.name == standard_class::iterator) return true;
+        if (const auto instance = class_instance_types_.find(type.name);
+            instance != class_instance_types_.end() && instance->second.name == standard_class::iterator)
+            return true;
+        for (const auto& argument : type.arguments)
+            if (contains_iterator_type(argument, seen)) return true;
+        if (!seen.insert(type.name).second) return false;
+        if (const auto index = class_index_.find(type.name); index != class_index_.end())
+            for (const auto& field : output_.classes[index->second].fields)
+                if (contains_iterator_type(field.type, seen)) return true;
+        return false;
+    }
+
+    IteratorSources iterator_storage_sources(const Expr& expression, const std::string& current_class) const {
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            if (name->self_reference) return {"$receiver"};
+            if (name->this_qualifier) return {"$receiver." + name->name};
+            if (const auto alias = iterator_reference_sources_.find(name->name);
+                alias != iterator_reference_sources_.end()) return alias->second;
+            if (type_environment_.contains(name->name))
+                return {iterator_reference_parameters_.contains(name->name)
+                    ? name->name : "$local:" + name->name};
+            if (!current_class.empty()) {
+                if (const auto index = class_index_.find(current_class); index != class_index_.end())
+                    for (const auto& field : output_.classes[index->second].fields)
+                        if (field.name == name->name) return {"$receiver." + name->name};
+            }
+            return {name->name};
+        }
+        if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+            IteratorSources result;
+            for (const auto& source : iterator_storage_sources(*member->base, current_class))
+                result.insert(source + "." + member->name);
+            return result;
+        }
+        if (const auto* index = std::get_if<IndexExpr>(&expression.data))
+            return iterator_storage_sources(*index->base, current_class);
+        return {};
+    }
+
+    IteratorSources iterator_borrow_sources(const Expr& expression, const std::string& current_class) const {
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            const auto type = infer_expression_type(expression, current_class);
+            std::unordered_set<std::string> seen;
+            if (type && !contains_iterator_type(*type, seen)) return {};
+            const auto found = iterator_value_sources_.find(name->name);
+            if (found != iterator_value_sources_.end()) return found->second;
+            IteratorSources result;
+            if (const auto alias = iterator_reference_sources_.find(name->name);
+                alias != iterator_reference_sources_.end()) {
+                for (const auto& source : alias->second) {
+                    auto root = source.starts_with("$local:") ? source.substr(7) : source;
+                    root = root.substr(0, root.find_first_of(".[("));
+                    if (const auto value = iterator_value_sources_.find(root);
+                        value != iterator_value_sources_.end()) result.insert(value->second.begin(), value->second.end());
+                }
+            }
+            return result;
+        }
+        IteratorSources result;
+        const auto append = [&](IteratorSources sources) { result.merge(sources); };
+        if (const auto* attempt = std::get_if<TryExpr>(&expression.data))
+            return iterator_borrow_sources(*attempt->value, current_class);
+        if (const auto* projection = std::get_if<TupleProjectionExpr>(&expression.data)) {
+            const auto found = iterator_value_sources_.find(projection->subject);
+            return found == iterator_value_sources_.end() ? IteratorSources{} : found->second;
+        }
+        if (const auto* array = std::get_if<ArrayExpr>(&expression.data)) {
+            for (const auto& item : array->elements) append(iterator_borrow_sources(*item, current_class));
+            return result;
+        }
+        if (const auto* tuple = std::get_if<TupleExpr>(&expression.data)) {
+            for (const auto& item : tuple->elements) append(iterator_borrow_sources(*item, current_class));
+            return result;
+        }
+        const auto type = infer_expression_type(expression, current_class);
+        std::unordered_set<std::string> seen;
+        if (!type || !contains_iterator_type(*type, seen)) return {};
+        if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            for (const auto& argument : call->args)
+                append(argument.writable ? iterator_storage_sources(*argument.value, current_class)
+                                         : iterator_borrow_sources(*argument.value, current_class));
+        } else if (const auto* method = std::get_if<MethodCallExpr>(&expression.data)) {
+            append(iterator_storage_sources(*method->receiver, current_class));
+            for (const auto& argument : method->args)
+                if (argument.writable) append(iterator_storage_sources(*argument.value, current_class));
+        } else if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+            append(iterator_borrow_sources(*member->base, current_class));
+        } else if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
+            append(iterator_borrow_sources(*index->base, current_class));
+        } else if (const auto* choice = std::get_if<IfExpr>(&expression.data)) {
+            for (const auto& value : choice->values) append(iterator_borrow_sources(*value, current_class));
+            append(iterator_borrow_sources(*choice->otherwise, current_class));
+        }
+        return result;
+    }
+
+    StmtPtr clone_iterator_loop(
+        const ForStmt& source, ForStmt& copy, const SourceSpan& span,
+        const Substitution& substitution,
+        const std::unordered_set<std::string>& deferred,
+        const std::string& current_class) {
+        if (!copy.range) {
+            const auto source_type = infer_expression_type(*copy.iterable, current_class);
+            if (source_type && source_type->dimensions.empty()) {
+                const auto methods = method_return_types_.find(source_type->name);
+                if (methods != method_return_types_.end() && methods->second.contains("iterator")) {
+                    nesting::DepthGuard iterator_guard(
+                        clone_depth_, nesting::max_ast_clone_depth, span, "Iterator loop");
+                    const auto before = type_environment_;
+                    const auto& result_type = methods->second.at("iterator");
+                    const auto instance = class_instance_types_.find(result_type.name);
+                    if (instance == class_instance_types_.end() ||
+                        instance->second.name != standard_class::iterator)
+                        frontend_error("ITERATOR_TYPE", "iterator() must return an explicit Iterator<T> type.", span);
+                    if (copy.writable || copy.parallel || copy.index || !copy.collections.empty())
+                        frontend_error("FOR_HEADER", "Iterator loops require one value source with the empty [] suffix.", span);
+                    if (copy.discards() && (copy.type || copy.is_auto))
+                        frontend_error("DISCARD", "'_' takes no type; its type is inferred.", span);
+                    const auto element = materialize_type(instance->second.arguments.front(), {}, {});
+                    if (copy.type && canonical_type(*copy.type) != canonical_type(element))
+                        frontend_error("TYPE_MISMATCH", "An iterator loop requires its exact element type.", span);
+                    if (!copy.declares && !copy.discards() && !copy.pattern) {
+                        const auto existing = type_environment_.find(copy.name);
+                        if (existing != type_environment_.end() &&
+                            canonical_type(existing->second) != canonical_type(element))
+                            frontend_error("TYPE_MISMATCH", "An iterator loop requires its exact element type.", span);
+                    }
+
+                    const auto suffix = std::to_string(iterator_loop_id_++);
+                    const auto iterator_name = "$iterator" + suffix;
+                    const auto item_name = "$iterator_item" + suffix;
+                    const auto expression = [&](auto node) {
+                        auto value = std::make_unique<Expr>();
+                        value->span = span;
+                        value->data = std::move(node);
+                        return value;
+                    };
+                    const auto statement = [&](auto node) {
+                        auto value = std::make_unique<Stmt>();
+                        value->span = span;
+                        value->data = std::move(node);
+                        return value;
+                    };
+                    IfStmt scope;
+                    scope.condition = expression(BoolExpr{true});
+                    MethodCallExpr factory;
+                    factory.receiver = std::move(copy.iterable);
+                    factory.method = "iterator";
+                    BindingStmt iterator_binding;
+                    iterator_binding.name = iterator_name;
+                    iterator_binding.declared_type = clone_type(result_type);
+                    iterator_binding.value = expression(std::move(factory));
+                    scope.then_body.push_back(statement(std::move(iterator_binding)));
+
+                    WhileStmt loop;
+                    BindingStmt output_binding;
+                    output_binding.name = item_name;
+                    output_binding.declared_type = clone_type(element);
+                    loop.condition_bindings.push_back(statement(std::move(output_binding)));
+                    MethodCallExpr advance;
+                    advance.receiver = expression(NameExpr{iterator_name});
+                    advance.method = "operator()";
+                    advance.mutation_marker = true;
+                    CallArg output;
+                    output.writable = true;
+                    output.value = expression(NameExpr{item_name});
+                    output.span = span;
+                    advance.args.push_back(std::move(output));
+                    loop.condition = expression(std::move(advance));
+
+                    if (!copy.discards()) {
+                        if (copy.pattern || copy.declares) {
+                            BindingStmt binding;
+                            binding.name = copy.name;
+                            binding.declared_type = clone_type(element);
+                            binding.pattern = std::move(copy.pattern);
+                            binding.value = expression(NameExpr{item_name});
+                            if (binding.pattern) infer_pattern_bindings(*binding.pattern, element);
+                            else type_environment_[binding.name] = clone_type(element);
+                            loop.body.push_back(statement(std::move(binding)));
+                        } else {
+                            AssignStmt assignment;
+                            assignment.target = expression(NameExpr{copy.name});
+                            assignment.value = expression(NameExpr{item_name});
+                            loop.body.push_back(statement(std::move(assignment)));
+                        }
+                    }
+                    for (const auto& child : source.body)
+                        loop.body.push_back(clone_stmt(*child, substitution, deferred, current_class));
+                    scope.then_body.push_back(statement(std::move(loop)));
+                    type_environment_ = before;
+                    return statement(std::move(scope));
+                }
+            }
+        }
+        return nullptr;
     }
 
     StmtPtr clone_stmt(
@@ -7315,6 +7567,8 @@ private:
         out->span = source.span;
 
         if (const auto* node = std::get_if<BindingStmt>(&source.data)) {
+            if (node->name == "Iterator")
+                frontend_error("SHADOWING", "Iterator is a standard generic type and cannot be redeclared.", source.span);
             BindingStmt copy;
             copy.declared_type = materialize_type(node->declared_type, substitution, deferred);
             copy.name = node->name;
@@ -7338,6 +7592,15 @@ private:
                 }
             }
             copy.range_constraint = clone_range_constraint(node->range_constraint, substitution, deferred, current_class);
+            if (copy.pattern && copy.value) {
+                const auto sources = iterator_borrow_sources(*copy.value, current_class);
+                visit_pattern(*copy.pattern, [&](const Pattern& part) {
+                    if (part.kind == Pattern::Kind::Declare) iterator_value_sources_[part.name] = sources;
+                });
+            } else if (copy.reference && copy.value)
+                iterator_reference_sources_[copy.name] = iterator_storage_sources(*copy.value, current_class);
+            else if (copy.value)
+                iterator_value_sources_[copy.name] = iterator_borrow_sources(*copy.value, current_class);
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<AssignStmt>(&source.data)) {
             AssignStmt copy;
@@ -7345,14 +7608,31 @@ private:
             if(node->target)copy.target=clone_expr(*node->target,substitution,deferred,current_class);
             copy.value=clone_expr(*node->value,substitution,deferred,current_class);copy.compound_op=node->compound_op;
             if(node->pattern)copy.pattern=clone_pattern(*node->pattern,substitution,deferred,current_class);
+            const auto record = [&](const auto& self, const Expr& target) -> void {
+                if (const auto* name = std::get_if<NameExpr>(&target.data)) {
+                    auto sources = iterator_borrow_sources(*copy.value, current_class);
+                    iterator_value_sources_[name->name].merge(sources);
+                } else if (const auto* member = std::get_if<MemberExpr>(&target.data)) self(self, *member->base);
+                else if (const auto* index = std::get_if<IndexExpr>(&target.data)) self(self, *index->base);
+            };
+            if (copy.target) record(record, *copy.target);
+            if (copy.pattern) visit_pattern(*copy.pattern, [&](const Pattern& part) {
+                if (part.place) record(record, *part.place);
+            });
             out->data=std::move(copy);
         } else if (const auto* node = std::get_if<RebindStmt>(&source.data)) {
+            auto roots = iterator_storage_sources(*node->target, current_class);
+            iterator_reference_sources_[node->name].merge(roots);
             out->data = RebindStmt{
                 node->name, clone_expr(*node->target, substitution, deferred, current_class),
                 node->place ? clone_expr(*node->place, substitution, deferred, current_class) : nullptr};
         } else if (const auto* node = std::get_if<ReturnStmt>(&source.data)) {
-            out->data = ReturnStmt{
-                clone_expr(*node->value, substitution, deferred, current_class)};
+            auto value = clone_expr(*node->value, substitution, deferred, current_class);
+            for (const auto& root : iterator_borrow_sources(*value, current_class))
+                if (root.starts_with("$local:"))
+                    frontend_error("ITERATOR_LIFETIME", "An Iterator cannot escape its local source '" +
+                        root.substr(7) + "'; borrow caller-owned storage through a reference parameter or a receiver.", source.span);
+            out->data = ReturnStmt{std::move(value)};
         } else if (const auto* node = std::get_if<LoopControlStmt>(&source.data)) {
             out->data = *node;
         } else if (const auto* node = std::get_if<ExprStmt>(&source.data)) {
@@ -7408,6 +7688,8 @@ private:
             type_environment_ = before;
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<ForStmt>(&source.data)) {
+            if (node->name == "Iterator" || (node->index && node->index->name == "Iterator"))
+                frontend_error("SHADOWING", "Iterator is a standard generic type and cannot be redeclared.", source.span);
             ForStmt copy;
             copy.name = node->name;
             copy.writable = node->writable;
@@ -7450,6 +7732,9 @@ private:
                     copy.range->step=clone_expr(*node->range->step,substitution,deferred,current_class);
             }
             const auto before = type_environment_;
+            if (auto iterator_loop = clone_iterator_loop(
+                    *node, copy, source.span, substitution, deferred, current_class))
+                return iterator_loop;
             std::vector<std::optional<TypeName>> collection_types;
             for(const auto& binding:copy.collections)
                 collection_types.push_back(infer_expression_type(*binding.iterable,current_class));
@@ -7514,6 +7799,8 @@ private:
                 if(!match_case.pattern)case_copy.type = materialize_type(match_case.type, substitution, deferred);
                 case_copy.tag = match_case.tag;
                 case_copy.binder = match_case.binder;
+                if (case_copy.binder && *case_copy.binder == "Iterator")
+                    frontend_error("SHADOWING", "Iterator is a standard generic type and cannot be redeclared.", match_case.span);
                 case_copy.span = match_case.span;
                 if(match_case.pattern)case_copy.pattern=clone_pattern(*match_case.pattern,substitution,deferred,current_class);
                 std::optional<TypeName> selected;
@@ -7621,6 +7908,9 @@ private:
         ModuleScope module_scope(current_module_namespace_, source.module_namespace);
         const auto saved_environment = type_environment_;
         const auto saved_expected=traversal_expected_result_;
+        const auto saved_iterator_values = std::exchange(iterator_value_sources_, {});
+        const auto saved_iterator_references = std::exchange(iterator_reference_sources_, {});
+        const auto saved_iterator_parameters = std::exchange(iterator_reference_parameters_, {});
         type_environment_.clear();
         try {
             FunctionDecl out;
@@ -7693,6 +7983,7 @@ private:
                     }
                 }
                 type_environment_[copy.name] = clone_type(copy.type);
+                if (copy.writable) iterator_reference_parameters_.insert(copy.name);
                 out.parameters.push_back(std::move(copy));
             }
             for (std::size_t i = 0; i < source.parameters.size(); ++i)
@@ -7704,9 +7995,15 @@ private:
                 out.body.push_back(std::move(cloned));
             }
             type_environment_ = saved_environment;traversal_expected_result_=saved_expected;
+            iterator_value_sources_ = saved_iterator_values;
+            iterator_reference_sources_ = saved_iterator_references;
+            iterator_reference_parameters_ = saved_iterator_parameters;
             return out;
         } catch (...) {
             type_environment_ = saved_environment;traversal_expected_result_=saved_expected;
+            iterator_value_sources_ = saved_iterator_values;
+            iterator_reference_sources_ = saved_iterator_references;
+            iterator_reference_parameters_ = saved_iterator_parameters;
             throw;
         }
     }

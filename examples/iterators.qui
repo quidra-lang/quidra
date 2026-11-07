@@ -1,0 +1,12 @@
+class Numbers(int[] values)
+    Iterator<int> iterator()
+        return Iterator(&values)
+
+numbers := Numbers([10, 20, 30])
+for value := numbers[]
+    println(value)
+
+values := [4, 5]
+it := Iterator(&values)
+while .it(int &item)
+    println(item)

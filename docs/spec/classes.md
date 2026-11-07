@@ -87,6 +87,11 @@ storage. Mark a mutating operator definition with `.` before its name and its
 call with `.` before the receiver, as in `.counter()` or `.lookup[key]`.
 See [class operators](language.md#callable-classes).
 
+A user collection exposes a zero-argument method such as
+`Iterator<int> iterator()` returning `Iterator(&values)` for a member array.
+The standard iterator has `bool .operator()(T &value)` and is advanced with
+`.it(&value)`. See [standard iterators](language.md#standard-iterators).
+
 If initialization changes existing state not exposed by a reference argument,
 the caller uses the usual explicit mutation call marker, such as `.Document(...)`.
 The class header has no separate constructor definition marker; that requirement

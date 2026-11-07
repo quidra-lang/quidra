@@ -109,6 +109,23 @@ The surviving tokens carry concrete semantics:
 
 This is semantic compression: remove repetition, not distinctions.
 
+A user collection can expose the standard borrowed `Iterator<T>`:
+
+```quidra
+class Numbers(int[] values)
+    Iterator<int> iterator()
+        return Iterator(&values)
+
+numbers := Numbers([10, 20, 30])
+for value := numbers[]
+    println(value)
+```
+
+The iterator advances with `.it(&value)` through
+`bool .operator()(T &value)`: true writes the next element, false ends
+iteration. Each factory call starts an independent cursor. See
+[standard iterators](docs/spec/language.md#standard-iterators).
+
 ## Design laws
 
 ### Values first; storage and authority are explicit

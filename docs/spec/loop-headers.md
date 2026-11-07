@@ -101,6 +101,23 @@ Replacing or resizing live iterated storage or a prefix path is rejected
 directly, or checked after an aliasing call with `FOR_ITERATION`. A bit place
 cannot be taken as an ordinary address.
 
+## User-defined collections
+
+A user class may expose `Iterator<T> iterator()`, returning the standard
+borrowed array iterator, for example `return Iterator(&values)` for a member
+array. The single-source value form `for value := object[]` evaluates the
+source once, creates its iterator once, and advances it through
+`bool .operator()(T &value)` until false. The loop body sees initialized `T`
+values without needing a placeholder initializer. Exact typed bindings,
+existing value bindings with `=`, tuple patterns, discard and loop control
+are supported. Each nested loop obtains its own cursor.
+
+These iterator headers use the empty `[]` suffix and do not expose writable
+references, indices, multiple sources or parallel execution. Standard array,
+bin, range and structural headers retain their existing semantics.
+See [standard iterators](language.md#standard-iterators) for borrowing and
+source-invalidation rules.
+
 ## Multiple arrays
 
 Several array sources zip by position; they do not form a Cartesian product.

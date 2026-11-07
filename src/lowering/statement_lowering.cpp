@@ -200,7 +200,16 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
         const bool array_full =
             t.kind == TypeKind::Array &&
             facts_.array_initialization.fully_initialized(*n.value);
-        auto v=lowerer_.lower_into(*n.value,t);
+        const auto owner = checked_.classes.find(enclosing_class_.name());
+        const bool iterator_entry = enclosing_class_.in_constructor() &&
+            n.name == "__entry_value" && owner != checked_.classes.end() &&
+            standard_class::is_iterator_instance(owner->first, owner->second.standard_library);
+        // This private captured local retains the borrowed array's original
+        // allocation as an identity/liveness guard, not a semantic value copy.
+        // The reference field holding it keeps the allocation alive across
+        // source replacement and iterator copies.
+        auto v = iterator_entry ? retain_owned(builder_, lowerer_.lower(*n.value), t)
+                                : lowerer_.lower_into(*n.value,t);
         if (n.range_constraint)
             v = validate_owned_range_candidate(builder_, scope_, v, t, [&](ValueId candidate) {
                 lowerer_.lower_range_constraint(*n.range_constraint, candidate, t, n.name);

@@ -342,6 +342,26 @@ ValueId CallLowering::lower_user_method_call(const Expr& e, const MethodCallExpr
     if(receiver_first) receiver=lowerer_.lower(*n.receiver);
     auto lowered=lower_call_arguments(n.args,sig,1,internal);
     if(!receiver_first) receiver=lowerer_.lower(*n.receiver);
+    const auto receiver_type = type_of(checked_, *n.receiver);
+    if (receiver_type.kind == TypeKind::Class && n.method == "operator()") {
+        const auto& info = checked_.classes.at(receiver_type.class_name);
+        if (standard_class::is_iterator_instance(info.name, info.standard_library)) {
+            const auto load_array = [&](const char* name) {
+                const auto field = std::find_if(info.fields.begin(), info.fields.end(),
+                    [&](const auto& candidate) { return candidate.name == name; });
+                if (field == info.fields.end()) throw std::logic_error("Iterator storage field is missing.");
+                auto address = builder_.fresh(), value = builder_.fresh();
+                builder_.emit(FieldReferenceAddress{address, receiver, field->index});
+                builder_.emit(LoadAddress{value, address, field->type});
+                return value;
+            };
+            const auto source = load_array("__source"), entry = load_array("__entry");
+            const auto length = builder_.fresh();
+            builder_.emit(ArrayLength{length, entry});
+            builder_.emit(IterationShapeCheck{source, entry, length,
+                {static_cast<std::uint32_t>(e.span.start.line), static_cast<std::uint32_t>(e.span.start.column)}});
+        }
+    }
     lowered.args[0]=CallArgument{receiver,std::nullopt};
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, internal, sig, lowered);

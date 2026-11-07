@@ -224,3 +224,16 @@ proof. `continue` ends one iteration; group-escaping `break`/`return`, reference
 headers, real ranges and unproven effects are `PARALLEL_FOR`. Boxed integers and
 pure calls retain the existing owner-thread node execution rule.
 
+
+## Standard iterator contract
+
+Use `Iterator<T>` with explicit type arguments in type positions. A user
+collection method `Iterator<int> iterator()` can return `Iterator(&values)`
+for its member `int[]`; constructor type arguments are inferred. Advance an
+iterator with `.it(&value)` or a successful-condition declaration such as
+`while .it(Point &point)`. The call operator is `bool .operator()(T &value)`:
+true writes the next element, false leaves the output unchanged. A single
+value loop `for value := object[]` calls `iterator()` once and uses this
+contract; each factory invocation has an independent cursor. Borrowed source
+storage must remain valid; returning an iterator borrowing a local array is
+`ITERATOR_LIFETIME`. Do not infer type arguments in `Iterator iterator()`.

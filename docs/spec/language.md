@@ -430,6 +430,43 @@ The methods can also be called explicitly as `value.operator()(args)` and
 Slice syntax is not passed to a class index operator; empty `[]` remains the
 existing collection-loop suffix. Built-in indexing is unchanged.
 
+### Standard iterators
+
+`Iterator<T>` is a standard generic class for a borrowed runtime-sized `T[]`.
+`Iterator(&values)` infers `T`; type positions require explicit arguments,
+including the result of `Iterator<int> iterator()`. The iterator has
+`bool .operator()(T &value)`: `.it(&value)` advances its independent cursor,
+initializes or replaces the output on success, and returns false without
+changing the output at exhaustion. Further exhausted calls remain false.
+A successful boolean condition may declare its output inline, for example
+`while .it(Point &point)`; no default element value is required.
+
+```quidra
+class Numbers(int[] values)
+    Iterator<int> iterator()
+        return Iterator(&values)
+
+numbers := Numbers([10, 20, 30])
+for value := numbers[]
+    println(value)
+```
+
+A single user collection value loop evaluates its source and calls `iterator()`
+once, then calls the returned standard iterator until false. Elements retain
+exact static types; declarations, reuse with `=`, tuple patterns, discard,
+`break`, `continue` and nested loops follow their ordinary value-binding rules.
+Each factory invocation creates a fresh cursor. Index operators remain separate:
+`operator[](key)` serves `object[key]`, not iteration. This first iterator
+contract does not provide reference elements, indexed headers, zip or parallel
+iteration. Existing array, bin, range and structural loops keep their contracts.
+
+The source is borrowed, while the `T &value` argument is an output destination
+receiving an independent element value. Element writes to the borrowed source
+remain visible. Replacing or resizing its storage invalidates iteration and is
+checked on advance (exit status 101). Iterator results may not escape a local
+source array, including through a local iterator binding; use a reference
+parameter or receiver-owned storage for a returning factory.
+
 ## Length shorthand
 
 `#value` is the prefix shorthand for the ordinary zero-argument call

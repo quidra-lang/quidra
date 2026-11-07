@@ -116,6 +116,34 @@ const UNFORMATTED = 'int    x   :=   1\nprint(x)\n';
     }
 }
 
+// Standard generic iteration follows the same frontend/lowering path in WASM.
+{
+    const source = `class Numbers(int[] values)
+    Iterator<int> iterator()
+        return Iterator(&values)
+numbers := Numbers([1, 2])
+for value := numbers[]
+    println(value)
+it := numbers.iterator()
+while .it(int &value)
+    println(value)
+`;
+    const checked = invoke({ schema_version: 1, operation: "check", source });
+    check(checked.ok === true && checked.valid === true,
+          "standard Iterator and user collection loops check in WASM", checked);
+    const lowered = invoke({ schema_version: 1, operation: "ir", source });
+    check(lowered.ok === true && typeof lowered.text === "string",
+          "standard Iterator and user collection loops lower in WASM", lowered);
+    for (const [invalidSource, diagnostic] of [
+        ["Iterator iterator()\n    return 0\n", "GENERIC_ARGUMENTS_REQUIRED"],
+        ["Iterator<int> escaped()\n    values := [1]\n    return Iterator(&values)\n", "ITERATOR_LIFETIME"],
+    ]) {
+        const response = invoke({ schema_version: 1, operation: "check", source: invalidSource });
+        check(response.valid === false && response.diagnostics?.some(d => d.code === diagnostic),
+              `Iterator rejects ${diagnostic} in WASM`, response);
+    }
+}
+
 // --- format ---------------------------------------------------------------
 {
     const response = invoke({ schema_version: 1, operation: "format", source: UNFORMATTED });

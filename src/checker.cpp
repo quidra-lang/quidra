@@ -6367,7 +6367,17 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                       : "Writable reference arguments require storage with write authority.",
                                   argument.span);
                         }
-                        auto actual = check_address_target(*argument.value);
+                        const auto* output_name = binding_name(*argument.value);
+                        const auto output_effect = function.reference_effects.find(parameter.name);
+                        const bool write_only_class = output_name && variables_.contains(output_name->name) &&
+                            variables_.at(output_name->name).kind == TypeKind::Class &&
+                            output_effect != function.reference_effects.end() && output_effect->second.required.empty();
+                        auto actual = write_only_class ? variables_.at(output_name->name)
+                                                       : check_address_target(*argument.value);
+                        if (write_only_class) {
+                            check_reference_bound(*argument.value, output_name->name);
+                            expr_types_[argument.value.get()] = raw_types_[argument.value.get()] = actual;
+                        }
                         any_poison |= poisoned(actual);
                         if (!readonly_reference) {
                             if (const auto path = writable_storage_path(*argument.value)) {
@@ -7951,7 +7961,17 @@ Type Checker::check_call_expr(const Expr& expression,
                                       : "Writable reference arguments require storage with write authority.",
                                   argument.span);
                         }
-                        auto actual = check_address_target(*argument.value);
+                        const auto* output_name = binding_name(*argument.value);
+                        const auto output_effect = function.reference_effects.find(parameter.name);
+                        const bool write_only_class = output_name && variables_.contains(output_name->name) &&
+                            variables_.at(output_name->name).kind == TypeKind::Class &&
+                            output_effect != function.reference_effects.end() && output_effect->second.required.empty();
+                        auto actual = write_only_class ? variables_.at(output_name->name)
+                                                       : check_address_target(*argument.value);
+                        if (write_only_class) {
+                            check_reference_bound(*argument.value, output_name->name);
+                            expr_types_[argument.value.get()] = raw_types_[argument.value.get()] = actual;
+                        }
                         any_poison |= poisoned(actual);
                         if (!readonly_reference) {
                             if (const auto path = writable_storage_path(*argument.value)) {
@@ -8254,7 +8274,8 @@ Type Checker::check_call_expr(const Expr& expression,
         } else if (classes_.contains(name) &&
                    ((name.front() != '$' && !standard_library_class(name)) ||
                     standard_class::is_map_instance(name, standard_library_class(name)) ||
-                    standard_class::is_distinct_instance(name, standard_library_class(name)))) {
+                    standard_class::is_distinct_instance(name, standard_library_class(name)) ||
+                    standard_class::is_iterator_instance(name, standard_library_class(name)))) {
             type = check_class_construction(expression, *node, name);
         } else if (classes_.contains(name)) {
             // Other standard-library value types keep their language-provided
@@ -8811,7 +8832,17 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
                                       : "Writable reference arguments require storage with write authority.",
                                   argument.span);
                         }
-                        auto actual = check_address_target(*argument.value);
+                        const auto* output_name = binding_name(*argument.value);
+                        const auto output_effect = function.reference_effects.find(parameter.name);
+                        const bool write_only_class = output_name && variables_.contains(output_name->name) &&
+                            variables_.at(output_name->name).kind == TypeKind::Class &&
+                            output_effect != function.reference_effects.end() && output_effect->second.required.empty();
+                        auto actual = write_only_class ? variables_.at(output_name->name)
+                                                       : check_address_target(*argument.value);
+                        if (write_only_class) {
+                            check_reference_bound(*argument.value, output_name->name);
+                            expr_types_[argument.value.get()] = raw_types_[argument.value.get()] = actual;
+                        }
                         any_poison |= poisoned(actual);
                         if (!readonly_reference) {
                             if (const auto path = writable_storage_path(*argument.value)) {
@@ -11900,6 +11931,57 @@ void Checker::check_expression_stmt(const Stmt& statement, const ExprStmt& node)
         return;
 }
 
+namespace {
+const std::unordered_set<std::string>* condition_reference_paths(
+    const Expr& condition, const std::string& binding,
+    const std::unordered_map<const Expr*, MethodCallInfo>& methods,
+    const std::unordered_map<const Expr*, CallResolution>& calls,
+    const std::unordered_map<std::string, FunctionType>& functions,
+    const Expr* output_target = nullptr) {
+    const std::vector<CallArg>* arguments = nullptr;
+    if (const auto* method = std::get_if<MethodCallExpr>(&condition.data)) arguments = &method->args;
+    if (const auto* call = std::get_if<CallExpr>(&condition.data)) arguments = &call->args;
+    if (!arguments) return nullptr;
+    const FunctionType* signature = nullptr;
+    std::size_t first = 0;
+    if (const auto method = methods.find(&condition); method != methods.end()) {
+        const auto found = functions.find(method->second.internal_name);
+        if (found != functions.end()) { signature = &found->second; first = 1; }
+    } else if (const auto call = calls.find(&condition);
+               call != calls.end() && call->second.kind == CallKind::Function) {
+        const auto found = functions.find(call->second.target);
+        if (found != functions.end()) signature = &found->second;
+    }
+    if (!signature) return nullptr;
+    std::size_t positional = first;
+    for (const auto& argument : *arguments) {
+        std::size_t index = positional++;
+        if (argument.name) {
+            const auto found = std::find_if(signature->parameters.begin() + static_cast<std::ptrdiff_t>(first),
+                signature->parameters.end(), [&](const auto& parameter) { return parameter.name == *argument.name; });
+            if (found == signature->parameters.end()) continue;
+            index = static_cast<std::size_t>(found - signature->parameters.begin());
+            --positional;
+        }
+        const auto* name = std::get_if<NameExpr>(&argument.value->data);
+        if (index >= signature->parameters.size() || !argument.writable) continue;
+        if (output_target ? argument.value.get() != output_target : !name || name->name != binding) continue;
+        const auto initialized = signature->success_reference_initializes.find(signature->parameters[index].name);
+        if (initialized != signature->success_reference_initializes.end()) return &initialized->second;
+    }
+    return nullptr;
+}
+
+template<class Visit>
+void visit_condition_outputs(const Expr& condition, Visit&& visit) {
+    const std::vector<CallArg>* arguments = nullptr;
+    if (const auto* method = std::get_if<MethodCallExpr>(&condition.data)) arguments = &method->args;
+    if (const auto* call = std::get_if<CallExpr>(&condition.data)) arguments = &call->args;
+    if (arguments) for (const auto& argument : *arguments)
+        if (argument.writable) visit(*argument.value);
+}
+} // namespace
+
 bool Checker::condition_initializes_reference(
     const Expr& condition, const std::string& binding) const {
     const auto matches = [&](const std::vector<CallArg>& args,
@@ -11987,8 +12069,23 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
                       "The call must definitely initialize '" + name + "' when its condition is true.",
                       binding->span);
             initialized_.insert(name);
+            if (const auto* paths = condition_reference_paths(*node.condition, name, method_calls_, call_resolutions_, functions_))
+                if (variables_.at(name).kind == TypeKind::Class || variables_.at(name).kind == TypeKind::Tuple)
+                    class_initialized_paths_[name] = *paths;
         }
 
+        // Successful output facts apply to both new inline declarations and
+        // existing destinations. The false edge retains the precondition state.
+        visit_condition_outputs(*node.condition, [&](const Expr& destination) {
+            const auto* paths = condition_reference_paths(*node.condition, "", method_calls_, call_resolutions_, functions_, &destination);
+            const auto* name = binding_name(destination);
+            if ((!paths || !paths->contains("")) &&
+                (!name || !condition_initializes_reference(*node.condition, name->name))) return;
+            StorageEffect success;
+            if (paths) success.initializes = *paths;
+            else success.initializes.insert("");
+            apply_storage_effect_postconditions(destination, success);
+        });
         check_block(node.then_body);
         auto yes_variables = variables_;
         auto yes = initialized_;
@@ -12264,7 +12361,22 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
                       "The call must definitely initialize '" + name + "' when its condition is true.",
                       binding->span);
             initialized_.insert(name);
+            if (const auto* paths = condition_reference_paths(*node.condition, name, method_calls_, call_resolutions_, functions_))
+                if (variables_.at(name).kind == TypeKind::Class || variables_.at(name).kind == TypeKind::Tuple)
+                    class_initialized_paths_[name] = *paths;
         }
+        // Successful output facts apply to both new inline declarations and
+        // existing destinations. The false edge retains the precondition state.
+        visit_condition_outputs(*node.condition, [&](const Expr& destination) {
+            const auto* paths = condition_reference_paths(*node.condition, "", method_calls_, call_resolutions_, functions_, &destination);
+            const auto* name = binding_name(destination);
+            if ((!paths || !paths->contains("")) &&
+                (!name || !condition_initializes_reference(*node.condition, name->name))) return;
+            StorageEffect success;
+            if (paths) success.initializes = *paths;
+            else success.initializes.insert("");
+            apply_storage_effect_postconditions(destination, success);
+        });
         // The body may run after itself: what it may initialize may be
         // initialized at its start (L13).
         discard_loop_copy_initializations();

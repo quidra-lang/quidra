@@ -43,6 +43,8 @@ Codes are contracts for the category of failure. Message wording may become more
 | `FUNCTION_REFERENCE_CONTEXT` | A named function is used as a value without an explicit compatible `func<R(P...)>` type context. | Provide the complete function-value type context or call the function directly. |
 | `FUNCTION_REFERENCE_EXTERN` | An `extern` function is used as a first-class Quidra function value. | Wrap the foreign call in an ordinary Quidra function before using it as a value. |
 | `FUNCTION_REFERENCE_SIGNATURE` | A function does not match the required first-class function signature, uses unsupported reference parameters, or is declared with the `.` marker. | Use a matching by-value `func<R(P...)>` signature, including shape relationships up to renaming, or adjust the function declaration. Call a `.` function directly. |
+| `ITERATOR_LIFETIME` | An iterator result borrows local source storage. | Borrow caller-owned storage through a reference parameter or a receiver. |
+| `ITERATOR_TYPE` | A collection iterator factory returns a type other than `Iterator<T>`. | Declare the exact standard iterator result type. |
 | `GENERIC_ARGUMENTS_REQUIRED` | A generic class type position lacks explicit type arguments. | Supply `<...>`; call inference requires uniquely determining typed arguments. |
 | `GENERIC_ARITY` | The number of generic arguments is wrong. | Supply exactly the declared number. |
 | `GENERIC_CONSTRAINT` | A generic constraint name is unknown or a concrete type does not satisfy the declared constraint. | Use a supported built-in constraint and a type that satisfies it. |
